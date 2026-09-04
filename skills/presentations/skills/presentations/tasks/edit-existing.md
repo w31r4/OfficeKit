@@ -14,6 +14,11 @@ source-derived-reusable, or opaque-preserved. Load
 [advanced imported editing](../references/advanced-imported-editing.md) only
 for the relevant advanced object.
 
+For a dense third-party deck, also load
+[complex imported-deck route](../references/six-sample-import.md). It explains
+how to understand visible text on an opaque object without flattening it and
+how to keep the source-bound edit/reimport boundary explicit.
+
 For a layer-order request, also read
 [layered composition](../references/layered-composition.md). Inspect `kind:
 "layer"`, resolve the target and peer, and require an editable

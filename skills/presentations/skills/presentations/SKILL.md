@@ -104,7 +104,8 @@ steps are in [Continue](tasks/continue.md).
 - Image-led pages and any cross-type overlap load
   [layered composition](references/layered-composition.md).
 - Imported editing loads advanced guidance only for the targeted native object;
-  a z-order request also loads layered composition.
+  a z-order request also loads layered composition. Dense third-party files may
+  additionally load the [complex imported-deck route](references/six-sample-import.md).
 - Motion loads only for a speaking or explicit animation requirement.
 - Review and continuation each have one authoritative task document; do not
   copy their mechanics into another route.

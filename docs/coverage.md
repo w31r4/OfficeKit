@@ -2,6 +2,24 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+### Six-sample programmable PPTX import (active)
+
+The current import follow-up covers two NASA technical decks and four
+SlidesCarnival references: 157 slides and 1,694 visible top-level objects.
+The immutable source hashes, package inventory, classification totals, and
+rights notes are in
+[`evals/presentation-six-sample-import/manifest.v1.json`](../evals/presentation-six-sample-import/manifest.v1.json).
+The repeatable collector is
+[`scripts/pptx-six-sample-import.mjs`](../scripts/pptx-six-sample-import.mjs).
+
+All six unchanged imports currently export byte-for-byte identically. MMS,
+Data Particles, and Minimal Business have passed bounded imported table-cell
+edits; FROSTE has passed a bounded imported picture metadata edit. Each result
+was reimported and changed only its target SlidePart. Rich multi-run tables,
+timing/extension-sensitive groups and connectors, OLE/WPS/SVG/animation edges
+remain opaque or capability-limited. This is active goal evidence, not a claim
+of complete OOXML editing or Windows PowerPoint playback.
+
 Latest PPTX evidence: candidate product commit `e1bb8699671c3599b44b999ca308ff8d0d9581d7` and packed `office-kit@0.6.0` tarball SHA-256 `0152742d17a07a7b53e53f83f75c08c829804ab8f73ad65841a5e49946e7e8a9` passed the frozen three-sample programmable-import acceptance. All `90/90` clean-source matrix runs passed, all `30/30` declared intents produced deterministic bytes and oracle results across three repetitions, and rendering used LibreOffice for 60 runs plus Keynote for 30 text changes that LibreOffice did not display. Every run preserved the source, reimported successfully, kept the declared non-target parts and relationships byte-identical, recovered target XML/SVG after masking only the issued mutation, and kept non-target pages pixel-identical.
 
 The same candidate passed `9/9` fresh Codex trials, each using a packed clean install and three durable task sessions with reviewed commits `c0001`/`c0002` and only `c0002` published. The separately frozen source-derived companion suite passed `24/24` runs over eight deterministic cases covering text, geometry, image, table, chart, component, add, delete, and reorder. Exact component hashes and boundaries live in `evals/pptx-programmable-import/candidate.v1.json`. This closes the declared macOS three-sample acceptance, not arbitrary OOXML semantics; broader imported-object profiles remain partial, and Windows PowerPoint is tracked as a separate host lane rather than a portable completion gate. Repeated component candidates still require source-bound capabilities, and opaque or topology-bearing components do not become generally editable.

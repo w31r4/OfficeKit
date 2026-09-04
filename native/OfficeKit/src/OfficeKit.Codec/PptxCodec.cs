@@ -1734,6 +1734,22 @@ internal static class PptxCodec
             SetFrame(group.GetFirstChild<P.GroupShapeProperties>()!.GetFirstChild<A.TransformGroup>()!, frame);
             return;
         }
+        if (source is P.Picture picture)
+        {
+            if (picture.NonVisualPictureProperties?.NonVisualDrawingProperties is { } nonVisual)
+                nonVisual.Name = requested.Name;
+            SetFrame(picture.ShapeProperties?.Transform2D ??
+                throw new CodecException("unsupported_presentation_edit", $"Presentation native object {requested.Id} has no picture transform."), frame);
+            return;
+        }
+        if (source is P.ConnectionShape connector)
+        {
+            if (connector.NonVisualConnectionShapeProperties?.NonVisualDrawingProperties is { } nonVisual)
+                nonVisual.Name = requested.Name;
+            SetFrame(connector.ShapeProperties?.Transform2D ??
+                throw new CodecException("unsupported_presentation_edit", $"Presentation native object {requested.Id} has no connector transform."), frame);
+            return;
+        }
         throw new CodecException("unsupported_presentation_edit", $"Presentation native object {requested.Id} has no supported placement owner.");
     }
 
@@ -4155,6 +4171,14 @@ internal static class PptxCodec
         else if (clone is P.GroupShape group && group.GetFirstChild<P.GroupShapeProperties>()?.GetFirstChild<A.TransformGroup>() is { } groupTransform)
         {
             ScrubFrame(groupTransform);
+        }
+        else if (clone is P.Picture picture && picture.ShapeProperties?.Transform2D is { } pictureTransform)
+        {
+            ScrubFrame(pictureTransform);
+        }
+        else if (clone is P.ConnectionShape connector && connector.ShapeProperties?.Transform2D is { } connectorTransform)
+        {
+            ScrubFrame(connectorTransform);
         }
         return HashElement(clone);
     }

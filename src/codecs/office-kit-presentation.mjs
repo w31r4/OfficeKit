@@ -2861,6 +2861,31 @@ function presentationOpaque(object, original, snapshot, assetCatalog) {
         opaquePresentationSnapshotWithoutPosition(object) === opaquePresentationSnapshotWithoutPosition(snapshot)) {
       return original;
     }
+    // Imported native roots can expose a separately proven outer frame even
+    // when their inner graph stays opaque.  Re-emit only the four frame
+    // scalars; the original XML, relationships and preserved parts remain
+    // source-owned and are validated again by the native codec.
+    if (typeof object?._nativePlacementChanged === "function" &&
+        object._nativePlacementChanged() &&
+        object.placementCapability?.supported === true &&
+        original?.content?.case === "opaque" &&
+        original.source?.editable === true &&
+        opaquePresentationSnapshotWithoutPosition(object) === opaquePresentationSnapshotWithoutPosition(snapshot)) {
+      const position = object.position || {};
+      return {
+        ...original,
+        content: {
+          case: "opaque",
+          value: {
+            ...original.content.value,
+            leftEmu: sourceBoundFrameEmuFromPixels(position.left, `${object.id}.position.left`, original),
+            topEmu: sourceBoundFrameEmuFromPixels(position.top, `${object.id}.position.top`, original),
+            widthEmu: emuFromPixels(position.width, `${object.id}.position.width`),
+            heightEmu: emuFromPixels(position.height, `${object.id}.position.height`),
+          },
+        },
+      };
+    }
     const message = object.oleWorkbook || object.oleOfficePackage
       ? `Presentation native element ${object.id} changed outside its bounded embedded Office package replacement boundary.`
       : `Presentation native element ${object.id} is source-bound and read-only in OfficeKit 0.2.`;
@@ -5283,6 +5308,15 @@ export async function presentationFromEnvelope(envelope) {
           rawXml: opaque.rawXml,
           sourcePart,
           editable: false,
+          placementCapability: {
+            sourceBound: Boolean(element.source),
+            known: Boolean(element.source),
+            supported: element.source?.editable === true,
+            blockedReason: element.source?.editable === true
+              ? ""
+              : "This imported native object has no bounded placement capability.",
+            ...(sourceRevisionSha256 ? { sourceRevisionSha256 } : {}),
+          },
           ...(opaque.oleWorkbook ? { oleWorkbook: {
             partPath: opaque.oleWorkbook.partPath,
             contentType: opaque.oleWorkbook.contentType,

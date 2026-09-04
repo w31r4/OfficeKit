@@ -348,6 +348,48 @@ internal sealed class PptxNativeObjectCatalog
                    frame.Transform?.Offset is not null &&
                    frame.Transform.Extents is not null;
         }
+        // A native group can be moved as one opaque scene node.  Children,
+        // relationships, extension records and timing stay source-bound; the
+        // only emitted mutation is its owning group transform.
+        if (kind == "group" && source is P.GroupShape nativeGroup)
+        {
+            var transform = nativeGroup.GetFirstChild<P.GroupShapeProperties>()?.GetFirstChild<A.TransformGroup>();
+            return nativeGroup.GetFirstChild<P.NonVisualGroupShapeProperties>()?.NonVisualDrawingProperties is not null &&
+                   transform?.Offset is not null &&
+                   transform.Extents is not null &&
+                   transform.ChildOffset is not null &&
+                   transform.ChildExtents is not null &&
+                   transform.Extents.Cx?.Value is > 0 &&
+                   transform.Extents.Cy?.Value is > 0 &&
+                   transform.ChildExtents.Cx?.Value is > 0 &&
+                   transform.ChildExtents.Cy?.Value is > 0;
+        }
+        // A connector's endpoints, line styling and any timing/extension
+        // metadata remain opaque.  Its ordinary owner frame is still a safe
+        // placement leaf when the source exposes one complete transform.
+        if (kind == "connector" && source is P.ConnectionShape connector)
+        {
+            var properties = connector.ShapeProperties;
+            var transform = properties?.Transform2D;
+            return connector.NonVisualConnectionShapeProperties?.NonVisualDrawingProperties is not null &&
+                   properties is not null &&
+                   properties.Elements<A.Transform2D>().Count() == 1 &&
+                   transform?.Offset is not null &&
+                   transform.Extents is not null &&
+                   transform.Extents.Cx?.Value is > 0 &&
+                   transform.Extents.Cy?.Value is > 0;
+        }
+        // Rich graphic frames (for example tables or vendor extensions) may
+        // be opaque even when their outer transform is unambiguous.  Moving
+        // that frame does not rewrite the inner graph or its relationships.
+        if (kind == "graphicFrame" && source is P.GraphicFrame nativeFrame)
+        {
+            return nativeFrame.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties is not null &&
+                   nativeFrame.Transform?.Offset is not null &&
+                   nativeFrame.Transform.Extents is not null &&
+                   nativeFrame.Transform.Extents.Cx?.Value is > 0 &&
+                   nativeFrame.Transform.Extents.Cy?.Value is > 0;
+        }
         if (kind == "contentPart" && source is P.GroupShape group)
         {
             var transform = group.GetFirstChild<P.GroupShapeProperties>()?.GetFirstChild<A.TransformGroup>();

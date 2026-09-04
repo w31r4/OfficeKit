@@ -1,0 +1,72 @@
+{
+  "schema": "office-kit/presentation-six-sample-import-evidence/v1",
+  "measuredAt": "2026-08-28",
+  "implementationHead": "cf295155",
+  "sourceManifest": "manifest.v1.json",
+  "sourceManifestSha256": "6228c04fe68dc89012888f59124482418c557988507e116459f8d7f3e5406ace",
+  "runtimeCollector": "scripts/pptx-six-sample-import.mjs",
+  "runtimeSummary": { "slides": 157, "objects": 1694, "exactNoOps": 6 },
+  "noOp": [
+    { "sourceId": "nasa-froste-thermal-design", "slides": 13, "objects": 112, "typed": 112, "opaqueTextObjects": 3, "exact": true },
+    { "sourceId": "nasa-mms-machine-learning", "slides": 21, "objects": 230, "typed": 211, "opaqueTextObjects": 8, "exact": true },
+    { "sourceId": "slidescarnival-business-infographic", "slides": 25, "objects": 357, "typed": 356, "opaqueTextObjects": 31, "exact": true },
+    { "sourceId": "slidescarnival-data-particles", "slides": 39, "objects": 432, "typed": 432, "opaqueTextObjects": 12, "exact": true },
+    { "sourceId": "slidescarnival-minimal-business", "slides": 39, "objects": 429, "typed": 429, "opaqueTextObjects": 8, "exact": true },
+    { "sourceId": "slidescarnival-professional-minimalist", "slides": 20, "objects": 134, "typed": 134, "opaqueTextObjects": 0, "exact": true }
+  ],
+  "opaqueTextProjection": {
+    "status": "implemented",
+    "surface": "nativeObject.inspectRecord().text",
+    "readOnly": true,
+    "boundedLength": 32767,
+    "sample": {
+      "sourceId": "slidescarnival-business-infographic",
+      "slide": 17,
+      "name": "Table 3",
+      "nativeKind": "graphicFrame",
+      "textLength": 350,
+      "textIncludes": ["SWOT", "STRENGTHS", "WEAKNESSES", "OPPORTUNITIES", "THREATS"]
+    }
+  },
+  "realEdits": [
+    {
+      "sourceId": "nasa-froste-thermal-design",
+      "intent": "update imported picture accessibility text",
+      "target": "Picture11",
+      "operation": "typed image metadata edit",
+      "secondImport": true,
+      "changedParts": ["ppt/slides/slide1.xml"]
+    },
+    {
+      "sourceId": "nasa-mms-machine-learning",
+      "intent": "update one imported table cell",
+      "target": "Table 4 / cell 1,1",
+      "operation": "typed table cell edit",
+      "secondImport": true,
+      "changedParts": ["ppt/slides/slide20.xml"]
+    },
+    {
+      "sourceId": "slidescarnival-data-particles",
+      "intent": "update an empty origin cell without changing table topology",
+      "target": "slide 13 table",
+      "operation": "typed table cell edit",
+      "secondImport": true,
+      "changedParts": ["ppt/slides/slide13.xml"]
+    },
+    {
+      "sourceId": "slidescarnival-minimal-business",
+      "intent": "update an empty origin cell without changing table topology",
+      "target": "slide 13 table",
+      "operation": "typed table cell edit",
+      "secondImport": true,
+      "changedParts": ["ppt/slides/slide13.xml"]
+    }
+  ],
+  "boundaries": {
+    "sourcePreserved": true,
+    "rawXmlEditing": false,
+    "fullSlideReconstruction": false,
+    "visualHost": "not recorded in this portable evidence",
+    "remainingOpaque": ["rich multi-run table cells", "timing/extension-sensitive connectors and groups", "unprofiled OLE/WPS/SVG/animation semantics"]
+  }
+}

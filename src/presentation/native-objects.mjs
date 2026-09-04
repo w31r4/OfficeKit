@@ -199,6 +199,28 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
       this.name = config.name || "";
       this.nativeKind = config.nativeKind || "graphicFrame";
       this.position = normalizeFrame(config, { left: 0, top: 0, width: 1, height: 1 });
+      const placementCapability = config.placementCapability && typeof config.placementCapability === "object"
+        ? config.placementCapability
+        : {};
+      const placementSourceRevision = String(placementCapability.sourceRevisionSha256 || "").toLowerCase();
+      Object.defineProperty(this, "placementCapability", {
+        configurable: false,
+        enumerable: true,
+        writable: false,
+        value: Object.freeze({
+          sourceBound: placementCapability.sourceBound === true,
+          known: placementCapability.known === true,
+          supported: placementCapability.supported === true,
+          blockedReason: String(placementCapability.blockedReason || ""),
+          ...(placementSourceRevision ? { sourceRevisionSha256: placementSourceRevision } : {}),
+        }),
+      });
+      Object.defineProperty(this, "_nativePlacementSourcePosition", {
+        configurable: false,
+        enumerable: false,
+        writable: false,
+        value: Object.freeze({ ...this.position }),
+      });
       this.rawXml = String(config.rawXml || "");
       const nativeText = String(config.text ?? "");
       Object.defineProperty(this, "text", {
@@ -308,9 +330,18 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
     }
 
     setPosition(value = {}) {
-      if (!this.editable) throw new Error(`Native ${this.nativeKind} object ${this.id} is read-only.`);
+      if (!this.placementCapability.supported) {
+        const reason = this.placementCapability.blockedReason || "its imported frame is outside the bounded placement profile";
+        throw new Error(`Native ${this.nativeKind} object ${this.id} cannot change position: ${reason}.`);
+      }
       this.position = normalizeFrame({ position: { ...this.position, ...value } }, this.position);
       return this;
+    }
+
+    _nativePlacementChanged() {
+      const source = this._nativePlacementSourcePosition;
+      return this.position.left !== source.left || this.position.top !== source.top ||
+        this.position.width !== source.width || this.position.height !== source.height;
     }
 
     embeddedWorkbookPart() {
@@ -504,6 +535,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
     inspectRecord() {
       const frame = this.parentGroup ? this.parentGroup.absoluteChildFrame(this) : this.position;
       const editableFields = [
+        ...(this.placementCapability.supported ? ["frame"] : []),
         ...(this.oleWorkbook ? ["embeddedWorkbook"] : []),
         ...(this.oleOfficePackage ? ["embeddedOfficePackage"] : []),
         ...(this._diagramTextBinding ? ["diagramText"] : []),
@@ -533,6 +565,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
           dataPoints: this._nativeChartDataPoints.length,
         } : undefined,
         ...(this.text ? { text: this.text, textLength: this.textLength, ...(this.textTruncated ? { textTruncated: true } : {}) } : {}),
+        placementCapability: this.placementCapability,
         deletionCapability: this.deletionCapability,
         bbox: [frame.left, frame.top, frame.width, frame.height],
         bboxUnit: "px",
@@ -579,8 +612,10 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         embeddedOfficePackage: this.oleOfficePackage ? this._embeddedOfficePackageRecord() : undefined,
         diagramText: this.diagramText,
         nativeChart: this._nativeChartCurrentRecord(),
+        placementCapability: this.placementCapability,
         editable: false,
         editableFields: [
+          ...(this.placementCapability.supported ? ["frame"] : []),
           ...(this.oleWorkbook ? ["embeddedWorkbook"] : []),
           ...(this.oleOfficePackage ? ["embeddedOfficePackage"] : []),
           ...(this._diagramTextBinding ? ["diagramText"] : []),

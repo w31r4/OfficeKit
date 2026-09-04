@@ -1,0 +1,68 @@
+{
+  "schema": "office-kit/presentation-six-sample-import-manifest/v1",
+  "measuredAt": "2026-08-28",
+  "sourcePolicy": "ignored local QA inputs; never package or redistribute source bytes",
+  "sources": [
+    {
+      "id": "nasa-froste-thermal-design",
+      "fileName": "nasa-froste-thermal-design.pptx",
+      "source": "https://ntrs.nasa.gov/citations/20250007120",
+      "rights": "NASA NTRS record; preserve NASA and author credits",
+      "bytes": 8094554,
+      "sha256": "41568341c527866c9c8917229d190bca8dc99f0a137e97343b2c30d03f1db7b0",
+      "package": { "parts": 105, "relationships": 34, "slides": 13, "masters": 1, "layouts": 9, "themes": 3, "media": 23, "tags": { "p:pic": 23, "p:sp": 185, "p:grpSp": 19, "p:cxnSp": 7 } },
+      "projection": { "objects": 112, "typed": 112, "opaque": 0, "kinds": { "shape": 78, "image": 14, "group": 17, "picture": 1, "connector": 2 } }
+    },
+    {
+      "id": "nasa-mms-machine-learning",
+      "fileName": "nasa-mms-machine-learning.pptx",
+      "source": "https://ntrs.nasa.gov/citations/20250000748",
+      "rights": "NASA NTRS record; preserve NASA and author credits",
+      "bytes": 4522864,
+      "sha256": "531c82797fde09b1ebe1e868ca9cd44c3e2f675dc8f09f58b54bab6a62629723",
+      "package": { "parts": 156, "relationships": 42, "slides": 21, "masters": 1, "layouts": 4, "themes": 3, "media": 57, "tags": { "p:sp": 233, "p:pic": 85, "p:grpSp": 38, "p:cxnSp": 35, "p:timing": 4, "p:graphicFrame": 1, "a:tbl": 1 } },
+      "projection": { "objects": 230, "typed": 211, "opaque": 19, "kinds": { "shape": 145, "image": 31, "connector": 35, "group": 18, "table": 1 }, "opaqueReasons": [ "timing or extension identity", "group relationship referenced outside the group" ] }
+    },
+    {
+      "id": "slidescarnival-business-infographic",
+      "fileName": "slidescarnival-business-infographic.pptx",
+      "source": "https://www.slidescarnival.com/template/business-infographic-presentation/19319",
+      "rights": "CC BY 4.0; attribution and publisher redistribution terms apply",
+      "bytes": 19436162,
+      "sha256": "8db900eb9fbc5375d6b69eccffebd5ebb002f2f6641a89f19364a74e1d7e1e26",
+      "package": { "parts": 231, "relationships": 39, "slides": 25, "masters": 1, "layouts": 11, "themes": 0, "media": 119, "tags": { "p:pic": 72, "p:sp": 630, "p:grpSp": 203, "p:graphicFrame": 2, "a:tbl": 2 } },
+      "projection": { "objects": 357, "typed": 356, "opaque": 1, "kinds": { "image": 72, "group": 177, "shape": 106, "graphicFrame": 1, "table": 1 }, "opaqueReasons": [ "rich graphic-frame table outside bounded table profile" ] }
+    },
+    {
+      "id": "slidescarnival-data-particles",
+      "fileName": "slidescarnival-data-particles.pptx",
+      "source": "https://www.slidescarnival.com/template/joan-free-presentation-template/11687",
+      "rights": "CC BY 4.0; attribution and publisher redistribution terms apply",
+      "bytes": 3382810,
+      "sha256": "07cd6c7e3c12335716fbfddb1ccde353c9d21959427e2639dea29eca1573464f",
+      "package": { "parts": 208, "relationships": 92, "slides": 39, "masters": 1, "layouts": 10, "themes": 0, "media": 12, "tags": { "p:sp": 1015, "p:pic": 11, "p:grpSp": 162, "p:cxnSp": 108, "p:graphicFrame": 3, "a:tbl": 3 } },
+      "projection": { "objects": 432, "typed": 432, "opaque": 0, "kinds": { "shape": 243, "image": 11, "group": 144, "connector": 31, "table": 3 } }
+    },
+    {
+      "id": "slidescarnival-minimal-business",
+      "fileName": "slidescarnival-minimal-business.pptx",
+      "source": "https://www.slidescarnival.com/template/eleanor-free-presentation-template/308",
+      "rights": "CC BY 4.0; attribution and publisher redistribution terms apply",
+      "bytes": 2076227,
+      "sha256": "5076299de79a0c8ede47bb2f3c286a8e021ef0f7a55c991279ad03d4717ca334",
+      "package": { "parts": 205, "relationships": 92, "slides": 39, "masters": 1, "layouts": 10, "themes": 0, "media": 11, "tags": { "p:sp": 1191, "p:pic": 10, "p:grpSp": 167, "p:cxnSp": 112, "p:graphicFrame": 3, "a:tbl": 3 } },
+      "projection": { "objects": 429, "typed": 429, "opaque": 0, "kinds": { "shape": 236, "image": 10, "group": 152, "connector": 28, "table": 3 } }
+    },
+    {
+      "id": "slidescarnival-professional-minimalist",
+      "fileName": "slidescarnival-professional-minimalist.pptx",
+      "source": "https://www.slidescarnival.com/template/professional-minimalist-slides/237929",
+      "rights": "CC BY 4.0; attribution and publisher redistribution terms apply",
+      "bytes": 24114977,
+      "sha256": "ed26f074e25361e4baf76d1cc2508596655b9d4f3fc2c659ecd962f76e0547ab",
+      "package": { "parts": 165, "relationships": 49, "slides": 20, "masters": 1, "layouts": 5, "themes": 0, "media": 57, "tags": { "p:sp": 223, "p:pic": 18, "p:grpSp": 10 } },
+      "projection": { "objects": 134, "typed": 134, "opaque": 0, "kinds": { "shape": 106, "image": 18, "group": 10 } }
+    }
+  ],
+  "totals": { "slides": 157, "objects": 1694, "bytes": 61627594 }
+}
