@@ -1,0 +1,31 @@
+{
+  "schema": "office-kit/image-asset-receipt/v1",
+  "sha256": "c9b8c90bdbb398d4ad3c341df794aea6486c77a62c3408cd74bbbdfee222023a",
+  "assetPath": "assets/images/c9b8c90bdbb398d4ad3c341df794aea6486c77a62c3408cd74bbbdfee222023a.svg",
+  "receiptPath": "assets/images/c9b8c90bdbb398d4ad3c341df794aea6486c77a62c3408cd74bbbdfee222023a.json",
+  "mimeType": "image/svg+xml",
+  "extension": "svg",
+  "width": 24,
+  "height": 24,
+  "byteLength": 526,
+  "rights": {
+    "rights": "lucide-isc",
+    "evidence": "package-license",
+    "legalVerification": false,
+    "visibleAttributionRequired": false,
+    "provider": "lucide",
+    "title": "sparkles",
+    "author": "Lucide Contributors",
+    "sourcePage": "https://lucide.dev/icons/sparkles",
+    "licenseUrl": "https://lucide.dev/license",
+    "creditLine": "Lucide icon — ISC License (https://lucide.dev/license)"
+  },
+  "source": {
+    "kind": "candidate",
+    "provider": "lucide",
+    "iconName": "sparkles",
+    "sourcePage": "https://lucide.dev/icons/sparkles",
+    "candidateRef": "imgc_e35f04b0f7c0465baa507648"
+  },
+  "createdAt": "2026-09-02T10:01:25.400Z"
+}

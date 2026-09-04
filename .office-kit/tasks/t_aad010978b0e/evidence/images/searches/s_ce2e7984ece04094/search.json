@@ -1,0 +1,152 @@
+{
+  "schema": "office-kit/image-search-evidence/v1",
+  "searchId": "s_ce2e7984ece04094",
+  "taskId": "t_aad010978b0e",
+  "query": "sparkles",
+  "kind": "icon",
+  "purpose": "decoration",
+  "orientation": "square",
+  "selectionMade": false,
+  "candidates": [
+    {
+      "provider": "lucide",
+      "kind": "icon",
+      "title": "sparkles",
+      "iconName": "sparkles",
+      "acquisitionUrl": "lucide:sparkles",
+      "previewUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBhcmlhLWhpZGRlbj0idHJ1ZSI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwMDAwIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIHN0cm9rZS13aWR0aD0iMiI+PHBhdGggZD0iTTExLjAxNyAyLjgxNGExIDEgMCAwIDEgMS45NjYgMGwxLjA1MSA1LjU1OGEyIDIgMCAwIDAgMS41OTQgMS41OTRsNS41NTggMS4wNTFhMSAxIDAgMCAxIDAgMS45NjZsLTUuNTU4IDEuMDUxYTIgMiAwIDAgMC0xLjU5NCAxLjU5NGwtMS4wNTEgNS41NThhMSAxIDAgMCAxLTEuOTY2IDBsLTEuMDUxLTUuNTU4YTIgMiAwIDAgMC0xLjU5NC0xLjU5NGwtNS41NTgtMS4wNTFhMSAxIDAgMCAxIDAtMS45NjZsNS41NTgtMS4wNTFhMiAyIDAgMCAwIDEuNTk0LTEuNTk0ek0yMCAydjRtMi0yaC00Ii8+PGNpcmNsZSBjeD0iNCIgY3k9IjIwIiByPSIyIi8+PC9nPjwvc3ZnPg==",
+      "sourcePage": "https://lucide.dev/icons/sparkles",
+      "width": 24,
+      "height": 24,
+      "mimeType": "image/svg+xml",
+      "score": 10000,
+      "rights": {
+        "rights": "lucide-isc",
+        "evidence": "package-license",
+        "legalVerification": false,
+        "visibleAttributionRequired": false,
+        "provider": "lucide",
+        "title": "sparkles",
+        "author": "Lucide Contributors",
+        "sourcePage": "https://lucide.dev/icons/sparkles",
+        "licenseUrl": "https://lucide.dev/license",
+        "creditLine": "Lucide icon — ISC License (https://lucide.dev/license)"
+      },
+      "candidateRef": "imgc_e35f04b0f7c0465baa507648"
+    },
+    {
+      "provider": "lucide",
+      "kind": "icon",
+      "title": "broom-sparkles",
+      "iconName": "broom-sparkles",
+      "acquisitionUrl": "lucide:broom-sparkles",
+      "previewUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBhcmlhLWhpZGRlbj0idHJ1ZSI+PHBhdGggZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwMDAwIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIHN0cm9rZS13aWR0aD0iMiIgZD0iTTExIDJ2Mm0xLTFoLTJtMy41IDcuNUwyMiAybS03LjI2NiAxMS44NDFhMiAyIDAgMCAwLS4zMTQtMi40MkwxMi41OCA5LjU4YTIgMiAwIDAgMC0yLjQyMS0uMzE0bC03LjY1NyA0LjQ2MUExIDEgMCAwIDAgMi4zIDE1LjNsNi40MDMgNi40MDNhMSAxIDAgMCAwIDEuNTcxLS4yMDR6TTIwIDE1djRtMi0yaC00TTQgNHY0bTEgMTBsMi0yTTYgNkgybTUuNjk5IDQuN2w1LjYwMiA1LjYwMSIvPjwvc3ZnPg==",
+      "sourcePage": "https://lucide.dev/icons/broom-sparkles",
+      "width": 24,
+      "height": 24,
+      "mimeType": "image/svg+xml",
+      "score": 1298,
+      "rights": {
+        "rights": "lucide-isc",
+        "evidence": "package-license",
+        "legalVerification": false,
+        "visibleAttributionRequired": false,
+        "provider": "lucide",
+        "title": "broom-sparkles",
+        "author": "Lucide Contributors",
+        "sourcePage": "https://lucide.dev/icons/broom-sparkles",
+        "licenseUrl": "https://lucide.dev/license",
+        "creditLine": "Lucide icon — ISC License (https://lucide.dev/license)"
+      },
+      "candidateRef": "imgc_39539cb89b074e0b9b4977f5"
+    },
+    {
+      "provider": "lucide",
+      "kind": "icon",
+      "title": "mop-sparkles",
+      "iconName": "mop-sparkles",
+      "acquisitionUrl": "lucide:mop-sparkles",
+      "previewUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBhcmlhLWhpZGRlbj0idHJ1ZSI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwMDAwIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIHN0cm9rZS13aWR0aD0iMiI+PHBhdGggZD0iTTEwIDIyYTMgMyAwIDAgMS0zLTMiLz48cGF0aCBkPSJNMTAgMjJjMi43NjEgMCA1LTEuNzkgNS00Yy00LjQyIDAtNC4wOC01LTguNS01YTQuNTAxIDQuNTAxIDAgMCAwIDAgOXptMC0xOUg4bTQuNSA4LjVMMjIgMm0tMiAxMXY0bTItMmgtNE00IDV2NG0yLTJIMiIvPjxwYXRoIGQ9Im02Ljk4IDEzLjAybDIuNjY1LTIuNjY0YTEuMjEgMS4yMSAwIDAgMSAxLjcxIDBsMi4yOSAyLjI4OGExLjIxIDEuMjEgMCAwIDEgMCAxLjcxMmwtMi4wODggMi4wODdNOSAydjIiLz48L2c+PC9zdmc+",
+      "sourcePage": "https://lucide.dev/icons/mop-sparkles",
+      "width": 24,
+      "height": 24,
+      "mimeType": "image/svg+xml",
+      "score": 1298,
+      "rights": {
+        "rights": "lucide-isc",
+        "evidence": "package-license",
+        "legalVerification": false,
+        "visibleAttributionRequired": false,
+        "provider": "lucide",
+        "title": "mop-sparkles",
+        "author": "Lucide Contributors",
+        "sourcePage": "https://lucide.dev/icons/mop-sparkles",
+        "licenseUrl": "https://lucide.dev/license",
+        "creditLine": "Lucide icon — ISC License (https://lucide.dev/license)"
+      },
+      "candidateRef": "imgc_e25072e99f5b4d0f9b87b5e9"
+    },
+    {
+      "provider": "lucide",
+      "kind": "icon",
+      "title": "pencil-sparkles",
+      "iconName": "pencil-sparkles",
+      "acquisitionUrl": "lucide:pencil-sparkles",
+      "previewUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBhcmlhLWhpZGRlbj0idHJ1ZSI+PHBhdGggZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwMDAwIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIHN0cm9rZS13aWR0aD0iMiIgZD0iTTEwIDNIOG03LjAwNyAyLjAwOGwzLjk4NyAzLjk4Nk0yMCAxNXY0bTEuMTc0LTEyLjE4N2EyLjgyIDIuODIgMCAwIDAtMy45ODYtMy45ODdMMy44NDIgMTYuMTc1YTIgMiAwIDAgMC0uNS44M2wtMS4zMjEgNC4zNTJhLjUuNSAwIDAgMCAuNjIzLjYyMmw0LjM1My0xLjMyYTIgMiAwIDAgMCAuODMtLjQ5N3pNMjIgMTdoLTRNNCA1djRtMi0ySDJtNy01djIiLz48L3N2Zz4=",
+      "sourcePage": "https://lucide.dev/icons/pencil-sparkles",
+      "width": 24,
+      "height": 24,
+      "mimeType": "image/svg+xml",
+      "score": 1298,
+      "rights": {
+        "rights": "lucide-isc",
+        "evidence": "package-license",
+        "legalVerification": false,
+        "visibleAttributionRequired": false,
+        "provider": "lucide",
+        "title": "pencil-sparkles",
+        "author": "Lucide Contributors",
+        "sourcePage": "https://lucide.dev/icons/pencil-sparkles",
+        "licenseUrl": "https://lucide.dev/license",
+        "creditLine": "Lucide icon — ISC License (https://lucide.dev/license)"
+      },
+      "candidateRef": "imgc_ba1f1cd07cc4482394e57fdd"
+    },
+    {
+      "provider": "lucide",
+      "kind": "icon",
+      "title": "wand-sparkles",
+      "iconName": "wand-sparkles",
+      "acquisitionUrl": "lucide:wand-sparkles",
+      "previewUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBhcmlhLWhpZGRlbj0idHJ1ZSI+PHBhdGggZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMDAwMDAwIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIHN0cm9rZS13aWR0aD0iMiIgZD0ibTIxLjY0IDMuNjRsLTEuMjgtMS4yOGExLjIxIDEuMjEgMCAwIDAtMS43MiAwTDIuMzYgMTguNjRhMS4yMSAxLjIxIDAgMCAwIDAgMS43MmwxLjI4IDEuMjhhMS4yIDEuMiAwIDAgMCAxLjcyIDBMMjEuNjQgNS4zNmExLjIgMS4yIDAgMCAwIDAtMS43Mk0xNCA3bDMgM001IDZ2NG0xNCA0djRNMTAgMnYyTTcgOEgzbTE4IDhoLTRNMTEgM0g5Ii8+PC9zdmc+",
+      "sourcePage": "https://lucide.dev/icons/wand-sparkles",
+      "width": 24,
+      "height": 24,
+      "mimeType": "image/svg+xml",
+      "score": 1298,
+      "rights": {
+        "rights": "lucide-isc",
+        "evidence": "package-license",
+        "legalVerification": false,
+        "visibleAttributionRequired": false,
+        "provider": "lucide",
+        "title": "wand-sparkles",
+        "author": "Lucide Contributors",
+        "sourcePage": "https://lucide.dev/icons/wand-sparkles",
+        "licenseUrl": "https://lucide.dev/license",
+        "creditLine": "Lucide icon — ISC License (https://lucide.dev/license)"
+      },
+      "candidateRef": "imgc_c33c8a22218145bb8d28a383"
+    }
+  ],
+  "rejected": [],
+  "providerReports": [
+    {
+      "provider": "lucide",
+      "ok": true,
+      "count": 5,
+      "network": false
+    }
+  ],
+  "createdAt": "2026-09-02T09:57:42.107Z"
+}

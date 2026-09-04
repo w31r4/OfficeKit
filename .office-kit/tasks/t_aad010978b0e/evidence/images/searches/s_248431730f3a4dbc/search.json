@@ -1,0 +1,205 @@
+{
+  "schema": "office-kit/image-search-evidence/v1",
+  "searchId": "s_248431730f3a4dbc",
+  "taskId": "t_aad010978b0e",
+  "query": "blue light motion",
+  "kind": "photo",
+  "purpose": "hero",
+  "orientation": "landscape",
+  "selectionMade": false,
+  "candidates": [
+    {
+      "provider": "wikimedia",
+      "kind": "photo",
+      "title": "Jellyfish and blue light, China.jpg",
+      "author": "Love Krittaya",
+      "acquisitionUrl": "https://upload.wikimedia.org/wikipedia/commons/5/5d/Jellyfish_and_blue_light%2C_China.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "previewUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5d/Jellyfish_and_blue_light%2C_China.jpg/1920px-Jellyfish_and_blue_light%2C_China.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File%3AJellyfish%20and%20blue%20light%2C%20China.jpg",
+      "width": 3072,
+      "height": 2304,
+      "mimeType": "image/jpeg",
+      "rights": {
+        "rights": "public-domain",
+        "evidence": "machine-readable",
+        "legalVerification": false,
+        "visibleAttributionRequired": false,
+        "provider": "wikimedia",
+        "title": "Jellyfish and blue light, China.jpg",
+        "author": "Love Krittaya",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File%3AJellyfish%20and%20blue%20light%2C%20China.jpg"
+      },
+      "score": 735,
+      "providerConfidence": 0.95,
+      "candidateRef": "imgc_ac06b3957659403fbf75fc06"
+    },
+    {
+      "provider": "wikimedia",
+      "kind": "photo",
+      "title": "Landscape-blue-light-blur-mx.jpg",
+      "author": "AbstractImage",
+      "acquisitionUrl": "https://upload.wikimedia.org/wikipedia/commons/d/dd/Landscape-blue-light-blur-mx.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "previewUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dd/Landscape-blue-light-blur-mx.jpg/1920px-Landscape-blue-light-blur-mx.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File%3ALandscape-blue-light-blur-mx.jpg",
+      "width": 3000,
+      "height": 2422,
+      "mimeType": "image/jpeg",
+      "rights": {
+        "rights": "cc-by",
+        "evidence": "machine-readable",
+        "legalVerification": false,
+        "visibleAttributionRequired": true,
+        "provider": "wikimedia",
+        "title": "Landscape-blue-light-blur-mx.jpg",
+        "author": "AbstractImage",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File%3ALandscape-blue-light-blur-mx.jpg",
+        "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+        "creditLine": "“Landscape-blue-light-blur-mx.jpg” by AbstractImage, CC BY (https://creativecommons.org/licenses/by/3.0), source: https://commons.wikimedia.org/wiki/File%3ALandscape-blue-light-blur-mx.jpg"
+      },
+      "score": 585,
+      "providerConfidence": 0.95,
+      "candidateRef": "imgc_f77e24f636364398923ff71d"
+    },
+    {
+      "provider": "wikimedia",
+      "kind": "photo",
+      "title": "Motion Boom (3748045487).jpg",
+      "author": "Kenny Louie from Vancouver, Canada",
+      "acquisitionUrl": "https://upload.wikimedia.org/wikipedia/commons/5/57/Motion_Boom_%283748045487%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "previewUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/Motion_Boom_%283748045487%29.jpg/1920px-Motion_Boom_%283748045487%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File%3AMotion%20Boom%20(3748045487).jpg",
+      "width": 2592,
+      "height": 1722,
+      "mimeType": "image/jpeg",
+      "rights": {
+        "rights": "cc-by",
+        "evidence": "machine-readable",
+        "legalVerification": false,
+        "visibleAttributionRequired": true,
+        "provider": "wikimedia",
+        "title": "Motion Boom (3748045487).jpg",
+        "author": "Kenny Louie from Vancouver, Canada",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File%3AMotion%20Boom%20(3748045487).jpg",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "creditLine": "“Motion Boom (3748045487).jpg” by Kenny Louie from Vancouver, Canada, CC BY (https://creativecommons.org/licenses/by/2.0), source: https://commons.wikimedia.org/wiki/File%3AMotion%20Boom%20(3748045487).jpg"
+      },
+      "score": 545,
+      "providerConfidence": 0.95,
+      "candidateRef": "imgc_c5513cebb3ff4415af123271"
+    }
+  ],
+  "rejected": [
+    {
+      "provider": "wikimedia",
+      "title": "Münster, LVM, Bürogebäude -- 2013 -- 5149-51.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Los Angeles (California, USA), South Olive Street -- 2012 -- 4847.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Lüdinghausen, Burg Vischering -- 2014 -- 5492.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Globen metro station May 2016.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "AvMalecon-LaHabanaCuba-04735.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Glaskugel -- 2022 -- 9846.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Boat passing under Elgin Bridge during blue hour (2023)-L1003785.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Dülmen, Münsterstraße, Viktorkirmes, Riesenrad -- 2023 -- 9053 (kreativ).jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Monster (Long exposure).jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Norderney, Promenade -- 2025 -- 9281.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Eye opening light reactive art by pbudassi.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Spinning eye light reactive poster by pbudassi.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Us-them-all light reactive poster by pbudassi.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Butterfly light reactive poster by pbudassi.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Mushroom light reactive art by pbudassi.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    }
+  ],
+  "providerReports": [
+    {
+      "provider": "openverse",
+      "ok": false,
+      "count": 0,
+      "timeMs": 43721,
+      "network": true,
+      "error": {
+        "code": "image-error",
+        "message": "openverse http 502"
+      }
+    },
+    {
+      "provider": "wikimedia",
+      "ok": true,
+      "count": 3,
+      "rejected": 15,
+      "timeMs": 1606,
+      "network": true
+    }
+  ],
+  "createdAt": "2026-09-02T09:56:20.825Z"
+}

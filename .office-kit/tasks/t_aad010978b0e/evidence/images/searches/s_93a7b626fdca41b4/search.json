@@ -1,0 +1,166 @@
+{
+  "schema": "office-kit/image-search-evidence/v1",
+  "searchId": "s_93a7b626fdca41b4",
+  "taskId": "t_aad010978b0e",
+  "query": "NASA spacecraft",
+  "kind": "photo",
+  "purpose": "hero",
+  "orientation": "landscape",
+  "selectionMade": false,
+  "candidates": [
+    {
+      "provider": "wikimedia",
+      "kind": "photo",
+      "title": "NASA Contamination control engineers perform a blacklight inspection on the OSAM-1 Spacecraft Bus at Goddard Space Flight Center, Greenbelt Md (GSFC 20230930 OSAM1 036823).jpg",
+      "author": "NASA Goddard Space Flight Center / Michael Guinto",
+      "acquisitionUrl": "https://upload.wikimedia.org/wikipedia/commons/5/57/NASA_Contamination_control_engineers_perform_a_blacklight_inspection_on_the_OSAM-1_Spacecraft_Bus_at_Goddard_Space_Flight_Center%2C_Greenbelt_Md_%28GSFC_20230930_OSAM1_036823%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "previewUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/NASA_Contamination_control_engineers_perform_a_blacklight_inspection_on_the_OSAM-1_Spacecraft_Bus_at_Goddard_Space_Flight_Center%2C_Greenbelt_Md_%28GSFC_20230930_OSAM1_036823%29.jpg/1920px-thumbnail.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File%3ANASA%20Contamination%20control%20engineers%20perform%20a%20blacklight%20inspection%20on%20the%20OSAM-1%20Spacecraft%20Bus%20at%20Goddard%20Space%20Flight%20Center%2C%20Greenbelt%20Md%20(GSFC%2020230930%20OSAM1%20036823).jpg",
+      "width": 5568,
+      "height": 3712,
+      "mimeType": "image/jpeg",
+      "rights": {
+        "rights": "public-domain",
+        "evidence": "machine-readable",
+        "legalVerification": false,
+        "visibleAttributionRequired": false,
+        "provider": "wikimedia",
+        "title": "NASA Contamination control engineers perform a blacklight inspection on the OSAM-1 Spacecraft Bus at Goddard Space Flight Center, Greenbelt Md (GSFC 20230930 OSAM1 036823).jpg",
+        "author": "NASA Goddard Space Flight Center / Michael Guinto",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File%3ANASA%20Contamination%20control%20engineers%20perform%20a%20blacklight%20inspection%20on%20the%20OSAM-1%20Spacecraft%20Bus%20at%20Goddard%20Space%20Flight%20Center%2C%20Greenbelt%20Md%20(GSFC%2020230930%20OSAM1%20036823).jpg"
+      },
+      "score": 735,
+      "providerConfidence": 0.95,
+      "candidateRef": "imgc_021e01ac62634db7bfa892f2"
+    },
+    {
+      "provider": "wikimedia",
+      "kind": "photo",
+      "title": "A view of the OSAM-1 spacecraft bus inside the thermal vacuum chamber at Goddard Space Flight Center, Greenbelt Md (GSFC 20231201 OSAM1 047998).jpg",
+      "author": "NASA Goddard Space Flight Center / Michael Guinto",
+      "acquisitionUrl": "https://upload.wikimedia.org/wikipedia/commons/3/35/A_view_of_the_OSAM-1_spacecraft_bus_inside_the_thermal_vacuum_chamber_at_Goddard_Space_Flight_Center%2C_Greenbelt_Md_%28GSFC_20231201_OSAM1_047998%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "previewUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/35/A_view_of_the_OSAM-1_spacecraft_bus_inside_the_thermal_vacuum_chamber_at_Goddard_Space_Flight_Center%2C_Greenbelt_Md_%28GSFC_20231201_OSAM1_047998%29.jpg/1920px-A_view_of_the_OSAM-1_spacecraft_bus_inside_the_thermal_vacuum_chamber_at_Goddard_Space_Flight_Center%2C_Greenbelt_Md_%28GSFC_20231201_OSAM1_047998%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File%3AA%20view%20of%20the%20OSAM-1%20spacecraft%20bus%20inside%20the%20thermal%20vacuum%20chamber%20at%20Goddard%20Space%20Flight%20Center%2C%20Greenbelt%20Md%20(GSFC%2020231201%20OSAM1%20047998).jpg",
+      "width": 5568,
+      "height": 3712,
+      "mimeType": "image/jpeg",
+      "rights": {
+        "rights": "public-domain",
+        "evidence": "machine-readable",
+        "legalVerification": false,
+        "visibleAttributionRequired": false,
+        "provider": "wikimedia",
+        "title": "A view of the OSAM-1 spacecraft bus inside the thermal vacuum chamber at Goddard Space Flight Center, Greenbelt Md (GSFC 20231201 OSAM1 047998).jpg",
+        "author": "NASA Goddard Space Flight Center / Michael Guinto",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File%3AA%20view%20of%20the%20OSAM-1%20spacecraft%20bus%20inside%20the%20thermal%20vacuum%20chamber%20at%20Goddard%20Space%20Flight%20Center%2C%20Greenbelt%20Md%20(GSFC%2020231201%20OSAM1%20047998).jpg"
+      },
+      "score": 735,
+      "providerConfidence": 0.95,
+      "candidateRef": "imgc_8fe5e0c3fd914b079f9a0783"
+    },
+    {
+      "provider": "wikimedia",
+      "kind": "photo",
+      "title": "NASA spacecraft comparison.jpg",
+      "author": "NASA/ Davis Paul Meltzer",
+      "acquisitionUrl": "https://upload.wikimedia.org/wikipedia/commons/f/f4/NASA_spacecraft_comparison.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "previewUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f4/NASA_spacecraft_comparison.jpg/1920px-NASA_spacecraft_comparison.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File%3ANASA%20spacecraft%20comparison.jpg",
+      "width": 4669,
+      "height": 3559,
+      "mimeType": "image/jpeg",
+      "rights": {
+        "rights": "public-domain",
+        "evidence": "machine-readable",
+        "legalVerification": false,
+        "visibleAttributionRequired": false,
+        "provider": "wikimedia",
+        "title": "NASA spacecraft comparison.jpg",
+        "author": "NASA/ Davis Paul Meltzer",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File%3ANASA%20spacecraft%20comparison.jpg"
+      },
+      "score": 735,
+      "providerConfidence": 0.95,
+      "candidateRef": "imgc_2c8fef97746e42baac6f3118"
+    },
+    {
+      "provider": "wikimedia",
+      "kind": "photo",
+      "title": "The Cygnus XL cargo spacecraft is in the grasp of the Canadarm2 robotic arm (iss074e0378294).jpg",
+      "author": "NASA Johnson Space Center",
+      "acquisitionUrl": "https://upload.wikimedia.org/wikipedia/commons/7/7a/The_Cygnus_XL_cargo_spacecraft_is_in_the_grasp_of_the_Canadarm2_robotic_arm_%28iss074e0378294%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "previewUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7a/The_Cygnus_XL_cargo_spacecraft_is_in_the_grasp_of_the_Canadarm2_robotic_arm_%28iss074e0378294%29.jpg/1920px-The_Cygnus_XL_cargo_spacecraft_is_in_the_grasp_of_the_Canadarm2_robotic_arm_%28iss074e0378294%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File%3AThe%20Cygnus%20XL%20cargo%20spacecraft%20is%20in%20the%20grasp%20of%20the%20Canadarm2%20robotic%20arm%20(iss074e0378294).jpg",
+      "width": 8256,
+      "height": 5504,
+      "mimeType": "image/jpeg",
+      "rights": {
+        "rights": "public-domain",
+        "evidence": "machine-readable",
+        "legalVerification": false,
+        "visibleAttributionRequired": false,
+        "provider": "wikimedia",
+        "title": "The Cygnus XL cargo spacecraft is in the grasp of the Canadarm2 robotic arm (iss074e0378294).jpg",
+        "author": "NASA Johnson Space Center",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File%3AThe%20Cygnus%20XL%20cargo%20spacecraft%20is%20in%20the%20grasp%20of%20the%20Canadarm2%20robotic%20arm%20(iss074e0378294).jpg"
+      },
+      "score": 735,
+      "providerConfidence": 0.95,
+      "candidateRef": "imgc_c640d1ad8f324ee29945c04e"
+    }
+  ],
+  "rejected": [
+    {
+      "provider": "wikimedia",
+      "title": "NASA-Apollo8-Dec24-Earthrise.jpg",
+      "license": "PUBLIC_DOMAIN",
+      "reason": "image-orientation-mismatch"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Blue Marble Western Hemisphere.jpg",
+      "license": "PUBLIC_DOMAIN",
+      "reason": "image-orientation-mismatch"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "NASA spacecraft comparison2.png",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "NASA's Orion Spacecraft Parachutes Tested at U.S. Army Yuma Proving Ground.jpg",
+      "license": "PUBLIC_DOMAIN",
+      "reason": "image-orientation-mismatch"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "OSAM-1 spacecraft sits, almost completely assembled, in the cleanroom during integration at Goddard Space Flight Center (cropped).jpg",
+      "license": "PUBLIC_DOMAIN",
+      "reason": "image-orientation-mismatch"
+    }
+  ],
+  "providerReports": [
+    {
+      "provider": "openverse",
+      "ok": false,
+      "count": 0,
+      "timeMs": 60829,
+      "network": true,
+      "error": {
+        "code": "image-error",
+        "message": "openverse http 504"
+      }
+    },
+    {
+      "provider": "wikimedia",
+      "ok": true,
+      "count": 7,
+      "rejected": 5,
+      "timeMs": 1984,
+      "network": true
+    }
+  ],
+  "createdAt": "2026-09-02T10:00:58.683Z"
+}

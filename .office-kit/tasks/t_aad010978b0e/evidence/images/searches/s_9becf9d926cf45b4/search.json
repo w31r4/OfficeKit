@@ -1,0 +1,31 @@
+{
+  "schema": "office-kit/image-search-evidence/v1",
+  "searchId": "s_9becf9d926cf45b4",
+  "taskId": "t_aad010978b0e",
+  "query": "kinetic light trail abstract blue orange",
+  "kind": "photo",
+  "purpose": "hero",
+  "orientation": "landscape",
+  "selectionMade": false,
+  "candidates": [],
+  "rejected": [],
+  "providerReports": [
+    {
+      "provider": "openverse",
+      "ok": true,
+      "count": 0,
+      "rejected": 0,
+      "timeMs": 522,
+      "network": true
+    },
+    {
+      "provider": "wikimedia",
+      "ok": true,
+      "count": 0,
+      "rejected": 0,
+      "timeMs": 1727,
+      "network": true
+    }
+  ],
+  "createdAt": "2026-09-02T09:55:31.100Z"
+}

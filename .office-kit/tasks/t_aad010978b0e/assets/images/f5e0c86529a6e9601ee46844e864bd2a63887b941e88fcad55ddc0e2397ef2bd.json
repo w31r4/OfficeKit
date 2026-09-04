@@ -1,0 +1,31 @@
+{
+  "schema": "office-kit/image-asset-receipt/v1",
+  "sha256": "f5e0c86529a6e9601ee46844e864bd2a63887b941e88fcad55ddc0e2397ef2bd",
+  "assetPath": "assets/images/f5e0c86529a6e9601ee46844e864bd2a63887b941e88fcad55ddc0e2397ef2bd.jpg",
+  "receiptPath": "assets/images/f5e0c86529a6e9601ee46844e864bd2a63887b941e88fcad55ddc0e2397ef2bd.json",
+  "mimeType": "image/jpeg",
+  "extension": "jpg",
+  "width": 3712,
+  "height": 5568,
+  "byteLength": 16268698,
+  "rights": {
+    "rights": "public-domain",
+    "evidence": "machine-readable",
+    "legalVerification": false,
+    "visibleAttributionRequired": false,
+    "provider": "wikimedia",
+    "title": "A view of the OSAM-1 spacecraft bus inside the thermal vacuum chamber at Goddard Space Flight Center, Greenbelt Md (GSFC 20231201 OSAM1 047998).jpg",
+    "author": "NASA Goddard Space Flight Center / Michael Guinto",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File%3AA%20view%20of%20the%20OSAM-1%20spacecraft%20bus%20inside%20the%20thermal%20vacuum%20chamber%20at%20Goddard%20Space%20Flight%20Center%2C%20Greenbelt%20Md%20(GSFC%2020231201%20OSAM1%20047998).jpg"
+  },
+  "source": {
+    "kind": "candidate",
+    "candidateRef": "imgc_8fe5e0c3fd914b079f9a0783",
+    "provider": "wikimedia",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File%3AA%20view%20of%20the%20OSAM-1%20spacecraft%20bus%20inside%20the%20thermal%20vacuum%20chamber%20at%20Goddard%20Space%20Flight%20Center%2C%20Greenbelt%20Md%20(GSFC%2020231201%20OSAM1%20047998).jpg",
+    "requestedUrl": "https://upload.wikimedia.org/wikipedia/commons/3/35/A_view_of_the_OSAM-1_spacecraft_bus_inside_the_thermal_vacuum_chamber_at_Goddard_Space_Flight_Center%2C_Greenbelt_Md_%28GSFC_20231201_OSAM1_047998%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "finalUrl": "https://upload.wikimedia.org/wikipedia/commons/3/35/A_view_of_the_OSAM-1_spacecraft_bus_inside_the_thermal_vacuum_chamber_at_Goddard_Space_Flight_Center%2C_Greenbelt_Md_%28GSFC_20231201_OSAM1_047998%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "redirects": []
+  },
+  "createdAt": "2026-09-02T10:01:13.106Z"
+}

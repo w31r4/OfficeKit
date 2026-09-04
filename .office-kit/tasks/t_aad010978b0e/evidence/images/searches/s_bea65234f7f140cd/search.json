@@ -1,0 +1,95 @@
+{
+  "schema": "office-kit/image-search-evidence/v1",
+  "searchId": "s_bea65234f7f140cd",
+  "taskId": "t_aad010978b0e",
+  "query": "city night",
+  "kind": "photo",
+  "purpose": "context",
+  "orientation": "landscape",
+  "selectionMade": false,
+  "candidates": [],
+  "rejected": [
+    {
+      "provider": "wikimedia",
+      "title": "Wellington City Night.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "New York City at night HDR.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "1 rocinha night 2014 panorama.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Dotonbori, Osaka, at night, November 2016.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Québec city at night, view from Lévis city.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Rue du Petit-Champlain at night in Quebec City.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Château Frontenac city at night.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Price Building illuminated at night in Quebec City.jpg",
+      "license": "CC0",
+      "reason": "invalid-rights-metadata"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Chateau Frontenac illuminated at night in Quebec City.jpg",
+      "license": "CC0",
+      "reason": "invalid-rights-metadata"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Chateau Frontenac at dusk in Quebec City.jpg",
+      "license": "CC0",
+      "reason": "invalid-rights-metadata"
+    }
+  ],
+  "providerReports": [
+    {
+      "provider": "openverse",
+      "ok": false,
+      "count": 0,
+      "timeMs": 60488,
+      "network": true,
+      "error": {
+        "code": "image-error",
+        "message": "openverse http 504"
+      }
+    },
+    {
+      "provider": "wikimedia",
+      "ok": true,
+      "count": 0,
+      "rejected": 10,
+      "timeMs": 999,
+      "network": true
+    }
+  ],
+  "createdAt": "2026-09-02T09:59:51.138Z"
+}

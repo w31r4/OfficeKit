@@ -1,0 +1,31 @@
+{
+  "schema": "office-kit/image-asset-receipt/v1",
+  "sha256": "5a3ddfbc6f2462a44af9a5d4b1dde58988511f3bf4b9e1c8aff8b980f234af62",
+  "assetPath": "assets/images/5a3ddfbc6f2462a44af9a5d4b1dde58988511f3bf4b9e1c8aff8b980f234af62.jpg",
+  "receiptPath": "assets/images/5a3ddfbc6f2462a44af9a5d4b1dde58988511f3bf4b9e1c8aff8b980f234af62.json",
+  "mimeType": "image/jpeg",
+  "extension": "jpg",
+  "width": 3559,
+  "height": 4669,
+  "byteLength": 16602165,
+  "rights": {
+    "rights": "public-domain",
+    "evidence": "machine-readable",
+    "legalVerification": false,
+    "visibleAttributionRequired": false,
+    "provider": "wikimedia",
+    "title": "NASA spacecraft comparison.jpg",
+    "author": "NASA/ Davis Paul Meltzer",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File%3ANASA%20spacecraft%20comparison.jpg"
+  },
+  "source": {
+    "kind": "candidate",
+    "candidateRef": "imgc_2c8fef97746e42baac6f3118",
+    "provider": "wikimedia",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File%3ANASA%20spacecraft%20comparison.jpg",
+    "requestedUrl": "https://upload.wikimedia.org/wikipedia/commons/f/f4/NASA_spacecraft_comparison.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "finalUrl": "https://upload.wikimedia.org/wikipedia/commons/f/f4/NASA_spacecraft_comparison.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "redirects": []
+  },
+  "createdAt": "2026-09-02T10:06:12.066Z"
+}

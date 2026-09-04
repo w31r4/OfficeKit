@@ -1,0 +1,117 @@
+{
+  "schema": "office-kit/image-search-evidence/v1",
+  "searchId": "s_26488091c7314957",
+  "taskId": "t_aad010978b0e",
+  "query": "blue abstract",
+  "kind": "illustration",
+  "purpose": "hero",
+  "orientation": "landscape",
+  "selectionMade": false,
+  "candidates": [
+    {
+      "provider": "wikimedia",
+      "kind": "illustration",
+      "title": "Blue abstract architecture (6853588769).jpg",
+      "author": "Luca Biada",
+      "acquisitionUrl": "https://upload.wikimedia.org/wikipedia/commons/8/8e/Blue_abstract_architecture_%286853588769%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "previewUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8e/Blue_abstract_architecture_%286853588769%29.jpg/1920px-Blue_abstract_architecture_%286853588769%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File%3ABlue%20abstract%20architecture%20(6853588769).jpg",
+      "width": 2816,
+      "height": 2009,
+      "mimeType": "image/jpeg",
+      "rights": {
+        "rights": "cc-by",
+        "evidence": "machine-readable",
+        "legalVerification": false,
+        "visibleAttributionRequired": true,
+        "provider": "wikimedia",
+        "title": "Blue abstract architecture (6853588769).jpg",
+        "author": "Luca Biada",
+        "sourcePage": "https://commons.wikimedia.org/wiki/File%3ABlue%20abstract%20architecture%20(6853588769).jpg",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+        "creditLine": "“Blue abstract architecture (6853588769).jpg” by Luca Biada, CC BY (https://creativecommons.org/licenses/by/2.0), source: https://commons.wikimedia.org/wiki/File%3ABlue%20abstract%20architecture%20(6853588769).jpg"
+      },
+      "score": 585,
+      "providerConfidence": 0.95,
+      "candidateRef": "imgc_652694e930ef445b90479d71"
+    }
+  ],
+  "rejected": [
+    {
+      "provider": "wikimedia",
+      "title": "Blue abstract (4259876443).jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Abstract Blue Background.png",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Red and Blue Abstract Painting \"Diamond Meditation\" by Bruce Black.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Blue Zen Abstract Design for Meditation.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Oeuvre pour salon by Basile Morin, 2003 - framed abstract acrylic painting with blue rectangles on a wall.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Dilli Haat Abstract Red Blue Cloth.jpg",
+      "license": "CC_BY_SA",
+      "reason": "image-rights-blocked"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "Ice abstract orange, blue, gray and black.jpg",
+      "license": "CC0",
+      "reason": "invalid-rights-metadata"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "'Kind of Blue' - a small abstract watercolor painting in yellow, green & Blue impressions, painted by Dutch artist Fons Heijnsbroek in 2008 - free download art image in high resolution.tif",
+      "license": "CC0",
+      "reason": "invalid-rights-metadata"
+    },
+    {
+      "provider": "wikimedia",
+      "title": "'Music painting' contemporary abstract art - colorful watercolor sketch on paper and gouache in red and blue colors, by Dutch artist Fons Heijnsbroek; free download abstract expressionism art image CC0, high resolution TIFF.tif",
+      "license": "CC0",
+      "reason": "invalid-rights-metadata"
+    }
+  ],
+  "providerReports": [
+    {
+      "provider": "openverse",
+      "ok": false,
+      "count": 0,
+      "timeMs": 60639,
+      "network": true,
+      "error": {
+        "code": "image-error",
+        "message": "openverse http 504"
+      }
+    },
+    {
+      "provider": "wikimedia",
+      "ok": true,
+      "count": 1,
+      "rejected": 9,
+      "timeMs": 1023,
+      "network": true
+    }
+  ],
+  "createdAt": "2026-09-02T09:57:20.062Z"
+}
