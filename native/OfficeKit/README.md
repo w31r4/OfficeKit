@@ -20,10 +20,10 @@ format-specific relationship, source-binding, and edit policies around that one
 semantic reader/writer/patcher instead of maintaining divergent chart XML
 implementations.
 
-`OfficeKit.NativeHost` keeps one sequential `byte[] -> byte[]` codec boundary
-over a private transport-v1 protocol. It writes a fixed handshake, then reads
-and writes 4-byte big-endian length-prefixed protobuf frames. It never writes
-logs to stdout; bounded diagnostics use stderr. The same `CodecProtocol.Invoke`
+`OfficeKit.NativeHost` keeps one sequential codec boundary over a private
+transport-v2 protocol. It writes a fixed handshake, then exchanges framed
+protobuf metadata plus an optional declared raw-file sidecar. It never writes
+logs to stdout; bounded diagnostics use stderr. The same OfficeKit codec
 implementation remains the only semantic Office codec.
 
 Protocol version 2 removes `allow_lossy`; the removed field name and number are reserved. Opaque content can be exported only from a validated, hash-bound source package. Unsupported edits, source-evidence mismatch, unsafe OPC paths, invalid relationships/content types, and missing runtime data return structured failures.

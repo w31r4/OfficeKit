@@ -7,6 +7,9 @@ OfficeKit Codec is the only XLSX, DOCX, and PPTX codec. It is implemented in C# 
 OfficeKit retains the single-codec boundary: no Office codec registry,
 selector, alternate runtime shim, or fallback path.
 
+The migration and measured performance history is recorded in
+[OfficeKit PPTX performance and memory retrospective](officekit-pptx-performance-retrospective.md).
+
 ```mermaid
 flowchart LR
   A["JavaScript artifact model"] --> B["Office facade"]
@@ -206,7 +209,7 @@ Explicit OOXML inspect/patch functions are a separate low-level operation. They 
 
 ## Runtime loading and package layout
 
-The adapter verifies and lazily starts one retry-safe cached NativeAOT child process. A private transport-v1 handshake binds Office wire protocol 2; requests and responses are sequential 4-byte big-endian length-prefixed protobuf frames. The adapter verifies the target package manifest, executable size and SHA-256 before spawning by absolute path, captures bounded stderr, rejects truncated or oversized frames, and never consults `PATH` or a WASM fallback. The child is ref-counted only while requests are pending, so JavaScript tasks and the REPL can reuse it without preventing normal process exit.
+The adapter verifies and lazily starts one retry-safe cached NativeAOT child process. A private transport-v2 handshake binds Office wire protocol 2; framed protobuf metadata may be followed by one declared raw-file sidecar. The adapter verifies the target package manifest, executable size and SHA-256 before spawning by absolute path, captures bounded stderr, rejects truncated or oversized frames, and never consults `PATH` or a WASM fallback. The child is ref-counted only while requests are pending, so JavaScript tasks and the REPL can reuse it without preventing normal process exit.
 
 The source repository contains:
 
