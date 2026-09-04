@@ -1,0 +1,352 @@
+{
+  "schema": "office-kit/ppj/v1",
+  "meta": {
+    "id": "creative-direction-single-page",
+    "title": "Precision in the dark",
+    "language": "en-US",
+    "version": 1,
+    "description": "One-page creative-direction dogfood using a registered public-domain image search result."
+  },
+  "intent": {
+    "brief": {
+      "primaryJob": "inform",
+      "supportingJobs": ["persuade"],
+      "purpose": "Demonstrate how a visual thesis, searched image, and editable layers can carry a single idea.",
+      "expectedOutcome": "The viewer understands that precision is designed through controlled surfaces, scale, and motion.",
+      "evidenceBoundary": "The image is a public-domain NASA/Wikimedia asset; the headline and interpretation are editorial, not a claim about mission performance."
+    },
+    "audience": {
+      "description": "Design and engineering leaders reviewing an image-led presentation direction.",
+      "knowledgeLevel": "familiar",
+      "needs": ["A clear visual thesis", "A credible image source", "Editable composition"]
+    },
+    "narrative": {
+      "thesis": "Precision is a spatial system: controlled surfaces, scale, and one decisive signal.",
+      "arc": [
+        {
+          "id": "arc-reveal",
+          "purpose": "Make a designed system feel tangible before explaining it.",
+          "claim": "The visual field is part of the message, not a backdrop added at the end."
+        }
+      ]
+    },
+    "editorial": {
+      "tone": ["precise", "confident", "quietly cinematic"],
+      "titleMode": "mixed",
+      "lockedFacts": ["NASA spacecraft comparison image is public domain according to the registered Wikimedia machine-readable receipt."],
+      "avoid": ["generic stock filler", "unbounded claims", "labels crossing the image subject"],
+      "sourceStyle": "footnote"
+    },
+    "delivery": {
+      "mode": "hybrid",
+      "afterUse": "A visual calibration page for a later deck, with native text and image layers retained.",
+      "mediumFit": "strong"
+    }
+  },
+  "design": {
+    "canvas": {
+      "width": 960,
+      "height": 540,
+      "unit": "pt"
+    },
+    "theme": {
+      "name": "Kinetic blue field",
+      "colors": [
+        {"id": "night", "value": "#071521", "role": "scrim and footer field"},
+        {"id": "ink", "value": "#101820", "role": "dark type on signal field"},
+        {"id": "ivory", "value": "#F7F2E8", "role": "reverse display type"},
+        {"id": "signal", "value": "#FFD21E", "role": "single attention accent"},
+        {"id": "blue", "value": "#164F9E", "role": "spatial wedge"},
+        {"id": "quiet", "value": "#D4E1F2", "role": "secondary reverse text"}
+      ]
+    },
+    "fonts": [
+      {"id": "display", "family": "Arial", "fallbacks": ["Helvetica", "sans-serif"], "language": "en-US", "weight": 700},
+      {"id": "body", "family": "Arial", "fallbacks": ["Helvetica", "sans-serif"], "language": "en-US", "weight": 400}
+    ],
+    "styles": {
+      "text": [
+        {
+          "id": "kicker",
+          "style": {
+            "defaultText": {"font": "body", "size": 9, "bold": true, "letterSpacing": 1.8, "color": {"token": "ivory"}},
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {"left": 0, "top": 0, "right": 0, "bottom": 0}
+          }
+        },
+        {
+          "id": "display-title",
+          "style": {
+            "defaultText": {"font": "display", "size": 46, "bold": true, "color": {"token": "ivory"}},
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {"left": 0, "top": 0, "right": 0, "bottom": 0}
+          }
+        },
+        {
+          "id": "subtitle",
+          "style": {
+            "defaultText": {"font": "body", "size": 17, "color": {"token": "ivory"}},
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {"left": 0, "top": 0, "right": 0, "bottom": 0}
+          }
+        },
+        {
+          "id": "meta",
+          "style": {
+            "defaultText": {"font": "body", "size": 9, "bold": true, "letterSpacing": 1.1, "color": {"token": "ivory"}},
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {"left": 0, "top": 0, "right": 0, "bottom": 0}
+          }
+        },
+        {
+          "id": "caption",
+          "style": {
+            "defaultText": {"font": "body", "size": 9, "color": {"token": "quiet"}},
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {"left": 0, "top": 0, "right": 0, "bottom": 0}
+          }
+        },
+        {
+          "id": "source",
+          "style": {
+            "defaultText": {"font": "body", "size": 7, "color": {"token": "quiet"}},
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {"left": 0, "top": 0, "right": 0, "bottom": 0}
+          }
+        }
+      ],
+      "shape": [
+        {
+          "id": "scrim",
+          "style": {"fill": {"type": "solid", "color": {"token": "night"}, "opacity": 0.76}}
+        },
+        {
+          "id": "wedge",
+          "style": {"fill": {"type": "solid", "color": {"token": "blue"}, "opacity": 0.9}}
+        },
+        {
+          "id": "footer",
+          "style": {"fill": {"type": "solid", "color": {"token": "night"}, "opacity": 0.9}}
+        },
+        {
+          "id": "signal-rule",
+          "style": {"fill": {"type": "solid", "color": {"token": "signal"}}}
+        }
+      ]
+    },
+    "grammar": {
+      "name": "Kinetic field",
+      "rationale": "A public-domain spacecraft image provides the field; one dark scrim, one blue wedge, and one yellow signal turn it into an editable visual direction.",
+      "visualThesis": "Precision feels large when the image carries the field and type cuts a single controlled path through it.",
+      "surfaceHierarchy": [
+        "Use the photograph as a full-page field, darken only where type needs protection, and reserve the footer for source and navigation.",
+        "Use the blue wedge as one spatial action, not as a container for unrelated content."
+      ],
+      "typographyRhythm": [
+        "Use a two-line oversized statement, a single sentence of support, then quiet metadata.",
+        "Keep the display face and body face from competing for attention."
+      ],
+      "geometryRules": [
+        "The wedge and yellow rule establish direction; neither is a card or a decorative collection.",
+        "Keep the image subject and every evidence-bearing label unobscured."
+      ],
+      "densityRhythm": [
+        "Let the hero field carry most of the canvas; use the lower band for a compact source and role legend."
+      ],
+      "carrierRules": [
+        "The searched NASA image carries identity and atmosphere; the title carries the editorial claim; the footer carries provenance."
+      ],
+      "imageRules": [
+        "Use a registered public-domain asset with a focal crop; do not reuse it as filler or imply that the editorial headline is mission evidence."
+      ],
+      "motifs": [
+        "One yellow rule and one yellow signal mark a deliberate point of attention.",
+        "Small uppercase metadata anchors the page to a system without becoming a panel."
+      ],
+      "forbiddenPatterns": [
+        "No card wall, random icon cloud, or generic rainbow accents.",
+        "No text, footer, or detail image may cover the spacecraft silhouettes or the source line."
+      ]
+    },
+    "motionPolicy": "adaptive"
+  },
+  "assets": [
+    {
+      "id": "spacecraft-comparison",
+      "uri": ".office-kit/tasks/t_aad010978b0e/assets/images/5a3ddfbc6f2462a44af9a5d4b1dde58988511f3bf4b9e1c8aff8b980f234af62.jpg",
+      "mimeType": "image/jpeg",
+      "sha256": "5a3ddfbc6f2462a44af9a5d4b1dde58988511f3bf4b9e1c8aff8b980f234af62",
+      "widthPx": 4669,
+      "heightPx": 3559,
+      "rights": {"status": "public-domain", "sourceUrl": "https://commons.wikimedia.org/wiki/File%3ANASA%20spacecraft%20comparison.jpg", "author": "NASA / Davis Paul Meltzer", "licenseName": "Public domain"},
+      "accessibility": {"decorative": false, "description": "NASA illustration comparing spacecraft silhouettes against a textured blue field."}
+    },
+    {
+      "id": "sparkles-mark",
+      "uri": ".office-kit/tasks/t_aad010978b0e/assets/images/c9b8c90bdbb398d4ad3c341df794aea6486c77a62c3408cd74bbbdfee222023a.svg",
+      "mimeType": "image/svg+xml",
+      "sha256": "c9b8c90bdbb398d4ad3c341df794aea6486c77a62c3408cd74bbbdfee222023a",
+      "widthPx": 24,
+      "heightPx": 24,
+      "rights": {"status": "other", "sourceUrl": "https://lucide.dev/icons/sparkles", "author": "Lucide Contributors", "licenseName": "ISC License", "licenseUrl": "https://lucide.dev/license", "creditLine": "Lucide icon — ISC License (https://lucide.dev/license)"},
+      "accessibility": {"decorative": true}
+    },
+    {
+      "id": "thermal-vacuum-detail",
+      "uri": ".office-kit/tasks/t_aad010978b0e/assets/images/f5e0c86529a6e9601ee46844e864bd2a63887b941e88fcad55ddc0e2397ef2bd.jpg",
+      "mimeType": "image/jpeg",
+      "sha256": "f5e0c86529a6e9601ee46844e864bd2a63887b941e88fcad55ddc0e2397ef2bd",
+      "widthPx": 5568,
+      "heightPx": 3712,
+      "rights": {"status": "public-domain", "sourceUrl": "https://commons.wikimedia.org/wiki/File%3AA%20view%20of%20the%20OSAM-1%20spacecraft%20bus%20inside%20the%20thermal%20vacuum%20chamber%20at%20Goddard%20Space%20Flight%20Center%2C%20Greenbelt%20Md%20(GSFC%2020231201%20OSAM1%20047998).jpg", "author": "NASA Goddard Space Flight Center / Michael Guinto", "licenseName": "Public domain"},
+      "accessibility": {"decorative": false, "description": "NASA engineers inspect a spacecraft bus inside a thermal vacuum chamber."}
+    }
+  ],
+  "pages": [
+    {
+      "id": "page-01-precision",
+      "name": "Precision in the dark",
+      "role": "Make an image-led visual thesis tangible before explaining the system.",
+      "claim": "Precision is designed through controlled surfaces, scale, and one decisive signal.",
+      "background": {"type": "image", "asset": "spacecraft-comparison", "fit": "cover"},
+      "notes": "Editorial calibration page. The NASA image is a public-domain identity/atmosphere carrier; the headline is an interpretation, not a mission-performance claim.",
+      "transition": {"type": "fade", "durationMs": 420},
+      "animations": [
+        {"id": "title-reveal", "target": "page-title", "phase": "entrance", "effect": "fade", "start": "onClick", "durationMs": 620},
+        {"id": "detail-reveal", "target": "detail-photo", "phase": "entrance", "effect": "wipe", "direction": "left", "start": "afterPrevious", "durationMs": 700}
+      ],
+      "elements": [
+        {
+          "id": "left-scrim",
+          "type": "shape",
+          "role": "Protect title contrast over the image field",
+          "frame": {"x": 0, "y": 0, "width": 520, "height": 540},
+          "accessibility": {"decorative": true},
+          "geometry": {"kind": "preset", "preset": "rect"},
+          "styleRef": "scrim"
+        },
+        {
+          "id": "blue-wedge",
+          "type": "shape",
+          "role": "One directional spatial action",
+          "frame": {"x": 0, "y": 318, "width": 585, "height": 222, "rotation": -3},
+          "accessibility": {"decorative": true},
+          "geometry": {
+            "kind": "custom",
+            "viewBox": {"x": 0, "y": 0, "width": 100, "height": 100},
+            "paths": [{"fill": true, "stroke": false, "commands": [{"op": "moveTo", "x": 0, "y": 0}, {"op": "lineTo", "x": 100, "y": 0}, {"op": "lineTo", "x": 82, "y": 100}, {"op": "lineTo", "x": 0, "y": 100}, {"op": "close"}]}]
+          },
+          "styleRef": "wedge"
+        },
+        {
+          "id": "page-kicker",
+          "type": "text",
+          "role": "navigation and provenance kicker",
+          "frame": {"x": 58, "y": 40, "width": 420, "height": 18},
+          "accessibility": {"decorative": false, "description": "Section kicker"},
+          "text": "FIELD NOTE  /  SPACECRAFT SYSTEMS",
+          "styleRef": "kicker"
+        },
+        {
+          "id": "yellow-rule",
+          "type": "shape",
+          "role": "Signal mark",
+          "frame": {"x": 58, "y": 86, "width": 74, "height": 4},
+          "accessibility": {"decorative": true},
+          "geometry": {"kind": "preset", "preset": "rect"},
+          "styleRef": "signal-rule"
+        },
+        {
+          "id": "page-title",
+          "type": "text",
+          "role": "primary claim",
+          "frame": {"x": 58, "y": 124, "width": 462, "height": 144},
+          "accessibility": {"decorative": false, "description": "Editorial claim about precision and controlled space"},
+          "text": "PRECISION\nIN THE DARK",
+          "styleRef": "display-title"
+        },
+        {
+          "id": "page-subtitle",
+          "type": "text",
+          "role": "supporting explanation",
+          "frame": {"x": 60, "y": 286, "width": 430, "height": 55},
+          "accessibility": {"decorative": false, "description": "Short explanation of the visual system"},
+          "text": "Controlled surfaces, scale, and one decisive signal.",
+          "styleRef": "subtitle"
+        },
+        {
+          "id": "detail-photo",
+          "type": "image",
+          "role": "Secondary material detail",
+          "frame": {"x": 670, "y": 74, "width": 236, "height": 168},
+          "accessibility": {"decorative": false, "description": "A cropped NASA spacecraft silhouette detail"},
+          "asset": "thermal-vacuum-detail",
+          "fit": "cover",
+          "crop": {"left": 0.25, "top": -0.08, "right": -0.08, "bottom": 0.2},
+          "border": {"color": {"token": "signal"}, "width": 2, "opacity": 0.9}
+        },
+        {
+          "id": "detail-label",
+          "type": "text",
+          "role": "Image role label",
+          "frame": {"x": 670, "y": 258, "width": 236, "height": 18},
+          "accessibility": {"decorative": false, "description": "Detail label"},
+          "text": "MATERIAL / SCALE / CONTROL",
+          "styleRef": "meta"
+        },
+        {
+          "id": "footer-field",
+          "type": "shape",
+          "role": "Source and navigation field",
+          "frame": {"x": 0, "y": 456, "width": 960, "height": 84},
+          "accessibility": {"decorative": true},
+          "geometry": {"kind": "preset", "preset": "rect"},
+          "styleRef": "footer"
+        },
+        {
+          "id": "footer-left",
+          "type": "text",
+          "role": "Page index",
+          "frame": {"x": 58, "y": 480, "width": 130, "height": 18},
+          "accessibility": {"decorative": false, "description": "Page index"},
+          "text": "01 / 01",
+          "styleRef": "meta"
+        },
+        {
+          "id": "footer-middle",
+          "type": "text",
+          "role": "Editorial descriptor",
+          "frame": {"x": 220, "y": 480, "width": 320, "height": 18},
+          "accessibility": {"decorative": false, "description": "Editorial descriptor"},
+          "text": "IMAGE-LED VISUAL DIRECTION",
+          "styleRef": "meta"
+        },
+        {
+          "id": "footer-source",
+          "type": "text",
+          "role": "Image source and rights",
+          "frame": {"x": 578, "y": 476, "width": 330, "height": 32},
+          "accessibility": {"decorative": false, "description": "Image source and public-domain status"},
+          "text": "Image: NASA / Davis Paul Meltzer\nWikimedia Commons · Public domain",
+          "styleRef": "source"
+        },
+        {
+          "id": "sparkles-mark",
+          "type": "image",
+          "role": "Small visual signature",
+          "frame": {"x": 892, "y": 34, "width": 24, "height": 24},
+          "accessibility": {"decorative": true},
+          "asset": "sparkles-mark",
+          "fit": "contain",
+          "opacity": 0.75
+        }
+      ]
+    }
+  ]
+}
