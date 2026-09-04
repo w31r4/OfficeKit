@@ -290,15 +290,16 @@ export async function validateExperiment(options = {}) {
   const [casesManifest, rubric, coverage, fixtures] = await loadInputs();
   const errors = [];
   const warnings = [];
-  if (!["office-kit/presentation-skill-ablation-cases/v1", "office-kit/presentation-skill-ablation-cases/v2"].includes(casesManifest.schema)) errors.push("unexpected cases schema");
+  if (!["office-kit/presentation-skill-ablation-cases/v1", "office-kit/presentation-skill-ablation-cases/v2", "office-kit/presentation-skill-ablation-cases/v3"].includes(casesManifest.schema)) errors.push("unexpected cases schema");
   if (rubric.schema !== "office-kit/presentation-skill-ablation-rubric/v1") errors.push("unexpected rubric schema");
   if (coverage.schema !== "office-kit/presentation-skill-ablation-capability-coverage/v1") errors.push("unexpected coverage schema");
   if (fixtures.schema !== "office-kit/presentation-skill-ablation-fixtures/v1") errors.push("unexpected fixtures schema");
   if (casesManifest.model?.id !== "gpt-5.6-luna" || casesManifest.model?.reasoningEffort !== "max") errors.push("model must be gpt-5.6-luna/max");
   if (casesManifest.model?.timeoutMs !== 1200000) errors.push("frozen timeout must be 1200000ms");
-  const expectedArmCount = casesManifest.schema.endsWith("/v2") ? 3 : 2;
+  const expectedArmCount = casesManifest.schema.endsWith("/v3") ? 4 : casesManifest.schema.endsWith("/v2") ? 3 : 2;
   if (!Array.isArray(casesManifest.arms) || casesManifest.arms.length !== expectedArmCount) errors.push("expected " + expectedArmCount + " arms");
   if (casesManifest.schema.endsWith("/v2") && !casesManifest.arms.includes("current-production")) errors.push("v2 must include the current-production control arm");
+  if (casesManifest.schema.endsWith("/v3") && !casesManifest.arms.includes("current-production")) errors.push("v3 must include the current-production control arm");
   const scoreKeys = new Set();
   if (!Array.isArray(rubric.dimensions)) errors.push("rubric dimensions must be an array");
   else {
@@ -398,7 +399,7 @@ async function prepare(flags) {
     order: index + 1,
   })));
   await writeJson(path.join(runRoot, "study.json"), {
-    schema: "office-kit/presentation-skill-ablation-study/" + (casesManifest.arms.length === 3 ? "v2" : "v1"),
+    schema: "office-kit/presentation-skill-ablation-study/" + (casesManifest.arms.length === 4 ? "v3" : casesManifest.arms.length === 3 ? "v2" : "v1"),
     preparedAt: nowIso(),
     seed: casesManifest.seed || DEFAULT_SEED,
     model: casesManifest.model,
@@ -416,7 +417,7 @@ async function prepare(flags) {
     fixtureResults: validation.fixtures,
     rawRuns: "outside-package-or-ignored",
   });
-  await writeJson(path.join(runRoot, "frozen", "cases.v1.json"), casesManifest);
+  await writeJson(path.join(runRoot, "frozen", "cases.v" + (casesManifest.arms.length === 4 ? "3" : casesManifest.arms.length === 3 ? "2" : "1") + ".json"), casesManifest);
   await writeJson(path.join(runRoot, "frozen", "rubric.v1.json"), rubric);
   await writeJson(path.join(runRoot, "frozen", "capability-coverage.v1.json"), coverage);
   await writeJson(path.join(runRoot, "frozen", "fixtures.v1.json"), fixtures);
@@ -815,8 +816,12 @@ async function auditExisting(flags) {
   return artifact;
 }
 
-function judgeSchemaPath() {
-  return path.join(EXPERIMENT_ROOT, process.env.PRESENTATION_ABLATION_JUDGE_SCHEMA || "judge-output-schema.v1.json");
+function judgeSchemaPath(slots = ["A", "B"]) {
+  if (process.env.PRESENTATION_ABLATION_JUDGE_SCHEMA) {
+    return path.join(EXPERIMENT_ROOT, process.env.PRESENTATION_ABLATION_JUDGE_SCHEMA);
+  }
+  const version = slots.length >= 4 ? "v3" : slots.length === 3 ? "v2" : "v1";
+  return path.join(EXPERIMENT_ROOT, "judge-output-schema." + version + ".json");
 }
 
 function judgePrompt({ item, round, hardGate, slots = ["A", "B"] }) {
@@ -914,7 +919,7 @@ async function runOneJudge({ pair, round, timeout }) {
   const args = [
     "exec", "--ephemeral", "--ignore-user-config", "--ignore-rules", "--json",
     "--sandbox", "read-only", "--skip-git-repo-check", "--model", "gpt-5.6-luna",
-    "--config", "model_reasoning_effort=\"max\"", "--output-schema", judgeSchemaPath(),
+    "--config", "model_reasoning_effort=\"max\"", "--output-schema", judgeSchemaPath(pair.slots),
     "--output-last-message", finalPath,
   ];
   for (const slot of pair.slots) {
@@ -1139,16 +1144,21 @@ async function analyzeTri(flags) {
     for (const record of judges.filter((candidate) => candidate.caseId === item.id && candidate.status === "valid")) {
       const truth = await loadPairTruth(runRoot, item.id, record.round);
       const scores = {};
+      const judgeHardGate = {};
       for (const slot of slots) {
         const arm = truth?.assignment?.[slot];
-        if (arm) scores[arm] = weightedScore(record.score.scores?.[slot], rubric.dimensions);
+        if (arm) {
+          scores[arm] = weightedScore(record.score.scores?.[slot], rubric.dimensions);
+          judgeHardGate[arm] = record.score.hardGate?.[slot] || "missing";
+        }
       }
       rounds.push({
         round: record.round,
         scores,
+        judgeHardGate,
         winnerArm: truth?.assignment && slots.includes(record.score.winner) ? truth.assignment[record.score.winner] : record.score.winner === "tie" ? "tie" : null,
         confidence: record.score.confidence,
-        eligible: arms.every((arm) => hardGate[arm] === "passed" && Number.isFinite(scores[arm])),
+        eligible: arms.every((arm) => hardGate[arm] === "passed" && judgeHardGate[arm] === "passed" && Number.isFinite(scores[arm])),
       });
     }
     pairs.push({
@@ -1191,8 +1201,9 @@ async function analyzeTri(flags) {
       imageSearches: average((record) => record.usage?.imageSearches),
     }];
   }));
+  const routeLabel = arms.length === 3 ? "tri-route" : "multi-route";
   const report = {
-    schema: "office-kit/presentation-skill-ablation-tri-route-analysis/v1",
+    schema: "office-kit/presentation-skill-ablation-" + routeLabel + "-analysis/v1",
     generatedAt: nowIso(),
     runRoot: path.relative(REPO_ROOT, runRoot) || ".",
     arms,
@@ -1200,12 +1211,17 @@ async function analyzeTri(flags) {
       cases: casesManifest.cases.length,
       authorSets: pairs.filter((pair) => arms.every((arm) => Object.hasOwn(pair.authors, arm))).length,
       validHardGateSets: pairs.filter((pair) => arms.every((arm) => pair.hardGate[arm] === "passed")).length,
+      visualHardGateRounds: pairs.flatMap((pair) => pair.rounds).filter((round) => arms.every((arm) => round.judgeHardGate?.[arm] === "passed")).length,
+      eligibleRounds: pairs.flatMap((pair) => pair.rounds).filter((round) => round.eligible).length,
       judgeRecords: judges.length,
       judgedSets: pairs.filter((pair) => pair.rounds.length > 0).length,
       authorTimeouts: authors.filter((record) => record.codex?.timedOut).length,
       hardGateFailures: pairs.flatMap((pair) => arms
         .filter((arm) => pair.hardGate[arm] !== "passed")
         .map((arm) => ({ caseId: pair.caseId, arm, status: pair.hardGate[arm] }))),
+      visualHardGateFailures: pairs.flatMap((pair) => pair.rounds.flatMap((round) => arms
+        .filter((arm) => round.judgeHardGate?.[arm] !== "passed")
+        .map((arm) => ({ caseId: pair.caseId, round: round.round, arm, status: round.judgeHardGate?.[arm] || "missing" })))),
     },
     routeWins,
     allRouteWins,
@@ -1216,31 +1232,33 @@ async function analyzeTri(flags) {
     efficiency,
     pairs,
     limitations: [
-      "三方盲评只把三方作者都通过硬门槛的回合纳入 pairwise 质量分差",
+      arms.length + " 方盲评只把作者侧和盲评侧硬门槛都通过的回合纳入 pairwise 质量分差",
       "Structural/render evidence is not PowerPoint playback evidence",
       "Human calibration records are pending unless supplied separately",
     ],
   };
-  await writeJson(path.join(runRoot, "analysis.tri-route.v1.json"), report);
+  await writeJson(path.join(runRoot, "analysis." + routeLabel + ".v1.json"), report);
   const evidenceDir = path.join(EXPERIMENT_ROOT, "evidence");
   await ensureDir(evidenceDir);
-  await writeJson(path.join(evidenceDir, "summary.tri-route.v1.json"), report);
-  await writeFile(path.join(EXPERIMENT_ROOT, "report.tri-route.v1.md"), renderTriReport(report), "utf8");
+  await writeJson(path.join(evidenceDir, "summary." + routeLabel + ".v1.json"), report);
+  await writeFile(path.join(EXPERIMENT_ROOT, "report." + routeLabel + ".v1.md"), renderTriReport(report), "utf8");
   return report;
 }
 
 function renderTriReport(report) {
+  const routeCount = report.arms.length;
   const lines = [
-    "# Presentation Skill 三路线质量实验：研究报告",
+    "# Presentation Skill " + routeCount + " 路线质量实验：研究报告",
     "",
     "生成时间：" + report.generatedAt,
     "",
-    "> 当前生产 Skill 是冻结控制组；Shared What/What-kind/How 与 Kimi-style concise 是实验组。",
+    "> 当前生产 Skill、Shared What/What-kind/How、Kimi-style concise 与新增混合路线共用同一 PPJ、素材、渲染和复核能力；本报告只比较入口路由。",
     "",
     "## 样本",
     "",
-    "- 任务数：" + report.sample.cases + "；三方作者集合：" + report.sample.authorSets + "。",
-    "- 三方均通过硬门槛的任务：" + report.sample.validHardGateSets + "。",
+    "- 任务数：" + report.sample.cases + "；路线：" + report.arms.join("、") + "；全路线作者集合：" + report.sample.authorSets + "。",
+    "- 所有路线的作者侧硬门槛均通过的任务：" + report.sample.validHardGateSets + "。",
+    "- 盲评认为所有路线均通过视觉/内容硬门槛的回合：" + report.sample.visualHardGateRounds + "；实际纳入质量差分的回合：" + report.sample.eligibleRounds + "。",
     "- 有效盲评记录：" + report.sample.judgeRecords + "。",
     "",
     "## 路线胜负（仅合格配对）",
@@ -1250,22 +1268,20 @@ function renderTriReport(report) {
   lines.push("", "未过滤硬门槛的评审胜负仅作为诊断保留：" + Object.entries(report.allRouteWins).map(([arm, wins]) => arm + "=" + wins).join("，") + "。", "这些诊断胜负不进入质量结论。", "");
   lines.push("", "## 两两质量分差（左路线 − 右路线）", "", "| 比较 | n | 均值 | 中位数 | bootstrap 95% | p(sign) |", "| --- | ---: | ---: | ---: | --- | ---: |");
   for (const value of Object.values(report.pairwise)) lines.push("| " + value.left + " − " + value.right + " | " + value.deltas.length + " | " + (value.meanDelta ?? "pending") + " | " + (value.medianDelta ?? "pending") + " | " + (value.bootstrap95.low ?? "pending") + " … " + (value.bootstrap95.high ?? "pending") + " | " + value.signTest.pTwoSided + " |");
-  lines.push("", "## 分层结果", "", "以下只在三方均通过硬门槛的回合中统计。", "", "| 分层 | 比较 | n | 均值 | 中位数 |", "| --- | --- | ---: | ---: | ---: |");
+  lines.push("", "## 分层结果", "", "以下只在作者侧和盲评侧所有路线均通过硬门槛的回合中统计。", "", "| 分层 | 比较 | n | 均值 | 中位数 |", "| --- | --- | ---: | ---: | ---: |");
   for (const [lifecycle, values] of Object.entries(report.byLifecycle)) for (const value of Object.values(values)) lines.push("| lifecycle=" + lifecycle + " | " + value.left + " − " + value.right + " | " + value.deltas.length + " | " + (value.meanDelta ?? "pending") + " | " + (value.medianDelta ?? "pending") + " |");
   for (const [scenario, values] of Object.entries(report.byScenario)) for (const value of Object.values(values)) lines.push("| scenario=" + scenario + " | " + value.left + " − " + value.right + " | " + value.deltas.length + " | " + (value.meanDelta ?? "pending") + " | " + (value.medianDelta ?? "pending") + " |");
   for (const [image, values] of Object.entries(report.byImage)) for (const value of Object.values(values)) lines.push("| asset=" + image + " | " + value.left + " − " + value.right + " | " + value.deltas.length + " | " + (value.meanDelta ?? "pending") + " | " + (value.medianDelta ?? "pending") + " |");
   lines.push("", "## 效率", "", "| 路线 | 作者数 | 平均 wall time (ms) | 平均输入 token | 平均工具调用 |", "| --- | ---: | ---: | ---: | ---: |");
   for (const [arm, value] of Object.entries(report.efficiency)) lines.push("| " + arm + " | " + value.n + " | " + (value.wallTimeMs ?? "pending") + " | " + (value.inputTokens ?? "pending") + " | " + (value.toolCalls ?? "pending") + " |");
-  lines.push("", "作者超时：" + report.sample.authorTimeouts + " / " + (report.sample.cases * report.arms.length) + "。", "硬门槛失败：" + report.sample.hardGateFailures.map((item) => item.caseId + "/" + item.arm + " (" + item.status + ")").join("；") + "。", "");
+  lines.push("", "作者超时：" + report.sample.authorTimeouts + " / " + (report.sample.cases * report.arms.length) + "。", "作者侧硬门槛失败：" + report.sample.hardGateFailures.map((item) => item.caseId + "/" + item.arm + " (" + item.status + ")").join("；") + "。", "盲评侧视觉/内容硬门槛失败：" + report.sample.visualHardGateFailures.map((item) => item.caseId + "/r" + item.round + "/" + item.arm + " (" + item.status + ")").join("；") + "。", "");
   lines.push(
     "## 结论（探索性）",
     "",
-    "- 没有足够证据宣布单一路线胜出：三组总体配对区间均跨过 0，exact paired permutation 的双侧 p 值也未达到稳定差异标准。",
-    "- 合格回合的路线胜负为 current-production=" + report.routeWins["current-production"] + "、shared-what-kind-how=" + report.routeWins["shared-what-kind-how"] + "、kimi-concise=" + report.routeWins["kimi-concise"] + "、tie=" + report.routeWins.tie + "；这比包含失败产物的诊断胜负更适合作为结论依据。",
-    "- 0→1 中，两条实验路线相对当前生产路线的分差点估计为负（current−shared=-5.6，current−kimi=-4.5），说明新入口在从零创作上有潜力；shared 与 kimi 的差异很小（+1.1）。",
-    "- 1→10 中，shared 相对 current 落后（+6.67），kimi 与 current 接近（-1.0），更像是编辑/源绑定可靠性和任务完成度的差异，而不是单纯视觉偏好。",
-    "- brand-creative 的两项任务没有三方同时过门槛，因此本轮不能对品牌场景下结论；四个硬门槛失败必须作为工程问题处理。",
-    "- 暂不改变生产默认路由：可把 kimi-concise 作为后续 0→1 优化候选，把 current-production 保留为稳定控制/编辑回退，把 shared 路线先修复失败的源绑定和超时问题后再复测。",
+    "- 这是一轮新增混合路线的探索性四方比较；质量差分同时要求作者侧和盲评侧硬门槛通过，不能用未通过门槛的外观分数抵消工程失败。",
+    "- 路线胜负（合格回合）为：" + Object.entries(report.routeWins).map(([arm, wins]) => arm + "=" + wins).join("、") + "。",
+    "- 每一对路线的均值、bootstrap 区间和配对检验见上表；样本仍是冻结的 12 个任务，不能外推到所有 PPT 场景。",
+    "- 新混合路线的价值判断应同时看质量、硬门槛、编辑保真和成本；如果只在 0→1 获胜而 1→10 退化，不应直接替换生产路由。",
     "",
   );
   lines.push("", "## 限制", "");
@@ -1275,7 +1291,7 @@ function renderTriReport(report) {
 
 async function analyze(flags) {
   const [casesManifest, rubric] = await loadInputs();
-  if (casesManifest.arms.length === 3) return analyzeTri(flags);
+  if (casesManifest.arms.length >= 3) return analyzeTri(flags);
   const runRoot = path.resolve(String(flag(flags, "run-root", path.join(EXPERIMENT_ROOT, "runs"))));
   const authors = await authorRecords(runRoot);
   const judges = await loadJudgeRecords(runRoot);

@@ -1,0 +1,3151 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-multi-route-analysis/v1",
+  "generatedAt": "2026-09-03T06:47:35.950Z",
+  "runRoot": "evals/presentation-skill-ablation/runs/hybrid-20260903",
+  "arms": [
+    "current-production",
+    "shared-what-kind-how",
+    "kimi-concise",
+    "hybrid-short-contract"
+  ],
+  "sample": {
+    "cases": 12,
+    "authorSets": 6,
+    "validHardGateSets": 4,
+    "visualHardGateRounds": 6,
+    "eligibleRounds": 6,
+    "judgeRecords": 12,
+    "judgedSets": 6,
+    "authorTimeouts": 18,
+    "hardGateFailures": [
+      {
+        "caseId": "technical-engineering-01",
+        "arm": "hybrid-short-contract",
+        "status": "failed"
+      },
+      {
+        "caseId": "brand-creative-01",
+        "arm": "shared-what-kind-how",
+        "status": "failed"
+      },
+      {
+        "caseId": "analysis-decision-10",
+        "arm": "hybrid-short-contract",
+        "status": "missing"
+      },
+      {
+        "caseId": "management-report-10",
+        "arm": "kimi-concise",
+        "status": "failed"
+      },
+      {
+        "caseId": "management-report-10",
+        "arm": "hybrid-short-contract",
+        "status": "missing"
+      },
+      {
+        "caseId": "technical-engineering-10",
+        "arm": "hybrid-short-contract",
+        "status": "missing"
+      },
+      {
+        "caseId": "academic-research-10",
+        "arm": "shared-what-kind-how",
+        "status": "failed"
+      },
+      {
+        "caseId": "academic-research-10",
+        "arm": "hybrid-short-contract",
+        "status": "missing"
+      },
+      {
+        "caseId": "education-training-10",
+        "arm": "hybrid-short-contract",
+        "status": "missing"
+      },
+      {
+        "caseId": "brand-creative-10",
+        "arm": "shared-what-kind-how",
+        "status": "failed"
+      },
+      {
+        "caseId": "brand-creative-10",
+        "arm": "hybrid-short-contract",
+        "status": "missing"
+      }
+    ],
+    "visualHardGateFailures": [
+      {
+        "caseId": "analysis-decision-01",
+        "round": 1,
+        "arm": "hybrid-short-contract",
+        "status": "failed"
+      },
+      {
+        "caseId": "analysis-decision-01",
+        "round": 2,
+        "arm": "hybrid-short-contract",
+        "status": "failed"
+      },
+      {
+        "caseId": "technical-engineering-01",
+        "round": 1,
+        "arm": "hybrid-short-contract",
+        "status": "failed"
+      },
+      {
+        "caseId": "technical-engineering-01",
+        "round": 2,
+        "arm": "hybrid-short-contract",
+        "status": "failed"
+      },
+      {
+        "caseId": "brand-creative-01",
+        "round": 1,
+        "arm": "shared-what-kind-how",
+        "status": "failed"
+      },
+      {
+        "caseId": "brand-creative-01",
+        "round": 2,
+        "arm": "shared-what-kind-how",
+        "status": "failed"
+      }
+    ]
+  },
+  "routeWins": {
+    "current-production": 1,
+    "shared-what-kind-how": 1,
+    "kimi-concise": 3,
+    "hybrid-short-contract": 1,
+    "tie": 0
+  },
+  "allRouteWins": {
+    "current-production": 2,
+    "shared-what-kind-how": 4,
+    "kimi-concise": 5,
+    "hybrid-short-contract": 1,
+    "tie": 0
+  },
+  "pairwise": {
+    "current-production__vs__shared-what-kind-how": {
+      "left": "current-production",
+      "right": "shared-what-kind-how",
+      "deltas": [
+        -8,
+        -8,
+        4,
+        8,
+        -10,
+        -17
+      ],
+      "meanDelta": -5.166666666666667,
+      "medianDelta": -8,
+      "bootstrap95": {
+        "n": 6,
+        "low": -11.666666666666666,
+        "high": 2.3333333333333335,
+        "median": -8
+      },
+      "signTest": {
+        "n": 6,
+        "positive": 2,
+        "negative": 4,
+        "pTwoSided": 0.6875
+      },
+      "pairedPermutation": {
+        "n": 6,
+        "method": "exact-sign-flip",
+        "combinations": 64,
+        "pTwoSided": 0.28125
+      }
+    },
+    "current-production__vs__kimi-concise": {
+      "left": "current-production",
+      "right": "kimi-concise",
+      "deltas": [
+        -21,
+        -16,
+        0,
+        12,
+        -16,
+        -11
+      ],
+      "meanDelta": -8.666666666666666,
+      "medianDelta": -13.5,
+      "bootstrap95": {
+        "n": 6,
+        "low": -16.833333333333332,
+        "high": 1.3333333333333333,
+        "median": -13.5
+      },
+      "signTest": {
+        "n": 5,
+        "positive": 1,
+        "negative": 4,
+        "pTwoSided": 0.375
+      },
+      "pairedPermutation": {
+        "n": 6,
+        "method": "exact-sign-flip",
+        "combinations": 64,
+        "pTwoSided": 0.1875
+      }
+    },
+    "current-production__vs__hybrid-short-contract": {
+      "left": "current-production",
+      "right": "hybrid-short-contract",
+      "deltas": [
+        -4,
+        -12,
+        -4,
+        7,
+        -4,
+        3
+      ],
+      "meanDelta": -2.3333333333333335,
+      "medianDelta": -4,
+      "bootstrap95": {
+        "n": 6,
+        "low": -6.833333333333333,
+        "high": 2.6666666666666665,
+        "median": -4
+      },
+      "signTest": {
+        "n": 6,
+        "positive": 2,
+        "negative": 4,
+        "pTwoSided": 0.6875
+      },
+      "pairedPermutation": {
+        "n": 6,
+        "method": "exact-sign-flip",
+        "combinations": 64,
+        "pTwoSided": 0.40625
+      }
+    },
+    "shared-what-kind-how__vs__kimi-concise": {
+      "left": "shared-what-kind-how",
+      "right": "kimi-concise",
+      "deltas": [
+        -13,
+        -8,
+        -4,
+        4,
+        -6,
+        6
+      ],
+      "meanDelta": -3.5,
+      "medianDelta": -5,
+      "bootstrap95": {
+        "n": 6,
+        "low": -8.5,
+        "high": 2.1666666666666665,
+        "median": -5
+      },
+      "signTest": {
+        "n": 6,
+        "positive": 2,
+        "negative": 4,
+        "pTwoSided": 0.6875
+      },
+      "pairedPermutation": {
+        "n": 6,
+        "method": "exact-sign-flip",
+        "combinations": 64,
+        "pTwoSided": 0.34375
+      }
+    },
+    "shared-what-kind-how__vs__hybrid-short-contract": {
+      "left": "shared-what-kind-how",
+      "right": "hybrid-short-contract",
+      "deltas": [
+        4,
+        -4,
+        -8,
+        -1,
+        6,
+        20
+      ],
+      "meanDelta": 2.8333333333333335,
+      "medianDelta": 1.5,
+      "bootstrap95": {
+        "n": 6,
+        "low": -4,
+        "high": 10.666666666666666,
+        "median": 1.5
+      },
+      "signTest": {
+        "n": 6,
+        "positive": 3,
+        "negative": 3,
+        "pTwoSided": 1
+      },
+      "pairedPermutation": {
+        "n": 6,
+        "method": "exact-sign-flip",
+        "combinations": 64,
+        "pTwoSided": 0.625
+      }
+    },
+    "kimi-concise__vs__hybrid-short-contract": {
+      "left": "kimi-concise",
+      "right": "hybrid-short-contract",
+      "deltas": [
+        17,
+        4,
+        -4,
+        -5,
+        12,
+        14
+      ],
+      "meanDelta": 6.333333333333333,
+      "medianDelta": 8,
+      "bootstrap95": {
+        "n": 6,
+        "low": -1,
+        "high": 12.666666666666666,
+        "median": 8
+      },
+      "signTest": {
+        "n": 6,
+        "positive": 4,
+        "negative": 2,
+        "pTwoSided": 0.6875
+      },
+      "pairedPermutation": {
+        "n": 6,
+        "method": "exact-sign-flip",
+        "combinations": 64,
+        "pTwoSided": 0.21875
+      }
+    }
+  },
+  "byLifecycle": {
+    "0-to-1": {
+      "current-production__vs__shared-what-kind-how": {
+        "left": "current-production",
+        "right": "shared-what-kind-how",
+        "deltas": [
+          -8,
+          -8,
+          4,
+          8,
+          -10,
+          -17
+        ],
+        "meanDelta": -5.166666666666667,
+        "medianDelta": -8,
+        "bootstrap95": {
+          "n": 6,
+          "low": -11.666666666666666,
+          "high": 2.3333333333333335,
+          "median": -8
+        },
+        "signTest": {
+          "n": 6,
+          "positive": 2,
+          "negative": 4,
+          "pTwoSided": 0.6875
+        },
+        "pairedPermutation": {
+          "n": 6,
+          "method": "exact-sign-flip",
+          "combinations": 64,
+          "pTwoSided": 0.28125
+        }
+      },
+      "current-production__vs__kimi-concise": {
+        "left": "current-production",
+        "right": "kimi-concise",
+        "deltas": [
+          -21,
+          -16,
+          0,
+          12,
+          -16,
+          -11
+        ],
+        "meanDelta": -8.666666666666666,
+        "medianDelta": -13.5,
+        "bootstrap95": {
+          "n": 6,
+          "low": -16.833333333333332,
+          "high": 1.3333333333333333,
+          "median": -13.5
+        },
+        "signTest": {
+          "n": 5,
+          "positive": 1,
+          "negative": 4,
+          "pTwoSided": 0.375
+        },
+        "pairedPermutation": {
+          "n": 6,
+          "method": "exact-sign-flip",
+          "combinations": 64,
+          "pTwoSided": 0.1875
+        }
+      },
+      "current-production__vs__hybrid-short-contract": {
+        "left": "current-production",
+        "right": "hybrid-short-contract",
+        "deltas": [
+          -4,
+          -12,
+          -4,
+          7,
+          -4,
+          3
+        ],
+        "meanDelta": -2.3333333333333335,
+        "medianDelta": -4,
+        "bootstrap95": {
+          "n": 6,
+          "low": -6.833333333333333,
+          "high": 2.6666666666666665,
+          "median": -4
+        },
+        "signTest": {
+          "n": 6,
+          "positive": 2,
+          "negative": 4,
+          "pTwoSided": 0.6875
+        },
+        "pairedPermutation": {
+          "n": 6,
+          "method": "exact-sign-flip",
+          "combinations": 64,
+          "pTwoSided": 0.40625
+        }
+      },
+      "shared-what-kind-how__vs__kimi-concise": {
+        "left": "shared-what-kind-how",
+        "right": "kimi-concise",
+        "deltas": [
+          -13,
+          -8,
+          -4,
+          4,
+          -6,
+          6
+        ],
+        "meanDelta": -3.5,
+        "medianDelta": -5,
+        "bootstrap95": {
+          "n": 6,
+          "low": -8.5,
+          "high": 2.1666666666666665,
+          "median": -5
+        },
+        "signTest": {
+          "n": 6,
+          "positive": 2,
+          "negative": 4,
+          "pTwoSided": 0.6875
+        },
+        "pairedPermutation": {
+          "n": 6,
+          "method": "exact-sign-flip",
+          "combinations": 64,
+          "pTwoSided": 0.34375
+        }
+      },
+      "shared-what-kind-how__vs__hybrid-short-contract": {
+        "left": "shared-what-kind-how",
+        "right": "hybrid-short-contract",
+        "deltas": [
+          4,
+          -4,
+          -8,
+          -1,
+          6,
+          20
+        ],
+        "meanDelta": 2.8333333333333335,
+        "medianDelta": 1.5,
+        "bootstrap95": {
+          "n": 6,
+          "low": -4,
+          "high": 10.666666666666666,
+          "median": 1.5
+        },
+        "signTest": {
+          "n": 6,
+          "positive": 3,
+          "negative": 3,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 6,
+          "method": "exact-sign-flip",
+          "combinations": 64,
+          "pTwoSided": 0.625
+        }
+      },
+      "kimi-concise__vs__hybrid-short-contract": {
+        "left": "kimi-concise",
+        "right": "hybrid-short-contract",
+        "deltas": [
+          17,
+          4,
+          -4,
+          -5,
+          12,
+          14
+        ],
+        "meanDelta": 6.333333333333333,
+        "medianDelta": 8,
+        "bootstrap95": {
+          "n": 6,
+          "low": -1,
+          "high": 12.666666666666666,
+          "median": 8
+        },
+        "signTest": {
+          "n": 6,
+          "positive": 4,
+          "negative": 2,
+          "pTwoSided": 0.6875
+        },
+        "pairedPermutation": {
+          "n": 6,
+          "method": "exact-sign-flip",
+          "combinations": 64,
+          "pTwoSided": 0.21875
+        }
+      }
+    },
+    "1-to-10": {
+      "current-production__vs__shared-what-kind-how": {
+        "left": "current-production",
+        "right": "shared-what-kind-how",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      },
+      "current-production__vs__kimi-concise": {
+        "left": "current-production",
+        "right": "kimi-concise",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      },
+      "current-production__vs__hybrid-short-contract": {
+        "left": "current-production",
+        "right": "hybrid-short-contract",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      },
+      "shared-what-kind-how__vs__kimi-concise": {
+        "left": "shared-what-kind-how",
+        "right": "kimi-concise",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      },
+      "shared-what-kind-how__vs__hybrid-short-contract": {
+        "left": "shared-what-kind-how",
+        "right": "hybrid-short-contract",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      },
+      "kimi-concise__vs__hybrid-short-contract": {
+        "left": "kimi-concise",
+        "right": "hybrid-short-contract",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      }
+    }
+  },
+  "byScenario": {
+    "academic-research": {
+      "current-production__vs__shared-what-kind-how": {
+        "left": "current-production",
+        "right": "shared-what-kind-how",
+        "deltas": [
+          4,
+          8
+        ],
+        "meanDelta": 6,
+        "medianDelta": 6,
+        "bootstrap95": {
+          "n": 2,
+          "low": 4,
+          "high": 8,
+          "median": 6
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 2,
+          "negative": 0,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 0.5
+        }
+      },
+      "current-production__vs__kimi-concise": {
+        "left": "current-production",
+        "right": "kimi-concise",
+        "deltas": [
+          0,
+          12
+        ],
+        "meanDelta": 6,
+        "medianDelta": 6,
+        "bootstrap95": {
+          "n": 2,
+          "low": 0,
+          "high": 12,
+          "median": 6
+        },
+        "signTest": {
+          "n": 1,
+          "positive": 1,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 1
+        }
+      },
+      "current-production__vs__hybrid-short-contract": {
+        "left": "current-production",
+        "right": "hybrid-short-contract",
+        "deltas": [
+          -4,
+          7
+        ],
+        "meanDelta": 1.5,
+        "medianDelta": 1.5,
+        "bootstrap95": {
+          "n": 2,
+          "low": -4,
+          "high": 7,
+          "median": 1.5
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 1,
+          "negative": 1,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 1
+        }
+      },
+      "shared-what-kind-how__vs__kimi-concise": {
+        "left": "shared-what-kind-how",
+        "right": "kimi-concise",
+        "deltas": [
+          -4,
+          4
+        ],
+        "meanDelta": 0,
+        "medianDelta": 0,
+        "bootstrap95": {
+          "n": 2,
+          "low": -4,
+          "high": 4,
+          "median": 0
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 1,
+          "negative": 1,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 1
+        }
+      },
+      "shared-what-kind-how__vs__hybrid-short-contract": {
+        "left": "shared-what-kind-how",
+        "right": "hybrid-short-contract",
+        "deltas": [
+          -8,
+          -1
+        ],
+        "meanDelta": -4.5,
+        "medianDelta": -4.5,
+        "bootstrap95": {
+          "n": 2,
+          "low": -8,
+          "high": -1,
+          "median": -4.5
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 0,
+          "negative": 2,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 0.5
+        }
+      },
+      "kimi-concise__vs__hybrid-short-contract": {
+        "left": "kimi-concise",
+        "right": "hybrid-short-contract",
+        "deltas": [
+          -4,
+          -5
+        ],
+        "meanDelta": -4.5,
+        "medianDelta": -4.5,
+        "bootstrap95": {
+          "n": 2,
+          "low": -5,
+          "high": -4,
+          "median": -4.5
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 0,
+          "negative": 2,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 0.5
+        }
+      }
+    },
+    "analysis-decision": {
+      "current-production__vs__shared-what-kind-how": {
+        "left": "current-production",
+        "right": "shared-what-kind-how",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      },
+      "current-production__vs__kimi-concise": {
+        "left": "current-production",
+        "right": "kimi-concise",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      },
+      "current-production__vs__hybrid-short-contract": {
+        "left": "current-production",
+        "right": "hybrid-short-contract",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      },
+      "shared-what-kind-how__vs__kimi-concise": {
+        "left": "shared-what-kind-how",
+        "right": "kimi-concise",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      },
+      "shared-what-kind-how__vs__hybrid-short-contract": {
+        "left": "shared-what-kind-how",
+        "right": "hybrid-short-contract",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      },
+      "kimi-concise__vs__hybrid-short-contract": {
+        "left": "kimi-concise",
+        "right": "hybrid-short-contract",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      }
+    },
+    "brand-creative": {
+      "current-production__vs__shared-what-kind-how": {
+        "left": "current-production",
+        "right": "shared-what-kind-how",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      },
+      "current-production__vs__kimi-concise": {
+        "left": "current-production",
+        "right": "kimi-concise",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      },
+      "current-production__vs__hybrid-short-contract": {
+        "left": "current-production",
+        "right": "hybrid-short-contract",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      },
+      "shared-what-kind-how__vs__kimi-concise": {
+        "left": "shared-what-kind-how",
+        "right": "kimi-concise",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      },
+      "shared-what-kind-how__vs__hybrid-short-contract": {
+        "left": "shared-what-kind-how",
+        "right": "hybrid-short-contract",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      },
+      "kimi-concise__vs__hybrid-short-contract": {
+        "left": "kimi-concise",
+        "right": "hybrid-short-contract",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      }
+    },
+    "education-training": {
+      "current-production__vs__shared-what-kind-how": {
+        "left": "current-production",
+        "right": "shared-what-kind-how",
+        "deltas": [
+          -10,
+          -17
+        ],
+        "meanDelta": -13.5,
+        "medianDelta": -13.5,
+        "bootstrap95": {
+          "n": 2,
+          "low": -17,
+          "high": -10,
+          "median": -13.5
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 0,
+          "negative": 2,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 0.5
+        }
+      },
+      "current-production__vs__kimi-concise": {
+        "left": "current-production",
+        "right": "kimi-concise",
+        "deltas": [
+          -16,
+          -11
+        ],
+        "meanDelta": -13.5,
+        "medianDelta": -13.5,
+        "bootstrap95": {
+          "n": 2,
+          "low": -16,
+          "high": -11,
+          "median": -13.5
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 0,
+          "negative": 2,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 0.5
+        }
+      },
+      "current-production__vs__hybrid-short-contract": {
+        "left": "current-production",
+        "right": "hybrid-short-contract",
+        "deltas": [
+          -4,
+          3
+        ],
+        "meanDelta": -0.5,
+        "medianDelta": -0.5,
+        "bootstrap95": {
+          "n": 2,
+          "low": -4,
+          "high": 3,
+          "median": -0.5
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 1,
+          "negative": 1,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 1
+        }
+      },
+      "shared-what-kind-how__vs__kimi-concise": {
+        "left": "shared-what-kind-how",
+        "right": "kimi-concise",
+        "deltas": [
+          -6,
+          6
+        ],
+        "meanDelta": 0,
+        "medianDelta": 0,
+        "bootstrap95": {
+          "n": 2,
+          "low": -6,
+          "high": 6,
+          "median": 0
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 1,
+          "negative": 1,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 1
+        }
+      },
+      "shared-what-kind-how__vs__hybrid-short-contract": {
+        "left": "shared-what-kind-how",
+        "right": "hybrid-short-contract",
+        "deltas": [
+          6,
+          20
+        ],
+        "meanDelta": 13,
+        "medianDelta": 13,
+        "bootstrap95": {
+          "n": 2,
+          "low": 6,
+          "high": 20,
+          "median": 13
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 2,
+          "negative": 0,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 0.5
+        }
+      },
+      "kimi-concise__vs__hybrid-short-contract": {
+        "left": "kimi-concise",
+        "right": "hybrid-short-contract",
+        "deltas": [
+          12,
+          14
+        ],
+        "meanDelta": 13,
+        "medianDelta": 13,
+        "bootstrap95": {
+          "n": 2,
+          "low": 12,
+          "high": 14,
+          "median": 13
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 2,
+          "negative": 0,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 0.5
+        }
+      }
+    },
+    "management-report": {
+      "current-production__vs__shared-what-kind-how": {
+        "left": "current-production",
+        "right": "shared-what-kind-how",
+        "deltas": [
+          -8,
+          -8
+        ],
+        "meanDelta": -8,
+        "medianDelta": -8,
+        "bootstrap95": {
+          "n": 2,
+          "low": -8,
+          "high": -8,
+          "median": -8
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 0,
+          "negative": 2,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 0.5
+        }
+      },
+      "current-production__vs__kimi-concise": {
+        "left": "current-production",
+        "right": "kimi-concise",
+        "deltas": [
+          -21,
+          -16
+        ],
+        "meanDelta": -18.5,
+        "medianDelta": -18.5,
+        "bootstrap95": {
+          "n": 2,
+          "low": -21,
+          "high": -16,
+          "median": -18.5
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 0,
+          "negative": 2,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 0.5
+        }
+      },
+      "current-production__vs__hybrid-short-contract": {
+        "left": "current-production",
+        "right": "hybrid-short-contract",
+        "deltas": [
+          -4,
+          -12
+        ],
+        "meanDelta": -8,
+        "medianDelta": -8,
+        "bootstrap95": {
+          "n": 2,
+          "low": -12,
+          "high": -4,
+          "median": -8
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 0,
+          "negative": 2,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 0.5
+        }
+      },
+      "shared-what-kind-how__vs__kimi-concise": {
+        "left": "shared-what-kind-how",
+        "right": "kimi-concise",
+        "deltas": [
+          -13,
+          -8
+        ],
+        "meanDelta": -10.5,
+        "medianDelta": -10.5,
+        "bootstrap95": {
+          "n": 2,
+          "low": -13,
+          "high": -8,
+          "median": -10.5
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 0,
+          "negative": 2,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 0.5
+        }
+      },
+      "shared-what-kind-how__vs__hybrid-short-contract": {
+        "left": "shared-what-kind-how",
+        "right": "hybrid-short-contract",
+        "deltas": [
+          4,
+          -4
+        ],
+        "meanDelta": 0,
+        "medianDelta": 0,
+        "bootstrap95": {
+          "n": 2,
+          "low": -4,
+          "high": 4,
+          "median": 0
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 1,
+          "negative": 1,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 1
+        }
+      },
+      "kimi-concise__vs__hybrid-short-contract": {
+        "left": "kimi-concise",
+        "right": "hybrid-short-contract",
+        "deltas": [
+          17,
+          4
+        ],
+        "meanDelta": 10.5,
+        "medianDelta": 10.5,
+        "bootstrap95": {
+          "n": 2,
+          "low": 4,
+          "high": 17,
+          "median": 10.5
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 2,
+          "negative": 0,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 0.5
+        }
+      }
+    },
+    "technical-engineering": {
+      "current-production__vs__shared-what-kind-how": {
+        "left": "current-production",
+        "right": "shared-what-kind-how",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      },
+      "current-production__vs__kimi-concise": {
+        "left": "current-production",
+        "right": "kimi-concise",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      },
+      "current-production__vs__hybrid-short-contract": {
+        "left": "current-production",
+        "right": "hybrid-short-contract",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      },
+      "shared-what-kind-how__vs__kimi-concise": {
+        "left": "shared-what-kind-how",
+        "right": "kimi-concise",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      },
+      "shared-what-kind-how__vs__hybrid-short-contract": {
+        "left": "shared-what-kind-how",
+        "right": "hybrid-short-contract",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      },
+      "kimi-concise__vs__hybrid-short-contract": {
+        "left": "kimi-concise",
+        "right": "hybrid-short-contract",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      }
+    }
+  },
+  "byImage": {
+    "image": {
+      "current-production__vs__shared-what-kind-how": {
+        "left": "current-production",
+        "right": "shared-what-kind-how",
+        "deltas": [
+          -10,
+          -17
+        ],
+        "meanDelta": -13.5,
+        "medianDelta": -13.5,
+        "bootstrap95": {
+          "n": 2,
+          "low": -17,
+          "high": -10,
+          "median": -13.5
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 0,
+          "negative": 2,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 0.5
+        }
+      },
+      "current-production__vs__kimi-concise": {
+        "left": "current-production",
+        "right": "kimi-concise",
+        "deltas": [
+          -16,
+          -11
+        ],
+        "meanDelta": -13.5,
+        "medianDelta": -13.5,
+        "bootstrap95": {
+          "n": 2,
+          "low": -16,
+          "high": -11,
+          "median": -13.5
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 0,
+          "negative": 2,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 0.5
+        }
+      },
+      "current-production__vs__hybrid-short-contract": {
+        "left": "current-production",
+        "right": "hybrid-short-contract",
+        "deltas": [
+          -4,
+          3
+        ],
+        "meanDelta": -0.5,
+        "medianDelta": -0.5,
+        "bootstrap95": {
+          "n": 2,
+          "low": -4,
+          "high": 3,
+          "median": -0.5
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 1,
+          "negative": 1,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 1
+        }
+      },
+      "shared-what-kind-how__vs__kimi-concise": {
+        "left": "shared-what-kind-how",
+        "right": "kimi-concise",
+        "deltas": [
+          -6,
+          6
+        ],
+        "meanDelta": 0,
+        "medianDelta": 0,
+        "bootstrap95": {
+          "n": 2,
+          "low": -6,
+          "high": 6,
+          "median": 0
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 1,
+          "negative": 1,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 1
+        }
+      },
+      "shared-what-kind-how__vs__hybrid-short-contract": {
+        "left": "shared-what-kind-how",
+        "right": "hybrid-short-contract",
+        "deltas": [
+          6,
+          20
+        ],
+        "meanDelta": 13,
+        "medianDelta": 13,
+        "bootstrap95": {
+          "n": 2,
+          "low": 6,
+          "high": 20,
+          "median": 13
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 2,
+          "negative": 0,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 0.5
+        }
+      },
+      "kimi-concise__vs__hybrid-short-contract": {
+        "left": "kimi-concise",
+        "right": "hybrid-short-contract",
+        "deltas": [
+          12,
+          14
+        ],
+        "meanDelta": 13,
+        "medianDelta": 13,
+        "bootstrap95": {
+          "n": 2,
+          "low": 12,
+          "high": 14,
+          "median": 13
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 2,
+          "negative": 0,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 0.5
+        }
+      }
+    },
+    "non-image": {
+      "current-production__vs__shared-what-kind-how": {
+        "left": "current-production",
+        "right": "shared-what-kind-how",
+        "deltas": [
+          -8,
+          -8,
+          4,
+          8
+        ],
+        "meanDelta": -1,
+        "medianDelta": -2,
+        "bootstrap95": {
+          "n": 4,
+          "low": -8,
+          "high": 6,
+          "median": -2
+        },
+        "signTest": {
+          "n": 4,
+          "positive": 2,
+          "negative": 2,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 4,
+          "method": "exact-sign-flip",
+          "combinations": 16,
+          "pTwoSided": 1
+        }
+      },
+      "current-production__vs__kimi-concise": {
+        "left": "current-production",
+        "right": "kimi-concise",
+        "deltas": [
+          -21,
+          -16,
+          0,
+          12
+        ],
+        "meanDelta": -6.25,
+        "medianDelta": -8,
+        "bootstrap95": {
+          "n": 4,
+          "low": -18.5,
+          "high": 6,
+          "median": -8
+        },
+        "signTest": {
+          "n": 3,
+          "positive": 1,
+          "negative": 2,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 4,
+          "method": "exact-sign-flip",
+          "combinations": 16,
+          "pTwoSided": 0.5
+        }
+      },
+      "current-production__vs__hybrid-short-contract": {
+        "left": "current-production",
+        "right": "hybrid-short-contract",
+        "deltas": [
+          -4,
+          -12,
+          -4,
+          7
+        ],
+        "meanDelta": -3.25,
+        "medianDelta": -4,
+        "bootstrap95": {
+          "n": 4,
+          "low": -10,
+          "high": 4.25,
+          "median": -4
+        },
+        "signTest": {
+          "n": 4,
+          "positive": 1,
+          "negative": 3,
+          "pTwoSided": 0.625
+        },
+        "pairedPermutation": {
+          "n": 4,
+          "method": "exact-sign-flip",
+          "combinations": 16,
+          "pTwoSided": 0.5
+        }
+      },
+      "shared-what-kind-how__vs__kimi-concise": {
+        "left": "shared-what-kind-how",
+        "right": "kimi-concise",
+        "deltas": [
+          -13,
+          -8,
+          -4,
+          4
+        ],
+        "meanDelta": -5.25,
+        "medianDelta": -6,
+        "bootstrap95": {
+          "n": 4,
+          "low": -10.75,
+          "high": 1,
+          "median": -6
+        },
+        "signTest": {
+          "n": 4,
+          "positive": 1,
+          "negative": 3,
+          "pTwoSided": 0.625
+        },
+        "pairedPermutation": {
+          "n": 4,
+          "method": "exact-sign-flip",
+          "combinations": 16,
+          "pTwoSided": 0.375
+        }
+      },
+      "shared-what-kind-how__vs__hybrid-short-contract": {
+        "left": "shared-what-kind-how",
+        "right": "hybrid-short-contract",
+        "deltas": [
+          4,
+          -4,
+          -8,
+          -1
+        ],
+        "meanDelta": -2.25,
+        "medianDelta": -2.5,
+        "bootstrap95": {
+          "n": 4,
+          "low": -6.25,
+          "high": 2,
+          "median": -2.5
+        },
+        "signTest": {
+          "n": 4,
+          "positive": 1,
+          "negative": 3,
+          "pTwoSided": 0.625
+        },
+        "pairedPermutation": {
+          "n": 4,
+          "method": "exact-sign-flip",
+          "combinations": 16,
+          "pTwoSided": 0.5
+        }
+      },
+      "kimi-concise__vs__hybrid-short-contract": {
+        "left": "kimi-concise",
+        "right": "hybrid-short-contract",
+        "deltas": [
+          17,
+          4,
+          -4,
+          -5
+        ],
+        "meanDelta": 3,
+        "medianDelta": 0,
+        "bootstrap95": {
+          "n": 4,
+          "low": -4.5,
+          "high": 11.75,
+          "median": 0
+        },
+        "signTest": {
+          "n": 4,
+          "positive": 2,
+          "negative": 2,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 4,
+          "method": "exact-sign-flip",
+          "combinations": 16,
+          "pTwoSided": 0.875
+        }
+      }
+    }
+  },
+  "efficiency": {
+    "current-production": {
+      "n": 12,
+      "wallTimeMs": 1032112.5,
+      "inputTokens": 7564695.125,
+      "outputTokens": 38848.75,
+      "toolCalls": 150.66666666666666,
+      "imageSearches": 1.6666666666666667
+    },
+    "shared-what-kind-how": {
+      "n": 12,
+      "wallTimeMs": 1077783.4166666667,
+      "inputTokens": 6552249.8,
+      "outputTokens": 38433.4,
+      "toolCalls": 146.83333333333334,
+      "imageSearches": 2.5
+    },
+    "kimi-concise": {
+      "n": 12,
+      "wallTimeMs": 1029989.25,
+      "inputTokens": 7127431.428571428,
+      "outputTokens": 39667.142857142855,
+      "toolCalls": 134.33333333333334,
+      "imageSearches": 3.0833333333333335
+    },
+    "hybrid-short-contract": {
+      "n": 6,
+      "wallTimeMs": 1006425.8333333334,
+      "inputTokens": 5443158,
+      "outputTokens": 34911,
+      "toolCalls": 142.5,
+      "imageSearches": 4.333333333333333
+    }
+  },
+  "pairs": [
+    {
+      "caseId": "analysis-decision-01",
+      "scenario": "analysis-decision",
+      "lifecycle": "0-to-1",
+      "image": false,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "passed",
+        "kimi-concise": "passed",
+        "hybrid-short-contract": "passed"
+      },
+      "rounds": [
+        {
+          "round": 1,
+          "scores": {
+            "kimi-concise": 85,
+            "shared-what-kind-how": 97,
+            "hybrid-short-contract": 61,
+            "current-production": 88
+          },
+          "judgeHardGate": {
+            "kimi-concise": "passed",
+            "shared-what-kind-how": "passed",
+            "hybrid-short-contract": "failed",
+            "current-production": "passed"
+          },
+          "winnerArm": "shared-what-kind-how",
+          "confidence": 4,
+          "eligible": false
+        },
+        {
+          "round": 2,
+          "scores": {
+            "hybrid-short-contract": 58,
+            "shared-what-kind-how": 97,
+            "current-production": 84,
+            "kimi-concise": 85
+          },
+          "judgeHardGate": {
+            "hybrid-short-contract": "failed",
+            "shared-what-kind-how": "passed",
+            "current-production": "passed",
+            "kimi-concise": "passed"
+          },
+          "winnerArm": "shared-what-kind-how",
+          "confidence": 4,
+          "eligible": false
+        }
+      ],
+      "authors": {
+        "current-production": {
+          "durationMs": 918468,
+          "usage": {
+            "jsonlEvents": 120,
+            "fileReads": 0,
+            "toolCalls": 100,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 28,
+            "buildPasses": 32,
+            "renderPasses": 27,
+            "reviewPasses": 41,
+            "tokens": {
+              "inputTokens": 7454488,
+              "outputTokens": 40017
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 1200208,
+          "usage": {
+            "jsonlEvents": 199,
+            "fileReads": 0,
+            "toolCalls": 184,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 39,
+            "buildPasses": 37,
+            "renderPasses": 27,
+            "reviewPasses": 45,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        },
+        "kimi-concise": {
+          "durationMs": 1199634,
+          "usage": {
+            "jsonlEvents": 143,
+            "fileReads": 0,
+            "toolCalls": 118,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 26,
+            "buildPasses": 21,
+            "renderPasses": 20,
+            "reviewPasses": 29,
+            "tokens": {
+              "inputTokens": 9176275,
+              "outputTokens": 52140
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "hybrid-short-contract": {
+          "durationMs": 943213,
+          "usage": {
+            "jsonlEvents": 221,
+            "fileReads": 0,
+            "toolCalls": 210,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 28,
+            "buildPasses": 38,
+            "renderPasses": 27,
+            "reviewPasses": 31,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    },
+    {
+      "caseId": "management-report-01",
+      "scenario": "management-report",
+      "lifecycle": "0-to-1",
+      "image": false,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "passed",
+        "kimi-concise": "passed",
+        "hybrid-short-contract": "passed"
+      },
+      "rounds": [
+        {
+          "round": 1,
+          "scores": {
+            "kimi-concise": 93,
+            "shared-what-kind-how": 80,
+            "hybrid-short-contract": 76,
+            "current-production": 72
+          },
+          "judgeHardGate": {
+            "kimi-concise": "passed",
+            "shared-what-kind-how": "passed",
+            "hybrid-short-contract": "passed",
+            "current-production": "passed"
+          },
+          "winnerArm": "kimi-concise",
+          "confidence": 4,
+          "eligible": true
+        },
+        {
+          "round": 2,
+          "scores": {
+            "hybrid-short-contract": 96,
+            "shared-what-kind-how": 92,
+            "current-production": 84,
+            "kimi-concise": 100
+          },
+          "judgeHardGate": {
+            "hybrid-short-contract": "passed",
+            "shared-what-kind-how": "passed",
+            "current-production": "passed",
+            "kimi-concise": "passed"
+          },
+          "winnerArm": "kimi-concise",
+          "confidence": 3,
+          "eligible": true
+        }
+      ],
+      "authors": {
+        "current-production": {
+          "durationMs": 1005778,
+          "usage": {
+            "jsonlEvents": 195,
+            "fileReads": 0,
+            "toolCalls": 170,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 33,
+            "buildPasses": 32,
+            "renderPasses": 24,
+            "reviewPasses": 44,
+            "tokens": {
+              "inputTokens": 7172231,
+              "outputTokens": 42229
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 864703,
+          "usage": {
+            "jsonlEvents": 105,
+            "fileReads": 0,
+            "toolCalls": 82,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 23,
+            "buildPasses": 24,
+            "renderPasses": 20,
+            "reviewPasses": 26,
+            "tokens": {
+              "inputTokens": 5328656,
+              "outputTokens": 37681
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "kimi-concise": {
+          "durationMs": 1007331,
+          "usage": {
+            "jsonlEvents": 135,
+            "fileReads": 0,
+            "toolCalls": 116,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 22,
+            "buildPasses": 25,
+            "renderPasses": 21,
+            "reviewPasses": 35,
+            "tokens": {
+              "inputTokens": 9139489,
+              "outputTokens": 43345
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "hybrid-short-contract": {
+          "durationMs": 995749,
+          "usage": {
+            "jsonlEvents": 128,
+            "fileReads": 0,
+            "toolCalls": 108,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 30,
+            "buildPasses": 31,
+            "renderPasses": 32,
+            "reviewPasses": 38,
+            "tokens": {
+              "inputTokens": 8023557,
+              "outputTokens": 44022
+            }
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    },
+    {
+      "caseId": "technical-engineering-01",
+      "scenario": "technical-engineering",
+      "lifecycle": "0-to-1",
+      "image": true,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "passed",
+        "kimi-concise": "passed",
+        "hybrid-short-contract": "failed"
+      },
+      "rounds": [
+        {
+          "round": 1,
+          "scores": {
+            "shared-what-kind-how": 92,
+            "current-production": 97,
+            "kimi-concise": 69,
+            "hybrid-short-contract": 91
+          },
+          "judgeHardGate": {
+            "shared-what-kind-how": "passed",
+            "current-production": "passed",
+            "kimi-concise": "passed",
+            "hybrid-short-contract": "failed"
+          },
+          "winnerArm": "current-production",
+          "confidence": 4,
+          "eligible": false
+        },
+        {
+          "round": 2,
+          "scores": {
+            "current-production": 84,
+            "kimi-concise": 73,
+            "hybrid-short-contract": 88,
+            "shared-what-kind-how": 96
+          },
+          "judgeHardGate": {
+            "current-production": "passed",
+            "kimi-concise": "passed",
+            "hybrid-short-contract": "failed",
+            "shared-what-kind-how": "passed"
+          },
+          "winnerArm": "shared-what-kind-how",
+          "confidence": 4,
+          "eligible": false
+        }
+      ],
+      "authors": {
+        "current-production": {
+          "durationMs": 851080,
+          "usage": {
+            "jsonlEvents": 147,
+            "fileReads": 0,
+            "toolCalls": 132,
+            "imageSearches": 2,
+            "retries": 0,
+            "checkPasses": 19,
+            "buildPasses": 22,
+            "renderPasses": 21,
+            "reviewPasses": 30,
+            "tokens": {
+              "inputTokens": 5715652,
+              "outputTokens": 38451
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 899081,
+          "usage": {
+            "jsonlEvents": 196,
+            "fileReads": 0,
+            "toolCalls": 152,
+            "imageSearches": 3,
+            "retries": 0,
+            "checkPasses": 32,
+            "buildPasses": 39,
+            "renderPasses": 37,
+            "reviewPasses": 46,
+            "tokens": {
+              "inputTokens": 6723459,
+              "outputTokens": 39559
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "kimi-concise": {
+          "durationMs": 1200076,
+          "usage": {
+            "jsonlEvents": 136,
+            "fileReads": 0,
+            "toolCalls": 124,
+            "imageSearches": 12,
+            "retries": 0,
+            "checkPasses": 17,
+            "buildPasses": 20,
+            "renderPasses": 25,
+            "reviewPasses": 28,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        },
+        "hybrid-short-contract": {
+          "durationMs": 943181,
+          "usage": {
+            "jsonlEvents": 131,
+            "fileReads": 0,
+            "toolCalls": 122,
+            "imageSearches": 9,
+            "retries": 0,
+            "checkPasses": 15,
+            "buildPasses": 18,
+            "renderPasses": 18,
+            "reviewPasses": 34,
+            "tokens": {}
+          },
+          "artifactStatus": "failed"
+        }
+      }
+    },
+    {
+      "caseId": "academic-research-01",
+      "scenario": "academic-research",
+      "lifecycle": "0-to-1",
+      "image": false,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "passed",
+        "kimi-concise": "passed",
+        "hybrid-short-contract": "passed"
+      },
+      "rounds": [
+        {
+          "round": 1,
+          "scores": {
+            "kimi-concise": 93,
+            "shared-what-kind-how": 89,
+            "hybrid-short-contract": 97,
+            "current-production": 93
+          },
+          "judgeHardGate": {
+            "kimi-concise": "passed",
+            "shared-what-kind-how": "passed",
+            "hybrid-short-contract": "passed",
+            "current-production": "passed"
+          },
+          "winnerArm": "hybrid-short-contract",
+          "confidence": 4,
+          "eligible": true
+        },
+        {
+          "round": 2,
+          "scores": {
+            "hybrid-short-contract": 90,
+            "shared-what-kind-how": 89,
+            "current-production": 97,
+            "kimi-concise": 85
+          },
+          "judgeHardGate": {
+            "hybrid-short-contract": "passed",
+            "shared-what-kind-how": "passed",
+            "current-production": "passed",
+            "kimi-concise": "passed"
+          },
+          "winnerArm": "current-production",
+          "confidence": 4,
+          "eligible": true
+        }
+      ],
+      "authors": {
+        "current-production": {
+          "durationMs": 955668,
+          "usage": {
+            "jsonlEvents": 165,
+            "fileReads": 0,
+            "toolCalls": 142,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 24,
+            "buildPasses": 26,
+            "renderPasses": 28,
+            "reviewPasses": 37,
+            "tokens": {
+              "inputTokens": 5942893,
+              "outputTokens": 42600
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 983413,
+          "usage": {
+            "jsonlEvents": 178,
+            "fileReads": 0,
+            "toolCalls": 156,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 26,
+            "buildPasses": 27,
+            "renderPasses": 22,
+            "reviewPasses": 38,
+            "tokens": {
+              "inputTokens": 6976871,
+              "outputTokens": 41131
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "kimi-concise": {
+          "durationMs": 906022,
+          "usage": {
+            "jsonlEvents": 102,
+            "fileReads": 0,
+            "toolCalls": 78,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 21,
+            "buildPasses": 24,
+            "renderPasses": 16,
+            "reviewPasses": 25,
+            "tokens": {
+              "inputTokens": 5053624,
+              "outputTokens": 42657
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "hybrid-short-contract": {
+          "durationMs": 1200090,
+          "usage": {
+            "jsonlEvents": 151,
+            "fileReads": 0,
+            "toolCalls": 131,
+            "imageSearches": 1,
+            "retries": 0,
+            "checkPasses": 25,
+            "buildPasses": 27,
+            "renderPasses": 26,
+            "reviewPasses": 32,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    },
+    {
+      "caseId": "education-training-01",
+      "scenario": "education-training",
+      "lifecycle": "0-to-1",
+      "image": true,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "passed",
+        "kimi-concise": "passed",
+        "hybrid-short-contract": "passed"
+      },
+      "rounds": [
+        {
+          "round": 1,
+          "scores": {
+            "shared-what-kind-how": 94,
+            "kimi-concise": 100,
+            "current-production": 84,
+            "hybrid-short-contract": 88
+          },
+          "judgeHardGate": {
+            "shared-what-kind-how": "passed",
+            "kimi-concise": "passed",
+            "current-production": "passed",
+            "hybrid-short-contract": "passed"
+          },
+          "winnerArm": "kimi-concise",
+          "confidence": 4,
+          "eligible": true
+        },
+        {
+          "round": 2,
+          "scores": {
+            "hybrid-short-contract": 77,
+            "shared-what-kind-how": 97,
+            "kimi-concise": 91,
+            "current-production": 80
+          },
+          "judgeHardGate": {
+            "hybrid-short-contract": "passed",
+            "shared-what-kind-how": "passed",
+            "kimi-concise": "passed",
+            "current-production": "passed"
+          },
+          "winnerArm": "shared-what-kind-how",
+          "confidence": 4,
+          "eligible": true
+        }
+      ],
+      "authors": {
+        "current-production": {
+          "durationMs": 1200266,
+          "usage": {
+            "jsonlEvents": 200,
+            "fileReads": 0,
+            "toolCalls": 178,
+            "imageSearches": 9,
+            "retries": 0,
+            "checkPasses": 35,
+            "buildPasses": 37,
+            "renderPasses": 30,
+            "reviewPasses": 52,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 930257,
+          "usage": {
+            "jsonlEvents": 105,
+            "fileReads": 0,
+            "toolCalls": 88,
+            "imageSearches": 11,
+            "retries": 0,
+            "checkPasses": 19,
+            "buildPasses": 15,
+            "renderPasses": 16,
+            "reviewPasses": 24,
+            "tokens": {
+              "inputTokens": 5925296,
+              "outputTokens": 41875
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "kimi-concise": {
+          "durationMs": 1200067,
+          "usage": {
+            "jsonlEvents": 203,
+            "fileReads": 0,
+            "toolCalls": 190,
+            "imageSearches": 15,
+            "retries": 0,
+            "checkPasses": 35,
+            "buildPasses": 31,
+            "renderPasses": 28,
+            "reviewPasses": 35,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        },
+        "hybrid-short-contract": {
+          "durationMs": 1200070,
+          "usage": {
+            "jsonlEvents": 146,
+            "fileReads": 0,
+            "toolCalls": 132,
+            "imageSearches": 12,
+            "retries": 0,
+            "checkPasses": 17,
+            "buildPasses": 22,
+            "renderPasses": 18,
+            "reviewPasses": 31,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    },
+    {
+      "caseId": "brand-creative-01",
+      "scenario": "brand-creative",
+      "lifecycle": "0-to-1",
+      "image": true,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "failed",
+        "kimi-concise": "passed",
+        "hybrid-short-contract": "passed"
+      },
+      "rounds": [
+        {
+          "round": 1,
+          "scores": {
+            "kimi-concise": 100,
+            "current-production": 87,
+            "shared-what-kind-how": 64,
+            "hybrid-short-contract": 88
+          },
+          "judgeHardGate": {
+            "kimi-concise": "passed",
+            "current-production": "passed",
+            "shared-what-kind-how": "failed",
+            "hybrid-short-contract": "passed"
+          },
+          "winnerArm": "kimi-concise",
+          "confidence": 4,
+          "eligible": false
+        },
+        {
+          "round": 2,
+          "scores": {
+            "kimi-concise": 100,
+            "shared-what-kind-how": 70,
+            "hybrid-short-contract": 90,
+            "current-production": 91
+          },
+          "judgeHardGate": {
+            "kimi-concise": "passed",
+            "shared-what-kind-how": "failed",
+            "hybrid-short-contract": "passed",
+            "current-production": "passed"
+          },
+          "winnerArm": "kimi-concise",
+          "confidence": 4,
+          "eligible": false
+        }
+      ],
+      "authors": {
+        "current-production": {
+          "durationMs": 1200098,
+          "usage": {
+            "jsonlEvents": 250,
+            "fileReads": 0,
+            "toolCalls": 236,
+            "imageSearches": 6,
+            "retries": 0,
+            "checkPasses": 34,
+            "buildPasses": 52,
+            "renderPasses": 25,
+            "reviewPasses": 60,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 1200090,
+          "usage": {
+            "jsonlEvents": 179,
+            "fileReads": 0,
+            "toolCalls": 166,
+            "imageSearches": 11,
+            "retries": 0,
+            "checkPasses": 30,
+            "buildPasses": 32,
+            "renderPasses": 31,
+            "reviewPasses": 46,
+            "tokens": {}
+          },
+          "artifactStatus": "failed"
+        },
+        "kimi-concise": {
+          "durationMs": 1001359,
+          "usage": {
+            "jsonlEvents": 172,
+            "fileReads": 0,
+            "toolCalls": 154,
+            "imageSearches": 9,
+            "retries": 0,
+            "checkPasses": 28,
+            "buildPasses": 28,
+            "renderPasses": 22,
+            "reviewPasses": 43,
+            "tokens": {
+              "inputTokens": 8415436,
+              "outputTokens": 44036
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "hybrid-short-contract": {
+          "durationMs": 756252,
+          "usage": {
+            "jsonlEvents": 170,
+            "fileReads": 0,
+            "toolCalls": 152,
+            "imageSearches": 4,
+            "retries": 0,
+            "checkPasses": 25,
+            "buildPasses": 15,
+            "renderPasses": 15,
+            "reviewPasses": 32,
+            "tokens": {
+              "inputTokens": 2862759,
+              "outputTokens": 25800
+            }
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    },
+    {
+      "caseId": "analysis-decision-10",
+      "scenario": "analysis-decision",
+      "lifecycle": "1-to-10",
+      "image": false,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "passed",
+        "kimi-concise": "passed",
+        "hybrid-short-contract": "missing"
+      },
+      "rounds": [],
+      "authors": {
+        "current-production": {
+          "durationMs": 851706,
+          "usage": {
+            "jsonlEvents": 152,
+            "fileReads": 0,
+            "toolCalls": 136,
+            "imageSearches": 1,
+            "retries": 0,
+            "checkPasses": 23,
+            "buildPasses": 23,
+            "renderPasses": 31,
+            "reviewPasses": 42,
+            "tokens": {
+              "inputTokens": 8689337,
+              "outputTokens": 31349
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 854976,
+          "usage": {
+            "jsonlEvents": 146,
+            "fileReads": 0,
+            "toolCalls": 126,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 25,
+            "buildPasses": 19,
+            "renderPasses": 26,
+            "reviewPasses": 28,
+            "tokens": {
+              "inputTokens": 7806967,
+              "outputTokens": 31921
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "kimi-concise": {
+          "durationMs": 743621,
+          "usage": {
+            "jsonlEvents": 118,
+            "fileReads": 0,
+            "toolCalls": 100,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 16,
+            "buildPasses": 15,
+            "renderPasses": 25,
+            "reviewPasses": 26,
+            "tokens": {
+              "inputTokens": 6439597,
+              "outputTokens": 26393
+            }
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    },
+    {
+      "caseId": "management-report-10",
+      "scenario": "management-report",
+      "lifecycle": "1-to-10",
+      "image": false,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "passed",
+        "kimi-concise": "failed",
+        "hybrid-short-contract": "missing"
+      },
+      "rounds": [],
+      "authors": {
+        "current-production": {
+          "durationMs": 1199995,
+          "usage": {
+            "jsonlEvents": 218,
+            "fileReads": 0,
+            "toolCalls": 202,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 29,
+            "buildPasses": 24,
+            "renderPasses": 29,
+            "reviewPasses": 33,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 1199991,
+          "usage": {
+            "jsonlEvents": 202,
+            "fileReads": 0,
+            "toolCalls": 184,
+            "imageSearches": 2,
+            "retries": 0,
+            "checkPasses": 35,
+            "buildPasses": 29,
+            "renderPasses": 29,
+            "reviewPasses": 36,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        },
+        "kimi-concise": {
+          "durationMs": 1200005,
+          "usage": {
+            "jsonlEvents": 208,
+            "fileReads": 0,
+            "toolCalls": 192,
+            "imageSearches": 1,
+            "retries": 0,
+            "checkPasses": 29,
+            "buildPasses": 20,
+            "renderPasses": 21,
+            "reviewPasses": 24,
+            "tokens": {}
+          },
+          "artifactStatus": "failed"
+        }
+      }
+    },
+    {
+      "caseId": "technical-engineering-10",
+      "scenario": "technical-engineering",
+      "lifecycle": "1-to-10",
+      "image": false,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "passed",
+        "kimi-concise": "passed",
+        "hybrid-short-contract": "missing"
+      },
+      "rounds": [],
+      "authors": {
+        "current-production": {
+          "durationMs": 757868,
+          "usage": {
+            "jsonlEvents": 92,
+            "fileReads": 0,
+            "toolCalls": 76,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 12,
+            "buildPasses": 12,
+            "renderPasses": 17,
+            "reviewPasses": 22,
+            "tokens": {
+              "inputTokens": 5554286,
+              "outputTokens": 35208
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 1200077,
+          "usage": {
+            "jsonlEvents": 153,
+            "fileReads": 0,
+            "toolCalls": 138,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 26,
+            "buildPasses": 22,
+            "renderPasses": 28,
+            "reviewPasses": 22,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        },
+        "kimi-concise": {
+          "durationMs": 836582,
+          "usage": {
+            "jsonlEvents": 130,
+            "fileReads": 0,
+            "toolCalls": 106,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 12,
+            "buildPasses": 14,
+            "renderPasses": 16,
+            "reviewPasses": 14,
+            "tokens": {
+              "inputTokens": 5853138,
+              "outputTokens": 38455
+            }
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    },
+    {
+      "caseId": "academic-research-10",
+      "scenario": "academic-research",
+      "lifecycle": "1-to-10",
+      "image": false,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "failed",
+        "kimi-concise": "passed",
+        "hybrid-short-contract": "missing"
+      },
+      "rounds": [],
+      "authors": {
+        "current-production": {
+          "durationMs": 1199995,
+          "usage": {
+            "jsonlEvents": 184,
+            "fileReads": 0,
+            "toolCalls": 172,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 21,
+            "buildPasses": 23,
+            "renderPasses": 26,
+            "reviewPasses": 30,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 1200063,
+          "usage": {
+            "jsonlEvents": 185,
+            "fileReads": 0,
+            "toolCalls": 170,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 22,
+            "buildPasses": 18,
+            "renderPasses": 20,
+            "reviewPasses": 30,
+            "tokens": {}
+          },
+          "artifactStatus": "failed"
+        },
+        "kimi-concise": {
+          "durationMs": 665145,
+          "usage": {
+            "jsonlEvents": 96,
+            "fileReads": 0,
+            "toolCalls": 78,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 16,
+            "buildPasses": 13,
+            "renderPasses": 17,
+            "reviewPasses": 21,
+            "tokens": {
+              "inputTokens": 5814461,
+              "outputTokens": 30644
+            }
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    },
+    {
+      "caseId": "education-training-10",
+      "scenario": "education-training",
+      "lifecycle": "1-to-10",
+      "image": false,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "passed",
+        "kimi-concise": "passed",
+        "hybrid-short-contract": "missing"
+      },
+      "rounds": [],
+      "authors": {
+        "current-production": {
+          "durationMs": 1058639,
+          "usage": {
+            "jsonlEvents": 128,
+            "fileReads": 0,
+            "toolCalls": 114,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 19,
+            "buildPasses": 16,
+            "renderPasses": 23,
+            "reviewPasses": 30,
+            "tokens": {
+              "inputTokens": 8739497,
+              "outputTokens": 35197
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 1200468,
+          "usage": {
+            "jsonlEvents": 164,
+            "fileReads": 0,
+            "toolCalls": 150,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 16,
+            "buildPasses": 18,
+            "renderPasses": 30,
+            "reviewPasses": 23,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        },
+        "kimi-concise": {
+          "durationMs": 1199947,
+          "usage": {
+            "jsonlEvents": 165,
+            "fileReads": 0,
+            "toolCalls": 146,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 33,
+            "buildPasses": 24,
+            "renderPasses": 35,
+            "reviewPasses": 43,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    },
+    {
+      "caseId": "brand-creative-10",
+      "scenario": "brand-creative",
+      "lifecycle": "1-to-10",
+      "image": false,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "failed",
+        "kimi-concise": "passed",
+        "hybrid-short-contract": "missing"
+      },
+      "rounds": [],
+      "authors": {
+        "current-production": {
+          "durationMs": 1185789,
+          "usage": {
+            "jsonlEvents": 164,
+            "fileReads": 0,
+            "toolCalls": 150,
+            "imageSearches": 2,
+            "retries": 0,
+            "checkPasses": 31,
+            "buildPasses": 21,
+            "renderPasses": 24,
+            "reviewPasses": 29,
+            "tokens": {
+              "inputTokens": 11249177,
+              "outputTokens": 45739
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 1200074,
+          "usage": {
+            "jsonlEvents": 177,
+            "fileReads": 0,
+            "toolCalls": 166,
+            "imageSearches": 3,
+            "retries": 0,
+            "checkPasses": 26,
+            "buildPasses": 26,
+            "renderPasses": 22,
+            "reviewPasses": 20,
+            "tokens": {}
+          },
+          "artifactStatus": "failed"
+        },
+        "kimi-concise": {
+          "durationMs": 1200082,
+          "usage": {
+            "jsonlEvents": 226,
+            "fileReads": 0,
+            "toolCalls": 210,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 27,
+            "buildPasses": 34,
+            "renderPasses": 22,
+            "reviewPasses": 24,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "4 方盲评只把作者侧和盲评侧硬门槛都通过的回合纳入 pairwise 质量分差",
+    "Structural/render evidence is not PowerPoint playback evidence",
+    "Human calibration records are pending unless supplied separately"
+  ]
+}

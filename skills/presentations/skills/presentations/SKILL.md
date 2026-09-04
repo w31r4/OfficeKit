@@ -35,6 +35,9 @@ For local PPTX and PPJ files, stay in this Skill. Never import
    text, shapes, charts/tables, media/layers, components/templates, or motion.
    When a required image is not supplied by the user, brand, template, or
    source deck, also read [image sourcing](references/image-sourcing.md).
+   For a cutout or background-replacement role, use the image `visualProfile`
+   (`alphaPresent`, `subjectBounds`, `edgeQuality`, `shadowMode`) before choosing
+   crop, mask, contrast, or native shadow treatment.
 4. Write one deck-specific Design Grammar and ordered page plan into PPJ.
 5. Build, render, review, revise the PPJ, and emit a new PPTX path.
 

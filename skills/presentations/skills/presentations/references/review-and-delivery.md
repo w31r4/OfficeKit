@@ -32,6 +32,14 @@ at full size: dense evidence, combo charts, tables, CJK text, image crops,
 layered backgrounds, diagrams, and animated targets. Check non-target pages
 after imported edits.
 
+For a cutout or background-replacement image, inspect its task `visualProfile`
+before final placement. Treat `alphaPresent: null`, `subjectBounds: null`, or
+`edgeQuality: unknown` as unproven—not as a clean cutout. Keep a `baked`
+shadow inside the pixels, and add a native shadow only when the profile says
+`separate` or `none` and the rendered result supports it. Confirm that the
+subject bounds, crop, contrast treatment, and foreground text still agree at
+full size.
+
 For every chart or layered composition, apply the four executable contracts in
 `visual-attention.md`: explicit label budget, honest missing-data topology,
 back-to-front evidence-safe layering, and one render-correction loop. If the

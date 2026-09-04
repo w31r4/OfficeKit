@@ -17,6 +17,41 @@ search merely to fill empty canvas. Prefer, in order:
 5. an optional host-provided generated image;
 6. an editable chart, diagram, native visual, or no image.
 
+## Inspect cutout suitability before composing
+
+Search and task records may carry a bounded `visualProfile` for images that
+need to sit over a native background or replace a product scene:
+
+```json
+{
+  "visualProfile": {
+    "alphaPresent": true,
+    "subjectBounds": { "x": 0.12, "y": 0.08, "width": 0.76, "height": 0.84 },
+    "edgeQuality": "soft",
+    "shadowMode": "baked"
+  }
+}
+```
+
+The four fields mean:
+
+- `alphaPresent`: whether a transparent channel or transparency declaration is
+  present (`true`, `false`, or `null` when not proven);
+- `subjectBounds`: normalized bounds of the non-transparent subject, when a
+  bounded alpha mask was inspected; it is not an AI-recognized semantic box;
+- `edgeQuality`: `clean`, `soft`, `fringe`, or `unknown`. `fringe` is a
+  declared caution, never inferred from a file header;
+- `shadowMode`: `none`, `baked`, `separate`, or `unknown`. A baked shadow is
+  part of the pixels and must not be treated as a native PowerPoint shadow.
+
+PNG/JPEG/GIF bytes are inspected conservatively. The inspector can prove
+JPEG has no alpha and can derive bounds for a bounded non-interlaced PNG alpha
+mask; complex or opaque images remain `null`/`unknown`. A provider or human
+may add a declaration with `officekit image add --profile profile.json`, but it
+cannot contradict a known alpha fact. These fields guide crop, background
+replacement, contrast, and shadow decisions; they do not prove visual quality,
+legal clearance, or subject identity.
+
 Use English search terms and preserve names, products, places, and other proper
 nouns. Search for the subject and visual role, not the whole slide sentence.
 
@@ -30,7 +65,7 @@ officekit image search "institutional bitcoin trading" \
 
 `search` returns candidates with `selectionMade: false`. Inspect three to six
 plausible candidates when available. Judge subject relevance, crop potential,
-visual coherence, resolution, rights, and credit burden. The CLI never selects
+visual coherence, resolution, cutout profile, rights, and credit burden. The CLI never selects
 for the Agent and never hides a provider failure.
 
 Ask the user only when the choice changes brand identity, uses a recognizable
@@ -87,6 +122,12 @@ the program:
     "mimeType": "image/jpeg",
     "sha256": "<sha256 returned by officekit image add>",
     "rights": "cc-by",
+    "visualProfile": {
+      "alphaPresent": false,
+      "subjectBounds": null,
+      "edgeQuality": "unknown",
+      "shadowMode": "unknown"
+    },
     "accessibility": { "description": "Concise description of the visible subject" }
   }],
   "pages": [{

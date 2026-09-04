@@ -215,6 +215,18 @@ officekit image audit deck.pptx --task <task-id> \
   --sources-output deck.pptx.sources.json --json
 ```
 
+For a cutout or product-on-new-background composition, an optional profile can
+record the visual facts that bytes cannot fully prove:
+
+```sh
+officekit image add --task <task-id> --file ./assets/product.png \
+  --rights user-provided --profile product.visual-profile.json --json
+```
+
+The profile records `alphaPresent`, normalized `subjectBounds`, `edgeQuality`,
+and `shadowMode`. It is retained in the task receipt and image audit; it never
+overrides a contradictory alpha fact derived from the file bytes.
+
 Search results keep selection with the Agent. Registered images are
 content-addressed and reusable after `tasks → resume`; audit matches their
 SHA-256 values to the media actually embedded in the PPTX and reports visible
