@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
 using DocumentFormat.OpenXml;
@@ -22,7 +23,15 @@ internal static partial class PptxChartCodec
     private static readonly XNamespace ChartNs = ChartGraphicDataUri;
     private static readonly XNamespace DrawingNs = "http://schemas.openxmlformats.org/drawingml/2006/main";
 
-    internal sealed record Replacement(string PartPath, string Sha256, bool SlideChanged);
+    internal sealed record Replacement(
+        string PartPath,
+        string Sha256,
+        bool SlideChanged,
+        IReadOnlyCollection<string> ChangedPartPaths,
+        IReadOnlyCollection<string> AddedRelationshipKeys,
+        IReadOnlyCollection<string> AddedPartPaths,
+        IReadOnlyCollection<string> RemovedRelationshipKeys,
+        IReadOnlyCollection<string> RemovedPartPaths);
 
     internal static bool TryRead(P.GraphicFrame source, PptxPartContext context, out PresentationChart chart, out bool editable)
     {
@@ -47,8 +56,17 @@ internal static partial class PptxChartCodec
                 return false;
             }
             var xml = ReadXml(part);
-            if (TryReadComboChart(xml, out chart, out var comboDocument, out editable))
+            var chartContext = new PptxPartContext(
+                part,
+                context.SlideIdByPartPath,
+                context.SlidePartById,
+                context.Assets,
+                context.CustomShows);
+            if (TryReadComboChart(xml, out chart, out var comboDocument, out editable, allowChartFrameDecorations: true))
             {
+                editable &= PptxChartFrameCodec.TryRead(comboDocument.Root!, chartContext, out var comboFrame, out var comboFrameEditable);
+                if (comboFrame is not null && (comboFrame.ImageFill is not null || comboFrame.Line is not null || comboFrame.Shadow is not null)) chart.Frame = comboFrame;
+                editable &= comboFrameEditable;
                 editable &= PptxChartTitleTextCodec.TryRead(comboDocument, chart);
                 chart.LeftEmu = left;
                 chart.TopEmu = top;
@@ -60,6 +78,9 @@ internal static partial class PptxChartCodec
             }
             if (!TryReadChart(xml, out var semantic, out var document, out editable)) return false;
             chart = FromSpreadsheet(semantic, left, top, width, height);
+            editable &= PptxChartFrameCodec.TryRead(document.Root!, chartContext, out var frame, out var frameEditable);
+            if (frame is not null && (frame.ImageFill is not null || frame.Line is not null || frame.Shadow is not null)) chart.Frame = frame;
+            editable &= frameEditable;
             editable &= PptxChartTitleTextCodec.TryRead(document, chart);
             chart.FrameTransform = frameTransform;
             chart.Accessibility = PptxNonVisualAccessibilityCodec.Read(source.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties);
@@ -73,12 +94,22 @@ internal static partial class PptxChartCodec
         }
     }
 
-    internal static P.GraphicFrame Build(PresentationElement element, uint nativeId, SlidePart slidePart)
+    internal static P.GraphicFrame Build(
+        PresentationElement element,
+        uint nativeId,
+        SlidePart slidePart,
+        PptxPartContext slideContext)
     {
         Validate(element.Chart, element.Id, element.Name);
         var relationshipId = $"rIdOfficeKitChart{nativeId}";
         var chartPart = slidePart.AddNewPart<ChartPart>(relationshipId);
-        WriteXml(chartPart, BuildPresentationChartDocument(element.Chart, element.Id, element.Name));
+        var chartContext = new PptxPartContext(
+            chartPart,
+            slideContext.SlideIdByPartPath,
+            slideContext.SlidePartById,
+            slideContext.Assets,
+            slideContext.CustomShows);
+        WriteXml(chartPart, BuildPresentationChartDocument(element.Chart, element.Id, element.Name, chartContext));
         var nonVisual = new P.NonVisualDrawingProperties { Id = nativeId, Name = element.Name };
         PptxNonVisualAccessibilityCodec.ApplyAuthored(nonVisual, element.Chart.Accessibility);
         var transform = new P.Transform(
@@ -98,14 +129,24 @@ internal static partial class PptxChartCodec
     {
         if (!TryRead(source, context, out var original, out var editable) || !editable)
             throw new CodecException("unsupported_presentation_edit", $"Presentation chart {requested.Id} no longer matches the editable literal-data chart profile.");
-        Validate(requested.Chart, requested.Id, requested.Name);
+        // Source-bound formula references may be edited as references, but
+        // source-free authoring remains literal-only. The surrounding
+        // topology and formula/cache closure is checked by the shared
+        // ChartSpace codec before the part is written.
+        Validate(requested.Chart, requested.Id, requested.Name, allowFormulas: true);
         if (!PresentationChartTopologyMatches(requested.Chart, original))
             throw new CodecException("presentation_chart_topology_changed", $"Presentation chart {requested.Id} cannot change chart type, series count, or point topology.");
 
         var relationshipId = source.Graphic!.GraphicData!.Elements<C.ChartReference>().Single().Id!.Value!;
         var part = (ChartPart)context.Owner.GetPartById(relationshipId);
+        var chartContext = new PptxPartContext(
+            part,
+            context.SlideIdByPartPath,
+            context.SlidePartById,
+            context.Assets,
+            context.CustomShows);
         var document = XDocument.Parse(ReadXml(part), LoadOptions.PreserveWhitespace);
-        PatchPresentationChart(document, requested.Chart, requested.Id, requested.Name);
+        PatchPresentationChart(document, requested.Chart, requested.Id, requested.Name, chartContext);
         WriteXml(part, document);
         var accessibilityChanged = !object.Equals(requested.Chart.Accessibility, original.Accessibility);
         if (accessibilityChanged)
@@ -123,13 +164,29 @@ internal static partial class PptxChartCodec
         if (frameChanged)
             SetFrame(source.Transform!, requested.Chart);
         var bytes = ReadBytes(part);
+        var chartPartPath = Path(part);
+        var contextChangedParts = chartContext.RelationshipsChanged
+            ? new[] { RelationshipPartPath(part) }
+            : Array.Empty<string>();
+        var addedPartPaths = chartContext.AddedPartPaths.ToArray();
+        var removedPartPaths = chartContext.RemovedPartPaths.ToArray();
+        var changedPartPaths = contextChangedParts
+            .Concat(addedPartPaths)
+            .Concat(removedPartPaths)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
         return new Replacement(
-            Path(part),
+            chartPartPath,
             Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant(),
-            accessibilityChanged || nameChanged || frameChanged);
+            accessibilityChanged || nameChanged || frameChanged,
+            changedPartPaths,
+            chartContext.AddedRelationshipIds.Select(id => $"{chartPartPath}\0{id}").ToArray(),
+            addedPartPaths,
+            chartContext.RemovedRelationshipIds.Select(id => $"{chartPartPath}\0{id}").ToArray(),
+            removedPartPaths);
     }
 
-    internal static void Validate(PresentationChart? chart, string elementId, string name)
+    internal static void Validate(PresentationChart? chart, string elementId, string name, bool allowFormulas = false)
     {
         if (chart is null) throw Invalid(elementId, "payload is missing");
         if (string.IsNullOrWhiteSpace(name) || name.Length > 255 || HasControls(name)) throw Invalid(elementId, "name must contain 1 through 255 characters without controls");
@@ -140,11 +197,11 @@ internal static partial class PptxChartCodec
         PptxChartTitleTextCodec.Validate(chart, elementId);
         if (chart.Type == SpreadsheetChartType.Combo)
         {
-            ValidateComboChart(chart, elementId, name);
+            ValidateComboChart(chart, elementId, name, allowFormulas);
             return;
         }
         if (chart.ComboSeries.Count != 0) throw Invalid(elementId, "must not carry combo_series unless type is combo");
-        if (chart.Series.Any(series => !string.IsNullOrWhiteSpace(series.CategoryFormula) || !string.IsNullOrWhiteSpace(series.XValueFormula) || !string.IsNullOrWhiteSpace(series.ValueFormula) || !string.IsNullOrWhiteSpace(series.BubbleSizeFormula) || ErrorBarsUseFormula(series)))
+        if (!allowFormulas && chart.Series.Any(series => !string.IsNullOrWhiteSpace(series.CategoryFormula) || !string.IsNullOrWhiteSpace(series.XValueFormula) || !string.IsNullOrWhiteSpace(series.ValueFormula) || !string.IsNullOrWhiteSpace(series.BubbleSizeFormula) || ErrorBarsUseFormula(series)))
             throw Invalid(elementId, "must use literal categories and values without workbook formulas");
         var spreadsheet = ToSpreadsheet(chart, elementId, name);
         try
@@ -269,13 +326,25 @@ internal static partial class PptxChartCodec
 
     private static bool TryReadChart(string xml, out SpreadsheetChartArtifact chart, out XDocument document, out bool editable)
     {
-        if (!OpenXmlChartSpaceCodec.TryRead(xml, out chart, out document, out editable, allowRichTitle: true)) return false;
-        return chart.Series.All(series =>
-            string.IsNullOrWhiteSpace(series.CategoryFormula) &&
-            string.IsNullOrWhiteSpace(series.XValueFormula) &&
-            string.IsNullOrWhiteSpace(series.ValueFormula) &&
-            string.IsNullOrWhiteSpace(series.BubbleSizeFormula));
+        if (!OpenXmlChartSpaceCodec.TryRead(xml, out chart, out document, out editable, allowRichTitle: true, allowChartFrameDecorations: true)) return false;
+        return chart.Series.All(series => FormulaProfileIsSafe(series.CategoryFormula) &&
+            FormulaProfileIsSafe(series.XValueFormula) &&
+            FormulaProfileIsSafe(series.ValueFormula) &&
+            FormulaProfileIsSafe(series.BubbleSizeFormula));
     }
+
+    internal static bool FormulaProfileIsSafe(string formula)
+    {
+        if (string.IsNullOrWhiteSpace(formula)) return true;
+        // Keep the source-bound profile on one local worksheet range. An
+        // external [book.xlsx] link, error token, structured reference,
+        // defined name, function, union, or 3-D reference cannot be edited
+        // without owning the workbook relationship/evaluation graph.
+        return LocalWorksheetRangeFormula().IsMatch(formula);
+    }
+
+    [GeneratedRegex("^(?:[A-Za-z_][A-Za-z0-9_.]*|'(?:[^']|'')+')!\\$?[A-Z]{1,3}\\$?[1-9][0-9]*(?::\\$?[A-Z]{1,3}\\$?[1-9][0-9]*)?$", RegexOptions.CultureInvariant)]
+    private static partial Regex LocalWorksheetRangeFormula();
 
     private static XDocument BuildChartDocument(SpreadsheetChartArtifact chart)
     {
@@ -289,7 +358,8 @@ internal static partial class PptxChartCodec
             target,
             "presentation_chart_topology_changed",
             "Presentation chart",
-            patchTitle);
+            patchTitle,
+            allowChartFrameDecorations: true);
     }
 
     private static bool TryReadFrame(
@@ -322,6 +392,14 @@ internal static partial class PptxChartCodec
     private static byte[] ReadBytes(OpenXmlPart part) { using var stream = part.GetStream(FileMode.Open, FileAccess.Read); using var memory = new MemoryStream(); stream.CopyTo(memory); return memory.ToArray(); }
     private static void WriteXml(OpenXmlPart part, XDocument document) { using var stream = part.GetStream(FileMode.Create, FileAccess.Write); using var writer = XmlWriter.Create(stream, new XmlWriterSettings { Encoding = new UTF8Encoding(false), OmitXmlDeclaration = false, Indent = false }); document.Save(writer); }
     private static string Path(OpenXmlPart part) => part.Uri.OriginalString.TrimStart('/');
+    private static string RelationshipPartPath(OpenXmlPart part)
+    {
+        var path = Path(part);
+        var separator = path.LastIndexOf('/');
+        var directory = separator < 0 ? string.Empty : path[..separator];
+        var fileName = separator < 0 ? path : path[(separator + 1)..];
+        return directory.Length == 0 ? $"_rels/{fileName}.rels" : $"{directory}/_rels/{fileName}.rels";
+    }
     private static bool HasControls(string value) => value.Any(char.IsControl);
     private static CodecException Invalid(string id, string message) => new("invalid_presentation_chart", $"Presentation chart {id} {message}.");
 }

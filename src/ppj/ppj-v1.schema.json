@@ -687,6 +687,18 @@
               "type": "number",
               "minimum": 0,
               "maximum": 1
+            },
+            "tint": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Mix the resolved color toward white by this fraction. Applied after token lookup."
+            },
+            "shade": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Mix the resolved color toward black by this fraction. Applied after tint."
             }
           }
         }
@@ -891,8 +903,245 @@
         },
         "forbiddenPatterns": {
           "$ref": "#/$defs/ruleList"
+        },
+        "tokens": {
+          "$ref": "#/$defs/grammarTokens"
+        },
+        "stylePrecedence": {
+          "$ref": "#/$defs/stylePrecedence"
+        },
+        "predicates": {
+          "$ref": "#/$defs/grammarPredicates"
         }
       }
+    },
+    "grammarTokens": {
+      "type": "object",
+      "maxProperties": 256,
+      "propertyNames": {
+        "$ref": "#/$defs/id"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "value"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "color",
+              "font",
+              "size",
+              "spacing",
+              "radius",
+              "opacity",
+              "string",
+              "boolean"
+            ]
+          },
+          "value": {
+            "oneOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1024
+          }
+        }
+      }
+    },
+    "stylePrecedence": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "target",
+          "sources"
+        ],
+        "properties": {
+          "target": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$"
+          },
+          "sources": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "inline",
+                "styleRef",
+                "theme",
+                "master",
+                "default"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "grammarPredicates": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "field",
+          "op",
+          "value"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "field": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$"
+          },
+          "op": {
+            "enum": [
+              "eq",
+              "neq",
+              "in",
+              "gt",
+              "gte",
+              "lt",
+              "lte"
+            ]
+          },
+          "value": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/grammarScalar"
+              },
+              {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 16,
+                "items": {
+                  "$ref": "#/$defs/grammarScalar"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "grammarScalar": {
+      "oneOf": [
+        {
+          "type": "string",
+          "maxLength": 512
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "grammarTokenRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "token"
+      ],
+      "properties": {
+        "token": {
+          "$ref": "#/$defs/id"
+        }
+      },
+      "description": "A typed design-grammar token reference. The compiler checks the referenced token kind at the use site."
+    },
+    "strokeWidthOrToken": {
+      "oneOf": [
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        {
+          "$ref": "#/$defs/grammarTokenRef"
+        }
+      ]
+    },
+    "opacityOrToken": {
+      "oneOf": [
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        {
+          "$ref": "#/$defs/grammarTokenRef"
+        }
+      ]
+    },
+    "numberOrToken": {
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "$ref": "#/$defs/grammarTokenRef"
+        }
+      ]
+    },
+    "positiveNumberOrToken": {
+      "oneOf": [
+        {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        {
+          "$ref": "#/$defs/grammarTokenRef"
+        }
+      ]
+    },
+    "booleanOrToken": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "#/$defs/grammarTokenRef"
+        }
+      ]
+    },
+    "stringOrToken": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/grammarTokenRef"
+        }
+      ]
     },
     "ruleList": {
       "type": "array",
@@ -1124,6 +1373,106 @@
         }
       }
     },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [
+        { "required": ["uri"] },
+        { "required": ["slide"] },
+        { "required": ["customShow"] },
+        { "required": ["verb"] }
+      ],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "format": "uri",
+          "maxLength": 4096
+        },
+        "slide": {
+          "$ref": "#/$defs/id"
+        },
+        "customShow": {
+          "$ref": "#/$defs/id"
+        },
+        "verb": {
+          "enum": [
+            "nextSlide",
+            "previousSlide",
+            "firstSlide",
+            "lastSlide",
+            "endShow"
+          ]
+        },
+        "tooltip": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "targetFrame": {
+          "type": "string",
+          "maxLength": 255
+        },
+        "history": {
+          "type": "boolean"
+        },
+        "highlightClick": {
+          "type": "boolean"
+        },
+        "returnToSlide": {
+          "type": "boolean"
+        }
+      }
+    },
+    "compositing": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "opacity": {
+          "$ref": "#/$defs/numberOrToken",
+          "description": "Element-level normal opacity; a token reference must declare kind opacity."
+        },
+        "blendMode": {
+          "enum": [
+            "normal",
+            "multiply",
+            "screen",
+            "overlay",
+            "darken",
+            "lighten"
+          ]
+        },
+        "isolation": {
+          "type": "boolean"
+        },
+        "clipStack": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/compositingClip"
+          }
+        }
+      },
+      "anyOf": [
+        { "required": ["opacity"] },
+        { "required": ["blendMode"] },
+        { "required": ["isolation"] },
+        { "required": ["clipStack"] }
+      ]
+    },
+    "compositingClip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "geometry"
+      ],
+      "properties": {
+        "geometry": {
+          "$ref": "#/$defs/geometry"
+        },
+        "inverse": {
+          "type": "boolean"
+        }
+      }
+    },
     "nativeCapability": {
       "type": "object",
       "additionalProperties": false,
@@ -1142,6 +1491,8 @@
             "replaceText",
             "setFill",
             "setStroke",
+            "setLinePath",
+            "setShapeEffects",
             "setOpacity",
             "setFrame",
             "setGeometry",
@@ -1155,13 +1506,20 @@
             "setImageCrop",
             "setImageFit",
             "setImageMask",
+            "setImageEffects",
+            "setTableStyle",
+            "setTableGeometry",
+            "setTableCellStyle",
             "setChartTitle",
             "setChartData",
             "setChartTextStyle",
             "setChartFill",
+            "setChartFrame",
             "setChartLabels",
             "setChartAxis",
             "setChartPlot",
+            "setAction",
+            "setHoverAction",
             "setSmartArtText",
             "setSmartArtGraph",
             "detachSmartArt",
@@ -1190,6 +1548,8 @@
               "visibleText",
               "fill",
               "stroke",
+              "line.path",
+              "shape.shadow",
               "opacity",
               "frame.x",
               "frame.y",
@@ -1199,6 +1559,7 @@
               "frame.flipH",
               "frame.flipV",
               "geometry.adjustments",
+              "geometry.paths",
               "canvas.width",
               "canvas.height",
               "pageOrder",
@@ -1212,13 +1573,24 @@
               "image.crop",
               "image.fit",
               "image.mask.adjustments",
+              "image.mask.paths",
+              "image.border",
+              "image.shadow",
+              "table.style",
+              "table.geometry",
+              "table.cell.fill",
+              "table.cell.borders",
+              "table.cell.textStyle",
               "chart.title",
               "chart.data",
               "chart.textStyle",
               "chart.fill",
+              "chart.frame",
               "chart.labels",
               "chart.axis",
               "chart.plot",
+              "action",
+              "hoverAction",
               "smartArt.text",
               "smartArt.connections",
               "smartArt.detachToShapes",
@@ -1253,6 +1625,7 @@
             "text",
             "tableCellText",
             "nativeText",
+            "chartDataValue",
             "paragraphAlignment",
             "paragraphLineSpacingPoints",
             "paragraphLineSpacingMultiplier",
@@ -1424,9 +1797,16 @@
               "$ref": "#/$defs/color"
             },
             "opacity": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 1
+              "oneOf": [
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                {
+                  "$ref": "#/$defs/grammarTokenRef"
+                }
+              ]
             }
           }
         },
@@ -1591,6 +1971,28 @@
         }
       }
     },
+    "imageFocus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "x",
+        "y"
+      ],
+      "properties": {
+        "x": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Normalized horizontal focal point in the source image."
+        },
+        "y": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Normalized vertical focal point in the source image."
+        }
+      }
+    },
     "stroke": {
       "type": "object",
       "additionalProperties": false,
@@ -1603,14 +2005,12 @@
           "$ref": "#/$defs/color"
         },
         "width": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 1000
+          "$ref": "#/$defs/strokeWidthOrToken",
+          "description": "Stroke width in points; a token reference must declare kind size."
         },
         "opacity": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 1
+          "$ref": "#/$defs/opacityOrToken",
+          "description": "Stroke opacity; a token reference must declare kind opacity."
         },
         "dash": {
           "enum": [
@@ -1651,9 +2051,8 @@
           "$ref": "#/$defs/color"
         },
         "opacity": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 1
+          "$ref": "#/$defs/numberOrToken",
+          "description": "Shadow opacity; a token reference must declare kind opacity."
         },
         "blur": {
           "type": "number",
@@ -1702,9 +2101,16 @@
           "$ref": "#/$defs/shadow"
         },
         "opacity": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 1
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ]
         }
       }
     },
@@ -1723,28 +2129,47 @@
       ],
       "properties": {
         "font": {
-          "$ref": "#/$defs/id"
+          "oneOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ]
         },
         "fontFamily": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ]
         },
         "fontFamilyEastAsia": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ]
         },
         "size": {
-          "type": "number",
-          "exclusiveMinimum": 0,
-          "maximum": 1000
+          "$ref": "#/$defs/positiveNumberOrToken"
         },
         "bold": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken"
         },
         "italic": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken"
         },
         "underline": {
           "enum": [
@@ -2092,6 +2517,11 @@
           "required": [
             "formula"
           ]
+        },
+        {
+          "required": [
+            "field"
+          ]
         }
       ],
       "properties": {
@@ -2104,6 +2534,9 @@
         },
         "formula": {
           "$ref": "#/$defs/formula"
+        },
+        "field": {
+          "$ref": "#/$defs/textField"
         },
         "style": {
           "$ref": "#/$defs/textStyle"
@@ -2144,6 +2577,30 @@
           "minLength": 1,
           "maxLength": 4096,
           "description": "Bounded LaTeX source without \\( and \\) delimiters. Unsupported commands fail closed; OfficeKit never renders the backslashes as literal fallback text."
+        }
+      }
+    },
+    "textField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "text"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^\\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\\}$"
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[^\\u0000-\\u001F\\u007F]*$"
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 1000000
         }
       }
     },
@@ -2256,6 +2713,16 @@
         "frame": {
           "$ref": "#/$defs/frame"
         },
+        "compositing": {
+          "$ref": "#/$defs/compositing"
+        },
+        "action": {
+          "$ref": "#/$defs/action"
+        },
+        "hoverAction": {
+          "$ref": "#/$defs/action",
+          "description": "A bounded mouse-over action for shape-producing elements. It uses the same safe target vocabulary as action and is written as DrawingML a:hlinkHover."
+        },
         "accessibility": {
           "$ref": "#/$defs/accessibility"
         },
@@ -2344,6 +2811,79 @@
             },
             "textStyle": {
               "$ref": "#/$defs/textBoxStyle"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "lineElement": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/elementBase"
+        },
+        {
+          "type": "object",
+          "required": [
+            "stroke"
+          ],
+          "oneOf": [
+            {
+              "required": [
+                "path"
+              ]
+            },
+            {
+              "required": [
+                "points"
+              ]
+            }
+          ],
+          "properties": {
+            "type": {
+              "const": "line"
+            },
+            "path": {
+              "$ref": "#/$defs/linePath",
+              "description": "Canonical typed line path. Use this form for imported/source-bound edits."
+            },
+            "viewBox": {
+              "$ref": "#/$defs/linePointsViewBox",
+              "description": "Kimi authored points coordinate system [width,height]."
+            },
+            "points": {
+              "$ref": "#/$defs/linePoints",
+              "description": "Kimi authored coordinate pairs. The first and last points are on-curve; bounded smooth lowering accepts two through four points."
+            },
+            "curve": {
+              "enum": [
+                "sharp",
+                "round",
+                "smooth"
+              ],
+              "default": "round"
+            },
+            "styleRef": {
+              "$ref": "#/$defs/id"
+            },
+            "style": {
+              "$ref": "#/$defs/shapeStyle"
+            },
+            "stroke": {
+              "$ref": "#/$defs/stroke"
+            },
+            "startArrow": {
+              "$ref": "#/$defs/arrowHead"
+            },
+            "endArrow": {
+              "$ref": "#/$defs/arrowHead"
+            },
+            "opacity": {
+              "$ref": "#/$defs/numberOrToken",
+              "description": "Line-level normal opacity; a token reference must declare kind opacity."
+            },
+            "shadow": {
+              "$ref": "#/$defs/shadow"
             }
           }
         }
@@ -2654,6 +3194,71 @@
         }
       }
     },
+    "linePath": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "viewBox",
+        "commands"
+      ],
+      "properties": {
+        "viewBox": {
+          "$ref": "#/$defs/pathViewBox"
+        },
+        "commands": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 10000,
+          "items": {
+            "$ref": "#/$defs/pathCommand"
+          }
+        }
+      }
+    },
+    "linePointsViewBox": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "number",
+        "exclusiveMinimum": 0,
+        "maximum": 100000
+      }
+    },
+    "linePoints": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 4096,
+      "pattern": "^[+-]?(?:[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+),[+-]?(?:[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+)(?:[ \\t]+[+-]?(?:[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+),[+-]?(?:[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+)){1,}$"
+    },
+    "pathViewBox": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height"
+      ],
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100000
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100000
+        }
+      }
+    },
     "pathCommand": {
       "oneOf": [
         {
@@ -2833,10 +3438,13 @@
             "crop": {
               "$ref": "#/$defs/crop"
             },
+            "focus": {
+              "$ref": "#/$defs/imageFocus",
+              "description": "Optional focal point used only with cover fit to derive an asymmetric crop."
+            },
             "opacity": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 1
+              "$ref": "#/$defs/numberOrToken",
+              "description": "Image opacity; a token reference must declare kind opacity."
             },
             "mask": {
               "$ref": "#/$defs/geometry"
@@ -2860,7 +3468,6 @@
         {
           "type": "object",
           "required": [
-            "chartType",
             "data"
           ],
           "properties": {
@@ -2901,10 +3508,36 @@
               "$ref": "#/$defs/chartStyle"
             },
             "xAxis": {
-              "$ref": "#/$defs/chartAxis"
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/chartAxis"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 2,
+                  "items": {
+                    "$ref": "#/$defs/chartAxis"
+                  },
+                  "description": "Bounded Kimi-compatible axis array; index 0 is primary and index 1 is secondary."
+                }
+              ]
             },
             "yAxis": {
-              "$ref": "#/$defs/chartAxis"
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/chartAxis"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 2,
+                  "items": {
+                    "$ref": "#/$defs/chartAxis"
+                  },
+                  "description": "Bounded Kimi-compatible axis array; index 0 is primary and index 1 is secondary."
+                }
+              ]
             },
             "spokeAxis": {
               "$ref": "#/$defs/radarSpokeAxis"
@@ -2923,9 +3556,25 @@
     "chartData": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "categories",
-        "series"
+      "anyOf": [
+        {
+          "required": [
+            "categories",
+            "series"
+          ]
+        },
+        {
+          "required": [
+            "dataset",
+            "encoding"
+          ]
+        },
+        {
+          "required": [
+            "dataset",
+            "series"
+          ]
+        }
       ],
       "properties": {
         "categories": {
@@ -2940,8 +3589,459 @@
           "minItems": 1,
           "maxItems": 256,
           "items": {
-            "$ref": "#/$defs/chartSeries"
+            "anyOf": [
+              {
+                "$ref": "#/$defs/chartSeries"
+              },
+              {
+                "$ref": "#/$defs/chartDatasetSeries"
+              }
+            ]
           }
+        },
+        "dataset": {
+          "$ref": "#/$defs/chartDataset"
+        },
+        "encoding": {
+          "$ref": "#/$defs/chartEncoding"
+        },
+        "dataFilter": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/chartDataFilter"
+          }
+        },
+        "seriesDefaults": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "chartType": {
+              "enum": [
+                "column",
+                "line",
+                "area",
+                "scatter",
+                "bubble"
+              ]
+            },
+            "axis": {
+              "enum": [
+                "primary",
+                "secondary"
+              ]
+            },
+            "fill": {
+              "$ref": "#/$defs/fill"
+            },
+            "stroke": {
+              "$ref": "#/$defs/stroke"
+            },
+            "bar": {
+              "$ref": "#/$defs/chartSeriesDefault"
+            },
+            "line": {
+              "$ref": "#/$defs/chartSeriesDefault"
+            },
+            "area": {
+              "$ref": "#/$defs/chartSeriesDefault"
+            },
+            "scatter": {
+              "$ref": "#/$defs/chartSeriesDefault"
+            },
+            "bubble": {
+              "$ref": "#/$defs/chartSeriesDefault"
+            },
+            "candlestick": {
+              "$ref": "#/$defs/chartSeriesDefault"
+            },
+            "pie": {
+              "$ref": "#/$defs/chartSeriesDefault"
+            },
+            "radar": {
+              "$ref": "#/$defs/chartSeriesDefault"
+            },
+            "waterfall": {
+              "$ref": "#/$defs/chartSeriesDefault"
+            },
+            "heatmap": {
+              "$ref": "#/$defs/chartSeriesDefault"
+            },
+            "treemap": {
+              "$ref": "#/$defs/chartSeriesDefault"
+            },
+            "sunburst": {
+              "$ref": "#/$defs/chartSeriesDefault"
+            },
+            "sankey": {
+              "$ref": "#/$defs/chartSeriesDefault"
+            }
+          }
+        }
+      }
+    },
+    "chartDataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cols",
+        "rows"
+      ],
+      "properties": {
+        "cols": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "items": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 512
+                  },
+                  "type": {
+                    "enum": [
+                      "string",
+                      "number",
+                      "boolean",
+                      "date"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100000,
+          "items": {
+            "oneOf": [
+              {
+                "type": "array",
+                "maxItems": 256,
+                "items": {
+                  "$ref": "#/$defs/chartValue"
+                }
+              },
+              {
+                "type": "object",
+                "maxProperties": 256,
+                "propertyNames": {
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "additionalProperties": {
+                  "$ref": "#/$defs/chartValue"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "chartEncoding": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "$ref": "#/$defs/chartColumnRef"
+        },
+        "y": {
+          "$ref": "#/$defs/chartColumnRef"
+        },
+        "category": {
+          "$ref": "#/$defs/chartColumnRef"
+        },
+        "value": {
+          "$ref": "#/$defs/chartColumnRef"
+        },
+        "series": {
+          "$ref": "#/$defs/chartColumnRef"
+        },
+        "open": {
+          "$ref": "#/$defs/chartColumnRef"
+        },
+        "high": {
+          "$ref": "#/$defs/chartColumnRef"
+        },
+        "low": {
+          "$ref": "#/$defs/chartColumnRef"
+        },
+        "close": {
+          "$ref": "#/$defs/chartColumnRef"
+        },
+        "size": {
+          "$ref": "#/$defs/chartColumnRef"
+        },
+        "source": {
+          "$ref": "#/$defs/chartColumnRef"
+        },
+        "target": {
+          "$ref": "#/$defs/chartColumnRef"
+        },
+        "flow": {
+          "$ref": "#/$defs/chartColumnRef"
+        },
+        "isTotal": {
+          "$ref": "#/$defs/chartColumnRef"
+        },
+        "parent": {
+          "$ref": "#/$defs/chartColumnRef"
+        },
+        "level": {
+          "$ref": "#/$defs/chartColumnRef"
+        }
+      }
+    },
+    "chartColumnRef": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        }
+      ]
+    },
+    "chartDatasetSeries": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "encode"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "type": {
+          "enum": [
+            "bar",
+            "line",
+            "area",
+            "scatter",
+            "bubble",
+            "candlestick",
+            "pie",
+            "radar",
+            "waterfall",
+            "heatmap",
+            "treemap",
+            "sunburst",
+            "sankey"
+          ]
+        },
+        "chartType": {
+          "enum": [
+            "bar",
+            "column",
+            "line",
+            "area",
+            "scatter",
+            "bubble",
+            "candlestick",
+            "pie",
+            "radar",
+            "waterfall",
+            "heatmap",
+            "treemap",
+            "sunburst",
+            "sankey"
+          ]
+        },
+        "axis": {
+          "enum": [
+            "primary",
+            "secondary"
+          ]
+        },
+        "xAxisIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "yAxisIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "levels": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8,
+          "description": "Optional hierarchy depth hint for treemap and sunburst dataset series."
+        },
+        "encode": {
+          "$ref": "#/$defs/chartEncoding"
+        },
+        "dataFilter": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/chartDataFilter"
+          }
+        },
+        "fill": {
+          "$ref": "#/$defs/fill"
+        },
+            "stroke": {
+              "$ref": "#/$defs/stroke"
+            },
+            "color": {
+              "$ref": "#/$defs/color"
+            },
+            "marker": {
+              "oneOf": [
+                {
+                  "enum": [
+                    "none",
+                    "dot",
+                    "circle",
+                    "square",
+                    "diamond",
+                    "triangle",
+                    "x",
+                    "star",
+                    "plus",
+                    "dash"
+                  ]
+                },
+                {
+                  "$ref": "#/$defs/chartMarker"
+                }
+              ]
+            },
+            "dataLabels": {
+              "$ref": "#/$defs/chartSeriesDataLabels"
+            }
+          }
+        },
+    "chartSeriesDefault": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "chartType": {
+          "enum": [
+            "bar",
+            "column",
+            "line",
+            "area",
+            "scatter",
+            "bubble",
+            "candlestick",
+            "pie",
+            "radar",
+            "waterfall",
+            "heatmap",
+            "treemap",
+            "sunburst",
+            "sankey"
+          ]
+        },
+        "axis": {
+          "enum": [
+            "primary",
+            "secondary"
+          ]
+        },
+        "fill": {
+          "$ref": "#/$defs/fill"
+        },
+        "stroke": {
+          "$ref": "#/$defs/stroke"
+        },
+        "color": {
+          "$ref": "#/$defs/color"
+        },
+        "marker": {
+          "oneOf": [
+            {
+              "enum": [
+                "none",
+                "dot",
+                "circle",
+                "square",
+                "diamond",
+                "triangle",
+                "x",
+                "star",
+                "plus",
+                "dash"
+              ]
+            },
+            {
+              "$ref": "#/$defs/chartMarker"
+            }
+          ]
+        },
+        "dataLabels": {
+          "$ref": "#/$defs/chartSeriesDataLabels"
+        }
+      }
+    },
+    "chartDataFilter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "column",
+        "op",
+        "value"
+      ],
+      "properties": {
+        "column": {
+          "$ref": "#/$defs/chartColumnRef"
+        },
+        "op": {
+          "enum": [
+            "eq",
+            "neq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "in"
+          ]
+        },
+        "value": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/chartValue"
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 32,
+              "items": {
+                "$ref": "#/$defs/chartValue"
+              }
+            }
+          ]
         }
       }
     },
@@ -3064,6 +4164,22 @@
         "name": {
           "type": "string",
           "maxLength": 512
+        },
+        "categoryFormula": {
+          "$ref": "#/$defs/chartFormula",
+          "description": "Optional source-bound ChartML category reference. It is preserved as a formula string and is not evaluated by PPJ."
+        },
+        "xValueFormula": {
+          "$ref": "#/$defs/chartFormula",
+          "description": "Optional source-bound ChartML numeric X reference. It is preserved as a formula string and is not evaluated by PPJ."
+        },
+        "valueFormula": {
+          "$ref": "#/$defs/chartFormula",
+          "description": "Optional source-bound ChartML numeric Y reference. It is preserved as a formula string and is not evaluated by PPJ."
+        },
+        "bubbleSizeFormula": {
+          "$ref": "#/$defs/chartFormula",
+          "description": "Optional source-bound ChartML bubble-size reference. It is preserved as a formula string and is not evaluated by PPJ."
         },
         "values": {
           "type": "array",
@@ -3235,6 +4351,13 @@
         }
       }
     },
+    "chartFormula": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8192,
+      "pattern": "^(?!\\=)[^\\u0000-\\u001F]+$",
+      "description": "A bounded ChartML formula reference. PPJ preserves the reference text but does not execute it; external workbook links and unsupported formulas remain source-bound."
+    },
     "chartStyle": {
       "type": "object",
       "additionalProperties": false,
@@ -3329,6 +4452,9 @@
         "plotAreaFill": {
           "$ref": "#/$defs/fill"
         },
+        "frame": {
+          "$ref": "#/$defs/chartFrame"
+        },
         "titleTextStyle": {
           "$ref": "#/$defs/chartTextStyle"
         },
@@ -3360,6 +4486,26 @@
           "$ref": "#/$defs/sankeyStyle"
         }
       }
+    },
+    "chartFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fill": {
+          "$ref": "#/$defs/fill"
+        },
+        "stroke": {
+          "$ref": "#/$defs/stroke"
+        },
+        "shadow": {
+          "$ref": "#/$defs/shadow"
+        }
+      },
+      "anyOf": [
+        { "required": ["fill"] },
+        { "required": ["stroke"] },
+        { "required": ["shadow"] }
+      ]
     },
     "waterfallRoleStyle": {
       "type": "object",
@@ -3692,25 +4838,19 @@
       "additionalProperties": false,
       "properties": {
         "fontSize": {
-          "type": "number",
-          "exclusiveMinimum": 0,
-          "maximum": 1000
+          "$ref": "#/$defs/positiveNumberOrToken"
         },
         "fontFamily": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 255
+          "$ref": "#/$defs/stringOrToken"
         },
         "fontFamilyEastAsia": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 255
+          "$ref": "#/$defs/stringOrToken"
         },
         "bold": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken"
         },
         "italic": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken"
         },
         "color": {
           "$ref": "#/$defs/color"
@@ -4967,6 +6107,9 @@
           "$ref": "#/$defs/shapeElement"
         },
         {
+          "$ref": "#/$defs/lineElement"
+        },
+        {
           "$ref": "#/$defs/iconElement"
         },
         {
@@ -5201,6 +6344,149 @@
         },
         "animateChartBackground": {
           "type": "boolean"
+        },
+        "easing": {
+          "enum": [
+            "linear",
+            "ease-in",
+            "ease-out",
+            "ease-in-out"
+          ]
+        },
+        "repeat": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8
+        },
+        "autoReverse": {
+          "type": "boolean"
+        }
+      }
+    },
+    "timingGraph": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nodes"
+      ],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/timingNode"
+          }
+        }
+      }
+    },
+    "timingNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "target",
+        "phase",
+        "effect",
+        "start",
+        "durationMs"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "target": {
+          "$ref": "#/$defs/id"
+        },
+        "phase": {
+          "enum": [
+            "entrance",
+            "exit",
+            "emphasis"
+          ]
+        },
+        "effect": {
+          "enum": [
+            "fade",
+            "wipe",
+            "fly",
+            "zoom",
+            "pulse"
+          ]
+        },
+        "direction": {
+          "enum": [
+            "left",
+            "right",
+            "up",
+            "down",
+            "in",
+            "out"
+          ]
+        },
+        "start": {
+          "enum": [
+            "withPrevious",
+            "afterPrevious",
+            "onClick"
+          ]
+        },
+        "durationMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60000
+        },
+        "delayMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 600000
+        },
+        "textBuild": {
+          "enum": [
+            "whole",
+            "paragraph"
+          ]
+        },
+        "chartBuild": {
+          "enum": [
+            "all-at-once",
+            "series",
+            "category",
+            "series-element",
+            "category-element"
+          ]
+        },
+        "staggerMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000
+        },
+        "animateChartBackground": {
+          "type": "boolean"
+        },
+        "easing": {
+          "enum": [
+            "linear",
+            "ease-in",
+            "ease-out",
+            "ease-in-out"
+          ]
+        },
+        "repeat": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8
+        },
+        "autoReverse": {
+          "type": "boolean"
+        },
+        "trigger": {
+          "enum": [
+            "timeline",
+            "onClick",
+            "afterPrevious",
+            "withPrevious"
+          ]
         }
       }
     },
@@ -5267,12 +6553,24 @@
             "$ref": "#/$defs/animation"
           }
         },
+        "timing": {
+          "$ref": "#/$defs/timingGraph"
+        },
         "elements": {
           "type": "array",
           "maxItems": 100000,
           "items": {
             "$ref": "#/$defs/element"
           }
+        },
+        "readingOrder": {
+          "type": "array",
+          "maxItems": 100000,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "description": "Explicit top-level reading order. It must be a complete permutation of page element IDs; it is never inferred from visual z-order."
         },
         "hidden": {
           "type": "boolean"
@@ -5360,7 +6658,9 @@
             "boolean",
             "color",
             "asset",
-            "text"
+            "text",
+            "crop",
+            "focus"
           ]
         },
         "required": {
@@ -5428,6 +6728,30 @@
               "$ref": "#/$defs/color"
             }
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "crop"
+          ],
+          "properties": {
+            "crop": {
+              "$ref": "#/$defs/crop"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "focus"
+          ],
+          "properties": {
+            "focus": {
+              "$ref": "#/$defs/imageFocus"
+            }
+          }
         }
       ]
     },
@@ -5484,6 +6808,87 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 100000
+        },
+        "imagePolicy": {
+          "$ref": "#/$defs/imageSlotPolicy"
+        }
+      }
+    },
+    "imageSlotPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role"
+      ],
+      "properties": {
+        "role": {
+          "enum": [
+            "hero",
+            "thumbnail",
+            "avatar",
+            "background",
+            "logo",
+            "diagram",
+            "screenshot",
+            "photo",
+            "icon",
+            "any"
+          ]
+        },
+        "allowedFit": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "contain",
+              "cover",
+              "stretch"
+            ]
+          }
+        },
+        "allowedMask": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "none",
+              "rect",
+              "roundRect",
+              "ellipse",
+              "custom"
+            ]
+          }
+        },
+        "minWidthPx": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16384
+        },
+        "minHeightPx": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16384
+        },
+        "rights": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "user-provided",
+              "generated",
+              "permission",
+              "public-domain",
+              "cc0",
+              "cc-by",
+              "official-press-kit",
+              "internal",
+              "other"
+            ]
+          }
         }
       }
     },
@@ -5513,6 +6918,7 @@
         "frame.height",
         "image.asset",
         "image.crop",
+        "image.focus",
         "chart.title",
         "chart.data",
         "table.cell.text",
@@ -5646,13 +7052,33 @@
             "direction": {
               "enum": [
                 "horizontal",
-                "vertical"
+                "vertical",
+                "grid",
+                "flow"
               ]
             },
             "gap": {
               "type": "number",
               "minimum": 0,
               "maximum": 100000
+            },
+            "columns": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 32
+            },
+            "rowGap": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100000
+            },
+            "anchor": {
+              "enum": [
+                "start",
+                "center",
+                "end"
+              ],
+              "description": "Align the finite repeated layout within the instance frame on both axes when the bounded profile leaves slack space."
             }
           }
         }

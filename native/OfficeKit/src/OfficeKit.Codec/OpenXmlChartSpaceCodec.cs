@@ -20,7 +20,8 @@ internal static class OpenXmlChartSpaceCodec
         out SpreadsheetChartArtifact chart,
         out XDocument document,
         out bool editable,
-        bool allowRichTitle = false)
+        bool allowRichTitle = false,
+        bool allowChartFrameDecorations = false)
     {
         chart = new SpreadsheetChartArtifact();
         editable = true;
@@ -82,7 +83,16 @@ internal static class OpenXmlChartSpaceCodec
         editable &= XlsxChartDataLabelsCodec.TryRead(plot, chart);
         if (!XlsxChartAxisCodec.TryRead(plotArea, plot, chart, out var axesEditable)) editable = false;
         else editable &= axesEditable;
-        if (!XlsxChartSurfaceFillCodec.TryRead(root.Element(ChartNs + "spPr"), out var chartAreaFill)) editable = false;
+        var chartSpaceProperties = root.Element(ChartNs + "spPr");
+        if (!XlsxChartSurfaceFillCodec.TryRead(chartSpaceProperties, out var chartAreaFill, allowChartFrameDecorations))
+        {
+            // Presentation chart frame image fills are owned by the
+            // Presentation-only frame codec because their relationship must
+            // resolve against ChartPart rather than a worksheet drawing.
+            // Leave that branch for PptxChartFrameCodec to inspect.
+            if (!(allowChartFrameDecorations && chartSpaceProperties?.Elements(DrawingNs + "blipFill").Any() == true))
+                editable = false;
+        }
         else if (chartAreaFill is not null) chart.ChartAreaFill = chartAreaFill;
         if (!XlsxChartSurfaceFillCodec.TryRead(plotArea.Element(ChartNs + "spPr"), out var plotAreaFill)) editable = false;
         else if (plotAreaFill is not null) chart.PlotAreaFill = plotAreaFill;
@@ -122,7 +132,8 @@ internal static class OpenXmlChartSpaceCodec
         SpreadsheetChartArtifact target,
         string errorCode,
         string subject,
-        bool patchTitle = true)
+        bool patchTitle = true,
+        bool allowChartFrameDecorations = false)
     {
         var nativeChart = document.Root?.Element(ChartNs + "chart") ?? throw Topology(errorCode, subject, "is missing c:chart");
         if (patchTitle) PatchTitle(nativeChart, target.Title, target.TitleTextStyle, errorCode, subject);
@@ -148,7 +159,7 @@ internal static class OpenXmlChartSpaceCodec
         PatchPlotOptions(plot, target);
         XlsxChartDataLabelsCodec.Patch(plot, target.DataLabels);
         XlsxChartAxisCodec.Patch(plotArea, plot, target);
-        XlsxChartSurfaceFillCodec.Patch(document.Root!, target.ChartAreaFill, $"{subject} chart area");
+        XlsxChartSurfaceFillCodec.Patch(document.Root!, target.ChartAreaFill, $"{subject} chart area", allowChartFrameDecorations);
         XlsxChartSurfaceFillCodec.Patch(plotArea, target.PlotAreaFill, $"{subject} plot area");
     }
 

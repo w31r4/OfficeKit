@@ -28,12 +28,39 @@ internal static class XlsxChartSurfaceFillCodec
             throw new CodecException("invalid_chart_fill", $"{subject} opacity requires a solid fill from 0 to 100000.");
     }
 
-    internal static bool TryRead(XElement? properties, out SpreadsheetChartSurfaceFill? fill)
+    internal static bool TryRead(XElement? properties, out SpreadsheetChartSurfaceFill? fill) =>
+        TryRead(properties, out fill, allowFrameDecorations: false);
+
+    // Presentation charts own line/effect children in the separate
+    // chartFrame profile.  Let that caller inspect the fill without marking
+    // the entire chart read-only, while the XLSX/shared route keeps the
+    // historical fill-only contract.
+    internal static bool TryRead(
+        XElement? properties,
+        out SpreadsheetChartSurfaceFill? fill,
+        bool allowFrameDecorations)
     {
         fill = null;
         if (properties is null) return true;
-        if (properties.HasAttributes || properties.Elements().Take(2).Count() != 1) return false;
-        return TryReadPaint(properties.Elements().Single(), out fill);
+        if (properties.HasAttributes) return false;
+        var children = properties.Elements().ToArray();
+        if (!allowFrameDecorations)
+        {
+            if (children.Length != 1) return false;
+            return TryReadPaint(children[0], out fill);
+        }
+        if (children.Any(child => child.Name != DrawingNs + "noFill" &&
+                                  child.Name != DrawingNs + "solidFill" &&
+                                  child.Name != DrawingNs + "gradFill" &&
+                                  child.Name != DrawingNs + "ln" &&
+                                  child.Name != DrawingNs + "effectLst") ||
+            children.Count(child => child.Name is var name &&
+                                   (name == DrawingNs + "noFill" || name == DrawingNs + "solidFill" || name == DrawingNs + "gradFill")) > 1)
+            return false;
+        var paint = children.FirstOrDefault(child => child.Name == DrawingNs + "noFill" ||
+                                                     child.Name == DrawingNs + "solidFill" ||
+                                                     child.Name == DrawingNs + "gradFill");
+        return TryReadPaint(paint, out fill);
     }
 
     internal static bool TryReadPaint(XElement? paint, out SpreadsheetChartSurfaceFill? fill)
@@ -93,13 +120,46 @@ internal static class XlsxChartSurfaceFillCodec
         return new XElement(DrawingNs + "solidFill", color);
     }
 
-    internal static void Patch(XElement owner, SpreadsheetChartSurfaceFill? fill, string subject)
+    internal static void Patch(XElement owner, SpreadsheetChartSurfaceFill? fill, string subject) =>
+        Patch(owner, fill, subject, allowFrameDecorations: false);
+
+    internal static void Patch(
+        XElement owner,
+        SpreadsheetChartSurfaceFill? fill,
+        string subject,
+        bool allowFrameDecorations)
     {
         var existing = owner.Element(ChartNs + "spPr");
         SpreadsheetChartSurfaceFill? current = null;
-        if (existing is not null && !TryRead(existing, out current))
+        if (existing is not null && !TryRead(existing, out current, allowFrameDecorations))
+        {
+            // A Presentation ChartPart can carry an outer a:blipFill. Its
+            // relationship-aware semantics are patched by PptxChartFrameCodec;
+            // the shared chart-area surface must leave it untouched when the
+            // requested legacy fill is absent, and must fail closed if callers
+            // try to reinterpret that same paint as a worksheet-style fill.
+            if (allowFrameDecorations && existing.Elements(DrawingNs + "blipFill").Any())
+            {
+                if (fill is null) return;
+                throw new CodecException("unsupported_chart_edit", $"{subject} cannot replace a ChartPart image frame with a chart-area surface fill.");
+            }
             throw new CodecException("unsupported_chart_edit", $"{subject} uses an unmodeled fill graph.");
+        }
         if (existing is not null && Semantics(current) == Semantics(fill)) return;
+        if (allowFrameDecorations && existing is not null)
+        {
+            var currentPaint = existing.Elements().FirstOrDefault(IsPaint);
+            if (fill is null)
+            {
+                currentPaint?.Remove();
+                if (!existing.Elements().Any()) existing.Remove();
+                return;
+            }
+            var replacementPaint = PaintElement(fill, subject);
+            if (currentPaint is not null) currentPaint.ReplaceWith(replacementPaint);
+            else existing.AddFirst(replacementPaint);
+            return;
+        }
         var replacement = Element(fill, subject);
         if (replacement is null)
         {
@@ -124,6 +184,9 @@ internal static class XlsxChartSurfaceFillCodec
         SpreadsheetChartSurfaceFill.FillOneofCase.GradientFill => "gradient:" + GradientSemantics(fill.GradientFill),
         _ => "default",
     };
+
+    private static bool IsPaint(XElement element) => element.Name == DrawingNs + "noFill" ||
+        element.Name == DrawingNs + "solidFill" || element.Name == DrawingNs + "gradFill";
 
     private static XElement GradientElement(PresentationGradientFill gradient)
     {

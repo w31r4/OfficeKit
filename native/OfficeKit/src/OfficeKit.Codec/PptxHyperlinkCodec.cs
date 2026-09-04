@@ -1,3 +1,4 @@
+using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using Google.Protobuf;
 using OfficeKit.Artifact.Wire.V1;
@@ -50,6 +51,89 @@ internal static class PptxHyperlinkCodec
     internal static bool HasModeledChoice(PresentationTextRun run) =>
         run.HyperlinkCase != PresentationTextRun.HyperlinkOneofCase.None;
 
+    internal static bool TryReadElementAction(
+        OpenXmlCompositeElement? properties,
+        PptxPartContext context,
+        out PresentationRunHyperlink hyperlink) =>
+        TryRead(properties?.GetFirstChild<A.HyperlinkOnClick>(), context, out hyperlink);
+
+    internal static bool TryReadElementHoverAction(
+        OpenXmlCompositeElement? properties,
+        PptxPartContext context,
+        out PresentationRunHyperlink hyperlink) =>
+        TryRead(properties?.GetFirstChild<A.HyperlinkOnHover>(), context, out hyperlink);
+
+    internal static void AppendElementAction(
+        OpenXmlCompositeElement properties,
+        PresentationRunHyperlink source,
+        PptxPartContext context) => properties.Append(Build(source, context));
+
+    internal static void AppendElementHoverAction(
+        OpenXmlCompositeElement properties,
+        PresentationRunHyperlink source,
+        PptxPartContext context) => properties.Append(BuildHover(source, context));
+
+    // Source-bound shape actions use the same strict recognizer and builder as
+    // authored actions. A null request removes only a recognized click action;
+    // unknown sound/macro/extension actions stay fail-closed.
+    internal static void ApplyElementAction(
+        OpenXmlCompositeElement properties,
+        PresentationRunHyperlink? requested,
+        PptxPartContext context)
+    {
+        var existing = properties.GetFirstChild<A.HyperlinkOnClick>();
+        var previousRelationshipId = existing?.Id?.Value ?? string.Empty;
+        var recognized = TryRead(existing, context, out var current);
+        if (requested is null)
+        {
+            if (existing is not null && !recognized) throw UnsupportedUnknown();
+            existing?.Remove();
+            context.RemoveElementActionRelationshipIfUnreferenced(previousRelationshipId);
+            return;
+        }
+        if (existing is not null && !recognized) throw UnsupportedUnknown();
+        if (recognized && current.Equals(requested)) return;
+        var replacement = Build(requested, context);
+        if (existing is null) properties.Append(replacement);
+        else properties.ReplaceChild(replacement, existing);
+        context.RemoveElementActionRelationshipIfUnreferenced(previousRelationshipId);
+    }
+
+    internal static void ApplyElementHoverAction(
+        OpenXmlCompositeElement properties,
+        PresentationRunHyperlink? requested,
+        PptxPartContext context)
+    {
+        var existing = properties.GetFirstChild<A.HyperlinkOnHover>();
+        var previousRelationshipId = existing?.Id?.Value ?? string.Empty;
+        var recognized = TryRead(existing, context, out var current);
+        if (requested is null)
+        {
+            if (existing is not null && !recognized) throw UnsupportedUnknown();
+            existing?.Remove();
+            context.RemoveElementActionRelationshipIfUnreferenced(previousRelationshipId);
+            return;
+        }
+        if (existing is not null && !recognized) throw UnsupportedUnknown();
+        if (recognized && current.Equals(requested)) return;
+        var replacement = BuildHover(requested, context);
+        if (existing is null) properties.Append(replacement);
+        else properties.ReplaceChild(replacement, existing);
+        context.RemoveElementActionRelationshipIfUnreferenced(previousRelationshipId);
+    }
+
+    internal static void ScrubElementAction(OpenXmlCompositeElement? properties, PptxPartContext context)
+    {
+        if (properties?.GetFirstChild<A.HyperlinkOnClick>() is { } existing && TryRead(existing, context, out _))
+            existing.Remove();
+    }
+
+    internal static void ScrubElementHoverAction(OpenXmlCompositeElement? properties, PptxPartContext context)
+    {
+        if (properties?.GetFirstChild<A.HyperlinkOnHover>() is { } existing && TryRead(existing, context, out _))
+            existing.Remove();
+    }
+
     internal static void Append(A.RunProperties properties, PresentationTextRun source, PptxPartContext? context)
     {
         if (source.HyperlinkCase != PresentationTextRun.HyperlinkOneofCase.RunHyperlink) return;
@@ -60,6 +144,7 @@ internal static class PptxHyperlinkCodec
     internal static void Apply(A.RunProperties properties, PresentationTextRun requested, PptxPartContext context)
     {
         var existing = properties.GetFirstChild<A.HyperlinkOnClick>();
+        var previousRelationshipId = existing?.Id?.Value ?? string.Empty;
         var recognized = TryRead(existing, context, out var current);
         switch (requested.HyperlinkCase)
         {
@@ -68,6 +153,7 @@ internal static class PptxHyperlinkCodec
             case PresentationTextRun.HyperlinkOneofCase.NoHyperlink:
                 if (existing is not null && !recognized) throw UnsupportedUnknown();
                 existing?.Remove();
+                context.RemoveElementActionRelationshipIfUnreferenced(previousRelationshipId);
                 return;
             case PresentationTextRun.HyperlinkOneofCase.RunHyperlink:
                 if (existing is not null && !recognized) throw UnsupportedUnknown();
@@ -75,6 +161,7 @@ internal static class PptxHyperlinkCodec
                 var replacement = Build(requested.RunHyperlink, context);
                 if (existing is null) properties.Append(replacement);
                 else properties.ReplaceChild(replacement, existing);
+                context.RemoveElementActionRelationshipIfUnreferenced(previousRelationshipId);
                 return;
             default:
                 throw Invalid("Presentation run hyperlink choice is unsupported.");
@@ -90,7 +177,7 @@ internal static class PptxHyperlinkCodec
     // Clone preflight deliberately reuses the public-model parser. Keeping one
     // recognizer prevents the graph-copy boundary from accepting a click
     // action that import/edit would still treat as opaque.
-    internal static bool TryRead(A.HyperlinkOnClick? source, PptxPartContext context, out PresentationRunHyperlink hyperlink)
+    internal static bool TryRead(A.HyperlinkType? source, PptxPartContext context, out PresentationRunHyperlink hyperlink)
     {
         hyperlink = new PresentationRunHyperlink();
         if (source is null || source.ChildElements.Count > 0 || source.InvalidUrl is not null || source.EndSound is not null) return false;
@@ -146,8 +233,21 @@ internal static class PptxHyperlinkCodec
 
     private static A.HyperlinkOnClick Build(PresentationRunHyperlink source, PptxPartContext context)
     {
-        Validate(source);
         var hyperlink = new A.HyperlinkOnClick();
+        BuildInto(hyperlink, source, context);
+        return hyperlink;
+    }
+
+    private static A.HyperlinkOnHover BuildHover(PresentationRunHyperlink source, PptxPartContext context)
+    {
+        var hyperlink = new A.HyperlinkOnHover();
+        BuildInto(hyperlink, source, context);
+        return hyperlink;
+    }
+
+    private static void BuildInto(A.HyperlinkType hyperlink, PresentationRunHyperlink source, PptxPartContext context)
+    {
+        Validate(source);
         switch (source.TargetCase)
         {
             case PresentationRunHyperlink.TargetOneofCase.Uri:
@@ -173,10 +273,9 @@ internal static class PptxHyperlinkCodec
         if (source.HasTargetFrame) hyperlink.TargetFrame = source.TargetFrame;
         if (source.HasHistory) hyperlink.History = source.History;
         if (source.HasHighlightClick) hyperlink.HighlightClick = source.HighlightClick;
-        return hyperlink;
     }
 
-    private static void Validate(PresentationRunHyperlink? source)
+    internal static void Validate(PresentationRunHyperlink? source)
     {
         if (source is null) throw Invalid("Presentation run hyperlink payload is missing.");
         switch (source.TargetCase)

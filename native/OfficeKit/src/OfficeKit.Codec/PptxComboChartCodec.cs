@@ -13,21 +13,32 @@ internal static partial class PptxChartCodec
 {
     private sealed record ComboNativeSeries(SpreadsheetChartType Type, PresentationChartAxisGroup AxisGroup, XElement Element, uint Order);
 
-    private static XDocument BuildPresentationChartDocument(PresentationChart chart, string id, string name)
+    private static XDocument BuildPresentationChartDocument(
+        PresentationChart chart,
+        string id,
+        string name,
+        PptxPartContext chartContext)
     {
         var document = chart.Type == SpreadsheetChartType.Combo
             ? BuildComboChartDocument(chart, id, name)
             : BuildChartDocument(ToSpreadsheet(chart, id, name));
+        PptxChartFrameCodec.Patch(document.Root!, chart.Frame, chart.ChartAreaFill, $"Presentation chart {id} frame", chartContext);
         PptxChartTitleTextCodec.Apply(document, chart);
         return document;
     }
 
-    private static void PatchPresentationChart(XDocument document, PresentationChart chart, string id, string name)
+    private static void PatchPresentationChart(
+        XDocument document,
+        PresentationChart chart,
+        string id,
+        string name,
+        PptxPartContext chartContext)
     {
         var rewritePlainTitle = chart.TitleBody is null && PptxChartTitleTextCodec.RequiresPlainRewrite(document);
         var patchTitle = chart.TitleBody is null && !rewritePlainTitle;
         if (chart.Type == SpreadsheetChartType.Combo) PatchComboChart(document, chart, id, name, patchTitle);
         else PatchChart(document, ToSpreadsheet(chart, id, name), patchTitle);
+        PptxChartFrameCodec.Patch(document.Root!, chart.Frame, chart.ChartAreaFill, $"Presentation chart {id} frame", chartContext);
         if (rewritePlainTitle) PptxChartTitleTextCodec.ApplyPlain(document, chart);
         PptxChartTitleTextCodec.Apply(document, chart);
     }
@@ -56,7 +67,7 @@ internal static partial class PptxChartCodec
             (pair.First.Series.ErrorBars is null) == (pair.Second.Series.ErrorBars is null));
     }
 
-    private static void ValidateComboChart(PresentationChart chart, string elementId, string name)
+    private static void ValidateComboChart(PresentationChart chart, string elementId, string name, bool allowFormulas = false)
     {
         if (chart.Series.Count != 0) throw Invalid(elementId, "must keep series empty when type is combo");
         if (chart.ComboSeries.Count is < 2 or > MaxSeries) throw Invalid(elementId, $"must contain 2 through {MaxSeries} combo_series entries");
@@ -70,8 +81,8 @@ internal static partial class PptxChartCodec
                 throw Invalid(elementId, "combo series type must be column, line, or area");
             if (!families.TryGetValue(entry.Type, out var family)) families[entry.Type] = family = [];
             family.Add(entry);
-            if (!string.IsNullOrWhiteSpace(entry.Series.CategoryFormula) || !string.IsNullOrWhiteSpace(entry.Series.ValueFormula) ||
-                !string.IsNullOrWhiteSpace(entry.Series.XValueFormula) || !string.IsNullOrWhiteSpace(entry.Series.BubbleSizeFormula) || ErrorBarsUseFormula(entry.Series))
+            if (!allowFormulas && (!string.IsNullOrWhiteSpace(entry.Series.CategoryFormula) || !string.IsNullOrWhiteSpace(entry.Series.ValueFormula) ||
+                !string.IsNullOrWhiteSpace(entry.Series.XValueFormula) || !string.IsNullOrWhiteSpace(entry.Series.BubbleSizeFormula) || ErrorBarsUseFormula(entry.Series)))
                 throw Invalid(elementId, "must use literal categories and values without workbook formulas");
         }
         if (families.Count < 2) throw Invalid(elementId, "must contain at least two distinct column, line, or area plot families");
@@ -175,7 +186,12 @@ internal static partial class PptxChartCodec
     private static bool HasSecondaryComboPlot(PresentationChart chart) =>
         chart.ComboSeries.Any(entry => ComboAxisGroup(entry) == PresentationChartAxisGroup.Secondary);
 
-    private static bool TryReadComboChart(string xml, out PresentationChart chart, out XDocument document, out bool editable)
+    private static bool TryReadComboChart(
+        string xml,
+        out PresentationChart chart,
+        out XDocument document,
+        out bool editable,
+        bool allowChartFrameDecorations = false)
     {
         chart = new PresentationChart();
         editable = true;
@@ -261,7 +277,8 @@ internal static partial class PptxChartCodec
         foreach (var native in orderedSeries)
         {
             if (!OpenXmlChartSpaceCodec.TrySeries(native.Element, native.Type, out var series, out var categories, out var seriesEditable) ||
-                series.CategoryFormula.Length > 0 || series.ValueFormula.Length > 0 || series.XValueFormula.Length > 0 || series.BubbleSizeFormula.Length > 0) return false;
+                !FormulaProfileIsSafe(series.CategoryFormula) || !FormulaProfileIsSafe(series.ValueFormula) ||
+                !FormulaProfileIsSafe(series.XValueFormula) || !FormulaProfileIsSafe(series.BubbleSizeFormula)) return false;
             editable &= seriesEditable;
             if (commonCategories is null) commonCategories = categories;
             else if (!commonCategories.SequenceEqual(categories, StringComparer.Ordinal)) return false;
@@ -297,7 +314,14 @@ internal static partial class PptxChartCodec
             chart.SecondaryYAxis = secondaryAxisCarrier.YAxis;
             editable &= secondaryAxesEditable;
         }
-        if (!XlsxChartSurfaceFillCodec.TryRead(root.Element(ChartNs + "spPr"), out var chartAreaFill)) editable = false;
+        var chartSpaceProperties = root.Element(ChartNs + "spPr");
+        if (!XlsxChartSurfaceFillCodec.TryRead(chartSpaceProperties, out var chartAreaFill, allowChartFrameDecorations))
+        {
+            // The Presentation-only frame codec resolves a ChartPart image
+            // relationship after this package-agnostic combo parser returns.
+            if (!(allowChartFrameDecorations && chartSpaceProperties?.Elements(DrawingNs + "blipFill").Any() == true))
+                editable = false;
+        }
         else if (chartAreaFill is not null) chart.ChartAreaFill = chartAreaFill;
         if (!XlsxChartSurfaceFillCodec.TryRead(plotArea.Element(ChartNs + "spPr"), out var plotAreaFill)) editable = false;
         else if (plotAreaFill is not null) chart.PlotAreaFill = plotAreaFill;
@@ -522,7 +546,7 @@ internal static partial class PptxChartCodec
         foreach (var plot in plots) XlsxChartDataLabelsCodec.Patch(plot, target.DataLabels);
         XlsxChartAxisCodec.Patch(plotArea, primaryPlot, ComboAxisCarrier(target, id, name));
         if (secondaryPlot is not null) XlsxChartAxisCodec.PatchPresentationSecondary(plotArea, secondaryPlot, ComboAxisCarrier(target, id, name, secondary: true));
-        XlsxChartSurfaceFillCodec.Patch(document.Root!, target.ChartAreaFill, "Presentation combo chart area");
+        XlsxChartSurfaceFillCodec.Patch(document.Root!, target.ChartAreaFill, "Presentation combo chart area", allowFrameDecorations: true);
         XlsxChartSurfaceFillCodec.Patch(plotArea, target.PlotAreaFill, "Presentation combo chart plot area");
     }
 

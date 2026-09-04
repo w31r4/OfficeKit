@@ -105,6 +105,7 @@
     "slideCommentThread.resolve": "$.comments[].resolved",
     "table.delete": "$.pages[].elements[]",
     "table.merge": "$.pages[].elements[].rows[].cells[].rowSpan/columnSpan",
+    "table.setGeometry": "$.pages[].elements[].columns[].width and $.pages[].elements[].rows[].height",
     "table.setAccessibilityMetadata": "$.pages[].elements[].accessibility"
   },
   "authoredCompilerBoundaries": [
@@ -327,7 +328,7 @@
     "imageAsset": { "valueType": "asset", "unit": "asset-id", "ppjLocation": "image.asset", "surface": "typed-operation", "boundary": "Same-format source-bound raster replacement." },
     "imageSvgAsset": { "valueType": "asset", "unit": "asset-id", "ppjLocation": "image.asset", "surface": "typed-operation", "boundary": "Safe source-bound SVG replacement." },
     "chartTitleText": { "valueType": "string", "unit": "text", "ppjLocation": "chart.title", "surface": "typed-operation", "boundary": "Existing chart title text." },
-    "chartDataValue": { "valueType": "number", "unit": "number", "ppjLocation": "chart.data", "surface": "typed-operation", "boundary": "Located chart data point with dependent workbook proof." },
+    "chartDataValue": { "valueType": "number", "unit": "number", "ppjLocation": "chart.data or opaque.nativeRef.leaves[]", "surface": "native-leaf or typed-operation", "boundary": "A typed chart point or one opaque native point with an independently proven ChartPart/cache/workbook binding; only the bounded local bar/line/area/pie/doughnut/radar category-cache profile synchronizes an embedded worksheet cell." },
     "diagramText": { "valueType": "string", "unit": "text", "ppjLocation": "smartArt.nodes[].text", "surface": "typed-operation", "boundary": "Located SmartArt diagram text leaf." },
     "deleteElement": { "valueType": "boolean", "unit": "operation", "ppjLocation": "pages[].elements[]", "surface": "typed-operation", "boundary": "Capability-issued element deletion with relationship proof." }
   },
@@ -482,6 +483,7 @@
     "table.delete": "ppj-state",
     "table.deletionCapability": "native-ref",
     "table.merge": "ppj-state",
+    "table.setGeometry": "native-ref",
     "table.setAccessibilityMetadata": "ppj-state"
   },
   "hostOnly": [

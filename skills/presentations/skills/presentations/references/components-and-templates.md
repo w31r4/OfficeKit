@@ -62,6 +62,14 @@ Components may declare parameters, named slots, variants, explicit bindings,
 bounded repeat over a finite array, and simple value conditions. Their frame is
 local and explicit. Expanded IDs must be deterministic.
 
+An image template element may bind typed component parameters to `image.crop`
+or `image.focus` using `{ "crop": { "left": ..., "top": ..., "right": ..., "bottom": ... } }`
+or `{ "focus": { "x": ..., "y": ... } }`. A focal point requires `fit: "cover"`
+and derives an asymmetric normalized crop; it is not automatic saliency
+inference. The compiler keeps both forms bounded and reprojects the same
+explicit crop for every repeated instance. Fit, mask, dimensions, and rights
+policies remain independently validated by the receiving image slot.
+
 Use components for a repeated semantic structure: a citation row, timeline
 event, experimental measure, or brand lockup. Do not turn every page into one
 large component or recreate a general layout language inside components.

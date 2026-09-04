@@ -56,6 +56,7 @@ internal sealed class PptxCustomShowCatalog
 
     internal bool TryGetNativeId(string facadeId, out uint nativeId) =>
         _nativeIdByFacadeId.TryGetValue(facadeId, out nativeId);
+
 }
 
 // Owns the bounded inline p:custShowLst graph. Canonical lists are semantic;

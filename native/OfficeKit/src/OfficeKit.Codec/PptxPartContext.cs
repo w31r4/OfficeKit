@@ -29,6 +29,7 @@ internal sealed class PptxPartContext
                 SlidePart slide => (type, relationshipId) => slide.AddImagePart(type, relationshipId),
                 SlideMasterPart master => (type, relationshipId) => master.AddImagePart(type, relationshipId),
                 SlideLayoutPart layout => (type, relationshipId) => layout.AddImagePart(type, relationshipId),
+                ChartPart chart => (type, relationshipId) => chart.AddImagePart(type, relationshipId),
                 // NotesSlide rich text deliberately has no relationship-writing
                 // surface. The context exists so the shared text codec can
                 // preserve its fixed paragraph/run topology; a picture bullet
@@ -242,6 +243,34 @@ internal sealed class PptxPartContext
         {
             _removedRelationshipIds.Add(relationshipId);
             _removedPartPaths.Add(partPath);
+        }
+    }
+
+    // Action-setting replacement owns either a hyperlink relationship or a
+    // relationship to another SlidePart.  Remove only that relationship when
+    // the old click target is no longer referenced; never delete the target
+    // SlidePart itself because it is still owned by ppt/presentation.xml.
+    internal void RemoveElementActionRelationshipIfUnreferenced(string relationshipId)
+    {
+        if (string.IsNullOrWhiteSpace(relationshipId) ||
+            Owner.RootElement is { } root &&
+            (root.GetAttributes().Any(attribute => attribute.Value == relationshipId) ||
+             root.Descendants().Any(element => element.GetAttributes().Any(attribute => attribute.Value == relationshipId))))
+            return;
+
+        var hyperlink = Owner.HyperlinkRelationships.FirstOrDefault(item => item.Id == relationshipId);
+        if (hyperlink is not null)
+        {
+            Owner.DeleteReferenceRelationship(relationshipId);
+            _removedRelationshipIds.Add(relationshipId);
+            return;
+        }
+
+        var partRelationship = Owner.Parts.FirstOrDefault(item => item.RelationshipId == relationshipId);
+        if (partRelationship.OpenXmlPart is SlidePart)
+        {
+            Owner.DeleteReferenceRelationship(relationshipId);
+            _removedRelationshipIds.Add(relationshipId);
         }
     }
 

@@ -14,7 +14,22 @@ internal sealed record PpjNativeLeafBinding(
     string Kind,
     uint NativeLeafIndex,
     uint TextLeafIndex,
-    string ExpectedValue);
+    string ExpectedValue,
+    PpjNativeChartDataBinding? ChartData = null);
+
+internal sealed record PpjNativeChartDataBinding(
+    string TargetPartPath,
+    string TargetPartSha256,
+    string RelationshipId,
+    string EmbeddedPackagePartPath,
+    string EmbeddedPackageSha256,
+    string EmbeddedPackageRelationshipId,
+    string EmbeddedWorksheetPartPath,
+    string EmbeddedWorksheetSha256,
+    string EmbeddedCellReference,
+    uint ChartSeriesIndex,
+    uint ChartPointIndex,
+    string ChartFormula);
 
 /// <summary>
 /// Issues the finite scalar leaves that the native token-splice writer can
@@ -87,7 +102,13 @@ internal static class PpjNativeLeafProjection
         var source = element.Source;
         if (source is null || shapeTreePath.Count == 0) return output;
 
-        void Add(string kind, string expectedValue, JsonNode? value, uint nativeIndex = 0, uint textIndex = 0)
+        void Add(
+            string kind,
+            string expectedValue,
+            JsonNode? value,
+            uint nativeIndex = 0,
+            uint textIndex = 0,
+            PpjNativeChartDataBinding? chartData = null)
         {
             // nativeRef.leaves is a bounded capability list, not a second copy
             // of the source tree. Keep projection deterministic for unusually
@@ -105,27 +126,57 @@ internal static class PpjNativeLeafProjection
                 ["expectedHash"] = expectedHash,
                 ["value"] = value,
             });
-            record(new(id, pageId, elementId, kind, nativeIndex, textIndex, expectedValue));
+            record(new(id, pageId, elementId, kind, nativeIndex, textIndex, expectedValue, chartData));
         }
 
         switch (element.ContentCase)
         {
             case PresentationElement.ContentOneofCase.Shape:
-                DescribeShape(element.Shape, source, Add);
+                DescribeShape(element.Shape, source, (kind, expected, value, nativeIndex, textIndex) =>
+                    Add(kind, expected, value, nativeIndex, textIndex));
                 break;
             case PresentationElement.ContentOneofCase.Image:
-                DescribeImage(element.Image, source, Add);
+                DescribeImage(element.Image, source, (kind, expected, value, nativeIndex, textIndex) =>
+                    Add(kind, expected, value, nativeIndex, textIndex));
                 break;
             case PresentationElement.ContentOneofCase.Connector:
-                DescribeConnector(element.Connector, source, Add);
+                DescribeConnector(element.Connector, source, (kind, expected, value, nativeIndex, textIndex) =>
+                    Add(kind, expected, value, nativeIndex, textIndex));
                 break;
             case PresentationElement.ContentOneofCase.Table:
-                DescribeTable(element.Table, source, Add);
+                DescribeTable(element.Table, source, (kind, expected, value, nativeIndex, textIndex) =>
+                    Add(kind, expected, value, nativeIndex, textIndex));
                 break;
             case PresentationElement.ContentOneofCase.Opaque:
                 if (PpjNativeTextProjection.TryRead(element.Opaque.RawXml, out var leaves))
                     for (var index = 0; index < leaves.Count; index++)
                         Add("nativeText", leaves[index], JsonValue.Create(leaves[index]), textIndex: checked((uint)index));
+                if (element.Opaque.NativeChart is { DataPoints.Count: > 0 } chart)
+                {
+                    foreach (var point in chart.DataPoints)
+                    {
+                        if (!ValidNumericToken(point.Value)) continue;
+                        Add(
+                            "chartDataValue",
+                            point.Value,
+                            JsonValue.Create(point.Value),
+                            nativeIndex: point.SeriesIndex,
+                            textIndex: point.PointIndex,
+                            chartData: new PpjNativeChartDataBinding(
+                                chart.PartPath,
+                                chart.SourceSha256,
+                                chart.RelationshipId,
+                                chart.EmbeddedPackagePartPath,
+                                chart.EmbeddedPackageSourceSha256,
+                                chart.EmbeddedPackageRelationshipId,
+                                point.WorksheetPartPath,
+                                point.WorksheetSourceSha256,
+                                point.CellReference,
+                                point.SeriesIndex,
+                                point.PointIndex,
+                                point.Formula));
+                    }
+                }
                 break;
         }
         return output;
@@ -140,6 +191,18 @@ internal static class PpjNativeLeafProjection
     /// </summary>
     internal static string NormalizeValue(string kind, JsonElement value, string path)
     {
+        if (kind == "chartDataValue")
+        {
+            var token = value.ValueKind switch
+            {
+                JsonValueKind.String => value.GetString() ?? string.Empty,
+                JsonValueKind.Number => value.GetRawText(),
+                _ => string.Empty,
+            };
+            if (!ValidNumericToken(token))
+                throw InvalidValue(kind, path, "a finite numeric token");
+            return token;
+        }
         if (RgbKinds.Contains(kind))
         {
             var token = RequireString(value, kind, path).TrimStart('#');
@@ -191,6 +254,13 @@ internal static class PpjNativeLeafProjection
         "ppj.nativeRef.leafValue",
         $"Native leaf {kind} requires {expected}.",
         path);
+
+    private static bool ValidNumericToken(string token) =>
+        token.Length is > 0 and <= 128 &&
+        token == token.Trim() &&
+        !token.Any(char.IsControl) &&
+        double.TryParse(token, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var number) &&
+        double.IsFinite(number);
 
     private static void DescribeShape(
         PresentationShape shape,

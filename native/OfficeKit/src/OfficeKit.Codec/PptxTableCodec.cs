@@ -7,13 +7,16 @@ using P = DocumentFormat.OpenXml.Presentation;
 namespace OfficeKit.Codec;
 
 // Owns a bounded, source-preserving DrawingML table projection. Table
-// topology, merge ranges, and cell formatting remain fixed after import;
-// name, complete outer frame, non-visible title/description, and a cell's
-// one-text-leaf-per-paragraph value are the only source-bound edits. Recognized PowerPoint
-// style/extension shells stay in the source graph instead of being rebuilt.
+// topology and merge ranges remain fixed after import; name, complete outer
+// frame, non-visible title/description, recognized table-property flags,
+// fixed-topology direct text runs, the bounded direct cell paint/border
+// profile, and the bounded uniform-run text-style profile are the source-bound
+// edits. Recognized PowerPoint style/extension shells stay in the source graph
+// instead of being rebuilt.
 internal static class PptxTableCodec
 {
     private const string TableGraphicDataUri = "http://schemas.openxmlformats.org/drawingml/2006/table";
+    private const string DrawingNamespace = "http://schemas.openxmlformats.org/drawingml/2006/main";
     private const int MaxColumns = 256;
     private const int MaxRows = 2_048;
     private const int MaxCellTextLength = 32_767;
@@ -35,7 +38,10 @@ internal static class PptxTableCodec
         bool HasHorizontalMerge,
         bool HasVerticalMerge);
 
-    internal static bool TryRead(P.GraphicFrame source, out PresentationTable table)
+    internal static bool TryRead(P.GraphicFrame source, out PresentationTable table) =>
+        TryRead(source, context: null, out table);
+
+    internal static bool TryRead(P.GraphicFrame source, PptxPartContext? context, out PresentationTable table)
     {
         table = new PresentationTable();
         try
@@ -81,8 +87,13 @@ internal static class PptxTableCodec
             result.ColumnWidthsEmu.Add(columns.Select(column => column.Width!.Value));
             if (properties.FirstRow is not null) result.FirstRow = properties.FirstRow.Value;
             if (properties.BandRow is not null) result.BandedRows = properties.BandRow.Value;
+            if (properties.BandColumn is not null) result.BandedColumns = properties.BandColumn.Value;
+            if (properties.FirstColumn is not null) result.FirstColumn = properties.FirstColumn.Value;
+            if (properties.LastColumn is not null) result.LastColumn = properties.LastColumn.Value;
 
             var nativeCells = new List<A.TableCell[]>(rows.Length);
+            var cellStyleEditable = true;
+            var cellTextStyleEditable = true;
             foreach (var nativeRow in rows)
             {
                 if (nativeRow.Height?.Value is null or <= 0 || !TableRowSupported(nativeRow))
@@ -94,14 +105,22 @@ internal static class PptxTableCodec
                 var row = new PresentationTableRow { HeightEmu = nativeRow.Height.Value };
                 foreach (var cell in cells)
                 {
-                    if (!TryReadCell(cell, out var text))
+                    if (!TryReadCell(cell, context, out var text, out var fill, out var borders, out var textStyle, out var styleEditable, out var textStyleEditable))
                         return false;
-                    row.Cells.Add(new PresentationTableCell { Text = text });
+                    cellStyleEditable &= styleEditable;
+                    cellTextStyleEditable &= textStyleEditable;
+                    var modeledCell = new PresentationTableCell { Text = text };
+                    if (fill is not null) modeledCell.Fill = fill;
+                    if (borders is not null) modeledCell.Borders = borders;
+                    if (textStyle is not null) modeledCell.TextStyle = textStyle;
+                    row.Cells.Add(modeledCell);
                 }
                 result.Rows.Add(row);
             }
 
             if (!TryReadMergeRanges(nativeCells, result)) return false;
+            result.CellStyleEditable = cellStyleEditable;
+            result.CellTextStyleEditable = cellTextStyleEditable;
             // PowerPoint commonly stores a table in its own coordinate space
             // and scales the graphic frame around it. Keep both dimensions
             // exactly as authored instead of rejecting the table or rewriting
@@ -172,9 +191,9 @@ internal static class PptxTableCodec
             new A.Graphic(new A.GraphicData(nativeTable) { Uri = TableGraphicDataUri }));
     }
 
-    internal static void Apply(P.GraphicFrame source, PresentationElement requested)
+    internal static void Apply(P.GraphicFrame source, PresentationElement requested, PptxPartContext? slideContext = null)
     {
-        if (!TryRead(source, out var original))
+        if (!TryRead(source, slideContext, out var original))
             throw new CodecException("unsupported_presentation_edit", $"Presentation table {requested.Id} no longer matches the editable table profile.");
         ValidateRequest(original, requested);
         var table = requested.Table;
@@ -185,6 +204,17 @@ internal static class PptxTableCodec
         source.NonVisualGraphicFrameProperties!.NonVisualDrawingProperties!.Name = requested.Name;
         SetFrame(source.Transform!, table);
         var nativeTable = source.Graphic!.GraphicData!.GetFirstChild<A.Table>()!;
+        var properties = nativeTable.GetFirstChild<A.TableProperties>()!;
+        if (table.HasFirstRow) properties.FirstRow = table.FirstRow;
+        else properties.FirstRow = null;
+        if (table.HasBandedRows) properties.BandRow = table.BandedRows;
+        else properties.BandRow = null;
+        if (table.HasBandedColumns) properties.BandColumn = table.BandedColumns;
+        else properties.BandColumn = null;
+        if (table.HasFirstColumn) properties.FirstColumn = table.FirstColumn;
+        else properties.FirstColumn = null;
+        if (table.HasLastColumn) properties.LastColumn = table.LastColumn;
+        else properties.LastColumn = null;
         var columns = nativeTable.GetFirstChild<A.TableGrid>()!.Elements<A.GridColumn>().ToArray();
         for (var index = 0; index < columns.Length; index++) columns[index].Width = table.ColumnWidthsEmu[index];
         var rows = nativeTable.Elements<A.TableRow>().ToArray();
@@ -194,19 +224,28 @@ internal static class PptxTableCodec
             var cells = rows[rowIndex].Elements<A.TableCell>().ToArray();
             for (var columnIndex = 0; columnIndex < cells.Length; columnIndex++)
             {
-                var textLeaves = TextLeaves(cells[columnIndex]);
                 var requestedText = table.Rows[rowIndex].Cells[columnIndex].Text;
-                if (textLeaves is null)
+                var sourceText = CellText(cells[columnIndex]);
+                PatchCellProperties(cells[columnIndex], table.Rows[rowIndex].Cells[columnIndex], slideContext);
+                PatchCellTextStyle(cells[columnIndex], table.Rows[rowIndex].Cells[columnIndex], slideContext);
+                // Text replacement keeps the source paragraph and run
+                // topology. A direct plain-text paragraph may contain one or
+                // more runs; new text is distributed deterministically across
+                // those existing leaves without rebuilding the cell body.
+                if (string.Equals(requestedText, sourceText, StringComparison.Ordinal))
+                    continue;
+                var textRunLeaves = TextRunLeaves(cells[columnIndex]);
+                if (textRunLeaves is null)
                 {
                     if (requestedText.Length != 0)
                         throw new CodecException("unsupported_presentation_edit", $"Presentation table {requested.Id} cannot add text to an empty or covered cell without a source text leaf.");
                     continue;
                 }
                 var lines = requestedText.Split('\n');
-                if (lines.Length != textLeaves.Count)
+                if (lines.Length != textRunLeaves.Count)
                     throw new CodecException("unsupported_presentation_edit", $"Presentation table {requested.Id} must preserve the source paragraph count when editing a multi-paragraph cell.");
-                for (var lineIndex = 0; lineIndex < textLeaves.Count; lineIndex++)
-                    textLeaves[lineIndex].Text = lines[lineIndex];
+                for (var lineIndex = 0; lineIndex < textRunLeaves.Count; lineIndex++)
+                    SetParagraphText(textRunLeaves[lineIndex], lines[lineIndex]);
             }
         }
     }
@@ -244,6 +283,7 @@ internal static class PptxTableCodec
             }
             ValidateCellFill(cell.Fill, elementId, assets);
             ValidateCellBorders(cell.Borders, elementId);
+            ValidateCellTextStyle(cell.TextStyle, elementId);
         }
         PptxNonVisualAccessibilityCodec.Validate(table.Accessibility, elementId, "table");
         if (table.DefaultCellFillCase == PresentationTable.DefaultCellFillOneofCase.DefaultCellFillRgb)
@@ -265,8 +305,14 @@ internal static class PptxTableCodec
         _ = CreateMergePlan(table, elementId);
     }
 
-    internal static void ScrubModeledContent(P.GraphicFrame source)
+    internal static void ScrubModeledContent(P.GraphicFrame source, PptxPartContext? context = null)
     {
+        // Direct cell paint and borders are part of the bounded source-bound
+        // style profile only when every physical cell is representable. Keep
+        // unsupported relationship/effect children in the residual hash.
+        var parsed = TryRead(source, context, out var parsedTable);
+        var scrubCellStyles = parsed && parsedTable.CellStyleEditable;
+        var scrubCellTextStyles = parsed && parsedTable.CellTextStyleEditable;
         if (source.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties is { } nonVisual)
         {
             PptxNonVisualAccessibilityCodec.ScrubModeledContent(nonVisual);
@@ -282,12 +328,34 @@ internal static class PptxTableCodec
         }
         var table = source.Graphic?.GraphicData?.GetFirstChild<A.Table>();
         if (table is null) return;
+        if (table.GetFirstChild<A.TableProperties>() is { } properties)
+        {
+            // These five flags are the only table-style leaves issued by the
+            // source-bound PPJ profile. Keep table-style IDs, no-fill shells,
+            // and extension children in the residual hash.
+            properties.FirstRow = null;
+            properties.BandRow = null;
+            properties.BandColumn = null;
+            properties.FirstColumn = null;
+            properties.LastColumn = null;
+        }
         foreach (var column in table.GetFirstChild<A.TableGrid>()?.Elements<A.GridColumn>() ?? []) column.Width = 1L;
         foreach (var row in table.Elements<A.TableRow>())
         {
             row.Height = 1L;
             foreach (var cell in row.Elements<A.TableCell>())
-                foreach (var text in TextLeaves(cell) ?? []) text.Text = string.Empty;
+            {
+                foreach (var text in (TextRunLeaves(cell)?.SelectMany(leaves => leaves) ?? TextLeaves(cell) ?? [])) text.Text = string.Empty;
+                if (scrubCellStyles && cell.GetFirstChild<A.TableCellProperties>() is { } cellProperties)
+                    foreach (var child in cellProperties.ChildElements.Where(child => IsCellFill(child) || IsCellBorder(child)).ToArray())
+                        child.Remove();
+                if (scrubCellTextStyles && cell.GetFirstChild<A.TextBody>() is { } textBody)
+                {
+                    var temporary = new P.Shape { TextBody = new P.TextBody { InnerXml = textBody.InnerXml } };
+                    PptxTextCodec.ScrubModeledContent(temporary.TextBody);
+                    textBody.InnerXml = temporary.TextBody!.InnerXml;
+                }
+            }
         }
     }
 
@@ -306,14 +374,35 @@ internal static class PptxTableCodec
         allowed.ColumnWidthsEmu.Clear();
         allowed.ColumnWidthsEmu.Add(requested.Table.ColumnWidthsEmu);
         allowed.Accessibility = requested.Table.Accessibility?.Clone();
+        if (requested.Table.HasFirstRow) allowed.FirstRow = requested.Table.FirstRow;
+        else allowed.ClearFirstRow();
+        if (requested.Table.HasBandedRows) allowed.BandedRows = requested.Table.BandedRows;
+        else allowed.ClearBandedRows();
+        if (requested.Table.HasBandedColumns) allowed.BandedColumns = requested.Table.BandedColumns;
+        else allowed.ClearBandedColumns();
+        if (requested.Table.HasFirstColumn) allowed.FirstColumn = requested.Table.FirstColumn;
+        else allowed.ClearFirstColumn();
+        if (requested.Table.HasLastColumn) allowed.LastColumn = requested.Table.LastColumn;
+        else allowed.ClearLastColumn();
         for (var rowIndex = 0; rowIndex < allowed.Rows.Count; rowIndex++)
         {
             allowed.Rows[rowIndex].HeightEmu = requested.Table.Rows[rowIndex].HeightEmu;
             for (var columnIndex = 0; columnIndex < allowed.Rows[rowIndex].Cells.Count; columnIndex++)
-                allowed.Rows[rowIndex].Cells[columnIndex].Text = requested.Table.Rows[rowIndex].Cells[columnIndex].Text;
+            {
+                var allowedCell = allowed.Rows[rowIndex].Cells[columnIndex];
+                var requestedCell = requested.Table.Rows[rowIndex].Cells[columnIndex];
+                allowedCell.Text = requestedCell.Text;
+                if (original.CellStyleEditable)
+                {
+                    allowedCell.Fill = requestedCell.Fill?.Clone();
+                    allowedCell.Borders = requestedCell.Borders?.Clone();
+                }
+                if (original.CellTextStyleEditable)
+                    allowedCell.TextStyle = requestedCell.TextStyle?.Clone();
+            }
         }
         if (!allowed.Equals(requested.Table))
-            throw new CodecException("unsupported_presentation_edit", $"Presentation table {requested.Id} may edit only its name, complete frame transform, alternative text, and fixed-topology plain cell text.");
+            throw new CodecException("unsupported_presentation_edit", $"Presentation table {requested.Id} may edit only its name, complete frame transform, alternative text, recognized table-property flags, bounded direct cell paint/borders, and fixed-topology plain cell text.");
     }
 
     private static bool TryReadFrame(
@@ -339,15 +428,30 @@ internal static class PptxTableCodec
         return true;
     }
 
-    private static bool TryReadCell(A.TableCell cell, out string text)
+    private static bool TryReadCell(
+        A.TableCell cell,
+        PptxPartContext? context,
+        out string text,
+        out PresentationTableCellFill? fill,
+        out PresentationTableCellBorders? borders,
+        out PresentationTextStyle? textStyle,
+        out bool styleEditable,
+        out bool textStyleEditable)
     {
         text = string.Empty;
+        fill = null;
+        borders = null;
+        textStyle = null;
+        styleEditable = true;
+        textStyleEditable = true;
         if (!HasOnlyAttributes(cell, "rowSpan", "gridSpan", "hMerge", "vMerge")) return false;
         // Covered merge cells are legal and intentionally have no text body.
         // They remain fixed-topology cells and cannot receive new text during
         // a source-bound edit.
         if (cell.ChildElements.Count == 0) return true;
         if (cell.Elements<A.TextBody>().Count() != 1 || cell.Elements<A.TableCellProperties>().Count() != 1) return false;
+        if (!TryReadCellProperties(cell.GetFirstChild<A.TableCellProperties>(), context, out fill, out borders, out styleEditable))
+            return false;
         var body = cell.GetFirstChild<A.TextBody>()!;
         if (body.ChildElements.Count < 3 || body.ChildElements[0] is not A.BodyProperties ||
             body.ChildElements[1] is not A.ListStyle || body.ChildElements.Skip(2).Any(child => child is not A.Paragraph))
@@ -355,9 +459,9 @@ internal static class PptxTableCodec
 
         // Keep the table model plain, but accept the common source-bound form
         // where one cell contains several paragraphs and each paragraph has
-        // exactly one run. Joining those paragraphs gives the Agent a single
-        // editable cell value without flattening any run properties; Apply()
-        // splices the same paragraph/run leaves in place.
+        // one or more direct plain-text runs. Joining those paragraphs gives
+        // the Agent a single editable cell value without flattening any run
+        // properties; Apply() splices the same paragraph/run leaves in place.
         var paragraphs = body.Elements<A.Paragraph>().ToArray();
         var lines = new List<string>(paragraphs.Length);
         var hasAnyText = paragraphs.Any(paragraph => paragraph.Descendants<A.Text>().Any());
@@ -372,13 +476,393 @@ internal static class PptxTableCodec
         {
             var runs = paragraph.Elements<A.Run>().ToArray();
             var textLeaves = paragraph.Descendants<A.Text>().ToArray();
-            if (runs.Length != 1 || textLeaves.Length != 1 ||
+            if (runs.Length < 1 || textLeaves.Length != runs.Length ||
                 textLeaves.Any(value => value.Parent is not A.Run || value.Text.Contains('\n')))
                 return false;
-            lines.Add(textLeaves[0].Text);
+            lines.Add(string.Concat(textLeaves.Select(value => value.Text)));
         }
         text = string.Join("\n", lines);
+        if (PptxTextCodec.SupportsEditing(body))
+        {
+            try
+            {
+                var semantic = PptxTextCodec.ReadDrawingTextBody(body);
+                var runs = semantic.Paragraphs.SelectMany(paragraph => paragraph.Runs).ToArray();
+                var styles = runs.Select(TextStyle).ToArray();
+                if (runs.Length > 0 && runs.All(run =>
+                        run.ContentCase == PresentationTextRun.ContentOneofCase.Text &&
+                        CellTextStyleSupported(run)) &&
+                    styles.Skip(1).All(style => Equals(style, styles[0])))
+                {
+                    textStyle = styles[0];
+                }
+                else
+                {
+                    textStyleEditable = false;
+                }
+            }
+            catch (CodecException)
+            {
+                textStyleEditable = false;
+            }
+        }
+        else if (paragraphs.Length > 0)
+        {
+            textStyleEditable = false;
+        }
         return text.Length <= MaxCellTextLength;
+    }
+
+    private static PresentationTextStyle? TextStyle(PresentationTextRun run)
+    {
+        var style = new PresentationTextStyle();
+        var hasStyle = false;
+        if (run.HasBold) { style.Bold = run.Bold; hasStyle = true; }
+        if (run.HasItalic) { style.Italic = run.Italic; hasStyle = true; }
+        if (run.HasFontSizePoints) { style.FontSizePoints = run.FontSizePoints; hasStyle = true; }
+        if (run.HasFontFamily) { style.FontFamily = run.FontFamily; hasStyle = true; }
+        if (run.HasFontFamilyEastAsia) { style.FontFamilyEastAsia = run.FontFamilyEastAsia; hasStyle = true; }
+        if (run.HasColorRgb) { style.ColorRgb = run.ColorRgb; hasStyle = true; }
+        if (run.HasColorOpacityThousandthPercent) { style.ColorOpacityThousandthPercent = run.ColorOpacityThousandthPercent; hasStyle = true; }
+        if (run.HasUnderline) { style.Underline = run.Underline; hasStyle = true; }
+        if (run.HasStrike) { style.Strike = run.Strike; hasStyle = true; }
+        return hasStyle ? style : null;
+    }
+
+    private static bool CellTextStyleSupported(PresentationTextRun run) =>
+        !run.HasFontKerningPoints && !run.HasFontBaselinePercent && !run.HasFontSpacingPoints &&
+        !run.HasFontCaps && run.HighlightCase == PresentationTextRun.HighlightOneofCase.None &&
+        run.GradientFill is null && run.Shadow is null &&
+        !run.HasColorScheme &&
+        (!run.HasLanguage || run.Language.Equals("en-US", StringComparison.OrdinalIgnoreCase)) &&
+        run.HyperlinkCase == PresentationTextRun.HyperlinkOneofCase.None;
+
+    private static void ValidateCellTextStyle(PresentationTextStyle? style, string elementId)
+    {
+        if (style is null) return;
+        if (style.HasFontSizePoints && (style.FontSizePoints <= 0 || style.FontSizePoints > 1000))
+            throw Invalid(elementId, "cell text font size must be from 0 through 1000 points");
+        if (style.HasFontFamily && string.IsNullOrWhiteSpace(style.FontFamily))
+            throw Invalid(elementId, "cell text font family must not be empty");
+        if (style.HasFontFamilyEastAsia && string.IsNullOrWhiteSpace(style.FontFamilyEastAsia))
+            throw Invalid(elementId, "cell text East Asian font family must not be empty");
+        if (style.HasColorRgb) PptxColor.Normalize(style.ColorRgb);
+        if (style.HasColorScheme) PptxColor.NormalizeScheme(style.ColorScheme);
+        if (style.HasColorOpacityThousandthPercent &&
+            style.ColorCase == PresentationTextStyle.ColorOneofCase.None)
+            throw Invalid(elementId, "cell text color opacity requires a modeled color");
+        if (style.HasColorOpacityThousandthPercent && style.ColorOpacityThousandthPercent > 100_000)
+            throw Invalid(elementId, "cell text color opacity must be at most 100000 thousandths of a percent");
+        if (style.HasUnderline) _ = PptxTextDecoration.NormalizeUnderline(style.Underline);
+        if (style.HasStrike) _ = PptxTextDecoration.NormalizeStrike(style.Strike);
+    }
+
+    private static bool TryReadCellProperties(
+        A.TableCellProperties? properties,
+        PptxPartContext? context,
+        out PresentationTableCellFill? fill,
+        out PresentationTableCellBorders? borders,
+        out bool styleEditable)
+    {
+        fill = null;
+        borders = null;
+        styleEditable = true;
+        if (properties is null) return true;
+
+        var fills = properties.ChildElements.Where(IsCellFill).ToArray();
+        if (fills.Length > 1) return false;
+        if (fills.SingleOrDefault() is { } nativeFill &&
+            !TryReadCellFill(nativeFill, context, out fill))
+            styleEditable = false;
+
+        var parsedBorders = new PresentationTableCellBorders();
+        var hasBorder = false;
+        foreach (var (name, assign) in new (string Name, Action<SpreadsheetChartLineStyleArtifact?> Set)[]
+        {
+            ("lnL", value => parsedBorders.Left = value),
+            ("lnT", value => parsedBorders.Top = value),
+            ("lnR", value => parsedBorders.Right = value),
+            ("lnB", value => parsedBorders.Bottom = value),
+        })
+        {
+            var nativeBorder = properties.ChildElements.SingleOrDefault(child => child.LocalName == name && child.NamespaceUri == DrawingNamespace);
+            if (properties.ChildElements.Count(child => child.LocalName == name && child.NamespaceUri == DrawingNamespace) > 1)
+                return false;
+            if (nativeBorder is null) continue;
+            if (!TryReadCellBorder(nativeBorder, out var border))
+            {
+                styleEditable = false;
+                continue;
+            }
+            if (border is not null) hasBorder = true;
+            assign(border);
+        }
+        if (hasBorder) borders = parsedBorders;
+        return true;
+    }
+
+    private static bool IsCellFill(OpenXmlElement child) =>
+        child.NamespaceUri == DrawingNamespace &&
+        child.LocalName is "noFill" or "solidFill" or "gradFill" or "blipFill";
+
+    private static bool IsCellBorder(OpenXmlElement child) =>
+        child.NamespaceUri == DrawingNamespace &&
+        child.LocalName is "lnL" or "lnT" or "lnR" or "lnB";
+
+    private static bool TryReadCellFill(
+        OpenXmlElement source,
+        PptxPartContext? context,
+        out PresentationTableCellFill? fill)
+    {
+        fill = null;
+        if (source is A.NoFill noFill)
+        {
+            if (noFill.GetAttributes().Count != 0 || noFill.ChildElements.Count != 0) return false;
+            fill = new PresentationTableCellFill { NoFill = true };
+            return true;
+        }
+        if (source is A.SolidFill solid &&
+            PptxColor.TryDirectSolidRgbWithOpacity(solid, out var rgb, out var opacity))
+        {
+            fill = new PresentationTableCellFill { SolidRgb = rgb };
+            if (opacity is { } alpha) fill.OpacityThousandthPercent = alpha;
+            return true;
+        }
+        if (source is A.GradientFill gradient && PptxGradientFillCodec.TryRead(gradient, out var semantic))
+        {
+            fill = new PresentationTableCellFill { GradientFill = semantic };
+            return true;
+        }
+        if (source is A.BlipFill blipFill &&
+            PptxImagePaintCodec.TryRead(blipFill, context, out var imagePaint))
+        {
+            fill = new PresentationTableCellFill { ImagePaint = imagePaint };
+            return true;
+        }
+        return false;
+    }
+
+    private static bool TryReadCellBorder(
+        OpenXmlElement source,
+        out SpreadsheetChartLineStyleArtifact? border)
+    {
+        border = null;
+        var attributes = source.GetAttributes();
+        if (attributes.Any(attribute => attribute.LocalName is not ("w" or "cap"))) return false;
+        var children = source.ChildElements;
+        if (children.Any(child => child is not A.SolidFill and not A.PresetDash and not A.Round and not A.LineJoinBevel and not A.Miter) ||
+            children.Count(child => child is A.SolidFill) > 1 ||
+            children.Count(child => child is A.PresetDash) > 1 ||
+            children.Count(child => child is A.Round or A.LineJoinBevel or A.Miter) > 1)
+            return false;
+        var solid = source.GetFirstChild<A.SolidFill>();
+        if (solid is null || !PptxColor.TryDirectSolidRgbWithOpacity(solid, out var rgb, out var opacity)) return false;
+        var dashValue = source.GetFirstChild<A.PresetDash>()?.Val?.Value;
+        var dashStyle = dashValue is null ? SpreadsheetChartLineDashStyle.Solid :
+            dashValue.Equals(A.PresetLineDashValues.Solid) ? SpreadsheetChartLineDashStyle.Solid :
+            dashValue.Equals(A.PresetLineDashValues.Dash) ? SpreadsheetChartLineDashStyle.Dashed :
+            dashValue.Equals(A.PresetLineDashValues.Dot) ? SpreadsheetChartLineDashStyle.Dotted :
+            dashValue.Equals(A.PresetLineDashValues.DashDot) ? SpreadsheetChartLineDashStyle.DashDot :
+            dashValue.Equals(A.PresetLineDashValues.LargeDashDotDot) ? SpreadsheetChartLineDashStyle.DashDotDot :
+            SpreadsheetChartLineDashStyle.Unspecified;
+        var output = new SpreadsheetChartLineStyleArtifact
+        {
+            Color = new SpreadsheetColor { Rgb = rgb },
+            DashStyle = dashStyle,
+            Cap = source.GetAttribute("cap", string.Empty).Value switch
+            {
+                null or "flat" => "flat",
+                "rnd" => "round",
+                "sq" => "square",
+                _ => string.Empty,
+            },
+            Join = children.SingleOrDefault(child => child is A.Round or A.LineJoinBevel or A.Miter)?.LocalName switch
+            {
+                "round" => "round",
+                "bevel" => "bevel",
+                "miter" => "miter",
+                null => string.Empty,
+                _ => string.Empty,
+            },
+        };
+        if (output.DashStyle == SpreadsheetChartLineDashStyle.Unspecified || output.Cap.Length == 0) return false;
+        var width = source.GetAttribute("w", string.Empty).Value;
+        if (width is not null)
+        {
+            if (!long.TryParse(width, NumberStyles.None, CultureInfo.InvariantCulture, out var emu) || emu < 0)
+                return false;
+            output.WidthPoints = emu / 12_700d;
+        }
+        if (opacity is { } alpha) output.OpacityThousandthPercent = alpha;
+        border = output;
+        return true;
+    }
+
+    private static void PatchCellProperties(
+        A.TableCell cell,
+        PresentationTableCell requested,
+        PptxPartContext? slideContext)
+    {
+        var properties = cell.GetFirstChild<A.TableCellProperties>();
+        if (properties is null)
+        {
+            if (requested.Fill is null && requested.Borders is null) return;
+            properties = new A.TableCellProperties();
+            cell.Append(properties);
+        }
+
+        ReplaceCellPaint(properties, requested.Fill, slideContext);
+        ReplaceCellBorder(properties, "lnL", requested.Borders?.Left, () => new A.LeftBorderLineProperties());
+        ReplaceCellBorder(properties, "lnT", requested.Borders?.Top, () => new A.TopBorderLineProperties());
+        ReplaceCellBorder(properties, "lnR", requested.Borders?.Right, () => new A.RightBorderLineProperties());
+        ReplaceCellBorder(properties, "lnB", requested.Borders?.Bottom, () => new A.BottomBorderLineProperties());
+    }
+
+    private static void PatchCellTextStyle(
+        A.TableCell cell,
+        PresentationTableCell requested,
+        PptxPartContext? slideContext)
+    {
+        if (requested.TextStyle is null && cell.GetFirstChild<A.TextBody>() is null) return;
+        var sourceBody = cell.GetFirstChild<A.TextBody>();
+        if (sourceBody is null)
+        {
+            if (requested.TextStyle is not null)
+                throw new CodecException("unsupported_presentation_edit", "Source-preserving PPTX export cannot add a table-cell text body.");
+            return;
+        }
+        var paragraphs = sourceBody.Elements<A.Paragraph>().ToArray();
+        if (paragraphs.Length < 1 || paragraphs.Any(paragraph => paragraph.Elements<A.Run>().Count() < 1))
+        {
+            if (requested.TextStyle is not null)
+                throw new CodecException("unsupported_presentation_edit", "Source-preserving table-cell text style requires one or more paragraphs with one or more text runs each.");
+            return;
+        }
+
+        var semantic = PptxTextCodec.ReadDrawingTextBody(sourceBody);
+        var sourceRuns = paragraphs.SelectMany(paragraph => paragraph.Elements<A.Run>()).ToArray();
+        var semanticRuns = semantic.Paragraphs.SelectMany(paragraph => paragraph.Runs).ToArray();
+        if (semantic.Paragraphs.Count != paragraphs.Length || semanticRuns.Length != sourceRuns.Length ||
+            semanticRuns.Any(run =>
+                run.ContentCase != PresentationTextRun.ContentOneofCase.Text ||
+                !CellTextStyleSupported(run)))
+            throw new CodecException("unsupported_presentation_edit", "Source-preserving table-cell text style requires paragraphs of plain text runs.");
+        for (var index = 0; index < semanticRuns.Length; index++)
+        {
+            var run = semanticRuns[index];
+            var replacement = new PresentationTextRun { Text = run.Text };
+            if (requested.TextStyle is { } style)
+            {
+                if (style.HasBold) replacement.Bold = style.Bold;
+                if (style.HasItalic) replacement.Italic = style.Italic;
+                if (style.HasFontSizePoints) replacement.FontSizePoints = style.FontSizePoints;
+                if (style.HasFontFamily) replacement.FontFamily = style.FontFamily;
+                if (style.HasFontFamilyEastAsia) replacement.FontFamilyEastAsia = style.FontFamilyEastAsia;
+                if (style.HasColorRgb) replacement.ColorRgb = style.ColorRgb;
+                else if (style.HasColorScheme) replacement.ColorScheme = style.ColorScheme;
+                if (style.HasColorOpacityThousandthPercent) replacement.ColorOpacityThousandthPercent = style.ColorOpacityThousandthPercent;
+                if (style.HasUnderline) replacement.Underline = style.Underline;
+                if (style.HasStrike) replacement.Strike = style.Strike;
+            }
+            var runOffset = 0;
+            foreach (var paragraph in semantic.Paragraphs)
+            {
+                if (index < runOffset + paragraph.Runs.Count)
+                {
+                    paragraph.Runs[index - runOffset] = replacement;
+                    break;
+                }
+                runOffset += paragraph.Runs.Count;
+            }
+        }
+        var temporary = new P.Shape { TextBody = new P.TextBody { InnerXml = sourceBody.InnerXml } };
+        var requestedShape = new PresentationShape
+        {
+            Text = PptxTextCodec.Flatten(semantic),
+            TextBody = semantic,
+        };
+        PptxTextCodec.Apply(temporary, requestedShape, slideContext!);
+        sourceBody.InnerXml = temporary.TextBody!.InnerXml;
+    }
+
+    private static void ReplaceCellPaint(
+        A.TableCellProperties properties,
+        PresentationTableCellFill? fill,
+        PptxPartContext? slideContext)
+    {
+        var existing = properties.ChildElements.FirstOrDefault(IsCellFill);
+        var previousRelationshipId = existing is A.BlipFill previousImage
+            ? PptxImagePaintCodec.RelationshipId(previousImage)
+            : string.Empty;
+        if (fill is null)
+        {
+            existing?.Remove();
+            slideContext?.RemoveIfUnreferenced(previousRelationshipId);
+            return;
+        }
+        var replacement = fill.KindCase switch
+        {
+            PresentationTableCellFill.KindOneofCase.NoFill => new A.NoFill() as OpenXmlElement,
+            PresentationTableCellFill.KindOneofCase.SolidRgb => SolidFill(fill.SolidRgb, fill.HasOpacityThousandthPercent ? fill.OpacityThousandthPercent : null),
+            PresentationTableCellFill.KindOneofCase.GradientFill => PptxGradientFillCodec.Build(fill.GradientFill, "Presentation table-cell fill"),
+            PresentationTableCellFill.KindOneofCase.ImagePaint => slideContext is null
+                ? throw new CodecException("unsupported_presentation_edit", "Source-bound table cell image fills require a containing PresentationML relationship owner.")
+                : PptxImagePaintCodec.Build(fill.ImagePaint, slideContext, "Presentation table-cell fill"),
+            _ => throw new CodecException("unsupported_presentation_edit", "Source-bound table cell fill is outside the bounded paint profile."),
+        };
+        if (existing is null) properties.InsertAt(replacement, 0);
+        else properties.ReplaceChild(replacement, existing);
+        slideContext?.RemoveIfUnreferenced(previousRelationshipId);
+    }
+
+    private static void ReplaceCellBorder(
+        A.TableCellProperties properties,
+        string localName,
+        SpreadsheetChartLineStyleArtifact? border,
+        Func<OpenXmlElement> create)
+    {
+        var existing = properties.ChildElements.FirstOrDefault(child => child.LocalName == localName && child.NamespaceUri == DrawingNamespace);
+        if (border is null)
+        {
+            existing?.Remove();
+            return;
+        }
+        var replacement = create();
+        ApplyBorder(replacement, border);
+        if (existing is null) properties.Append(replacement);
+        else properties.ReplaceChild(replacement, existing);
+    }
+
+    private static void ApplyBorder(OpenXmlElement output, SpreadsheetChartLineStyleArtifact source)
+    {
+        if (source.HasWidthPoints)
+            output.SetAttribute(new OpenXmlAttribute("w", string.Empty,
+                checked((long)Math.Round(source.WidthPoints * 12_700, MidpointRounding.AwayFromZero)).ToString(CultureInfo.InvariantCulture)));
+        if (source.Cap.Length > 0)
+            output.SetAttribute(new OpenXmlAttribute("cap", string.Empty, source.Cap switch
+            {
+                "round" => "rnd",
+                "square" => "sq",
+                _ => "flat",
+            }));
+        if (source.Color is { SourceCase: SpreadsheetColor.SourceOneofCase.Rgb } color)
+            output.Append(SolidFill(color.Rgb, source.HasOpacityThousandthPercent ? source.OpacityThousandthPercent : null));
+        if (source.DashStyle != SpreadsheetChartLineDashStyle.Unspecified)
+            output.Append(new A.PresetDash { Val = source.DashStyle switch
+            {
+                SpreadsheetChartLineDashStyle.Dashed => A.PresetLineDashValues.Dash,
+                SpreadsheetChartLineDashStyle.Dotted => A.PresetLineDashValues.Dot,
+                SpreadsheetChartLineDashStyle.DashDot => A.PresetLineDashValues.DashDot,
+                SpreadsheetChartLineDashStyle.DashDotDot => A.PresetLineDashValues.LargeDashDotDot,
+                _ => A.PresetLineDashValues.Solid,
+            }});
+        if (source.Join.Length > 0)
+            output.Append(source.Join switch
+            {
+                "round" => new A.Round(),
+                "bevel" => new A.LineJoinBevel(),
+                _ => new A.Miter(),
+            });
     }
 
     private static bool TryReadMergeRanges(IReadOnlyList<A.TableCell[]> nativeRows, PresentationTable table)
@@ -663,6 +1147,63 @@ internal static class PptxTableCodec
             leaves.Add(textLeaves[0]);
         }
         return leaves;
+    }
+
+    private static IReadOnlyList<IReadOnlyList<A.Text>>? TextRunLeaves(A.TableCell cell)
+    {
+        if (cell.ChildElements.Count == 0) return null;
+        var body = cell.GetFirstChild<A.TextBody>();
+        if (body is null) return null;
+        var paragraphs = body.Elements<A.Paragraph>().ToArray();
+        if (paragraphs.Length == 0) return null;
+        var output = new List<IReadOnlyList<A.Text>>(paragraphs.Length);
+        foreach (var paragraph in paragraphs)
+        {
+            var runs = paragraph.Elements<A.Run>().ToArray();
+            if (runs.Length == 0) return null;
+            var leaves = new List<A.Text>(runs.Length);
+            foreach (var run in runs)
+            {
+                if (run.ChildElements.Any(child => child is not A.RunProperties and not A.Text)) return null;
+                var text = run.GetFirstChild<A.Text>();
+                if (text is null || run.Elements<A.Text>().Count() != 1 || text.Text?.Contains('\n') == true) return null;
+                leaves.Add(text);
+            }
+            output.Add(leaves);
+        }
+        return output;
+    }
+
+    private static void SetParagraphText(IReadOnlyList<A.Text> leaves, string value)
+    {
+        if (leaves.Count == 1)
+        {
+            leaves[0].Text = value;
+            return;
+        }
+        var sourceLengths = leaves.Select(leaf => leaf.Text?.Length ?? 0).ToArray();
+        var sourceTotal = sourceLengths.Sum();
+        var offset = 0;
+        for (var index = 0; index < leaves.Count; index++)
+        {
+            var length = index == leaves.Count - 1
+                ? value.Length - offset
+                : sourceTotal <= 0
+                    ? 0
+                    : (int)Math.Round(value.Length * (double)sourceLengths[index] / sourceTotal, MidpointRounding.ToEven);
+            length = Math.Clamp(length, 0, value.Length - offset);
+            leaves[index].Text = value.Substring(offset, length);
+            offset += length;
+        }
+    }
+
+    private static string CellText(A.TableCell cell)
+    {
+        var body = cell.GetFirstChild<A.TextBody>();
+        return body is null
+            ? string.Empty
+            : string.Join("\n", body.Elements<A.Paragraph>().Select(paragraph =>
+                string.Concat(paragraph.Descendants<A.Text>().Select(text => text.Text))));
     }
 
     private static bool TablePropertiesSupported(A.TableProperties properties)

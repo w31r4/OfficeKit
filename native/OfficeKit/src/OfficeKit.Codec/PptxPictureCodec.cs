@@ -218,9 +218,17 @@ internal static class PptxPictureCodec
             currentImage.OpacityThousandthPercent != requested.Image.OpacityThousandthPercent)
             ApplyOpacity(blip, requested.Image.HasOpacityThousandthPercent ? requested.Image.OpacityThousandthPercent : null);
         if (!currentImage.CustomMaskPaths.SequenceEqual(requested.Image.CustomMaskPaths))
-            throw new CodecException(
-                "unsupported_presentation_edit",
-                $"Presentation image {requested.Id} custom mask path topology is source-owned and cannot be changed.");
+        {
+            if (currentImage.CustomMaskPaths.Count == 0 || requested.Image.CustomMaskPaths.Count == 0)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} cannot switch between preset and custom mask topology.");
+            // A literal custom mask is an owner-local picture geometry. Keep
+            // the native picture relationship and replace only its existing
+            // a:custGeom when the requested profile remains fully bounded.
+            PptxCustomGeometryCodec.Validate(CustomMaskShape(requested.Image), requested.Id + " image mask");
+            PptxCustomGeometryCodec.Apply(properties, CustomMaskShape(requested.Image), requested.Id + " image mask");
+        }
         if (!currentImage.MaskPreset.Equals(requested.Image.MaskPreset, StringComparison.Ordinal) ||
             !currentImage.MaskPresetAdjustments.SequenceEqual(requested.Image.MaskPresetAdjustments))
         {

@@ -202,40 +202,173 @@ internal static partial class PpjPresentationProjector
         },
     };
 
-    private static JsonObject ImportedDesign(PresentationArtifact presentation, ProjectionContext context) => new()
+    private static JsonObject ImportedDesign(PresentationArtifact presentation, ProjectionContext context)
     {
-        ["canvas"] = ProjectCanvas(presentation, context),
-        ["theme"] = new JsonObject
+        var output = new JsonObject
         {
-            ["name"] = "Source-owned presentation theme",
-            // Imported run and bullet styles may retain a direct theme token
-            // even though the source theme graph is opaque to the bounded
-            // writer. Keep every standard token addressable with a neutral
-            // fallback so the PPJ projection stays valid without claiming
-            // that these fallback RGB values replace the source theme.
-            ["colors"] = ImportedThemeColors(),
-        },
-        ["fonts"] = new JsonArray(new JsonObject
+            ["canvas"] = ProjectCanvas(presentation, context),
+            ["theme"] = new JsonObject
+            {
+                ["name"] = "Source-owned presentation theme",
+                // Imported run and bullet styles may retain a direct theme token
+                // even though the source theme graph is opaque to the bounded
+                // writer. Keep every standard token addressable with a neutral
+                // fallback so the PPJ projection stays valid without claiming
+                // that these fallback RGB values replace the source theme.
+                ["colors"] = ImportedThemeColors(),
+            },
+            ["fonts"] = new JsonArray(new JsonObject
+            {
+                ["id"] = "source-font",
+                ["family"] = "Arial",
+                ["language"] = "und",
+            }),
+            ["styles"] = new JsonObject(),
+            ["grammar"] = new JsonObject
+            {
+                ["name"] = "Source-derived projection",
+                ["rationale"] = "The original PPTX remains the authority for native visual styling that PPJ does not model.",
+                ["visualThesis"] = "Preserve and continue the imported presentation without inventing its original intent.",
+                ["surfaceHierarchy"] = new JsonArray("Keep source-owned surfaces unchanged unless a capability explicitly permits an edit."),
+                ["typographyRhythm"] = new JsonArray("Retain imported typography through the source package."),
+                ["geometryRules"] = new JsonArray("Retain imported geometry and z-order unless a nativeRef capability permits a change."),
+                ["densityRhythm"] = new JsonArray("Retain the source page density."),
+                ["carrierRules"] = new JsonArray("Use projected typed objects where safe and opaque native objects everywhere else."),
+                ["forbiddenPatterns"] = new JsonArray("Rebuilding opaque content", "Guessing unsupported native semantics"),
+            },
+            ["motionPolicy"] = "explicit",
+        };
+        if (presentation.Masters.Count > 0)
+            output["masters"] = ProjectMasters(presentation.Masters, context);
+        if (presentation.Layouts.Count > 0)
+            output["layouts"] = ProjectLayouts(presentation.Layouts, context);
+        return output;
+    }
+
+    private static JsonArray ProjectMasters(
+        IEnumerable<PresentationMaster> masters,
+        ProjectionContext context)
+    {
+        var output = new JsonArray();
+        foreach (var master in masters)
         {
-            ["id"] = "source-font",
-            ["family"] = "Arial",
-            ["language"] = "und",
-        }),
-        ["styles"] = new JsonObject(),
-        ["grammar"] = new JsonObject
+            var projected = new JsonObject
+            {
+                ["id"] = context.MasterId(master.Id),
+                ["name"] = master.Name,
+            };
+            if (ProjectBackground(master.Background, context) is { } background)
+                projected["background"] = background;
+            var textStyles = new JsonObject();
+            AddMasterTextLevels(textStyles, "title", master.TextStyles?.TitleLevels);
+            AddMasterTextLevels(textStyles, "body", master.TextStyles?.BodyLevels);
+            AddMasterTextLevels(textStyles, "other", master.TextStyles?.OtherLevels);
+            if (textStyles.Count > 0) projected["textStyles"] = textStyles;
+            var placeholders = ProjectLayoutPlaceholders(master.Placeholders, context);
+            if (placeholders.Count > 0) projected["placeholders"] = placeholders;
+            output.Add(projected);
+        }
+        return output;
+    }
+
+    private static JsonArray ProjectLayouts(
+        IEnumerable<PresentationLayout> layouts,
+        ProjectionContext context)
+    {
+        var output = new JsonArray();
+        foreach (var layout in layouts)
         {
-            ["name"] = "Source-derived projection",
-            ["rationale"] = "The original PPTX remains the authority for native visual styling that PPJ does not model.",
-            ["visualThesis"] = "Preserve the imported design and expose only bounded semantic edits.",
-            ["surfaceHierarchy"] = new JsonArray("Keep source-owned surfaces unchanged unless a capability explicitly permits an edit."),
-            ["typographyRhythm"] = new JsonArray("Retain imported typography through the source package."),
-            ["geometryRules"] = new JsonArray("Retain imported geometry and z-order unless a nativeRef capability permits a change."),
-            ["densityRhythm"] = new JsonArray("Retain the source page density."),
-            ["carrierRules"] = new JsonArray("Use projected typed objects where safe and opaque native objects everywhere else."),
-            ["forbiddenPatterns"] = new JsonArray("Rebuilding opaque content", "Guessing unsupported native semantics"),
-        },
-        ["motionPolicy"] = "explicit",
-    };
+            var projected = new JsonObject
+            {
+                ["id"] = context.LayoutId(layout.Id),
+                ["name"] = layout.Name,
+                ["master"] = context.MasterId(layout.MasterId),
+                ["layoutType"] = layout.Type,
+            };
+            if (ProjectBackground(layout.Background, context) is { } background)
+                projected["background"] = background;
+            var placeholders = ProjectLayoutPlaceholders(layout.Placeholders, context);
+            if (placeholders.Count > 0) projected["placeholders"] = placeholders;
+            output.Add(projected);
+        }
+        return output;
+    }
+
+    private static JsonArray ProjectLayoutPlaceholders(
+        IEnumerable<PresentationPlaceholder> placeholders,
+        ProjectionContext context)
+    {
+        var output = new JsonArray();
+        foreach (var placeholder in placeholders)
+        {
+            // An inherited or irregular placeholder has no safe PPJ frame.
+            // Keep it in the source package instead of inventing coordinates.
+            if (placeholder.DirectFrame is null) continue;
+            var frame = new JsonObject
+            {
+                ["x"] = Points(placeholder.DirectFrame.LeftEmu),
+                ["y"] = Points(placeholder.DirectFrame.TopEmu),
+                ["width"] = Math.Max(0.001, Points(placeholder.DirectFrame.WidthEmu)),
+                ["height"] = Math.Max(0.001, Points(placeholder.DirectFrame.HeightEmu)),
+            };
+            if (placeholder.DirectFrame.HasRotationAngle60000)
+                frame["rotation"] = placeholder.DirectFrame.RotationAngle60000 / 60_000d;
+            if (placeholder.DirectFrame.HasFlipHorizontal)
+                frame["flipH"] = placeholder.DirectFrame.FlipHorizontal;
+            if (placeholder.DirectFrame.HasFlipVertical)
+                frame["flipV"] = placeholder.DirectFrame.FlipVertical;
+            var projected = new JsonObject
+            {
+                ["id"] = context.UniqueId(placeholder.Id),
+                ["name"] = placeholder.Name,
+                ["placeholderType"] = PlaceholderType(placeholder.Type),
+                ["index"] = placeholder.Index,
+                ["frame"] = frame,
+            };
+            if (placeholder.TextBody is not null)
+                projected["text"] = TextContent(placeholder.TextBody, PptxTextCodec.Flatten(placeholder.TextBody));
+            output.Add(projected);
+        }
+        return output;
+    }
+
+    private static void AddMasterTextLevels(
+        JsonObject target,
+        string name,
+        IEnumerable<PresentationTextParagraph>? levels)
+    {
+        if (levels is null) return;
+        var projected = new JsonArray();
+        foreach (var level in levels)
+        {
+            var item = new JsonObject();
+            if (level.HasLevel) item["level"] = checked((int)level.Level);
+            if (level.HasAlignment && ParagraphAlignment(level.Alignment) is { } alignment)
+                item["alignment"] = alignment;
+            if (level.LeftMarginCase == PresentationTextParagraph.LeftMarginOneofCase.MarginLeftEmu)
+                item["indent"] = Points(level.MarginLeftEmu);
+            if (level.IndentationCase == PresentationTextParagraph.IndentationOneofCase.IndentEmu)
+                item["hanging"] = -Points(level.IndentEmu);
+            if (level.LineSpacingCase == PresentationTextParagraph.LineSpacingOneofCase.LineSpacingPoints)
+                item["lineSpacing"] = Math.Max(0.001, level.LineSpacingPoints);
+            if (level.LineSpacingCase == PresentationTextParagraph.LineSpacingOneofCase.LineSpacingMultiplier)
+                item["lineSpacingMultiplier"] = Math.Max(0.00001, level.LineSpacingMultiplier);
+            if (level.SpaceBeforeCase == PresentationTextParagraph.SpaceBeforeOneofCase.SpaceBeforePoints)
+                item["spaceBefore"] = Math.Max(0, level.SpaceBeforePoints);
+            if (level.SpaceBeforeCase == PresentationTextParagraph.SpaceBeforeOneofCase.SpaceBeforeMultiplier)
+                item["spaceBeforeMultiplier"] = Math.Max(0, level.SpaceBeforeMultiplier);
+            if (level.SpaceAfterCase == PresentationTextParagraph.SpaceAfterOneofCase.SpaceAfterPoints)
+                item["spaceAfter"] = Math.Max(0, level.SpaceAfterPoints);
+            if (level.SpaceAfterCase == PresentationTextParagraph.SpaceAfterOneofCase.SpaceAfterMultiplier)
+                item["spaceAfterMultiplier"] = Math.Max(0, level.SpaceAfterMultiplier);
+            if (level.DefaultRunStyleCase == PresentationTextParagraph.DefaultRunStyleOneofCase.DefaultRunProperties &&
+                ProjectTextStyle(level.DefaultRunProperties) is { Count: > 0 } defaultText)
+                item["defaultText"] = defaultText;
+            if (ProjectBullet(level) is { } bullet) item["bullet"] = bullet;
+            projected.Add(item);
+        }
+        if (projected.Count > 0) target[name] = projected;
+    }
 
     private static JsonObject FrameDimensions(PresentationArtifact presentation) => new()
     {
@@ -260,6 +393,7 @@ internal static partial class PpjPresentationProjector
     {
         foreach (var master in presentation.Masters) context.RegisterMaster(master.Id);
         foreach (var layout in presentation.Layouts) context.RegisterLayout(layout.Id);
+        foreach (var customShow in presentation.CustomShows) context.RegisterCustomShow(customShow.Id);
         foreach (var slide in presentation.Slides)
         {
             var pageId = context.RegisterPage(slide.Id, slide.Source?.PartPath);
@@ -326,6 +460,15 @@ internal static partial class PpjPresentationProjector
             ["elements"] = elements,
             ["nativeRef"] = NativeRef(context, $"page:{pageId}", pageHash, pageCapabilities),
         };
+        if (slide.ReadingOrder.Count > 0)
+        {
+            var readingOrder = new JsonArray();
+            foreach (var elementId in slide.ReadingOrder)
+                if (context.TryElementId(pageId, elementId, out var projectedId))
+                    readingOrder.Add(projectedId);
+            if (readingOrder.Count == slide.Elements.Count)
+                page["readingOrder"] = readingOrder;
+        }
         if (!string.IsNullOrWhiteSpace(slide.Name)) page["name"] = slide.Name;
         if (!string.IsNullOrWhiteSpace(slide.LayoutId) && context.TryLayoutId(slide.LayoutId, out var layoutId))
             page["layout"] = layoutId;
@@ -362,9 +505,9 @@ internal static partial class PpjPresentationProjector
         {
             PresentationElement.ContentOneofCase.Shape => ProjectShape(element, id, nativeRef, context),
             PresentationElement.ContentOneofCase.Image => ProjectImage(element, id, nativeRef, context),
-            PresentationElement.ContentOneofCase.Table => ProjectTable(element, id, nativeRef),
+            PresentationElement.ContentOneofCase.Table => ProjectTable(element, id, nativeRef, context),
             PresentationElement.ContentOneofCase.Connector => ProjectConnector(element, id, nativeRef, pageId, context),
-            PresentationElement.ContentOneofCase.Chart => ProjectChart(element, id, nativeRef),
+            PresentationElement.ContentOneofCase.Chart => ProjectChart(element, id, nativeRef, context),
             PresentationElement.ContentOneofCase.Diagram => ProjectNativeSmartArt(element, id, nativeRef, context),
             PresentationElement.ContentOneofCase.Group => ProjectGroup(element, id, nativeRef, slide, pageId, context, shapeTreePath),
             PresentationElement.ContentOneofCase.Opaque when element.Opaque.DiagramText is not null =>
@@ -400,6 +543,7 @@ internal static partial class PpjPresentationProjector
         var hasText = !string.IsNullOrEmpty(shape.Text) || shape.TextBody?.Paragraphs.Count > 0;
         var isPlaceholder = shape.Placeholder is not null;
         var isTextBox = shape.Geometry is "textbox" or "none" || string.IsNullOrEmpty(shape.Geometry);
+        var lineLike = shape.Geometry == "line" || PpjLinePathCodec.IsLineLike(shape);
         // The importer deliberately leaves unsupported custom path graphs
         // empty.  The source-bound projection can still expose the owning
         // shape (frame, native leaves, and safe paint fields) without
@@ -410,16 +554,14 @@ internal static partial class PpjPresentationProjector
         if (shape.ImageFill is not null && !context.TryMaterializeAsset(shape.ImageFill.AssetId, out _))
             return ProjectOpaque(element, id, nativeRef, "shape", "Preserved source shape whose image fill cannot be materialized safely.");
         if (!isPlaceholder && !isTextBox && !PptxPresetGeometryAdjustmentCodec.HasProfile(shape.Geometry) &&
-            !CanProjectCustomGeometry(shape) && !sourceImageFill && !sourceCustomGeometry)
+            !CanProjectCustomGeometry(shape) && !sourceImageFill && !sourceCustomGeometry && !lineLike)
             return ProjectOpaque(element, id, nativeRef, "shape", $"Preserved source shape with unsupported geometry '{shape.Geometry}'.");
-        // A legacy line stored as p:sp has no connector endpoints in the
-        // public PPJ model. Keep it source-owned (with the generic bounded
-        // frame/reorder capabilities) instead of emitting an invalid shape
-        // preset that cannot round-trip as a connector.
-        if (shape.Geometry == "line")
-            return ProjectOpaque(element, id, nativeRef, "shape", "Preserved source line without connector endpoint semantics.");
 
         var common = ElementBase(id, element.Name, frame, Accessibility(shape.Accessibility), nativeRef);
+        if (ProjectAction(shape.Action, context) is { } action)
+            common["action"] = action;
+        if (ProjectAction(shape.HoverAction, context) is { } hoverAction)
+            common["hoverAction"] = hoverAction;
         if (shape.Placeholder is not null)
         {
             common["type"] = "placeholder";
@@ -435,6 +577,31 @@ internal static partial class PpjPresentationProjector
             common["text"] = text;
             if (TextBoxStyle(shape.TextBody) is { Count: > 0 } textStyle) common["style"] = textStyle;
             ApplyTextContainerStyle(common, shape, context);
+            return common;
+        }
+        if (lineLike)
+        {
+            common["type"] = "line";
+            if (shape.Geometry == "line")
+                common["path"] = PpjLinePathCodec.Synthetic(shape);
+            else if (PpjLinePathCodec.TryProjectKimi(shape) is { } kimiPath)
+            {
+                common["viewBox"] = kimiPath["viewBox"]!.DeepClone();
+                common["points"] = kimiPath["points"]!.DeepClone();
+                common["curve"] = kimiPath["curve"]!.DeepClone();
+            }
+            else
+                common["path"] = PpjLinePathCodec.Project(shape);
+            var lineStyle = ShapeStyle(shape, context);
+            if (lineStyle.TryGetPropertyValue("stroke", out var lineStroke) && lineStroke is not null)
+                common["stroke"] = lineStroke.DeepClone();
+            else
+                common["stroke"] = Stroke("000000", shape.LineWidthEmu, "solid", shape.LineCap, shape.LineJoin,
+                    shape.HasLineOpacityThousandthPercent ? Unit(shape.LineOpacityThousandthPercent) : null,
+                    shape.LineScheme);
+            if (Arrow(shape.StartArrow) is { } startArrow) common["startArrow"] = startArrow;
+            if (Arrow(shape.EndArrow) is { } endArrow) common["endArrow"] = endArrow;
+            if (shape.Shadow is not null) common["shadow"] = Shadow(shape.Shadow);
             return common;
         }
         common["type"] = "shape";
@@ -612,9 +779,11 @@ internal static partial class PpjPresentationProjector
                 mask["adjustments"] = new JsonArray(image.MaskPresetAdjustments.Select(value => JsonValue.Create(value)).ToArray());
             output["mask"] = mask;
         }
-        if (image.Border is not null && !string.IsNullOrEmpty(image.Border.ColorRgb))
+        if (image.Border is not null &&
+            (!string.IsNullOrEmpty(image.Border.ColorRgb) || !string.IsNullOrEmpty(image.Border.ColorScheme)))
             output["border"] = Stroke(image.Border.ColorRgb, image.Border.WidthEmu, image.Border.Style, image.Border.Cap, image.Border.Join,
-                image.Border.HasOpacityThousandthPercent ? Unit(image.Border.OpacityThousandthPercent) : null);
+                image.Border.HasOpacityThousandthPercent ? Unit(image.Border.OpacityThousandthPercent) : null,
+                image.Border.ColorScheme);
         if (image.Shadow is not null && (!string.IsNullOrEmpty(image.Shadow.ColorRgb) || !string.IsNullOrEmpty(image.Shadow.ColorScheme)))
             output["shadow"] = Shadow(image.Shadow);
         return output;
@@ -632,7 +801,11 @@ internal static partial class PpjPresentationProjector
         return shape;
     }
 
-    private static JsonObject ProjectChart(PresentationElement element, string id, JsonObject nativeRef)
+    private static JsonObject ProjectChart(
+        PresentationElement element,
+        string id,
+        JsonObject nativeRef,
+        ProjectionContext context)
     {
         var chart = element.Chart;
         var type = ChartType(chart.Type);
@@ -672,6 +845,10 @@ internal static partial class PpjPresentationProjector
                 ["name"] = item.Name ?? string.Empty,
                 ["values"] = values,
             };
+            if (!string.IsNullOrWhiteSpace(item.CategoryFormula)) entry["categoryFormula"] = item.CategoryFormula;
+            if (!string.IsNullOrWhiteSpace(item.XValueFormula)) entry["xValueFormula"] = item.XValueFormula;
+            if (!string.IsNullOrWhiteSpace(item.ValueFormula)) entry["valueFormula"] = item.ValueFormula;
+            if (!string.IsNullOrWhiteSpace(item.BubbleSizeFormula)) entry["bubbleSizeFormula"] = item.BubbleSizeFormula;
             if (item.XValues.Count > 0)
             {
                 var xValues = new JsonArray();
@@ -721,6 +898,19 @@ internal static partial class PpjPresentationProjector
         if (chart.YAxis is null && chart.HasShowGridlines) style["showGridlines"] = chart.ShowGridlines;
         if (chart.ChartAreaFill is not null) style["chartAreaFill"] = ProjectChartSurfaceFill(chart.ChartAreaFill);
         if (chart.PlotAreaFill is not null) style["plotAreaFill"] = ProjectChartSurfaceFill(chart.PlotAreaFill);
+        if (chart.Frame is not null)
+        {
+            var frame = new JsonObject();
+            if (chart.Frame.ImageFill is not null)
+            {
+                if (ProjectImagePaint(chart.Frame.ImageFill, context) is { } imageFill)
+                    frame["fill"] = imageFill;
+            }
+            else if (chart.Frame.Fill is not null) frame["fill"] = ProjectChartSurfaceFill(chart.Frame.Fill);
+            if (chart.Frame.Line is not null) frame["stroke"] = ProjectChartLine(chart.Frame.Line);
+            if (chart.Frame.Shadow is not null) frame["shadow"] = Shadow(chart.Frame.Shadow);
+            if (frame.Count > 0) style["frame"] = frame;
+        }
         if (chart.TitleTextStyle is not null)
             style["titleTextStyle"] = ProjectChartTextStyle(chart.TitleTextStyle);
         if (chart.LegendTextStyle is not null)
@@ -1008,7 +1198,11 @@ internal static partial class PpjPresentationProjector
         return output;
     }
 
-    private static JsonObject ProjectTable(PresentationElement element, string id, JsonObject nativeRef)
+    private static JsonObject ProjectTable(
+        PresentationElement element,
+        string id,
+        JsonObject nativeRef,
+        ProjectionContext context)
     {
         var table = element.Table;
         if (table.ColumnWidthsEmu.Count == 0 || table.Rows.Count == 0 || table.Rows.Any(row => row.Cells.Count != table.ColumnWidthsEmu.Count))
@@ -1020,7 +1214,7 @@ internal static partial class PpjPresentationProjector
         for (var index = 0; index < table.ColumnWidthsEmu.Count; index++)
             columns.Add(new JsonObject { ["id"] = $"column-{index + 1}", ["width"] = Points(table.ColumnWidthsEmu[index]) });
         output["columns"] = columns;
-        output["rows"] = ProjectTableRows(table);
+        output["rows"] = ProjectTableRows(table, context);
         var style = new JsonObject();
         if (table.HasFirstRow) style["headerRows"] = table.FirstRow ? 1 : 0;
         if (table.HasBandedRows) style["bandedRows"] = table.BandedRows;
@@ -1031,7 +1225,7 @@ internal static partial class PpjPresentationProjector
         return output;
     }
 
-    private static JsonArray ProjectTableRows(PresentationTable table)
+    private static JsonArray ProjectTableRows(PresentationTable table, ProjectionContext context)
     {
         var mergeByOrigin = table.MergeRanges.ToDictionary(
             item => (Row: (int)item.StartRow, Column: (int)item.StartColumn));
@@ -1058,6 +1252,13 @@ internal static partial class PpjPresentationProjector
                     cell["rowSpan"] = checked((int)(merge.EndRow - merge.StartRow + 1));
                     cell["columnSpan"] = checked((int)(merge.EndColumn - merge.StartColumn + 1));
                 }
+                var nativeCell = table.Rows[rowIndex].Cells[columnIndex];
+                if (nativeCell.Fill is { } fill && ProjectTableCellFill(fill, context) is { } projectedFill)
+                    cell["fill"] = projectedFill;
+                if (nativeCell.Borders is { } borders)
+                    cell["borders"] = ProjectTableCellBorders(borders);
+                if (nativeCell.TextStyle is { } textStyle && ProjectTextStyle(textStyle) is { Count: > 0 } projectedTextStyle)
+                    cell["textStyle"] = new JsonObject { ["defaultText"] = projectedTextStyle };
                 cells.Add(cell);
             }
             rows.Add(new JsonObject
@@ -1068,6 +1269,37 @@ internal static partial class PpjPresentationProjector
             });
         }
         return rows;
+    }
+
+    private static JsonObject? ProjectTableCellFill(PresentationTableCellFill fill, ProjectionContext context)
+    {
+        if (fill.KindCase == PresentationTableCellFill.KindOneofCase.SolidRgb)
+        {
+            var output = new JsonObject
+            {
+                ["type"] = "solid",
+                ["color"] = Color(fill.SolidRgb),
+            };
+            if (fill.HasOpacityThousandthPercent) output["opacity"] = Unit(fill.OpacityThousandthPercent);
+            return output;
+        }
+        return fill.KindCase switch
+        {
+            PresentationTableCellFill.KindOneofCase.NoFill => new JsonObject { ["type"] = "none" },
+            PresentationTableCellFill.KindOneofCase.GradientFill => Gradient(fill.GradientFill),
+            PresentationTableCellFill.KindOneofCase.ImagePaint => ProjectImagePaint(fill.ImagePaint, context),
+            _ => null,
+        };
+    }
+
+    private static JsonObject ProjectTableCellBorders(PresentationTableCellBorders borders)
+    {
+        var output = new JsonObject();
+        if (borders.Left is { } left) output["left"] = ProjectChartLine(left);
+        if (borders.Top is { } top) output["top"] = ProjectChartLine(top);
+        if (borders.Right is { } right) output["right"] = ProjectChartLine(right);
+        if (borders.Bottom is { } bottom) output["bottom"] = ProjectChartLine(bottom);
+        return output;
     }
 
     private static JsonObject ProjectConnector(
@@ -1328,6 +1560,37 @@ internal static partial class PpjPresentationProjector
         return output;
     }
 
+    private static JsonObject? ProjectAction(PresentationRunHyperlink? source, ProjectionContext context)
+    {
+        if (source is null) return null;
+        var output = new JsonObject();
+        switch (source.TargetCase)
+        {
+            case PresentationRunHyperlink.TargetOneofCase.Uri:
+                output["uri"] = source.Uri;
+                break;
+            case PresentationRunHyperlink.TargetOneofCase.SlideId:
+                if (!context.TryPageId(source.SlideId, out var pageId)) return null;
+                output["slide"] = pageId;
+                break;
+            case PresentationRunHyperlink.TargetOneofCase.CustomShowId:
+                if (!context.TryCustomShowId(source.CustomShowId, out var customShowId)) return null;
+                output["customShow"] = customShowId;
+                if (source.HasReturnToSlide) output["returnToSlide"] = source.ReturnToSlide;
+                break;
+            case PresentationRunHyperlink.TargetOneofCase.Action:
+                output["verb"] = source.Action;
+                break;
+            default:
+                return null;
+        }
+        if (source.HasTooltip) output["tooltip"] = source.Tooltip;
+        if (source.HasTargetFrame) output["targetFrame"] = source.TargetFrame;
+        if (source.HasHistory) output["history"] = source.History;
+        if (source.HasHighlightClick) output["highlightClick"] = source.HighlightClick;
+        return output;
+    }
+
     private static JsonObject ShapeStyle(PresentationShape shape, ProjectionContext context)
     {
         var style = new JsonObject();
@@ -1368,7 +1631,7 @@ internal static partial class PpjPresentationProjector
     {
         if (body is null || body.Paragraphs.Count == 0 ||
             body.Paragraphs.Any(paragraph => paragraph.Runs.Count == 0 ||
-                paragraph.Runs.Any(run => run.ContentCase != PresentationTextRun.ContentOneofCase.Text)))
+                paragraph.Runs.Any(run => run.ContentCase is not (PresentationTextRun.ContentOneofCase.Text or PresentationTextRun.ContentOneofCase.Field))))
             return StringNode(fallback ?? string.Empty);
 
         var paragraphs = new JsonArray();
@@ -1409,13 +1672,24 @@ internal static partial class PpjPresentationProjector
             for (var runIndex = 0; runIndex < source.Runs.Count; runIndex++)
             {
                 var sourceRun = source.Runs[runIndex];
-                var run = new JsonObject
+                var run = new JsonObject { ["id"] = $"run-{paragraphIndex + 1}-{runIndex + 1}" };
+                if (sourceRun.ContentCase == PresentationTextRun.ContentOneofCase.Field)
                 {
-                    ["id"] = $"run-{paragraphIndex + 1}-{runIndex + 1}",
-                    ["text"] = sourceRun.Text,
-                };
+                    var field = new JsonObject
+                    {
+                        ["type"] = sourceRun.Field.Type,
+                        ["text"] = sourceRun.Field.Text,
+                    };
+                    if (!string.IsNullOrWhiteSpace(sourceRun.Field.Id)) field["id"] = sourceRun.Field.Id;
+                    run["field"] = field;
+                }
+                else run["text"] = sourceRun.Text;
                 var style = RunStyle(sourceRun);
                 if (style.Count > 0) run["style"] = style;
+                if (sourceRun.HyperlinkCase == PresentationTextRun.HyperlinkOneofCase.RunHyperlink &&
+                    sourceRun.RunHyperlink.TargetCase == PresentationRunHyperlink.TargetOneofCase.Uri &&
+                    !string.IsNullOrWhiteSpace(sourceRun.RunHyperlink.Uri))
+                    run["hyperlink"] = new JsonObject { ["uri"] = sourceRun.RunHyperlink.Uri };
                 runs.Add(run);
             }
             paragraph["runs"] = runs;
@@ -1713,6 +1987,9 @@ internal static partial class PpjPresentationProjector
             if (!string.IsNullOrEmpty(animation.ChartBuild)) item["chartBuild"] = animation.ChartBuild;
             if (animation.HasStaggerMs) item["staggerMs"] = checked((int)animation.StaggerMs);
             if (animation.HasAnimateChartBackground) item["animateChartBackground"] = animation.AnimateChartBackground;
+            if (animation.HasRepeatCount) item["repeat"] = checked((int)animation.RepeatCount);
+            if (animation.HasAutoReverse) item["autoReverse"] = animation.AutoReverse;
+            if (!string.IsNullOrEmpty(animation.Easing) && animation.Easing != "linear") item["easing"] = animation.Easing;
             output.Add(item);
         }
         return output;
@@ -1804,7 +2081,7 @@ internal static partial class PpjPresentationProjector
             if (pages.Count == 0) continue;
             var item = new JsonObject
             {
-                ["id"] = context.UniqueId($"show-{show.Id}"),
+                ["id"] = context.CustomShowId(show.Id),
                 ["name"] = string.IsNullOrWhiteSpace(show.Name) ? "Custom show" : show.Name,
                 ["pages"] = pages,
             };
@@ -1866,6 +2143,20 @@ internal static partial class PpjPresentationProjector
                     output.Add(new("replaceText", ["text"]));
                 if (source.Editable)
                 {
+                    // A recognized shape-tree click action is owned by the
+                    // same cNvPr closure as the shape.  Advertise a narrow
+                    // replacement capability; PptxHyperlinkCodec still
+                    // rejects unknown sound/macro/extension children.
+                    output.Add(new("setAction", ["action"]));
+                    output.Add(new("setHoverAction", ["hoverAction"]));
+                    if (element.Shape.Geometry == "line" || PpjLinePathCodec.IsLineLike(element.Shape))
+                    {
+                        output.Add(new("setLinePath", ["line.path"]));
+                        output.Add(new("setStroke", ["stroke"]));
+                        output.Add(new("setShapeEffects", ["shape.shadow"]));
+                        output.Add(new("setFrame", EditableFrameFields));
+                        break;
+                    }
                     // Source-bound image-filled custom geometry is projected
                     // for discovery and frame/stroke edits, but its native
                     // fill graph is not represented by a lossless PPJ
@@ -1875,12 +2166,19 @@ internal static partial class PpjPresentationProjector
                         element.Shape.Geometry != "custom")
                         output.Add(new("setFill", ["fill"]));
                     output.Add(new("setStroke", ["stroke"]));
+                    if (element.Shape.Placeholder is null &&
+                        element.Shape.Geometry is not ("textbox" or "none" or ""))
+                        output.Add(new("setShapeEffects", ["shape.shadow"]));
                     output.Add(new("setFrame", element.Shape.Placeholder is null ? EditableFrameFields : PositionFrameFields));
                     if (element.Shape.Placeholder is null &&
                         element.Shape.Geometry is not ("textbox" or "none" or "custom") &&
                         PptxPresetGeometryAdjustmentCodec.TryExpectedCount(element.Shape.Geometry, out var adjustmentCount) &&
                         adjustmentCount > 0)
                         output.Add(new("setGeometry", ["geometry.adjustments"]));
+                    else if (element.Shape.Placeholder is null &&
+                             element.Shape.Geometry == "custom" &&
+                             CanProjectCustomGeometry(element.Shape))
+                        output.Add(new("setGeometry", ["geometry.paths"]));
                 }
                 break;
             case PresentationElement.ContentOneofCase.Image when source.Editable:
@@ -1891,16 +2189,22 @@ internal static partial class PpjPresentationProjector
                 output.Add(new("setImageFit", ["image.fit"]));
                 output.Add(new("setFrame", EditableFrameFields));
                 output.Add(new("setOpacity", ["opacity"]));
+                output.Add(new("setImageEffects", ["image.border", "image.shadow"]));
                 if (!string.IsNullOrEmpty(element.Image.MaskPreset) &&
                     PptxPresetGeometryAdjustmentCodec.TryExpectedCount(element.Image.MaskPreset, out var maskAdjustmentCount) &&
                     maskAdjustmentCount > 0)
                     output.Add(new("setImageMask", ["image.mask.adjustments"]));
+                else if (element.Image.CustomMaskPaths.Count > 0 &&
+                         CanProjectCustomGeometry(ImageMaskShape(element.Image)))
+                    output.Add(new("setImageMask", ["image.mask.paths"]));
                 break;
             case PresentationElement.ContentOneofCase.Chart when source.Editable:
                 output.Add(new("setChartTitle", ["chart.title"]));
                 output.Add(new("setChartData", ["chart.data"]));
                 output.Add(new("setChartTextStyle", ["chart.textStyle"]));
                 output.Add(new("setChartFill", ["chart.fill"]));
+                if (element.Chart.Frame is not null)
+                    output.Add(new("setChartFrame", ["chart.frame"]));
                 output.Add(new("setChartLabels", ["chart.labels"]));
                 if (element.Chart.XAxis is not null || element.Chart.YAxis is not null ||
                     element.Chart.SecondaryXAxis is not null || element.Chart.SecondaryYAxis is not null)
@@ -1911,6 +2215,25 @@ internal static partial class PpjPresentationProjector
                 break;
             case PresentationElement.ContentOneofCase.Table when source.Editable:
                 output.Add(new("replaceText", ["text"]));
+                output.Add(new("setTableStyle", ["table.style"]));
+                // The native rectangular table profile keeps grid identity
+                // and merge topology fixed, but its existing column widths
+                // and row heights are safe scalar leaves. Expose them as a
+                // separate capability so a geometry edit cannot be confused
+                // with text reflow or a topology change.
+                output.Add(new("setTableGeometry", ["table.geometry"]));
+                if (element.Table.CellStyleEditable || element.Table.CellTextStyleEditable)
+                {
+                    var fields = new List<string>();
+                    if (element.Table.CellStyleEditable)
+                    {
+                        fields.Add("table.cell.fill");
+                        fields.Add("table.cell.borders");
+                    }
+                    if (element.Table.CellTextStyleEditable)
+                        fields.Add("table.cell.textStyle");
+                    output.Add(new("setTableCellStyle", fields));
+                }
                 output.Add(new("setFrame", EditableFrameFields));
                 break;
             case PresentationElement.ContentOneofCase.Connector when source.Editable:
@@ -1945,7 +2268,7 @@ internal static partial class PpjPresentationProjector
     private static bool TextTopologyRepresentable(PresentationTextBody? body) =>
         body is not null && body.Paragraphs.Count > 0 &&
         body.Paragraphs.All(paragraph => paragraph.Runs.Count > 0 &&
-            paragraph.Runs.All(run => run.ContentCase == PresentationTextRun.ContentOneofCase.Text));
+            paragraph.Runs.All(run => run.ContentCase is PresentationTextRun.ContentOneofCase.Text or PresentationTextRun.ContentOneofCase.Field));
 
     private static IReadOnlyList<CapabilitySpec> OpaqueCapabilities(PresentationElement element)
     {
@@ -2352,6 +2675,7 @@ internal static partial class PpjPresentationProjector
         private readonly Dictionary<string, string> pageIds = new(StringComparer.Ordinal);
         private readonly Dictionary<string, string> masterIds = new(StringComparer.Ordinal);
         private readonly Dictionary<string, string> layoutIds = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, string> customShowIds = new(StringComparer.Ordinal);
         private readonly Dictionary<(string Page, string Element), string> elementIds = new();
         private readonly HashSet<string> usedIds = new(StringComparer.Ordinal);
         private readonly Dictionary<string, string> assetIdBySourceId = new(StringComparer.Ordinal);
@@ -2420,6 +2744,13 @@ internal static partial class PpjPresentationProjector
             return id;
         }
 
+        internal string RegisterCustomShow(string sourceId)
+        {
+            var id = UniqueId($"show-{NormalizeId(sourceId, "show")}");
+            customShowIds[sourceId] = id;
+            return id;
+        }
+
         internal string RegisterElement(string pageId, string sourceId)
         {
             var id = UniqueId($"{pageId}-{NormalizeId(PageLocalElementPath(sourceId), "element")}");
@@ -2436,7 +2767,11 @@ internal static partial class PpjPresentationProjector
 
         internal string PageId(string sourceId) => pageIds[sourceId];
         internal bool TryPageId(string sourceId, out string id) => pageIds.TryGetValue(sourceId, out id!);
+        internal string MasterId(string sourceId) => masterIds[sourceId];
         internal bool TryLayoutId(string sourceId, out string id) => layoutIds.TryGetValue(sourceId, out id!);
+        internal string LayoutId(string sourceId) => layoutIds[sourceId];
+        internal string CustomShowId(string sourceId) => customShowIds[sourceId];
+        internal bool TryCustomShowId(string sourceId, out string id) => customShowIds.TryGetValue(sourceId, out id!);
         internal string ElementId(string pageId, string sourceId) => elementIds[(pageId, sourceId)];
         internal bool TryElementId(string pageId, string sourceId, out string id) => elementIds.TryGetValue((pageId, sourceId), out id!);
 

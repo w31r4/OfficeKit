@@ -88,6 +88,7 @@ internal static class PptxTimingCodec
                 };
                 if (delay > 0) animation.DelayMs = delay;
                 if (stagger > 0) animation.StaggerMs = stagger;
+                if (!TryReadTimingOptions(animation, ctn)) return Opaque(root);
                 animations.Add(animation);
                 index++;
             }
@@ -100,6 +101,7 @@ internal static class PptxTimingCodec
                 var direction = behavior.Attribute("officekit:direction")?.Value ?? "right";
                 var (start, delay) = ParseStart(behavior);
                 var stagger = ParseStagger(behavior);
+                var ctn = behavior.Descendants(XName.Get("cTn", PNamespace)).FirstOrDefault();
                 var animation = new PresentationAnimation
                 {
                     Id = $"anim-motion-{nativeId}", TargetId = targetId, TargetKind = "element", Effect = "fly",
@@ -107,6 +109,7 @@ internal static class PptxTimingCodec
                 };
                 if (delay > 0) animation.DelayMs = delay;
                 if (stagger > 0) animation.StaggerMs = stagger;
+                if (!TryReadTimingOptions(animation, ctn)) return Opaque(root);
                 animations.Add(animation);
             }
 
@@ -118,7 +121,8 @@ internal static class PptxTimingCodec
                 var isPulse = behavior.Descendants(XName.Get("to", PNamespace)).Any(to => to.Attribute("x")?.Value == "110000");
                 var (start, delay) = ParseStart(behavior);
                 var stagger = ParseStagger(behavior);
-                var duration = ParseDuration(behavior.Descendants(XName.Get("cTn", PNamespace)).FirstOrDefault()?.Attribute("dur")?.Value) ?? 500U;
+                var ctn = behavior.Descendants(XName.Get("cTn", PNamespace)).FirstOrDefault();
+                var duration = ParseDuration(ctn?.Attribute("dur")?.Value) ?? 500U;
                 var animation = new PresentationAnimation
                 {
                     Id = $"anim-scale-{nativeId}", TargetId = targetId, TargetKind = "element", Effect = isPulse ? "pulse" : "zoom",
@@ -126,6 +130,7 @@ internal static class PptxTimingCodec
                 };
                 if (delay > 0) animation.DelayMs = delay;
                 if (stagger > 0) animation.StaggerMs = stagger;
+                if (!TryReadTimingOptions(animation, ctn)) return Opaque(root);
                 animations.Add(animation);
             }
 
@@ -252,7 +257,10 @@ internal static class PptxTimingCodec
             animation.TargetId, animation.Effect, animation.Phase,
             animation.Start, animation.Direction, animation.DurationMs, animation.DelayMs,
             animation.ChartBuild, animation.TextBuild, animation.StaggerMs,
-            animation.HasAnimateChartBackground ? animation.AnimateChartBackground : null)));
+            animation.HasAnimateChartBackground ? animation.AnimateChartBackground : null,
+            animation.HasRepeatCount ? animation.RepeatCount : null,
+            animation.HasAutoReverse ? animation.AutoReverse : null,
+            animation.Easing)));
         if (morph is not null) semantic += $"|morph:{morph.FromSlideId}:{morph.DurationMs}:{string.Join(";", morph.Pairs.Select(pair => string.Join(",", pair.Key, pair.FromId, pair.ToId)))}";
         return Hash(Encoding.UTF8.GetBytes(semantic));
     }
@@ -331,6 +339,10 @@ internal static class PptxTimingCodec
                 throw new CodecException("invalid_presentation_animation", "Presentation animation start must be withPrevious, afterPrevious, or onClick.");
             if (animation.DelayMs > MaxDurationMilliseconds || animation.StaggerMs > 10_000)
                 throw new CodecException("invalid_presentation_animation", "Presentation animation delay or stagger exceeds the supported bound.");
+            if (animation.HasRepeatCount && animation.RepeatCount is 0 or > 8)
+                throw new CodecException("invalid_presentation_animation", "Presentation animation repeat_count must be from 1 through 8.");
+            if (animation.Easing is not ("" or "linear" or "ease-in" or "ease-out" or "ease-in-out"))
+                throw new CodecException("invalid_presentation_animation", "Presentation animation easing is outside the bounded native profile.");
             if (animation.Effect == "pulse" && animation.Phase != "emphasis" || animation.Effect != "pulse" && animation.Phase == "emphasis")
                 throw new CodecException("invalid_presentation_animation", "Presentation emphasis supports pulse only, and pulse requires emphasis.");
             if (!string.IsNullOrEmpty(animation.TextBuild) && animation.TargetKind is not ("shape" or "textbox" or "text" or "element"))
@@ -516,11 +528,62 @@ internal static class PptxTimingCodec
             "pulse" => "pulse",
             _ => "fade",
         };
+        var behaviorCtn = TimingCtnXml(animation, animationId + 1);
         var behavior = animation.Effect is "zoom" or "pulse"
-            ? $"<p:animScale zoomContents=\"1\"><p:cBhvr><p:cTn id=\"{animationId + 1}\" dur=\"{animation.DurationMs}\"/><p:tgtEl><p:spTgt spid=\"{nativeId}\"/></p:tgtEl></p:cBhvr><p:from x=\"{(animation.Effect == "pulse" ? "100000" : "0")}\" y=\"{(animation.Effect == "pulse" ? "100000" : "0")}\"/><p:to x=\"{(animation.Effect == "pulse" ? "110000" : "100000")}\" y=\"{(animation.Effect == "pulse" ? "110000" : "100000")}\"/></p:animScale>"
-            : $"<p:animEffect transition=\"{phase}\" filter=\"{Escape(filter)}\"><p:cBhvr><p:cTn id=\"{animationId + 1}\" dur=\"{animation.DurationMs}\"/><p:tgtEl><p:spTgt spid=\"{nativeId}\"/></p:tgtEl></p:cBhvr></p:animEffect>";
+            ? $"<p:animScale zoomContents=\"1\"><p:cBhvr>{behaviorCtn}<p:tgtEl><p:spTgt spid=\"{nativeId}\"/></p:tgtEl></p:cBhvr><p:from x=\"{(animation.Effect == "pulse" ? "100000" : "0")}\" y=\"{(animation.Effect == "pulse" ? "100000" : "0")}\"/><p:to x=\"{(animation.Effect == "pulse" ? "110000" : "100000")}\" y=\"{(animation.Effect == "pulse" ? "110000" : "100000")}\"/></p:animScale>"
+            : $"<p:animEffect transition=\"{phase}\" filter=\"{Escape(filter)}\"><p:cBhvr>{behaviorCtn}<p:tgtEl><p:spTgt spid=\"{nativeId}\"/></p:tgtEl></p:cBhvr></p:animEffect>";
         return $"<p:childTnLst>{behavior}</p:childTnLst>";
     }
+
+    private static string TimingCtnXml(PresentationAnimation animation, uint id)
+    {
+        var attributes = new StringBuilder($"id=\"{id}\" dur=\"{animation.DurationMs}\"");
+        if (animation.HasRepeatCount) attributes.Append($" repeatCount=\"{animation.RepeatCount}\"");
+        if (animation.HasAutoReverse) attributes.Append($" autoRev=\"{(animation.AutoReverse ? "1" : "0")}\"");
+        switch (animation.Easing)
+        {
+            case "ease-in": attributes.Append(" accel=\"50000\""); break;
+            case "ease-out": attributes.Append(" decel=\"50000\""); break;
+            case "ease-in-out": attributes.Append(" accel=\"50000\" decel=\"50000\""); break;
+        }
+        return $"<p:cTn {attributes}/>";
+    }
+
+    private static bool TryReadTimingOptions(PresentationAnimation animation, XElement? ctn)
+    {
+        if (ctn is null) return true;
+        var repeat = ctn.Attribute("repeatCount")?.Value;
+        if (repeat is not null)
+        {
+            if (repeat == "indefinite" || !uint.TryParse(repeat, NumberStyles.None, CultureInfo.InvariantCulture, out var count) || count is 0 or > 8)
+                return false;
+            animation.RepeatCount = count;
+        }
+        var autoReverse = ctn.Attribute("autoRev")?.Value;
+        if (autoReverse is not null)
+        {
+            var parsed = ParseBoolean(autoReverse);
+            if (parsed is null) return false;
+            animation.AutoReverse = parsed.Value;
+        }
+        var accel = ParsePercent(ctn.Attribute("accel")?.Value);
+        var decel = ParsePercent(ctn.Attribute("decel")?.Value);
+        if (accel == uint.MaxValue || decel == uint.MaxValue) return false;
+        animation.Easing = (accel, decel) switch
+        {
+            (null, null) or (0, 0) => "linear",
+            (50000, 0) => "ease-in",
+            (0, 50000) => "ease-out",
+            (50000, 50000) => "ease-in-out",
+            _ => string.Empty,
+        };
+        return animation.Easing.Length > 0;
+    }
+
+    private static uint? ParsePercent(string? value) =>
+        value is null ? null : uint.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var number) && number <= 100_000
+            ? number
+            : uint.MaxValue;
 
     internal static bool HasMorph(P.Slide source)
     {

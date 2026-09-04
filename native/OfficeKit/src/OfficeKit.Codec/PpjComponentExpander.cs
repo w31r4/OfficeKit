@@ -431,6 +431,8 @@ internal static class PpjComponentExpander
                 case "frame.width": SetFrame(target, "width", node); break;
                 case "frame.height": SetFrame(target, "height", node); break;
                 case "image.asset": target["asset"] = Unwrap(node, "asset"); break;
+                case "image.crop": target["crop"] = Unwrap(node, "crop"); break;
+                case "image.focus": target["focus"] = Unwrap(node, "focus"); break;
                 case "chart.title": target["title"] = Unwrap(node, "text"); break;
                 case "accessibility.description": EnsureObject(target, "accessibility")["description"] = node; break;
                 default:
@@ -544,6 +546,35 @@ internal static class PpjComponentExpander
         }
 
         var direction = repeat.Direction ?? "vertical";
+        if (direction is "grid" or "flow")
+        {
+            // `grid` requires an explicit column count. `flow` is the
+            // bounded responsive variant: an omitted count chooses a stable
+            // near-square matrix, while an explicit count fixes the wrap.
+            var columns = Math.Max(1, repeat.Columns ?? (int)Math.Ceiling(Math.Sqrt(Math.Max(1, repeat.Items.Count))));
+            var rows = Math.Max(1, (int)Math.Ceiling((repeat.Items.Count == 0 ? 1 : repeat.Items.Count) / (double)columns));
+            var columnGap = repeat.Gap;
+            var rowGap = repeat.RowGap ?? repeat.Gap;
+            var availableWidth = Math.Max(0.01, instance.Width - columnGap * Math.Max(0, columns - 1));
+            var availableHeight = Math.Max(0.01, instance.Height - rowGap * Math.Max(0, rows - 1));
+            var scale = Math.Min(availableWidth / (definition.Width * columns), availableHeight / (definition.Height * rows));
+            var itemWidth = definition.Width * scale;
+            var itemHeight = definition.Height * scale;
+            var gridColumn = repeatIndex % columns;
+            var gridRow = repeatIndex / columns;
+            var usedWidth = itemWidth * columns + columnGap * Math.Max(0, columns - 1);
+            var usedHeight = itemHeight * rows + rowGap * Math.Max(0, rows - 1);
+            var slackX = Math.Max(0, instance.Width - usedWidth);
+            var slackY = Math.Max(0, instance.Height - usedHeight);
+            var anchor = repeat.Anchor ?? "start";
+            var anchorX = anchor == "center" ? slackX / 2 : anchor == "end" ? slackX : 0;
+            var anchorY = anchor == "center" ? slackY / 2 : anchor == "end" ? slackY : 0;
+            return new(
+                instance.X + anchorX + gridColumn * (itemWidth + columnGap) - definition.X * scale,
+                instance.Y + anchorY + gridRow * (itemHeight + rowGap) - definition.Y * scale,
+                scale,
+                scale);
+        }
         if (direction == "horizontal")
         {
             var scale = instance.Height / definition.Height;

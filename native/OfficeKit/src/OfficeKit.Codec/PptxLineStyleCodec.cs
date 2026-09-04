@@ -331,9 +331,9 @@ internal static class PptxLineStyleCodec
     {
         _ = ValidateProfile(FromWire(source), $"Presentation shape {shapeId}",
             "invalid_presentation_line", "unsupported_presentation_line");
-        if (!string.Equals(source.Geometry, "line", StringComparison.Ordinal) &&
+        if (source.Geometry != "line" && !PpjLinePathCodec.IsLineLike(source) &&
             (source.StartArrow.Length > 0 || source.EndArrow.Length > 0))
-            throw new CodecException("unsupported_presentation_line", $"Presentation shape {shapeId} arrowheads require geometry line.");
+            throw new CodecException("unsupported_presentation_line", $"Presentation shape {shapeId} arrowheads require a line or literal stroked path.");
     }
 
     internal static void Validate(PresentationConnector source, string elementId) =>

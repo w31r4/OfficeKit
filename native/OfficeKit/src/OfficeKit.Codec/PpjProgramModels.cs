@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace OfficeKit.Codec;
 
@@ -73,7 +74,9 @@ internal sealed record PpjAssetModel(
     string MimeType,
     string Sha256,
     JsonElement Rights,
-    JsonElement Accessibility);
+    JsonElement Accessibility,
+    int? WidthPx,
+    int? HeightPx);
 
 internal sealed record PpjSourceModel(
     string Kind,
@@ -175,6 +178,10 @@ internal sealed record PpjChartDataModel(
 internal sealed record PpjChartSeriesModel(
     string Id,
     string Name,
+    string CategoryFormula,
+    string XValueFormula,
+    string ValueFormula,
+    string BubbleSizeFormula,
     IReadOnlyList<double?> Values,
     IReadOnlyList<string> PointRoles,
     IReadOnlyList<double> XValues,
@@ -205,7 +212,8 @@ internal sealed record PpjTableCellModel(
     string? Id,
     PpjTextContentModel Text,
     int RowSpan,
-    int ColumnSpan);
+    int ColumnSpan,
+    JsonElement Raw);
 
 internal sealed class PpjConnectorElementModel : PpjElementModel
 {
@@ -312,7 +320,9 @@ internal sealed record PpjParagraphModel(
 
 internal sealed record PpjFormulaModel(string Syntax, string Source);
 
-internal sealed record PpjRunModel(string? Id, string? Text, PpjFormulaModel? Formula);
+internal sealed record PpjTextFieldModel(string? Id, string Type, string Text);
+
+internal sealed record PpjRunModel(string? Id, string? Text, PpjFormulaModel? Formula, PpjTextFieldModel? Field);
 
 internal sealed record PpjPageModel(
     string Id,
@@ -323,6 +333,7 @@ internal sealed record PpjPageModel(
     PpjTextContentModel? Notes,
     bool? Hidden,
     IReadOnlyList<PpjElementModel> Elements,
+    IReadOnlyList<string> ReadingOrder,
     IReadOnlyList<PpjAnimationModel> Animations,
     PpjTransitionModel? Transition,
     PpjSourceCloneModel? SourceClone,
@@ -346,7 +357,10 @@ internal sealed record PpjAnimationModel(
     string? TextBuild,
     string? ChartBuild,
     int StaggerMs,
-    bool? AnimateChartBackground);
+    bool? AnimateChartBackground,
+    string? Easing = null,
+    int? Repeat = null,
+    bool? AutoReverse = null);
 
 internal sealed record PpjTransitionModel(
     string Type,
@@ -384,7 +398,16 @@ internal sealed record PpjSlotDefinitionModel(
     string Name,
     IReadOnlyList<string> Accepts,
     int Minimum,
-    int Maximum);
+    int Maximum,
+    PpjImageSlotPolicyModel? ImagePolicy);
+
+internal sealed record PpjImageSlotPolicyModel(
+    string Role,
+    IReadOnlyList<string> AllowedFit,
+    IReadOnlyList<string> AllowedMask,
+    int? MinimumWidthPx,
+    int? MinimumHeightPx,
+    IReadOnlySet<string> Rights);
 
 internal sealed record PpjComponentBindingModel(string TargetId, string Field, string Parameter);
 
@@ -406,7 +429,10 @@ internal sealed record PpjConditionModel(
 internal sealed record PpjRepeatModel(
     IReadOnlyList<PpjRepeatItemModel> Items,
     string? Direction,
-    double Gap);
+    double Gap,
+    int? Columns,
+    double? RowGap,
+    string? Anchor);
 
 internal sealed record PpjRepeatItemModel(
     string Key,
@@ -499,7 +525,9 @@ internal static class PpjProgramParser
         asset.GetProperty("mimeType").GetString()!,
         asset.GetProperty("sha256").GetString()!,
         asset.GetProperty("rights").Clone(),
-        asset.GetProperty("accessibility").Clone());
+        asset.GetProperty("accessibility").Clone(),
+        asset.TryGetProperty("widthPx", out var width) ? width.GetInt32() : null,
+        asset.TryGetProperty("heightPx", out var height) ? height.GetInt32() : null);
 
     private static PpjSourceModel ParseSource(JsonElement source)
     {
@@ -555,7 +583,8 @@ internal static class PpjProgramParser
         page.TryGetProperty("notes", out var notes) ? ParseText(notes) : null,
         page.TryGetProperty("hidden", out var hidden) ? hidden.GetBoolean() : null,
         page.GetProperty("elements").EnumerateArray().Select(ParseElement).ToArray(),
-        OptionalArray(page, "animations").Select(ParseAnimation).ToArray(),
+        OptionalArray(page, "readingOrder").Select(item => item.GetString()!).ToArray(),
+        OptionalArray(page, "animations").Select(ParseAnimation).Concat(ParseTimingAnimations(page)).ToArray(),
         page.TryGetProperty("transition", out var transition) ? ParseTransition(transition) : null,
         page.TryGetProperty("sourceClone", out var sourceClone) ? new PpjSourceCloneModel(
             sourceClone.GetProperty("page").GetString()!,
@@ -576,9 +605,47 @@ internal static class PpjProgramParser
         OptionalString(animation, "textBuild"),
         OptionalString(animation, "chartBuild"),
         OptionalInt(animation, "staggerMs"),
-        animation.TryGetProperty("animateChartBackground", out var animateChartBackground)
+            animation.TryGetProperty("animateChartBackground", out var animateChartBackground)
             ? animateChartBackground.GetBoolean()
-            : null);
+            : null,
+        OptionalString(animation, "easing"),
+        animation.TryGetProperty("repeat", out var repeat) ? repeat.GetInt32() : null,
+        animation.TryGetProperty("autoReverse", out var autoReverse) ? autoReverse.GetBoolean() : null);
+
+    private static IEnumerable<PpjAnimationModel> ParseTimingAnimations(JsonElement page)
+    {
+        if (!page.TryGetProperty("timing", out var timing) ||
+            !timing.TryGetProperty("nodes", out var nodes))
+            yield break;
+        foreach (var node in nodes.EnumerateArray())
+        {
+            // `trigger` is authored sugar for the existing PresentationML
+            // start condition.  `timeline` means that the required `start`
+            // field remains authoritative; the other bounded trigger names
+            // are normalized to the same wire value so the graph cannot
+            // silently degrade into a default fade.
+            var start = node.GetProperty("start").GetString()!;
+            var trigger = OptionalString(node, "trigger");
+            yield return new PpjAnimationModel(
+                node.GetProperty("id").GetString()!,
+                node.GetProperty("target").GetString()!,
+                node.GetProperty("phase").GetString()!,
+                node.GetProperty("effect").GetString()!,
+                OptionalString(node, "direction"),
+                trigger is null or "timeline" ? start : trigger,
+                node.GetProperty("durationMs").GetInt32(),
+                OptionalInt(node, "delayMs"),
+                OptionalString(node, "textBuild"),
+                OptionalString(node, "chartBuild"),
+                OptionalInt(node, "staggerMs"),
+                node.TryGetProperty("animateChartBackground", out var animateChartBackground)
+                    ? animateChartBackground.GetBoolean()
+                    : null,
+                OptionalString(node, "easing"),
+                node.TryGetProperty("repeat", out var repeat) ? repeat.GetInt32() : null,
+                node.TryGetProperty("autoReverse", out var autoReverse) ? autoReverse.GetBoolean() : null);
+        }
+    }
 
     private static PpjTransitionModel ParseTransition(JsonElement transition) => new(
         transition.GetProperty("type").GetString()!,
@@ -609,7 +676,15 @@ internal static class PpjProgramParser
             slot.GetProperty("name").GetString()!,
             Strings(slot.GetProperty("accepts")),
             OptionalInt(slot, "minItems"),
-            slot.TryGetProperty("maxItems", out var maximum) ? maximum.GetInt32() : 100000)).ToArray(),
+            slot.TryGetProperty("maxItems", out var maximum) ? maximum.GetInt32() : 100000,
+            slot.TryGetProperty("imagePolicy", out var imagePolicy) ? new PpjImageSlotPolicyModel(
+                imagePolicy.GetProperty("role").GetString()!,
+                OptionalArray(imagePolicy, "allowedFit").Select(item => item.GetString()!).ToArray(),
+                OptionalArray(imagePolicy, "allowedMask").Select(item => item.GetString()!).ToArray(),
+                imagePolicy.TryGetProperty("minWidthPx", out var minWidth) ? minWidth.GetInt32() : null,
+                imagePolicy.TryGetProperty("minHeightPx", out var minHeight) ? minHeight.GetInt32() : null,
+                OptionalArray(imagePolicy, "rights").Select(item => item.GetString()!).ToHashSet(StringComparer.Ordinal))
+                : null)).ToArray(),
         OptionalArray(component, "bindings").Select(binding => new PpjComponentBindingModel(
             binding.GetProperty("target").GetString()!,
             binding.GetProperty("field").GetString()!,
@@ -665,6 +740,11 @@ internal static class PpjProgramParser
                 Text = element.TryGetProperty("text", out var text) ? ParseText(text) : null,
                 StyleRef = OptionalString(element, "styleRef"),
             },
+            "line" => new PpjShapeElementModel
+            {
+                GeometryKind = "line",
+                StyleRef = OptionalString(element, "styleRef"),
+            },
             "icon" => new PpjIconElementModel
             {
                 IconName = element.GetProperty("iconName").GetString()!,
@@ -681,9 +761,9 @@ internal static class PpjProgramParser
             },
             "chart" => new PpjChartElementModel
             {
-                ChartType = element.GetProperty("chartType").GetString()!,
+                ChartType = ChartTypeForElement(element),
                 Title = element.TryGetProperty("title", out var title) ? ParseText(title) : null,
-                Data = ParseChartData(element.GetProperty("data")),
+                Data = ParseChartData(element.GetProperty("data"), ChartTypeForElement(element)),
                 StyleRef = OptionalString(element, "styleRef"),
             },
             "table" => new PpjTableElementModel
@@ -773,7 +853,39 @@ internal static class PpjProgramParser
         result.Locked = common.Locked;
         result.NativeRef = common.NativeRef;
         result.Raw = common.Raw;
+        if (result is PpjChartElementModel &&
+            (common.Raw.TryGetProperty("data", out var chartData) && chartData.TryGetProperty("dataset", out _) ||
+             common.Raw.TryGetProperty("xAxis", out var rawXAxis) && rawXAxis.ValueKind == JsonValueKind.Array ||
+             common.Raw.TryGetProperty("yAxis", out var rawYAxis) && rawYAxis.ValueKind == JsonValueKind.Array))
+        {
+            var canonical = JsonNode.Parse(common.Raw.GetRawText())!.AsObject();
+            NormalizeChartAxisArray(canonical, "xAxis", "secondaryXAxis");
+            NormalizeChartAxisArray(canonical, "yAxis", "secondaryYAxis");
+            if (common.Raw.TryGetProperty("data", out chartData) && chartData.TryGetProperty("dataset", out _))
+            {
+                var chartType = ChartTypeForElement(element);
+                var canonicalData = chartData.TryGetProperty("series", out var datasetSeries) &&
+                    datasetSeries.ValueKind == JsonValueKind.Array &&
+                    datasetSeries.GetArrayLength() > 0 &&
+                    datasetSeries[0].TryGetProperty("encode", out _)
+                    ? CanonicalDatasetSeries(chartData, chartType)
+                    : CanonicalDataset(chartData, chartType);
+                canonical["data"] = JsonNode.Parse(canonicalData.GetRawText());
+            }
+            result.Raw = JsonDocument.Parse(canonical.ToJsonString()).RootElement.Clone();
+        }
         return result;
+    }
+
+    private static void NormalizeChartAxisArray(JsonObject chart, string primaryName, string secondaryName)
+    {
+        if (chart[primaryName] is not JsonArray axes) return;
+        if (axes.Count is < 1 or > 2 || axes.Any(axis => axis is null))
+            throw new InvalidOperationException($"{primaryName} arrays are bounded to one or two axis objects.");
+        if (chart.ContainsKey(secondaryName))
+            throw new InvalidOperationException($"{primaryName} array cannot be combined with {secondaryName}.");
+        chart[primaryName] = axes[0]!.DeepClone();
+        if (axes.Count == 2) chart[secondaryName] = axes[1]!.DeepClone();
     }
 
     private static IReadOnlyList<int> ParsePresetAdjustments(JsonElement geometry) =>
@@ -782,11 +894,46 @@ internal static class PpjProgramParser
             ? adjustments.EnumerateArray().Select(value => value.GetInt32()).ToArray()
             : [];
 
-    private static PpjChartDataModel ParseChartData(JsonElement data) => new(
+    private static PpjChartDataModel ParseChartData(JsonElement data, string chartType)
+    {
+        if (!data.TryGetProperty("dataset", out _)) return ParseLegacyChartData(data);
+        if (data.TryGetProperty("series", out var series) &&
+            series.ValueKind == JsonValueKind.Array &&
+            series.GetArrayLength() > 0 &&
+            series[0].TryGetProperty("encode", out _))
+            return ParseLegacyChartData(CanonicalDatasetSeries(data, chartType));
+        return ParseLegacyChartData(CanonicalDataset(data, chartType));
+    }
+
+    private static string ChartTypeForElement(JsonElement element)
+    {
+        if (element.TryGetProperty("chartType", out var chartType)) return chartType.GetString()!;
+        var data = element.GetProperty("data");
+        if (data.TryGetProperty("series", out var series) && series.GetArrayLength() > 0)
+        {
+            var types = series.EnumerateArray()
+                .Select(item => item.TryGetProperty("type", out var type) ? type.GetString() : item.TryGetProperty("chartType", out var chartTypeValue) ? chartTypeValue.GetString() : null)
+                .Where(type => !string.IsNullOrEmpty(type))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            if (types.Contains("candlestick", StringComparer.Ordinal) &&
+                types.All(type => type is "candlestick" or "line" or "area" or "bar"))
+                return "candlestick";
+            if (types.Length == 1) return types[0] == "bar" ? "bar" : types[0]!;
+            if (types.Length > 1) return "combo";
+        }
+        throw new InvalidOperationException("Chart requires chartType or a dataset series type.");
+    }
+
+    private static PpjChartDataModel ParseLegacyChartData(JsonElement data) => new(
         data.GetProperty("categories").EnumerateArray().Select(item => item.Clone()).ToArray(),
         data.GetProperty("series").EnumerateArray().Select(series => new PpjChartSeriesModel(
             series.GetProperty("id").GetString()!,
             series.GetProperty("name").GetString()!,
+            OptionalString(series, "categoryFormula") ?? string.Empty,
+            OptionalString(series, "xValueFormula") ?? string.Empty,
+            OptionalString(series, "valueFormula") ?? string.Empty,
+            OptionalString(series, "bubbleSizeFormula") ?? string.Empty,
             series.GetProperty("values").EnumerateArray().Select(value => value.ValueKind == JsonValueKind.Null ? (double?)null : value.GetDouble()).ToArray(),
             series.TryGetProperty("pointRoles", out var pointRoles)
                 ? pointRoles.EnumerateArray().Select(value => value.GetString()!).ToArray()
@@ -820,6 +967,445 @@ internal static class PpjProgramParser
             OptionalString(series, "axis"),
             series.Clone())).ToArray());
 
+    private static JsonElement CanonicalDataset(JsonElement data, string chartType)
+    {
+        var dataset = data.GetProperty("dataset");
+        var columnNames = dataset.GetProperty("cols").EnumerateArray().Select((column, index) =>
+            column.ValueKind == JsonValueKind.String
+                ? column.GetString()!
+                : column.TryGetProperty("id", out var id) ? id.GetString()! : $"col-{index + 1}").ToArray();
+        var rows = dataset.GetProperty("rows").EnumerateArray().Select(row => DatasetRow(row, columnNames)).ToArray();
+        if (data.TryGetProperty("dataFilter", out var filters))
+            rows = rows.Where(row => filters.EnumerateArray().All(filter => MatchesFilter(row, filter, columnNames))).ToArray();
+
+        var encoding = data.GetProperty("encoding");
+        var categoryColumn = RefIndex(encoding, "category", columnNames);
+        var xColumn = RefIndex(encoding, "x", columnNames) ?? categoryColumn;
+        var valueColumn = RefIndex(encoding, "value", columnNames) ?? RefIndex(encoding, "y", columnNames);
+        var seriesColumn = RefIndex(encoding, "series", columnNames);
+        var openColumn = RefIndex(encoding, "open", columnNames);
+        var highColumn = RefIndex(encoding, "high", columnNames);
+        var lowColumn = RefIndex(encoding, "low", columnNames);
+        var closeColumn = RefIndex(encoding, "close", columnNames);
+        var sizeColumn = RefIndex(encoding, "size", columnNames);
+        var parentColumn = RefIndex(encoding, "parent", columnNames);
+        var sourceColumn = RefIndex(encoding, "source", columnNames);
+        var targetColumn = RefIndex(encoding, "target", columnNames);
+        var flowColumn = RefIndex(encoding, "flow", columnNames);
+        var isTotalColumn = RefIndex(encoding, "isTotal", columnNames);
+        var levelColumn = RefIndex(encoding, "level", columnNames);
+        valueColumn ??= chartType == "candlestick" ? closeColumn : null;
+        valueColumn ??= chartType == "sankey" ? flowColumn : null;
+        if (valueColumn is null)
+            throw new InvalidOperationException("Chart dataset encoding requires value or y.");
+
+        var numericX = chartType is "scatter" or "bubble";
+        var categoryValues = numericX
+            ? Array.Empty<JsonElement>()
+            : rows.Select((row, index) => categoryColumn is { } column ? row[column] : JsonDocument.Parse($"\"{index + 1}\"").RootElement.Clone())
+                .GroupBy(ScalarKey, StringComparer.Ordinal)
+                .Select(group => group.First())
+                .ToArray();
+        var grouped = rows.GroupBy(row => seriesColumn is { } column ? ScalarKey(row[column]) : "Series 1", StringComparer.Ordinal).ToArray();
+        var series = new JsonArray();
+        foreach (var (group, groupIndex) in grouped.Select((group, index) => (group, index)))
+        {
+            var sourceRows = group.ToArray();
+            var item = new JsonObject
+            {
+                ["id"] = $"series-{groupIndex + 1}",
+                ["name"] = group.Key,
+                ["values"] = new JsonArray(),
+            };
+            var values = (JsonArray)item["values"]!;
+            if (numericX)
+            {
+                item["xValues"] = new JsonArray(sourceRows.Select(row => NumberNode(row[xColumn!.Value])).ToArray());
+                foreach (var row in sourceRows) values.Add(NumberNode(row[valueColumn.Value]));
+                if (chartType == "bubble" && sizeColumn is { } bubbleColumn)
+                    item["bubbleSizes"] = new JsonArray(sourceRows.Select(row => NumberNode(row[bubbleColumn])).ToArray());
+            }
+            else
+            {
+                foreach (var category in categoryValues)
+                {
+                    var row = categoryColumn is { } categoryIndex
+                        ? sourceRows.FirstOrDefault(candidate => ScalarKey(candidate[categoryIndex]) == ScalarKey(category))
+                        : sourceRows.ElementAtOrDefault(Array.IndexOf(categoryValues, category));
+                    values.Add(row is null ? null : NumberNode(row[valueColumn.Value]));
+                }
+            }
+            AddEncodedArray(item, "openValues", sourceRows, openColumn, numericX, categoryValues, categoryColumn, NumberNode);
+            AddEncodedArray(item, "highValues", sourceRows, highColumn, numericX, categoryValues, categoryColumn, NumberNode);
+            AddEncodedArray(item, "lowValues", sourceRows, lowColumn, numericX, categoryValues, categoryColumn, NumberNode);
+            AddEncodedArray(item, "parents", sourceRows, parentColumn, numericX, categoryValues, categoryColumn, ValueNode);
+            AddEncodedArray(item, "sources", sourceRows, sourceColumn, numericX, categoryValues, categoryColumn, ValueNode);
+            AddEncodedArray(item, "targets", sourceRows, targetColumn, numericX, categoryValues, categoryColumn, ValueNode);
+            if (isTotalColumn is { } totalColumn)
+                item["pointRoles"] = new JsonArray(sourceRows.Select(row =>
+                    (JsonNode?)JsonValue.Create(row[totalColumn].ValueKind == JsonValueKind.True ? "total" : "delta")).ToArray());
+            if (levelColumn is { } level)
+            {
+                var levelValues = sourceRows.Select(row => row[level]).Where(value => value.ValueKind != JsonValueKind.Null).Select(value => value.GetInt32()).Distinct().ToArray();
+                if (levelValues.Length == 1) item["levels"] = levelValues[0];
+            }
+            if (data.TryGetProperty("seriesDefaults", out var defaults))
+                ApplySeriesDefaults(item, defaults, chartType, chartType);
+            series.Add(item);
+        }
+        var output = new JsonObject
+        {
+            ["categories"] = new JsonArray(categoryValues.Select(ToNode).ToArray()),
+            ["series"] = series,
+        };
+        return JsonDocument.Parse(output.ToJsonString()).RootElement.Clone();
+    }
+
+    private static JsonElement CanonicalDatasetSeries(JsonElement data, string chartType)
+    {
+        var dataset = data.GetProperty("dataset");
+        var columnNames = dataset.GetProperty("cols").EnumerateArray().Select((column, index) =>
+            column.ValueKind == JsonValueKind.String
+                ? column.GetString()!
+                : column.TryGetProperty("id", out var id) ? id.GetString()! : $"col-{index + 1}").ToArray();
+        IReadOnlyList<JsonElement[]> allRows = dataset.GetProperty("rows").EnumerateArray().Select(row => DatasetRow(row, columnNames)).ToArray();
+        allRows = ApplyFilters(allRows, data.TryGetProperty("dataFilter", out var filters) ? filters : default, columnNames);
+        var definitions = data.GetProperty("series").EnumerateArray().ToArray();
+        var definitionTypes = definitions.Select(item => item.GetProperty("type").GetString()!).ToArray();
+        if (definitionTypes.Any(type => type == "heatmap"))
+        {
+            if (definitionTypes.Any(type => type != "heatmap"))
+                throw new InvalidOperationException("Heatmap series cannot be mixed with other dataset series types.");
+            return CanonicalHeatmapDatasetSeries(data, columnNames, allRows, definitions);
+        }
+        if (definitionTypes.Any(type => type == "sankey") && definitionTypes.Any(type => type != "sankey"))
+            throw new InvalidOperationException("Sankey series cannot be mixed with other dataset series types.");
+
+        var outputSeries = new JsonArray();
+        JsonElement[] categories;
+        if (definitionTypes.All(type => type is "scatter" or "bubble"))
+            categories = [];
+        else if (definitionTypes.Any(type => type == "sankey"))
+        {
+            var sankey = definitions.Single(item => item.GetProperty("type").GetString() == "sankey");
+            var encode = sankey.GetProperty("encode");
+            var source = RefIndex(encode, "source", columnNames) ?? throw new InvalidOperationException("Sankey encoding requires source.");
+            var target = RefIndex(encode, "target", columnNames) ?? throw new InvalidOperationException("Sankey encoding requires target.");
+            categories = allRows.SelectMany(row => new[] { row[source], row[target] }).GroupBy(ScalarKey, StringComparer.Ordinal).Select(group => group.First()).ToArray();
+        }
+        else
+        {
+            var first = definitions[0].GetProperty("encode");
+            var categoryColumn = RefIndex(first, "category", columnNames) ?? RefIndex(first, "x", columnNames);
+            categories = allRows.Select((row, index) => categoryColumn is { } column ? row[column] : JsonDocument.Parse($"\"{index + 1}\"").RootElement.Clone())
+                .GroupBy(ScalarKey, StringComparer.Ordinal).Select(group => group.First()).ToArray();
+        }
+
+        foreach (var (definition, definitionIndex) in definitions.Select((item, index) => (item, index)))
+        {
+            var type = definition.GetProperty("type").GetString()!;
+            var xAxisIndex = definition.TryGetProperty("xAxisIndex", out var xAxisIndexValue) ? xAxisIndexValue.GetInt32() : 0;
+            var yAxisIndex = definition.TryGetProperty("yAxisIndex", out var yAxisIndexValue) ? yAxisIndexValue.GetInt32() : 0;
+            if (xAxisIndex > 1 || yAxisIndex > 1)
+                throw new InvalidOperationException("Dataset series axis indexes are bounded to primary (0) and secondary (1) axes.");
+            var indexedSecondary = xAxisIndex == 1 || yAxisIndex == 1;
+            if (indexedSecondary && chartType != "combo")
+                throw new InvalidOperationException("Dataset series secondary axis indexes require a combo chart.");
+            if (indexedSecondary && definition.TryGetProperty("axis", out var explicitAxis) && explicitAxis.GetString() == "primary")
+                throw new InvalidOperationException("Dataset series axis=primary conflicts with a secondary axis index.");
+            var encode = definition.GetProperty("encode");
+            var rows = ApplyFilters(allRows, definition.TryGetProperty("dataFilter", out var seriesFilters) ? seriesFilters : default, columnNames);
+            var categoryColumn = RefIndex(encode, "category", columnNames) ?? RefIndex(encode, "x", columnNames);
+            var xColumn = RefIndex(encode, "x", columnNames) ?? categoryColumn;
+            var valueColumn = RefIndex(encode, "value", columnNames) ?? RefIndex(encode, "y", columnNames);
+            valueColumn ??= type == "candlestick" ? RefIndex(encode, "close", columnNames) : null;
+            valueColumn ??= type == "sankey" ? RefIndex(encode, "flow", columnNames) : null;
+            if (valueColumn is null && type != "sankey")
+                throw new InvalidOperationException($"Dataset series {definitionIndex + 1} requires a value, y, or type-specific value channel.");
+            var item = new JsonObject
+            {
+                ["id"] = definition.TryGetProperty("id", out var id) ? id.GetString() : $"series-{definitionIndex + 1}",
+                ["name"] = definition.TryGetProperty("name", out var name) ? name.GetString() : InferSeriesName(encode, columnNames, type, definitionIndex),
+                ["values"] = new JsonArray(),
+            };
+            var values = (JsonArray)item["values"]!;
+            if (type is "scatter" or "bubble")
+            {
+                if (xColumn is null) throw new InvalidOperationException($"Dataset series {definitionIndex + 1} requires x for {type}.");
+                item["xValues"] = new JsonArray(rows.Select(row => NumberNode(row[xColumn.Value])).ToArray());
+                foreach (var row in rows) values.Add(NumberNode(row[valueColumn!.Value]));
+                if (type == "bubble")
+                {
+                    var size = RefIndex(encode, "size", columnNames) ?? throw new InvalidOperationException("Bubble encoding requires size.");
+                    item["bubbleSizes"] = new JsonArray(rows.Select(row => NumberNode(row[size])).ToArray());
+                }
+            }
+            else if (type == "sankey")
+            {
+                var source = RefIndex(encode, "source", columnNames) ?? throw new InvalidOperationException("Sankey encoding requires source.");
+                var target = RefIndex(encode, "target", columnNames) ?? throw new InvalidOperationException("Sankey encoding requires target.");
+                item["sources"] = new JsonArray(rows.Select(row => ValueNode(row[source])).ToArray());
+                item["targets"] = new JsonArray(rows.Select(row => ValueNode(row[target])).ToArray());
+                foreach (var row in rows) values.Add(NumberNode(row[valueColumn!.Value]));
+            }
+            else
+            {
+                foreach (var category in categories)
+                {
+                    var row = categoryColumn is { } categoryIndex
+                        ? rows.FirstOrDefault(candidate => ScalarKey(candidate[categoryIndex]) == ScalarKey(category))
+                        : rows.ElementAtOrDefault(Array.IndexOf(categories, category));
+                    values.Add(row is null ? null : NumberNode(row[valueColumn!.Value]));
+                }
+                AddEncodedArray(item, "openValues", rows, RefIndex(encode, "open", columnNames), false, categories, categoryColumn, NumberNode);
+                AddEncodedArray(item, "highValues", rows, RefIndex(encode, "high", columnNames), false, categories, categoryColumn, NumberNode);
+                AddEncodedArray(item, "lowValues", rows, RefIndex(encode, "low", columnNames), false, categories, categoryColumn, NumberNode);
+                AddEncodedArray(item, "parents", rows, RefIndex(encode, "parent", columnNames), false, categories, categoryColumn, ValueNode);
+                var isTotal = RefIndex(encode, "isTotal", columnNames);
+                if (isTotal is { })
+                    item["pointRoles"] = new JsonArray(categories.Select(category =>
+                    {
+                        var row = categoryColumn is { } categoryIndex
+                            ? rows.FirstOrDefault(candidate => ScalarKey(candidate[categoryIndex]) == ScalarKey(category))
+                            : rows.ElementAtOrDefault(Array.IndexOf(categories, category));
+                        return (JsonNode?)JsonValue.Create(row is not null && row[isTotal.Value].ValueKind == JsonValueKind.True ? "total" : "delta");
+                    }).ToArray());
+            }
+            if ((type is "treemap" or "sunburst") && definition.TryGetProperty("levels", out var levels))
+                item["levels"] = levels.GetInt32();
+            var effectiveType = (definition.TryGetProperty("chartType", out var explicitChartType) ? explicitChartType.GetString() : type == "bar" ? "bar" : type) ?? type;
+            if (chartType == "combo" || (chartType == "candlestick" && definitionIndex > 0)) item["chartType"] = effectiveType;
+            if (indexedSecondary) item["axis"] = "secondary";
+            else if (definition.TryGetProperty("axis", out var axis)) item["axis"] = axis.GetString();
+            foreach (var property in new[] { "fill", "stroke", "color", "marker", "dataLabels" })
+                if (definition.TryGetProperty(property, out var value)) item[property] = ToNode(value);
+            ApplySeriesDefaults(
+                item,
+                data.TryGetProperty("seriesDefaults", out var defaults) ? defaults : default,
+                effectiveType,
+                type);
+            outputSeries.Add(item);
+        }
+        var output = new JsonObject
+        {
+            ["categories"] = new JsonArray(categories.Select(ToNode).ToArray()),
+            ["series"] = outputSeries,
+        };
+        return JsonDocument.Parse(output.ToJsonString()).RootElement.Clone();
+    }
+
+    private static JsonElement CanonicalHeatmapDatasetSeries(
+        JsonElement data,
+        IReadOnlyList<string> columns,
+        IReadOnlyList<JsonElement[]> allRows,
+        IReadOnlyList<JsonElement> definitions)
+    {
+        var definition = definitions.Single(item => item.GetProperty("type").GetString() == "heatmap");
+        var encode = definition.GetProperty("encode");
+        var xColumn = RefIndex(encode, "x", columns) ?? throw new InvalidOperationException("Heatmap encoding requires x.");
+        var yColumn = RefIndex(encode, "y", columns) ?? throw new InvalidOperationException("Heatmap encoding requires y.");
+        var valueColumn = RefIndex(encode, "value", columns) ?? throw new InvalidOperationException("Heatmap encoding requires value.");
+        var categories = allRows.Select(row => row[xColumn]).GroupBy(ScalarKey, StringComparer.Ordinal).Select(group => group.First()).ToArray();
+        var names = allRows.Select(row => row[yColumn]).GroupBy(ScalarKey, StringComparer.Ordinal).Select(group => group.First()).ToArray();
+        var series = new JsonArray();
+        foreach (var name in names)
+        {
+            var item = new JsonObject
+            {
+                ["id"] = $"series-{series.Count + 1}",
+                ["name"] = DisplayText(name),
+                ["values"] = new JsonArray(),
+            };
+            var values = (JsonArray)item["values"]!;
+            foreach (var category in categories)
+            {
+                var row = allRows.FirstOrDefault(candidate => ScalarKey(candidate[xColumn]) == ScalarKey(category) && ScalarKey(candidate[yColumn]) == ScalarKey(name));
+                values.Add(row is null ? null : NumberNode(row[valueColumn]));
+            }
+            series.Add(item);
+        }
+        return JsonDocument.Parse(new JsonObject
+        {
+            ["categories"] = new JsonArray(categories.Select(ToNode).ToArray()),
+            ["series"] = series,
+        }.ToJsonString()).RootElement.Clone();
+    }
+
+    private static IReadOnlyList<JsonElement[]> ApplyFilters(
+        IReadOnlyList<JsonElement[]> rows,
+        JsonElement filters,
+        IReadOnlyList<string> columns)
+    {
+        if (filters.ValueKind != JsonValueKind.Array) return rows;
+        return rows.Where(row => filters.EnumerateArray().All(filter => MatchesFilter(row, filter, columns))).ToArray();
+    }
+
+    private static string InferSeriesName(JsonElement encode, IReadOnlyList<string> columns, string type, int index)
+    {
+        foreach (var channel in new[] { "y", "value", "close", "flow", "category" })
+            if (RefIndex(encode, channel, columns) is { } column) return columns[column];
+        return $"{type} {index + 1}";
+    }
+
+    private static void ApplySeriesDefaults(
+        JsonObject item,
+        JsonElement defaults,
+        string effectiveType,
+        string? sourceType = null)
+    {
+        if (defaults.ValueKind != JsonValueKind.Object) return;
+        JsonElement selected = default;
+        var selectedTyped = false;
+        foreach (var candidate in new[] { sourceType, effectiveType, effectiveType == "column" ? "bar" : null })
+        {
+            if (candidate is not null && defaults.TryGetProperty(candidate, out var typed) && typed.ValueKind == JsonValueKind.Object)
+            {
+                selected = typed;
+                selectedTyped = true;
+                break;
+            }
+        }
+        if (selected.ValueKind != JsonValueKind.Object)
+            selected = defaults;
+
+        foreach (var property in selected.EnumerateObject())
+        {
+            // A generic fallback may contain the grouped defaults for other
+            // series types. Those keys are not series fields themselves.
+            if (!selectedTyped && IsSeriesDefaultType(property.Name)) continue;
+            var defaultValue = ToNode(property.Value);
+            if (!item.TryGetPropertyValue(property.Name, out var existing) || existing is null)
+            {
+                item[property.Name] = defaultValue;
+                continue;
+            }
+            if (defaultValue is JsonObject defaultObject && existing is JsonObject existingObject)
+            {
+                var merged = (JsonObject)defaultObject.DeepClone();
+                foreach (var child in existingObject)
+                    merged[child.Key] = child.Value?.DeepClone();
+                item[property.Name] = merged;
+            }
+        }
+    }
+
+    private static bool IsSeriesDefaultType(string property) => property is
+        "bar" or "line" or "area" or "scatter" or "bubble" or "candlestick" or
+        "pie" or "radar" or "waterfall" or "heatmap" or "treemap" or "sunburst" or "sankey";
+
+    private static JsonElement[] DatasetRow(JsonElement row, IReadOnlyList<string> columns)
+    {
+        if (row.ValueKind == JsonValueKind.Array)
+        {
+            var values = row.EnumerateArray().Select(item => item.Clone()).ToArray();
+            if (values.Length != columns.Count)
+                throw new InvalidOperationException($"Chart dataset row has {values.Length} values for {columns.Count} columns.");
+            return values;
+        }
+        if (row.ValueKind != JsonValueKind.Object)
+            throw new InvalidOperationException("Chart dataset rows must be arrays or objects.");
+        var columnSet = columns.ToHashSet(StringComparer.Ordinal);
+        if (row.EnumerateObject().Any(property => !columnSet.Contains(property.Name)))
+            throw new InvalidOperationException("Chart dataset row contains a column that is not declared in cols.");
+        return columns.Select(column => row.TryGetProperty(column, out var value) ? value.Clone() : JsonDocument.Parse("null").RootElement.Clone()).ToArray();
+    }
+
+    private static int? RefIndex(JsonElement owner, string property, IReadOnlyList<string> columns)
+    {
+        if (!owner.TryGetProperty(property, out var value)) return null;
+        if (value.ValueKind == JsonValueKind.Number) return value.GetInt32();
+        var name = value.GetString();
+        var index = Array.FindIndex(columns.ToArray(), column => column.Equals(name, StringComparison.Ordinal));
+        return index >= 0 ? index : throw new InvalidOperationException($"Unknown chart dataset column {name}.");
+    }
+
+    private static void AddEncodedArray(
+        JsonObject item,
+        string name,
+        IReadOnlyList<JsonElement[]> rows,
+        int? column,
+        bool numericX,
+        IReadOnlyList<JsonElement> categories,
+        int? categoryColumn,
+        Func<JsonElement, JsonNode?> convert)
+    {
+        if (column is null) return;
+        var output = new JsonArray();
+        if (numericX) foreach (var row in rows) output.Add(convert(row[column.Value]));
+        else foreach (var category in categories)
+        {
+            var row = categoryColumn is { } index
+                ? rows.FirstOrDefault(candidate => ScalarKey(candidate[index]) == ScalarKey(category))
+                : rows.ElementAtOrDefault(Array.IndexOf(categories.ToArray(), category));
+            output.Add(row is null ? null : convert(row[column.Value]));
+        }
+        item[name] = output;
+    }
+
+    private static bool MatchesFilter(JsonElement[] row, JsonElement filter, IReadOnlyList<string> columns)
+    {
+        var column = RefIndex(filter, "column", columns) ?? throw new InvalidOperationException("Chart filter requires a column.");
+        var actual = row[column];
+        var operation = filter.GetProperty("op").GetString()!;
+        var expected = filter.GetProperty("value");
+        if (operation == "in") return expected.ValueKind == JsonValueKind.Array && expected.EnumerateArray().Any(value => Compare(actual, value) == 0);
+        var comparison = Compare(actual, expected);
+        return operation switch
+        {
+            "eq" => comparison == 0,
+            "neq" => comparison != 0,
+            "gt" => comparison > 0,
+            "gte" => comparison >= 0,
+            "lt" => comparison < 0,
+            "lte" => comparison <= 0,
+            _ => throw new InvalidOperationException($"Unsupported chart data filter operator {operation}."),
+        };
+    }
+
+    private static int Compare(JsonElement left, JsonElement right)
+    {
+        if (left.ValueKind == JsonValueKind.Number && right.ValueKind == JsonValueKind.Number)
+            return left.GetDouble().CompareTo(right.GetDouble());
+        return string.Compare(ScalarKey(left), ScalarKey(right), StringComparison.Ordinal);
+    }
+
+    private static string DisplayText(JsonElement value) => value.ValueKind switch
+    {
+        JsonValueKind.String => value.GetString() ?? "",
+        JsonValueKind.Number => value.GetDouble().ToString("R", System.Globalization.CultureInfo.InvariantCulture),
+        JsonValueKind.True => "true",
+        JsonValueKind.False => "false",
+        JsonValueKind.Object when value.TryGetProperty("date", out var date) => date.GetString() ?? "",
+        _ => ScalarKey(value),
+    };
+
+    private static string ScalarKey(JsonElement value) => value.ValueKind switch
+    {
+        JsonValueKind.Null => "",
+        JsonValueKind.String => value.GetString() ?? "",
+        JsonValueKind.Number => value.GetDouble().ToString("R", System.Globalization.CultureInfo.InvariantCulture),
+        JsonValueKind.True => "true",
+        JsonValueKind.False => "false",
+        JsonValueKind.Object => value.TryGetProperty("date", out var date) ? date.GetString() ?? "" : value.GetRawText(),
+        _ => value.GetRawText(),
+    };
+
+    private static JsonNode? ValueNode(JsonElement value) => value.ValueKind == JsonValueKind.Undefined ? null : ToNode(value);
+    private static JsonNode? ToNode(JsonElement value) => JsonNode.Parse(value.GetRawText());
+    private static JsonNode? NumberNode(JsonElement value)
+    {
+        if (value.ValueKind == JsonValueKind.Null) return null;
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var number) && double.IsFinite(number))
+            return JsonValue.Create(number);
+        if (value.ValueKind == JsonValueKind.String && double.TryParse(
+                value.GetString(),
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out number) && double.IsFinite(number))
+            return JsonValue.Create(number);
+        throw new InvalidOperationException("Chart dataset numeric channel contains a non-numeric value.");
+    }
+
     private static PpjTableRowModel ParseTableRow(JsonElement row) => new(
         OptionalString(row, "id"),
         row.TryGetProperty("height", out var height) ? height.GetDouble() : null,
@@ -827,7 +1413,8 @@ internal static class PpjProgramParser
             OptionalString(cell, "id"),
             ParseText(cell.GetProperty("text")),
             cell.TryGetProperty("rowSpan", out var rowSpan) ? rowSpan.GetInt32() : 1,
-            cell.TryGetProperty("columnSpan", out var columnSpan) ? columnSpan.GetInt32() : 1)).ToArray());
+            cell.TryGetProperty("columnSpan", out var columnSpan) ? columnSpan.GetInt32() : 1,
+            cell.Clone())).ToArray());
 
     private static PpjConnectorEndpointModel ParseConnectorEndpoint(JsonElement endpoint) => new(
         OptionalString(endpoint, "element"),
@@ -860,10 +1447,13 @@ internal static class PpjProgramParser
             text.GetProperty("paragraphs").EnumerateArray().Select(paragraph => new PpjParagraphModel(
                 OptionalString(paragraph, "id"),
                 paragraph.GetProperty("runs").EnumerateArray().Select(run => new PpjRunModel(
-                    OptionalString(run, "id"),
-                    OptionalString(run, "text"),
-                    run.TryGetProperty("formula", out var formula)
+                OptionalString(run, "id"),
+                OptionalString(run, "text"),
+                run.TryGetProperty("formula", out var formula)
                         ? new PpjFormulaModel(formula.GetProperty("syntax").GetString()!, formula.GetProperty("source").GetString()!)
+                        : null,
+                    run.TryGetProperty("field", out var field)
+                        ? new PpjTextFieldModel(OptionalString(field, "id"), field.GetProperty("type").GetString()!, field.GetProperty("text").GetString()!)
                         : null)).ToArray())).ToArray());
     }
 
@@ -908,7 +1498,10 @@ internal static class PpjProgramParser
                 item.GetProperty("key").GetString()!,
                 ParseArguments(item, "arguments"))).ToArray(),
             layout.ValueKind == JsonValueKind.Object ? OptionalString(layout, "direction") : null,
-            layout.ValueKind == JsonValueKind.Object && layout.TryGetProperty("gap", out var gap) ? gap.GetDouble() : 0);
+            layout.ValueKind == JsonValueKind.Object && layout.TryGetProperty("gap", out var gap) ? gap.GetDouble() : 0,
+            layout.ValueKind == JsonValueKind.Object && layout.TryGetProperty("columns", out var columns) ? columns.GetInt32() : null,
+            layout.ValueKind == JsonValueKind.Object && layout.TryGetProperty("rowGap", out var rowGap) ? rowGap.GetDouble() : null,
+            layout.ValueKind == JsonValueKind.Object ? OptionalString(layout, "anchor") : null);
     }
 
     private static PpjConditionModel ParseCondition(JsonElement condition) => new(

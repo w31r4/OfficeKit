@@ -1,5 +1,5 @@
 ---
-name: presentations
+name: "Presentations"
 description: Create, import, edit, continue, render, review, and deliver editable PowerPoint presentations through OfficeKit PPJ. Use powerpoint-live-control instead only when the user explicitly targets the presentation currently open in desktop PowerPoint.
 ---
 

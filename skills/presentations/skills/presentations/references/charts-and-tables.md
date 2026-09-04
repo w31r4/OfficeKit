@@ -102,6 +102,10 @@ The authored chart compiler owns these native visual controls:
   lines with bounded width, dash, opacity, cap, and join;
 - chart-area, plot-area, and series none, solid, or bounded direct-RGB gradient
   fills, including solid and per-stop opacity;
+- chart-frame outer `fill` may additionally be an embedded image. The
+  relationship-aware bounded profile preserves the ChartPart image reference
+  and supports crop, `stretch`/`tile`, and direct opacity; replacing the asset
+  and arbitrary image/effect extensions stay source-bound;
 - editable series line width, dash, opacity, cap, join, and bounded markers;
 - category/value-axis titles, number formats, label interval, tick-label
   typeface, size, bold, italic and direct RGB/alpha, value bounds and major
@@ -378,8 +382,9 @@ needs none/gradient paint or a separately named opacity.
 
 The bounded profile accepts two through sixteen ordered direct-RGB stops,
 linear angles, and centered radial gradients. Theme transforms, pattern/image
-paint, path variants, and irregular native gradient graphs remain
-source-preserved. An imported chart must issue `setChartFill`; neither
+paint on chart area/plot/series, path variants, and irregular native gradient
+graphs remain source-preserved. An imported chart must issue `setChartFill`;
+chart-frame paint changes use `setChartFrame`; neither
 `setChartData` nor `setChartTextStyle` authorizes paint changes.
 
 The scalar marker spelling and `showDataLabels` / `dataLabelPosition` remain
@@ -1122,8 +1127,23 @@ row count, and header-only styling without a header row is rejected. OfficeKit
 writes direct editable cell formatting for every declared header row and the
 ordinary native first-row flag. Exact counts above one survive through the
 embedded PPJ; a third-party import without that program conservatively reports
-only the native first-row fact. Imported table topology and unmodeled native
-style graphs remain source-owned.
+only the native first-row fact. For a recognized rectangular third-party table,
+the PPJ nativeRef may issue `setTableStyle` for the five lossless `a:tblPr`
+flags (`headerRows` 0/1, banded rows/columns, first-column and last-column
+emphasis). It may also issue `setTableGeometry` for existing column widths and
+row heights when IDs and merge topology remain fixed; this changes only the
+grid scalars and does not run automatic text reflow. It may also issue
+`setTableCellStyle` when all physical cells stay
+within the bounded direct `a:tcPr` profile: RGB/gradient/no-fill cell paint, a
+single directly embedded `a:blipFill` image paint (crop, stretch/tile, opacity),
+and direct RGB four-side strokes with width, preset dash, cap, join, and
+optional opacity. Image replacement updates the owning SlidePart relationship
+and media closure, removing an unreferenced old image. If another cell in the
+same SlidePart reuses that relationship, the replacement is copy-on-write and
+the old relationship/media remains for the other cell. These edits patch the
+existing SlidePart and survive a second projection. External/cross-owner image
+graphs, text-style inheritance, effects, automatic reflow, merges, and unknown
+extensions remain source-owned.
 
 For compact repeated styling, `cellStyle` supplies the base; `bodyStyles`
 cycles through rows between the first and last row; `firstRowStyle`,

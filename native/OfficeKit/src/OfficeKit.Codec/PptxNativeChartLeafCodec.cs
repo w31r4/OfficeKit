@@ -34,7 +34,10 @@ internal sealed record PptxNativeChartResolution(
 
 // Describes and re-proves a deliberately tiny source-owned chart surface.
 // A native chart remains opaque; only direct rich-title a:r/a:t leaves and
-// uniquely bound direct numeric bar-cache points are projected. Styles,
+// uniquely bound direct numeric category-chart cache points are projected.
+// The cache profile is limited to category plots whose series values are a
+// single c:val/c:numRef stream: bar, line, area, pie, doughnut and radar.
+// Styles,
 // extensions, plot topology, and every other ChartSpace token stay owned by
 // the original package.
 internal static partial class PptxNativeChartLeafCodec
@@ -201,7 +204,9 @@ internal static partial class PptxNativeChartLeafCodec
             var plotArea = AssertSingle(chart?.Elements(ChartNs + "plotArea"));
             if (plotArea is null) return false;
             var series = plotArea.Elements()
-                .Where(element => element.Name == ChartNs + "barChart")
+                .Where(element => element.Name is var name &&
+                    (name == ChartNs + "barChart" || name == ChartNs + "lineChart" || name == ChartNs + "areaChart" ||
+                     name == ChartNs + "pieChart" || name == ChartNs + "doughnutChart" || name == ChartNs + "radarChart"))
                 .SelectMany(element => element.Elements(ChartNs + "ser"))
                 .ToArray();
             if (series.Length == 0 || series.Length > 64) return false;

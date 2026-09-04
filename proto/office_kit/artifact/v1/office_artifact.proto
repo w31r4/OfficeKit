@@ -1750,6 +1750,11 @@ message PresentationSlide {
   // immediately preceding slide. The native extension is emitted only for
   // explicit pairs and remains absent for ordinary slides.
   PresentationMorph morph = 15;
+  // Explicit top-level accessibility reading order. The codec never infers
+  // this sequence from z-order; source-free authoring requires a complete
+  // permutation of the page's direct element IDs and imported projection
+  // records the native shape-tree order as the observed sequence.
+  repeated string reading_order = 16;
 }
 
 message PresentationElementDeletion {
@@ -2292,6 +2297,13 @@ message PresentationShape {
   // structurally complex native transforms remain source-bound and read-only.
   PresentationShapeTransform transform = 13;
   PresentationShadow shadow = 14;
+  // Bounded shape-level click action. This reuses the safe hyperlink target
+  // vocabulary while keeping element actions distinct from inline run links.
+  PresentationRunHyperlink action = 42;
+  // Bounded shape-level mouse-over action. It uses the same safe target
+  // vocabulary as the click action, but maps to DrawingML a:hlinkHover.
+  // Unknown sound/macro/extension hover actions remain source-bound.
+  PresentationRunHyperlink hover_action = 43;
   // Source-free custom DrawingML geometry. The bounded profile owns literal or
   // guide-referenced path coordinates, move/line/quadratic/cubic/arc/close
   // commands, and presence-aware path paint metadata. Ordered adjustment and
@@ -2534,6 +2546,25 @@ message PresentationChart {
   optional uint32 doughnut_hole_size = 32;
   optional uint32 bubble_scale = 33;
   string bubble_size_mode = 34;
+  // Direct ChartSpace container paint. This is deliberately separate from
+  // chart_area_fill (the interior chart area) and plot_area_fill: the frame
+  // owns the outer c:spPr fill/line/effect graph and is independently
+  // editable when its native profile is unique and literal.
+  PresentationChartFrame frame = 35;
+}
+
+// Bounded literal c:chartSpace/c:spPr container paint for Presentation charts.
+// Formula/theme/gradient effect graphs outside the existing surface-fill,
+// direct-line, and outer-shadow profiles remain source-bound and read-only.
+message PresentationChartFrame {
+  SpreadsheetChartSurfaceFill fill = 1;
+  SpreadsheetChartLineStyleArtifact line = 2;
+  PresentationShadow shadow = 3;
+  // Bounded embedded image paint for the outer ChartSpace container. The
+  // source-bound profile preserves the existing ChartPart image relationship
+  // and permits only crop, stretch/tile mode, and direct alpha edits; asset
+  // replacement and arbitrary blip/effect extensions remain source-owned.
+  PresentationImagePaint image_fill = 4;
 }
 
 // PresentationML plot/axis ownership is intentionally separate from
@@ -2676,7 +2707,12 @@ message PresentationImageCrop {
 // physical grid and non-overlapping rectangular merge ranges. Source-free
 // authored cells may carry bounded rich DrawingML text, direct paint, and
 // direct borders. The imported editable profile remains deliberately narrower:
-// exactly one plain-text run per visible origin cell, with native styling kept
+// one or more direct plain-text runs per paragraph in each visible origin
+// cell, with direct RGB/gradient/no-fill cell paint and four-side direct
+// borders editable only when the whole physical grid passes the bounded
+// profile. Existing column widths and row heights are also scalar-editable
+// when the grid identity and merge topology stay fixed; changing them is not
+// a request to auto-reflow text. Other native styling stays
 // source-owned. Covered cells remain present with an empty run so the canonical
 // a:tc gridSpan/rowSpan/hMerge/vMerge topology can round-trip without inventing
 // a second sparse table model. Transformed frames and topology changes after
@@ -2701,10 +2737,25 @@ message PresentationTable {
     string default_cell_fill_rgb = 14;
     bool no_default_cell_fill = 15;
   }
-  // Source-free PPJ authoring applies this direct style to the single run in
-  // every visible cell. Imported table formatting remains source-owned.
+  // Source-free PPJ authoring applies this direct style to the authored runs
+  // in every visible cell. Imported table formatting is source-owned unless
+  // the codec proves the direct cell paint/border profile below.
   PresentationTextStyle default_text_style = 16;
   PresentationFrameTransform frame_transform = 17;
+  // Source evidence only. True when every physical cell's direct tcPr paint
+  // and border children are either absent or in the bounded RGB/gradient/
+  // no-fill profile, or are a single directly embedded image paint whose
+  // relationship can be closed against the containing slide. It grants the
+  // owning element's setTableCellStyle capability; unknown extensions,
+  // external/cross-owner image relationships keep it false while same-owner
+  // multi-cell references use copy-on-write. Text, geometry, and
+  // table-property edits may remain available independently.
+  bool cell_style_editable = 18;
+  // Source evidence only. True when every visible cell has one or more
+  // paragraphs whose direct runs are plain text and share one bounded direct
+  // run-style profile. This is independent from cell_style_editable so a
+  // complex text body does not withdraw safe fill/border edits.
+  bool cell_text_style_editable = 19;
 }
 
 message PresentationTableRow {
@@ -2718,10 +2769,18 @@ message PresentationTableCell {
   // body so PPJ rich text, body layout, paragraph styling and hyperlinks do
   // not collapse into the legacy single-run compatibility field above.
   PresentationTextBody text_body = 2;
-  // Direct cell paint. Imported table formatting remains source-owned; these
-  // fields are used only by the canonical source-free table writer.
+  // Direct cell paint. The bounded RGB/gradient/no-fill profile and a single
+  // directly embedded image paint can be edited source-bound when the
+  // containing slide relationship closure is readable. A same-owner
+  // multi-cell image relationship uses copy-on-write; external, cross-owner,
+  // or effect-rich image graphs remain source-owned.
   PresentationTableCellFill fill = 3;
   PresentationTableCellBorders borders = 4;
+  // Direct text style for a visible cell whose plain-text runs share one
+  // bounded direct style. The source-bound profile only exposes explicitly
+  // present run properties; inherited/default paragraph styles and
+  // style-inconsistent runs remain opaque.
+  PresentationTextStyle text_style = 5;
 }
 
 message PresentationTableCellFill {
@@ -3183,7 +3242,10 @@ message PresentationOpaqueElement {
   // Present only when an opaque top-level graphicFrame owns one canonical
   // internal ChartPart whose rich title has stable DrawingML text leaves.
   // Series, formulas, caches, embedded workbooks, styling, and topology stay
-  // source-owned; this binding grants no whole-chart edit capability.
+  // source-owned; this binding grants no whole-chart edit capability.  A
+  // bounded native leaf may additionally expose a direct numeric point from
+  // a bar, line, or area plot when its local embedded worksheet cell is
+  // uniquely proven.
   PresentationNativeChart native_chart = 14;
 }
 
@@ -4418,6 +4480,13 @@ message PresentationAnimation {
   string chart_build = 11;
   optional uint32 stagger_ms = 12;
   optional bool animate_chart_background = 13;
+  // Bounded native repeat count. Indefinite playback and media loops remain
+  // outside this semantic animation profile.
+  optional uint32 repeat_count = 14;
+  // Native autoRev playback flag for the bounded authored timing profile.
+  optional bool auto_reverse = 15;
+  // Canonical easing token. Empty/linear means no accel/decel transform.
+  string easing = 16;
 }
 
 // Deterministic cross-slide Morph pairing. `from_id` and `to_id` must resolve

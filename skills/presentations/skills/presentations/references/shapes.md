@@ -70,6 +70,12 @@ literal preset adjustments can be changed only when `nativeRef.capabilities`
 issues `setGeometry` for `geometry.adjustments`. Formula-valued or irregular
 native guides remain source-owned.
 
+An imported literal custom geometry (only paths with literal coordinates, no
+guides, adjustment handles, connection sites, or text rectangle) may likewise
+issue `setGeometry` for `geometry.paths`. That bounded edit replaces the
+shape-owned path list in the existing SlidePart and reprojects it; formula or
+extension-bearing custom geometry remains source-bound and is not flattened.
+
 The same preset profile can clip an image. `image.mask.adjustments` uses the
 identical parameter order and defaults; see [Media and layers](media-and-layers.md#image-masks).
 Connector presets are intentionally absent from shape geometry because PPJ has
@@ -217,6 +223,14 @@ editable and clips the picture without flattening it. Use this for a meaningful
 image window or material surface, not to texture every box. See
 [Media and layers](media-and-layers.md#layer-stack) for the full contract and
 source-bound `setFill` rule.
+
+Recognized imported ordinary shapes and lines may expose one direct outer
+shadow as `style.shadow` (or `shadow` on a line). A `setShapeEffects`
+capability permits changing or clearing its RGB/theme color, blur, distance,
+angle, alignment, rotation behavior, and opacity while retaining the existing
+geometry, paint, text, and native relationships. Text boxes, placeholders,
+multi-effect/extension graphs, glow, reflection, inner shadow, soft edge, and
+3-D effects remain source-owned and fail closed rather than being flattened.
 
 ## Authored semantic diagrams
 

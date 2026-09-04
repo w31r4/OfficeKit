@@ -14,9 +14,11 @@ internal static class PpjSemanticValidator
             ["replaceText"] = Set("text", "visibleText"),
             ["setFill"] = Set("fill"),
             ["setStroke"] = Set("stroke"),
+            ["setLinePath"] = Set("line.path"),
+            ["setShapeEffects"] = Set("shape.shadow"),
             ["setOpacity"] = Set("opacity"),
             ["setFrame"] = Set("frame.x", "frame.y", "frame.width", "frame.height", "frame.rotation", "frame.flipH", "frame.flipV"),
-            ["setGeometry"] = Set("geometry.adjustments"),
+            ["setGeometry"] = Set("geometry.adjustments", "geometry.paths"),
             ["setCanvas"] = Set("canvas.width", "canvas.height"),
             ["setBackground"] = Set("background"),
             ["setTransition"] = Set("transition"),
@@ -25,14 +27,21 @@ internal static class PpjSemanticValidator
             ["replaceSvg"] = Set("image.svgAsset"),
             ["setImageCrop"] = Set("image.crop"),
             ["setImageFit"] = Set("image.fit"),
-            ["setImageMask"] = Set("image.mask.adjustments"),
+            ["setImageMask"] = Set("image.mask.adjustments", "image.mask.paths"),
+            ["setImageEffects"] = Set("image.border", "image.shadow"),
+            ["setTableStyle"] = Set("table.style"),
+            ["setTableGeometry"] = Set("table.geometry"),
+            ["setTableCellStyle"] = Set("table.cell.fill", "table.cell.borders", "table.cell.textStyle"),
             ["setChartTitle"] = Set("chart.title"),
             ["setChartData"] = Set("chart.data"),
             ["setChartTextStyle"] = Set("chart.textStyle"),
             ["setChartFill"] = Set("chart.fill"),
+            ["setChartFrame"] = Set("chart.frame"),
             ["setChartLabels"] = Set("chart.labels"),
             ["setChartAxis"] = Set("chart.axis"),
             ["setChartPlot"] = Set("chart.plot"),
+            ["setAction"] = Set("action"),
+            ["setHoverAction"] = Set("hoverAction"),
             ["setSmartArtText"] = Set("smartArt.text"),
             ["setOlePayload"] = Set("ole.payload"),
             ["setName"] = Set("name"),
@@ -63,7 +72,26 @@ internal static class PpjSemanticValidator
 
         var assetIds = assets.Keys.ToHashSet(StringComparer.Ordinal);
         var pageIds = pages.Keys.ToHashSet(StringComparer.Ordinal);
-        ValidateResourceReferences(program.Root, new StringBuilder("$"), assetIds, program.Design.ColorIds, program.Design.FontIds, diagnostics);
+        var colorIds = program.Design.ColorIds.ToHashSet(StringComparer.Ordinal);
+        var grammarTokenKinds = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (program.Root.GetProperty("design").TryGetProperty("grammar", out var grammar) &&
+            grammar.ValueKind == JsonValueKind.Object &&
+            grammar.TryGetProperty("tokens", out var grammarTokens) &&
+            grammarTokens.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var token in grammarTokens.EnumerateObject())
+            {
+                if (token.Value.ValueKind == JsonValueKind.Object &&
+                    token.Value.TryGetProperty("kind", out var kind) &&
+                    kind.GetString() is { } kindName)
+                {
+                    grammarTokenKinds[token.Name] = kindName;
+                    if (kindName == "color") colorIds.Add(token.Name);
+                }
+            }
+        }
+        ValidateResourceReferences(program.Root, new StringBuilder("$"), assetIds, colorIds, program.Design.FontIds, grammarTokenKinds, diagnostics);
+        ValidateDesignGrammar(program.Root.GetProperty("design"), "$.design.grammar", diagnostics);
         ValidateTextEffects(program.Root, new StringBuilder("$"), diagnostics);
         ValidateFormulaRuns(program.Root, new StringBuilder("$"), diagnostics);
         ValidateMasterLayoutState(program, masters, layouts, diagnostics);
@@ -88,10 +116,12 @@ internal static class PpjSemanticValidator
                 globalElementIds,
                 diagnostics);
             pageElements[page.Id] = localElements;
+            ValidateReadingOrder(page, pagePath, diagnostics);
 
             foreach (var (element, path) in WalkElements(page.Elements, $"{pagePath}.elements"))
                 ValidateElement(element, path, program, components, assetIds, localElements, inComponent: false, diagnostics);
 
+            ValidateTimingGraph(page.Raw, pagePath, diagnostics);
             ValidateAnimations(page, pagePath, localElements, globalAnimationIds, diagnostics);
         }
 
@@ -168,23 +198,31 @@ internal static class PpjSemanticValidator
         }
     }
 
+    private static void ValidateReadingOrder(
+        PpjPageModel page,
+        string path,
+        List<PpjDiagnostic> diagnostics)
+    {
+        if (page.ReadingOrder.Count == 0) return;
+        var directIds = page.Elements.Select(element => element.Id).ToArray();
+        var expected = directIds.ToHashSet(StringComparer.Ordinal);
+        var actual = page.ReadingOrder.ToHashSet(StringComparer.Ordinal);
+        if (page.ReadingOrder.Count != directIds.Length || actual.Count != page.ReadingOrder.Count ||
+            !expected.SetEquals(actual))
+        {
+            diagnostics.Add(new(
+                "ppj.accessibility.readingOrder",
+                "readingOrder must be a complete permutation of the page's direct element IDs; it is not inferred from z-order or nested component expansion.",
+                path + ".readingOrder"));
+        }
+    }
+
     private static void ValidateMasterLayoutState(
         PpjProgramModel program,
         IReadOnlyDictionary<string, PpjMasterModel> masters,
         IReadOnlyDictionary<string, PpjLayoutModel> layouts,
         List<PpjDiagnostic> diagnostics)
     {
-        if (program.Source is null && program.Design.Masters.Count > 1)
-            diagnostics.Add(new(
-                "ppj.master.count",
-                "Source-free PPJ supports exactly one canonical master when master state is declared.",
-                "$.design.masters"));
-        if (program.Source is null && program.Design.Layouts.Count > 0 && program.Design.Masters.Count != 1)
-            diagnostics.Add(new(
-                "ppj.layout.master",
-                "Source-free PPJ layouts require one declared master.",
-                "$.design.layouts"));
-
         for (var masterIndex = 0; masterIndex < program.Design.Masters.Count; masterIndex++)
         {
             var master = program.Design.Masters[masterIndex];
@@ -256,6 +294,90 @@ internal static class PpjSemanticValidator
                         elementPath));
             }
         }
+    }
+
+    private static void ValidateDesignGrammar(
+        JsonElement design,
+        string path,
+        List<PpjDiagnostic> diagnostics)
+    {
+        if (!design.TryGetProperty("grammar", out var grammar) || grammar.ValueKind != JsonValueKind.Object) return;
+
+        if (grammar.TryGetProperty("tokens", out var tokens) && tokens.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var token in tokens.EnumerateObject())
+            {
+                var tokenPath = $"{path}.tokens.{token.Name}";
+                var definition = token.Value;
+                if (definition.ValueKind != JsonValueKind.Object ||
+                    !definition.TryGetProperty("kind", out var kindValue) ||
+                    !definition.TryGetProperty("value", out var value)) continue;
+                var kind = kindValue.GetString();
+                var valid = kind switch
+                {
+                    "boolean" => value.ValueKind is JsonValueKind.True or JsonValueKind.False,
+                    "color" => value.ValueKind == JsonValueKind.String && IsGrammarColor(value.GetString()!),
+                    "font" or "string" => value.ValueKind == JsonValueKind.String,
+                    "size" or "spacing" or "radius" or "opacity" => value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var number) && double.IsFinite(number),
+                    _ => false,
+                };
+                if (!valid)
+                {
+                    diagnostics.Add(new(
+                        "ppj.grammar.tokenValue",
+                        $"Grammar token {token.Name} does not match its declared kind {kind ?? "(missing)"}.",
+                        $"{tokenPath}.value"));
+                    continue;
+                }
+                if (kind == "opacity" && value.GetDouble() is < 0 or > 1)
+                    diagnostics.Add(new("ppj.grammar.opacity", $"Grammar opacity token {token.Name} must be between 0 and 1.", $"{tokenPath}.value"));
+                if (kind is "size" or "spacing" or "radius" && value.GetDouble() < 0)
+                    diagnostics.Add(new("ppj.grammar.nonNegative", $"Grammar {kind} token {token.Name} cannot be negative.", $"{tokenPath}.value"));
+            }
+        }
+
+        if (grammar.TryGetProperty("stylePrecedence", out var precedence) && precedence.ValueKind == JsonValueKind.Array)
+        {
+            var targets = new HashSet<string>(StringComparer.Ordinal);
+            var index = 0;
+            foreach (var rule in precedence.EnumerateArray())
+            {
+                var rulePath = $"{path}.stylePrecedence[{index++}]";
+                if (!rule.TryGetProperty("target", out var target) || !targets.Add(target.GetString()!))
+                    diagnostics.Add(new("ppj.grammar.precedenceTarget", "Each style-precedence target must be declared exactly once.", $"{rulePath}.target"));
+                if (rule.TryGetProperty("sources", out var sources))
+                {
+                    var values = sources.EnumerateArray().Select(item => item.GetString()!).ToArray();
+                    if (values.Length == 0 || values.Distinct(StringComparer.Ordinal).Count() != values.Length)
+                        diagnostics.Add(new("ppj.grammar.precedenceSources", "Style-precedence sources must be non-empty and unique.", $"{rulePath}.sources"));
+                }
+            }
+        }
+
+        if (grammar.TryGetProperty("predicates", out var predicates) && predicates.ValueKind == JsonValueKind.Array)
+        {
+            var ids = new HashSet<string>(StringComparer.Ordinal);
+            var index = 0;
+            foreach (var predicate in predicates.EnumerateArray())
+            {
+                var predicatePath = $"{path}.predicates[{index++}]";
+                if (predicate.TryGetProperty("id", out var id) && !ids.Add(id.GetString()!))
+                    diagnostics.Add(new("ppj.grammar.predicateId", "Grammar predicate IDs must be unique.", $"{predicatePath}.id"));
+                if (!predicate.TryGetProperty("value", out var value)) continue;
+                var op = predicate.TryGetProperty("op", out var operatorValue) ? operatorValue.GetString() : null;
+                var values = value.ValueKind == JsonValueKind.Array ? value.EnumerateArray().ToArray() : [value];
+                if (op == "in" && value.ValueKind != JsonValueKind.Array)
+                    diagnostics.Add(new("ppj.grammar.predicateIn", "The in predicate operator requires an array of values.", $"{predicatePath}.value"));
+                if (op is "gt" or "gte" or "lt" or "lte" && values.Any(item => item.ValueKind != JsonValueKind.Number || !item.TryGetDouble(out var number) || !double.IsFinite(number)))
+                    diagnostics.Add(new("ppj.grammar.predicateNumber", $"Predicate operator {op} requires finite numeric values.", $"{predicatePath}.value"));
+            }
+        }
+    }
+
+    private static bool IsGrammarColor(string value)
+    {
+        var normalized = value.TrimStart('#');
+        return (normalized.Length is 6 or 8) && normalized.All(Uri.IsHexDigit);
     }
 
     private static void ValidateTextStyleLevels(
@@ -416,6 +538,22 @@ internal static class PpjSemanticValidator
             var slots = UniqueIndex(component.Slots, item => item.Name, $"{path}.slots", diagnostics);
             ValidateUniqueIds(component.Variants, item => item.Id, $"{path}.variants", diagnostics);
 
+            for (var slotIndex = 0; slotIndex < component.Slots.Count; slotIndex++)
+            {
+                var slot = component.Slots[slotIndex];
+                if (slot.ImagePolicy is not null && !slot.Accepts.Contains("image", StringComparer.Ordinal))
+                    diagnostics.Add(new(
+                        "ppj.component.imagePolicyType",
+                        $"Image policy on slot {slot.Name} requires image in its accepts list.",
+                        $"{path}.slots[{slotIndex}].imagePolicy"));
+                if (slot.ImagePolicy is { MinimumWidthPx: { } minWidth, MinimumHeightPx: { } minHeight } &&
+                    (minWidth <= 0 || minHeight <= 0))
+                    diagnostics.Add(new(
+                        "ppj.component.imagePolicyBounds",
+                        $"Image policy on slot {slot.Name} must use positive minimum pixel dimensions.",
+                        $"{path}.slots[{slotIndex}].imagePolicy"));
+            }
+
             for (var parameterIndex = 0; parameterIndex < component.Parameters.Count; parameterIndex++)
             {
                 var parameter = component.Parameters[parameterIndex];
@@ -490,6 +628,15 @@ internal static class PpjSemanticValidator
         List<PpjDiagnostic> diagnostics)
     {
         ValidateNativeRef(element.NativeRef, program.Source, $"{path}.nativeRef", diagnostics);
+        ValidateCompositing(element, path, diagnostics);
+        if ((element.Raw.TryGetProperty("action", out _) || element.Raw.TryGetProperty("hoverAction", out _)) &&
+            element is not (PpjTextElementModel or PpjShapeElementModel or PpjIconElementModel or PpjPlaceholderElementModel))
+        {
+            diagnostics.Add(new(
+                "ppj.action.type",
+                "Element actions are only supported for shape-producing text, shape, line, icon, and placeholder elements in the bounded profile.",
+                path + ".action"));
+        }
 
         switch (element)
         {
@@ -498,7 +645,12 @@ internal static class PpjSemanticValidator
                 break;
             case PpjShapeElementModel shape:
                 ValidateStyleRef(shape.StyleRef, program.Design.ShapeStyleIds, $"{path}.styleRef", diagnostics);
-                ValidatePresetAdjustments(shape.GeometryKind, shape.GeometryPreset, shape.GeometryAdjustments, path + ".geometry", diagnostics);
+                if (shape.Type == "line")
+                    ValidateLineElement(shape.Raw, shape.Frame, path, diagnostics);
+                else
+                {
+                    ValidatePresetAdjustments(shape.GeometryKind, shape.GeometryPreset, shape.GeometryAdjustments, path + ".geometry", diagnostics);
+                }
                 if (shape.GeometryKind == "custom")
                     ValidateCustomGeometry(shape.Raw.GetProperty("geometry"), path + ".geometry", diagnostics);
                 break;
@@ -512,6 +664,7 @@ internal static class PpjSemanticValidator
                 break;
             case PpjImageElementModel image:
                 ValidateAssetRef(image.AssetId, assetIds, $"{path}.asset", diagnostics);
+                ValidateImageFocus(image.Raw, image.Fit, path, diagnostics);
                 if (image.SvgAssetId is not null)
                 {
                     ValidateAssetRef(image.SvgAssetId, assetIds, $"{path}.svgAsset", diagnostics);
@@ -584,7 +737,7 @@ internal static class PpjSemanticValidator
                 if (opaque.PreviewAssetId is not null) ValidateAssetRef(opaque.PreviewAssetId, assetIds, $"{path}.previewAsset", diagnostics);
                 break;
             case PpjComponentElementModel instance:
-                ValidateComponentInstance(instance, path, components, diagnostics);
+                ValidateComponentInstance(instance, path, program, components, diagnostics);
                 break;
             case PpjSlotElementModel when !inComponent:
                 diagnostics.Add(new("ppj.component.slotScope", "Slot placeholders are only valid inside component definitions.", path));
@@ -614,6 +767,70 @@ internal static class PpjSemanticValidator
                 "ppj.geometry.adjustmentCount",
                 $"Preset geometry {geometryPreset} requires either no explicit adjustments or exactly {expectedCount} ordered values.",
                 path + ".adjustments"));
+    }
+
+    private static void ValidateCompositing(PpjElementModel element, string path, List<PpjDiagnostic> diagnostics)
+    {
+        if (!element.Raw.TryGetProperty("compositing", out var compositing)) return;
+        if (compositing.TryGetProperty("blendMode", out var blendMode) && blendMode.GetString() is not (null or "normal"))
+            diagnostics.Add(new(
+                "ppj.compositing.blendUnsupported",
+                "Only normal compositing is currently representable by the native PowerPoint profile; non-normal blend modes remain explicit unsupported semantics.",
+                path + ".compositing.blendMode"));
+        if (compositing.TryGetProperty("isolation", out var isolation) && isolation.GetBoolean())
+            diagnostics.Add(new(
+                "ppj.compositing.isolationUnsupported",
+                "Group/layer isolation is not represented by DrawingML in the bounded profile.",
+                path + ".compositing.isolation"));
+        if (compositing.TryGetProperty("clipStack", out var clipStack) && clipStack.GetArrayLength() > 0)
+            diagnostics.Add(new(
+                "ppj.compositing.clipUnsupported",
+                "A compositing clip stack is reserved for a future explicit native closure; it is not silently flattened.",
+                path + ".compositing.clipStack"));
+        if (!compositing.TryGetProperty("opacity", out _)) return;
+        if (element is not (PpjTextElementModel or PpjShapeElementModel or PpjImageElementModel))
+            diagnostics.Add(new(
+                "ppj.compositing.opacityUnsupported",
+                $"Element type {element.Type} has no bounded native element-opacity owner.",
+                path + ".compositing.opacity"));
+        if (element.Raw.TryGetProperty("opacity", out _))
+            diagnostics.Add(new(
+                "ppj.compositing.opacityConflict",
+                "Use either the element-specific opacity field or compositing.opacity, not both.",
+                path + ".compositing.opacity"));
+    }
+
+    private static void ValidateLineElement(JsonElement raw, PpjFrameModel frame, string path, List<PpjDiagnostic> diagnostics)
+    {
+        if (!raw.TryGetProperty("path", out var linePath))
+        {
+            if (!raw.TryGetProperty("points", out _))
+            {
+                diagnostics.Add(new("ppj.line.path", "A line element requires a structured path or Kimi points.", path + ".path"));
+                return;
+            }
+            try
+            {
+                _ = PpjLinePathCodec.KimiPath(raw, frame.Width, frame.Height, path);
+            }
+            catch (CodecException exception)
+            {
+                diagnostics.Add(new(exception.Code, exception.Message, path + ".points"));
+            }
+            return;
+        }
+        if (!raw.TryGetProperty("stroke", out _))
+            diagnostics.Add(new("ppj.line.stroke", "A line element requires an explicit stroke.", path + ".stroke"));
+        var commands = linePath.TryGetProperty("commands", out var commandArray) && commandArray.ValueKind == JsonValueKind.Array
+            ? commandArray.EnumerateArray().ToArray()
+            : [];
+        if (commands.Length < 2 || !commands[0].TryGetProperty("op", out var firstOp) || firstOp.GetString() != "moveTo")
+            diagnostics.Add(new("ppj.line.pathStart", "A line path must start with moveTo and contain at least one drawing command.", path + ".path.commands"));
+        for (var index = 0; index < commands.Length; index++)
+        {
+            if (commands[index].TryGetProperty("op", out var operation) && operation.GetString() == "close")
+                diagnostics.Add(new("ppj.line.pathClosed", "A line path cannot close a subpath.", $"{path}.path.commands[{index}]"));
+        }
     }
 
     private static void ValidateCustomGeometry(
@@ -2433,6 +2650,7 @@ internal static class PpjSemanticValidator
     private static void ValidateComponentInstance(
         PpjComponentElementModel instance,
         string path,
+        PpjProgramModel program,
         IReadOnlyDictionary<string, PpjComponentModel> components,
         List<PpjDiagnostic> diagnostics)
     {
@@ -2465,8 +2683,23 @@ internal static class PpjSemanticValidator
                 diagnostics.Add(new("ppj.component.slotCount", $"Slot {supplied.Key} received {supplied.Value.Count} elements; expected {slot.Minimum}..{slot.Maximum}.", $"{path}.slots.{supplied.Key}"));
             for (var index = 0; index < supplied.Value.Count; index++)
             {
-                if (!slot.Accepts.Contains(supplied.Value[index].Type, StringComparer.Ordinal))
+                var suppliedElement = supplied.Value[index];
+                if (!slot.Accepts.Contains(suppliedElement.Type, StringComparer.Ordinal))
                     diagnostics.Add(new("ppj.component.slotType", $"Slot {supplied.Key} does not accept {supplied.Value[index].Type} elements.", $"{path}.slots.{supplied.Key}[{index}].type"));
+                if (slot.ImagePolicy is not null)
+                {
+                    if (suppliedElement is not PpjImageElementModel image)
+                    {
+                        diagnostics.Add(new(
+                            "ppj.component.imagePolicyType",
+                            $"Slot {supplied.Key} image policy only accepts image elements.",
+                            $"{path}.slots.{supplied.Key}[{index}]"));
+                    }
+                    else
+                    {
+                        ValidateImageSlotPolicy(image, slot.ImagePolicy, program.Assets, $"{path}.slots.{supplied.Key}[{index}]", diagnostics);
+                    }
+                }
             }
         }
         foreach (var slot in component.Slots)
@@ -2478,6 +2711,19 @@ internal static class PpjSemanticValidator
 
         if (instance.Repeat is not null)
         {
+            var layoutDirection = instance.Repeat.Direction ?? "vertical";
+            if (layoutDirection is not ("horizontal" or "vertical" or "grid" or "flow"))
+                diagnostics.Add(new("ppj.component.repeatLayout", "Repeat layout direction must be horizontal, vertical, grid, or flow.", $"{path}.repeat.layout.direction"));
+            if (layoutDirection == "grid" && instance.Repeat.Columns is null)
+                diagnostics.Add(new("ppj.component.repeatGridColumns", "Grid repeat layout requires an explicit positive columns value.", $"{path}.repeat.layout.columns"));
+            if (layoutDirection == "flow" && instance.Repeat.Columns is not null && instance.Repeat.Columns < 1)
+                diagnostics.Add(new("ppj.component.repeatFlowColumns", "Flow repeat layout columns must be positive.", $"{path}.repeat.layout.columns"));
+            if (layoutDirection is not ("grid" or "flow") && instance.Repeat.Columns is not null)
+                diagnostics.Add(new("ppj.component.repeatGridColumns", "Repeat layout columns is only valid for grid or flow direction.", $"{path}.repeat.layout.columns"));
+            if (instance.Repeat.Anchor is not (null or "start" or "center" or "end"))
+                diagnostics.Add(new("ppj.component.repeatAnchor", "Repeat layout anchor must be start, center, or end.", $"{path}.repeat.layout.anchor"));
+            if (layoutDirection is not ("grid" or "flow") && instance.Repeat.RowGap is not null)
+                diagnostics.Add(new("ppj.component.repeatRowGap", "Repeat layout rowGap is only valid for grid or flow direction.", $"{path}.repeat.layout.rowGap"));
             var keys = new HashSet<string>(StringComparer.Ordinal);
             for (var index = 0; index < instance.Repeat.Items.Count; index++)
             {
@@ -2493,6 +2739,73 @@ internal static class PpjSemanticValidator
         else
         {
             ValidateRequiredArguments(component, instance.Arguments, $"{path}.arguments", diagnostics);
+        }
+    }
+
+    private static void ValidateImageSlotPolicy(
+        PpjImageElementModel image,
+        PpjImageSlotPolicyModel policy,
+        IReadOnlyList<PpjAssetModel> assets,
+        string path,
+        List<PpjDiagnostic> diagnostics)
+    {
+        if (policy.AllowedFit.Count > 0 && !policy.AllowedFit.Contains(image.Fit ?? "contain", StringComparer.Ordinal))
+            diagnostics.Add(new("ppj.component.imageFit", $"Image fit {image.Fit ?? "contain"} is not allowed by slot policy {policy.Role}.", $"{path}.fit"));
+        var mask = image.MaskKind switch
+        {
+            "preset" => image.MaskPreset ?? "none",
+            null => "none",
+            var value => value,
+        };
+        if (policy.AllowedMask.Count > 0 && !policy.AllowedMask.Contains(mask, StringComparer.Ordinal))
+            diagnostics.Add(new("ppj.component.imageMask", $"Image mask {mask} is not allowed by slot policy {policy.Role}.", $"{path}.mask"));
+        var asset = assets.FirstOrDefault(candidate => candidate.Id.Equals(image.AssetId, StringComparison.Ordinal));
+        if (asset is null) return;
+        if (policy.MinimumWidthPx is { } minWidth && (!asset.WidthPx.HasValue || asset.WidthPx.Value < minWidth))
+            diagnostics.Add(new("ppj.component.imageDimensions", $"Image asset {image.AssetId} is narrower than the slot minimum of {minWidth}px.", $"{path}.asset"));
+        if (policy.MinimumHeightPx is { } minHeight && (!asset.HeightPx.HasValue || asset.HeightPx.Value < minHeight))
+            diagnostics.Add(new("ppj.component.imageDimensions", $"Image asset {image.AssetId} is shorter than the slot minimum of {minHeight}px.", $"{path}.asset"));
+        if (policy.Rights.Count > 0)
+        {
+            var status = asset.Rights.ValueKind == JsonValueKind.Object && asset.Rights.TryGetProperty("status", out var statusValue)
+                ? statusValue.GetString()
+                : null;
+            if (status is null || !policy.Rights.Contains(status, StringComparer.Ordinal))
+                diagnostics.Add(new("ppj.component.imageRights", $"Image asset {image.AssetId} has rights status {status ?? "(missing)"}, outside slot policy {policy.Role}.", $"{path}.asset"));
+        }
+    }
+
+    private static void ValidateImageFocus(
+        JsonElement raw,
+        string? fit,
+        string path,
+        List<PpjDiagnostic> diagnostics)
+    {
+        if (!raw.TryGetProperty("focus", out var focus)) return;
+        if (raw.TryGetProperty("crop", out _))
+            diagnostics.Add(new(
+                "ppj.image.focusCrop",
+                "An image cannot declare both an explicit crop and a focal crop.",
+                path + ".focus"));
+        if (!string.Equals(fit, "cover", StringComparison.Ordinal))
+            diagnostics.Add(new(
+                "ppj.image.focusFit",
+                "An image focal point requires cover fit so the compiler can derive an asymmetric crop.",
+                path + ".focus"));
+        if (focus.ValueKind != JsonValueKind.Object ||
+            !focus.TryGetProperty("x", out var x) ||
+            !focus.TryGetProperty("y", out var y) ||
+            !x.TryGetDouble(out var xValue) ||
+            !y.TryGetDouble(out var yValue) ||
+            !double.IsFinite(xValue) ||
+            !double.IsFinite(yValue) ||
+            xValue is < 0 or > 1 ||
+            yValue is < 0 or > 1)
+        {
+            diagnostics.Add(new(
+                "ppj.image.focus",
+                "Image focal point x and y must be finite normalized values between 0 and 1.",
+                path + ".focus"));
         }
     }
 
@@ -2537,6 +2850,8 @@ internal static class PpjSemanticValidator
             "color" => IsWrappedValue(value, "color"),
             "asset" => IsWrappedValue(value, "asset"),
             "text" => value.ValueKind == JsonValueKind.String || IsWrappedValue(value, "text"),
+            "crop" => IsWrappedValue(value, "crop"),
+            "focus" => IsWrappedValue(value, "focus"),
             _ => false,
         };
         if (!matches)
@@ -2610,11 +2925,45 @@ internal static class PpjSemanticValidator
                     $"{path}.chartBuild"));
             if ((animation.Effect == "pulse") != (animation.Phase == "emphasis"))
                 diagnostics.Add(new("ppj.animation.phaseEffect", "pulse is the only emphasis effect and is only valid in the emphasis phase.", $"{path}.effect"));
+            if (animation.Repeat is < 1 or > 8)
+                diagnostics.Add(new("ppj.animation.repeat", "Animation repeat must be between 1 and 8.", $"{path}.repeat"));
+            if (animation.Easing is not (null or "linear" or "ease-in" or "ease-out" or "ease-in-out"))
+                diagnostics.Add(new("ppj.animation.easing", "Animation easing is outside the bounded native profile.", $"{path}.easing"));
 
             expandedTimingNodes += EstimateTimingNodes(animation, target);
         }
         if (expandedTimingNodes > 64)
             diagnostics.Add(new("ppj.animation.timingBudget", $"Page expands to {expandedTimingNodes} timing nodes; the limit is 64.", $"{pagePath}.animations"));
+    }
+
+    private static void ValidateTimingGraph(JsonElement page, string pagePath, List<PpjDiagnostic> diagnostics)
+    {
+        if (!page.TryGetProperty("timing", out var timing)) return;
+        var nodes = timing.GetProperty("nodes");
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < nodes.GetArrayLength(); index++)
+        {
+            var node = nodes[index];
+            var nodePath = $"{pagePath}.timing.nodes[{index}]";
+            var id = node.GetProperty("id").GetString()!;
+            if (!ids.Add(id)) diagnostics.Add(new("ppj.id.duplicate", $"Timing node ID {id} is duplicated.", nodePath + ".id"));
+            if (node.TryGetProperty("repeat", out var repeat) && repeat.GetInt32() is < 1 or > 8)
+                diagnostics.Add(new("ppj.timing.repeat", "Timing repeat must be between 1 and 8.", nodePath + ".repeat"));
+            if (node.TryGetProperty("easing", out var easing) && easing.GetString() is not (null or "linear" or "ease-in" or "ease-out" or "ease-in-out"))
+                diagnostics.Add(new("ppj.timing.easing", "Timing easing is outside the bounded native profile.", nodePath + ".easing"));
+            if (node.TryGetProperty("trigger", out var trigger))
+            {
+                var triggerValue = trigger.GetString();
+                if (triggerValue is not (null or "timeline" or "onClick" or "afterPrevious" or "withPrevious"))
+                    diagnostics.Add(new("ppj.timing.triggerUnsupported", "The timing trigger is outside the bounded click/previous profile.", nodePath + ".trigger"));
+                else if (triggerValue is not null and not "timeline" &&
+                         triggerValue != node.GetProperty("start").GetString())
+                    diagnostics.Add(new(
+                        "ppj.timing.triggerMismatch",
+                        "A non-timeline timing trigger must agree with the node start condition; use trigger=timeline to retain start as the source of truth.",
+                        nodePath + ".trigger"));
+            }
+        }
     }
 
     private static bool IsInlineStreamgraph(PpjChartElementModel chart) =>
@@ -2944,12 +3293,23 @@ internal static class PpjSemanticValidator
         IReadOnlySet<string> assetIds,
         IReadOnlySet<string> colorIds,
         IReadOnlySet<string> fontIds,
+        IReadOnlyDictionary<string, string> grammarTokenKinds,
         List<PpjDiagnostic> diagnostics)
     {
         if (value.ValueKind == JsonValueKind.Object)
         {
-            if (value.TryGetProperty("token", out var token) && token.ValueKind == JsonValueKind.String && !colorIds.Contains(token.GetString()!))
-                diagnostics.Add(new("ppj.colorRef", $"Color token {token.GetString()} does not exist.", PathWithProperty(path, "token")));
+            if (value.TryGetProperty("token", out var token) && token.ValueKind == JsonValueKind.String &&
+                IsColorReferencePath(path) && !colorIds.Contains(token.GetString()!))
+            {
+                var tokenName = token.GetString()!;
+                var code = grammarTokenKinds.TryGetValue(tokenName, out var kind)
+                    ? "ppj.grammar.tokenKind"
+                    : "ppj.colorRef";
+                var message = kind is null
+                    ? $"Color token {tokenName} does not exist."
+                    : $"Color token {tokenName} declares kind {kind}, expected color.";
+                diagnostics.Add(new(code, message, PathWithProperty(path, "token")));
+            }
             if (value.TryGetProperty("font", out var font) && font.ValueKind == JsonValueKind.String && !fontIds.Contains(font.GetString()!))
                 diagnostics.Add(new("ppj.fontRef", $"Font {font.GetString()} does not exist.", PathWithProperty(path, "font")));
             foreach (var property in value.EnumerateObject())
@@ -2960,7 +3320,7 @@ internal static class PpjSemanticValidator
                 {
                     diagnostics.Add(new("ppj.assetRef", $"Asset {property.Value.GetString()} does not exist.", path.ToString()));
                 }
-                ValidateResourceReferences(property.Value, path, assetIds, colorIds, fontIds, diagnostics);
+                ValidateResourceReferences(property.Value, path, assetIds, colorIds, fontIds, grammarTokenKinds, diagnostics);
                 path.Length = length;
             }
         }
@@ -2970,10 +3330,18 @@ internal static class PpjSemanticValidator
             foreach (var item in value.EnumerateArray())
             {
                 var length = AppendIndex(path, index++);
-                ValidateResourceReferences(item, path, assetIds, colorIds, fontIds, diagnostics);
+                ValidateResourceReferences(item, path, assetIds, colorIds, fontIds, grammarTokenKinds, diagnostics);
                 path.Length = length;
             }
         }
+    }
+
+    private static bool IsColorReferencePath(StringBuilder path)
+    {
+        var value = path.ToString();
+        return value.EndsWith(".color", StringComparison.Ordinal) ||
+               value.EndsWith(".highlight", StringComparison.Ordinal) ||
+               value.EndsWith(".missingFill", StringComparison.Ordinal);
     }
 
     private static int AppendProperty(StringBuilder path, string property)
@@ -3058,9 +3426,10 @@ internal static class PpjSemanticValidator
     {
         "text" => HasText(target),
         "fill" or "stroke" or "opacity" => target is PpjShapeElementModel or PpjIconElementModel or PpjTextElementModel,
+        "line.path" => target is PpjShapeElementModel { Type: "line" },
         "frame.x" or "frame.y" or "frame.width" or "frame.height" => true,
-        "image.asset" or "image.crop" => target is PpjImageElementModel,
-        "chart.title" or "chart.data" => target is PpjChartElementModel,
+        "image.asset" or "image.crop" or "image.focus" => target is PpjImageElementModel,
+        "chart.title" or "chart.data" or "chart.frame" => target is PpjChartElementModel,
         "table.cell.text" => target is PpjTableElementModel,
         "accessibility.description" => true,
         _ => false,

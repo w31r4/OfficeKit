@@ -166,7 +166,7 @@ function issueFingerprint(issue) {
 function applyBaselineReview(report, baselineReport) {
   let matchedIssues = 0;
   let newIssues = 0;
-  for (const sectionName of ["semantic", "layout"]) {
+  for (const sectionName of ["semantic", "layout", "accessibility"]) {
     const current = report[sectionName];
     const baseline = baselineReport?.[sectionName];
     if (!Array.isArray(current?.issues) || !Array.isArray(baseline?.issues)) continue;
@@ -310,6 +310,7 @@ function createReviewMarkdown(report, maxChars) {
     "## Semantic review", "", `Status: ${report.semantic.status}.`, ...summarizeIssues(report.semantic.issues), "",
     "## Structural review", "", `Status: ${report.structural.status}.`, ...summarizeIssues(report.structural.issues), "",
     "## Layout review", "", `Status: ${report.layout.status}${report.layout.scope ? `; scope: ${report.layout.scope}` : ""}.`, ...summarizeIssues(report.layout.issues), "",
+    "## Accessibility review", "", `Status: ${report.accessibility.status}${report.accessibility.scope ? `; scope: ${report.accessibility.scope}` : ""}.`, ...summarizeIssues(report.accessibility.issues), "",
     "## Design checks", "", `Status: ${report.design.status}.`, ...summarizeIssues(report.design.issues), "",
     "## Motion checks", "", `Status: ${report.motion.status}; evidence: ${report.motion.playbackEvidence || "not-applicable"}.`, ...summarizeIssues(report.motion.issues), "",
     "## Text reading view", "", `Status: ${report.contentView.status}; provider: anydoc@${ANYDOC_VERSION}.`, report.contentView.markdown || report.contentView.message || "No text view available.", "",
@@ -334,11 +335,12 @@ export async function reviewArtifact(input, options = {}) {
   let semantic;
   let structural;
   let layout;
+  let accessibility;
   let design;
   let motion;
   if (materialized.format === "pptx") {
     const ppj = await reviewPpjArtifact(materialized.bytes, { ...options, maxChars: maxInspectChars });
-    ({ semantic, structural, layout, design, motion } = ppj);
+    ({ semantic, structural, layout, accessibility, design, motion } = ppj);
   } else {
     let model;
     let importError;
@@ -352,6 +354,7 @@ export async function reviewArtifact(input, options = {}) {
       ? await layoutReview(model, materialized.bytes, materialized.format, maxInspectChars, { enabled: options.layout !== false, renderOptions: options.renderOptions })
       : { status: "blocked", ok: false, issues: [reviewIssue("layoutReviewBlocked", "Structural review failed before rendering untrusted output.")], scope: "none" };
     design = { status: "not-applicable", ok: true, planSha256: null, changedPageIds: [], issues: [] };
+    accessibility = { status: "not-applicable", ok: true, scope: "none", conformanceClaimed: false, pages: [], manualChecks: [], issues: [] };
     motion = { status: "not-applicable", ok: true, planSha256: null, playbackEvidence: null, animationCount: 0, motionUnits: [], morphPairs: [], issues: [] };
   }
 
@@ -368,16 +371,17 @@ export async function reviewArtifact(input, options = {}) {
   if (baselineInput != null) {
     baselineReview = await reviewArtifact(baselineInput, { ...options, baseline: undefined, source: undefined, outputPath: undefined, contentView: "none", changedPageIds: undefined, ppjReceipt: undefined });
     if (baselineReview.format !== materialized.format) throw new TypeError(`Review baseline format ${baselineReview.format} does not match output format ${materialized.format}.`);
-    baseline = applyBaselineReview({ semantic, structural, layout }, baselineReview);
+    baseline = applyBaselineReview({ semantic, structural, layout, accessibility }, baselineReview);
     if (materialized.format === "pptx" && options.changedPageIds?.length) {
       const ppj = await reviewPpjArtifact(materialized.bytes, { ...options, maxChars: maxInspectChars, baselineDesign: baselineReview.design });
       design = ppj.design;
+      accessibility = ppj.accessibility;
       motion = ppj.motion;
     }
   }
 
-  const hardFailure = !semantic.ok || !structural.ok || !layout.ok || !design.ok || !motion.ok || !delivery.ok;
-  const limitations = !hardFailure && (visualReview !== "complete" || (contentView.requested && contentView.status !== "ready") || [semantic, structural, layout, design, motion].some((entry) => entry.status === "passed-with-warnings") || delivery.status !== "ready");
+  const hardFailure = !semantic.ok || !structural.ok || !layout.ok || !accessibility.ok || !design.ok || !motion.ok || !delivery.ok;
+  const limitations = !hardFailure && (visualReview !== "complete" || (contentView.requested && contentView.status !== "ready") || [semantic, structural, layout, accessibility, design, motion].some((entry) => entry.status === "passed-with-warnings") || delivery.status !== "ready");
   const report = {
     schemaVersion: 1,
     artifactKind: FORMAT_DETAILS[materialized.format].artifactKind,
@@ -386,6 +390,7 @@ export async function reviewArtifact(input, options = {}) {
     semantic,
     structural,
     layout,
+    accessibility,
     design,
     motion,
     ...(materialized.format === "pptx" ? { playbackEvidence: motion.playbackEvidence } : {}),
