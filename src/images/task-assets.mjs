@@ -14,6 +14,7 @@ import path from "node:path";
 
 import { openTask } from "../cli/task-store.mjs";
 import { inspectImageBytes, normalizeImageMimeType } from "../shared/image-bytes.mjs";
+import { mergeImageVisualProfiles, normalizeImageVisualProfile } from "../shared/image-profile.mjs";
 import { imageError } from "./errors.mjs";
 import { imageRightsCompatible, normalizeImageRights } from "./rights.mjs";
 
@@ -111,7 +112,23 @@ async function readBoundedJson(target, maximum, label) {
   catch { throw imageError("invalid-image-evidence", `${label} is not valid JSON.`); }
 }
 
-function receiptDescriptor(receipt, taskRoot) {
+function visualProfile(derived, declared, label) {
+  try {
+    return mergeImageVisualProfiles(derived, declared);
+  } catch (error) {
+    throw imageError("invalid-image-profile", `${label} is invalid: ${error.message}`);
+  }
+}
+
+function candidateVisualProfile(candidate) {
+  try {
+    return normalizeImageVisualProfile(candidate?.visualProfile || candidate);
+  } catch (error) {
+    throw imageError("invalid-image-profile", `Image candidate visual profile is invalid: ${error.message}`);
+  }
+}
+
+function receiptDescriptor(receipt, taskRoot, profile = receipt.visualProfile) {
   return Object.freeze({
     schema: receipt.schema,
     sha256: receipt.sha256,
@@ -125,6 +142,7 @@ function receiptDescriptor(receipt, taskRoot) {
     rights: receipt.rights.rights,
     provenance: receipt.rights,
     source: receipt.source,
+    visualProfile: profile,
     creditLine: receipt.rights.creditLine,
     visibleAttributionRequired: receipt.rights.visibleAttributionRequired,
     createdAt: receipt.createdAt,
@@ -158,7 +176,8 @@ async function validateReceipt(receipt, taskRoot) {
   if (inspected.extension !== receipt.extension || inspected.width !== receipt.width || inspected.height !== receipt.height) {
     throw imageError("image-asset-corrupt", `Image asset ${receipt.sha256} dimensions or type do not match its receipt.`);
   }
-  return receiptDescriptor(receipt, taskRoot);
+  const profile = visualProfile(inspected.visualProfile, receipt.visualProfile, "Image receipt visual profile");
+  return receiptDescriptor(receipt, taskRoot, profile);
 }
 
 export async function openImageTask({ workspaceRoot, taskId }) {
@@ -176,6 +195,7 @@ export async function addTaskImageAsset(task, input = {}) {
     maxDimension: MAX_IMAGE_DIMENSION,
   });
   const digest = sha256(bytes);
+  const profile = visualProfile(inspected.visualProfile, input.visualProfile, "Image asset visual profile");
   const rights = normalizeImageRights(input.rights, input.rightsMetadata);
   const source = input.source && typeof input.source === "object" && !Array.isArray(input.source)
     ? structuredClone(input.source)
@@ -187,7 +207,9 @@ export async function addTaskImageAsset(task, input = {}) {
   if (existingReceipt) {
     const receipt = await readBoundedJson(receiptPath, MAX_RECEIPT_BYTES, "Image receipt");
     const descriptor = await validateReceipt(receipt, task.taskRoot);
-    if (!imageRightsCompatible(receipt.rights, rights) || JSON.stringify(receipt.source) !== JSON.stringify(source)) {
+    if (!imageRightsCompatible(receipt.rights, rights)
+      || JSON.stringify(receipt.source) !== JSON.stringify(source)
+      || JSON.stringify(descriptor.visualProfile) !== JSON.stringify(profile)) {
       throw imageError("image-provenance-conflict", `Image ${digest} is already registered with different provenance.`);
     }
     return descriptor;
@@ -204,6 +226,7 @@ export async function addTaskImageAsset(task, input = {}) {
     width: inspected.width,
     height: inspected.height,
     byteLength: inspected.byteLength,
+    visualProfile: profile,
     rights,
     source,
     createdAt: (input.now || new Date()).toISOString(),
@@ -247,6 +270,7 @@ function publicCandidate(candidate) {
     rightsEvidence: candidate.rights?.evidence,
     creditLine: candidate.rights?.creditLine,
     visibleAttributionRequired: candidate.rights?.visibleAttributionRequired === true,
+    visualProfile: candidateVisualProfile(candidate),
     score: candidate.score,
   });
 }
@@ -257,6 +281,7 @@ export async function recordTaskImageSearch(task, input = {}) {
   const searchRoot = await ensurePrivateDirectory(path.join(directories.searches, searchId), task.taskRoot);
   const candidates = (input.candidates || []).map((candidate) => ({
     ...structuredClone(candidate),
+    visualProfile: candidateVisualProfile(candidate),
     candidateRef: `imgc_${randomUUID().replaceAll("-", "").slice(0, 24)}`,
   }));
   const record = {

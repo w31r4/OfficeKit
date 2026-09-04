@@ -44,6 +44,7 @@ function assetAuditRecord(asset, parts) {
     rights: asset.rights,
     provenance: asset.provenance,
     source: asset.source,
+    visualProfile: asset.visualProfile,
     creditLine: asset.creditLine,
     visibleAttributionRequired: asset.visibleAttributionRequired,
   };

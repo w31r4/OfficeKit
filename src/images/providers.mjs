@@ -4,6 +4,7 @@ import { normalizeImageMimeType } from "../shared/image-bytes.mjs";
 import { imageError, boundedImageError } from "./errors.mjs";
 import { searchLucideIcons } from "./lucide.mjs";
 import { normalizeImageRights, providerLicenseToRights } from "./rights.mjs";
+import { normalizeImageVisualProfile } from "../shared/image-profile.mjs";
 
 const KINDS = new Set(["photo", "illustration", "icon"]);
 const PURPOSES = new Set(["hero", "evidence", "context", "decoration"]);
@@ -118,6 +119,7 @@ function normalizeProviderCandidate(candidate, { provider, kind, orientation, qu
     height: Number.isFinite(height) && height > 0 ? height : undefined,
     mimeType: mimeType || undefined,
     rights,
+    visualProfile: normalizeImageVisualProfile(candidate.visualProfile || candidate),
     score: queryScore(candidate, query),
     providerConfidence: Number(candidate.confidence || 0),
   };

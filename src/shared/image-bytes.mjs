@@ -1,4 +1,5 @@
 import { toUint8Array } from "./binary.mjs";
+import { deriveImageVisualProfile } from "./image-profile.mjs";
 
 const PNG_SIGNATURE = Buffer.from("89504e470d0a1a0a", "hex");
 const JPEG_SOF_MARKERS = new Set([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf]);
@@ -140,6 +141,7 @@ export function inspectImageBytes(value, options = {}) {
     height: size.height,
     pixels,
     byteLength: bytes.length,
+    visualProfile: deriveImageVisualProfile(bytes, { mimeType }),
   });
 }
 

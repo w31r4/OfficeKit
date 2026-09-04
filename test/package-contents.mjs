@@ -278,6 +278,7 @@ for (const required of [
   "src/shared/images.mjs",
   "src/shared/inspection.mjs",
   "src/shared/png.mjs",
+  "src/shared/image-profile.mjs",
   "src/shared/render-output.mjs",
   "src/shared/text-range.mjs",
   "src/shared/xml.mjs",

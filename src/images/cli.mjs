@@ -2,6 +2,7 @@ import { lstat, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 
 import { inspectImageBytes } from "../shared/image-bytes.mjs";
+import { normalizeImageVisualProfile } from "../shared/image-profile.mjs";
 import { auditPresentationImages, writeImageSourcesSidecar } from "./audit.mjs";
 import { downloadRemoteImage } from "./download.mjs";
 import { imageError } from "./errors.mjs";
@@ -23,8 +24,8 @@ const REMOTE_DECLARED_RIGHTS = new Set(["permission", "public-domain", "cc0", "c
 export const IMAGE_USAGE = `Usage:
   officekit image search "<query>" --task <task-id> --kind <photo|illustration|icon> --purpose <hero|evidence|context|decoration> --orientation <landscape|portrait|square> [--max <1..20>] [--json]
   officekit image add --task <task-id> --candidate <candidate-ref> [--json]
-  officekit image add --task <task-id> --file <path> --rights <user-provided|generated|permission|public-domain|cc0|cc-by> [rights options] [--json]
-  officekit image add --task <task-id> --url <https-url> --source-page <https-url> --rights <permission|public-domain|cc0|cc-by|official-press-kit> [rights options] [--json]
+  officekit image add --task <task-id> --file <path> --rights <user-provided|generated|permission|public-domain|cc0|cc-by> [--profile <path>] [rights options] [--json]
+  officekit image add --task <task-id> --url <https-url> --source-page <https-url> --rights <permission|public-domain|cc0|cc-by|official-press-kit> [--profile <path>] [rights options] [--json]
   officekit image list --task <task-id> [--json]
   officekit image audit <presentation.pptx> --task <task-id> [--sources-output <path>] [--json]
 
@@ -32,6 +33,7 @@ Common options:
   --workspace <path>    Workspace containing .office-kit/tasks (default: current directory)
   --author <name>       Required for CC BY
   --license-url <url>   Required for CC BY
+  --profile <path>      Optional JSON visual profile (alphaPresent, subjectBounds, edgeQuality, shadowMode)
   --json                Print one machine-readable result
 
 Search returns candidates only; selectionMade is always false.`;
@@ -54,6 +56,7 @@ function parse(args) {
     ["--rights", "rights"],
     ["--author", "author"],
     ["--license-url", "licenseUrl"],
+    ["--profile", "profile"],
     ["--sources-output", "sourcesOutput"],
   ]);
   for (let index = 0; index < rest.length; index += 1) {
@@ -88,7 +91,34 @@ function rightsMetadata(parsed, extras = {}) {
   };
 }
 
-async function localImage(parsed) {
+async function declaredVisualProfile(parsed) {
+  if (!parsed.profile) return undefined;
+  const profilePath = path.resolve(parsed.profile);
+  let parsedProfile;
+  try {
+    parsedProfile = JSON.parse(await readFile(profilePath, "utf8"));
+  } catch (error) {
+    throw imageError("invalid-image-profile", `Image profile ${profilePath} is not valid JSON: ${error.message}`);
+  }
+  try {
+    return normalizeImageVisualProfile(parsedProfile);
+  } catch (error) {
+    throw imageError("invalid-image-profile", `Image profile ${profilePath} is invalid: ${error.message}`);
+  }
+}
+
+function overlayVisualProfile(base, extra) {
+  if (!extra) return base;
+  return {
+    ...base,
+    ...(extra.alphaPresent !== null ? { alphaPresent: extra.alphaPresent } : {}),
+    ...(extra.subjectBounds ? { subjectBounds: extra.subjectBounds } : {}),
+    ...(extra.edgeQuality !== "unknown" ? { edgeQuality: extra.edgeQuality } : {}),
+    ...(extra.shadowMode !== "unknown" ? { shadowMode: extra.shadowMode } : {}),
+  };
+}
+
+async function localImage(parsed, profile) {
   const requested = path.resolve(required(parsed.file, "--file"));
   const stat = await lstat(requested).catch((error) => {
     if (error?.code === "ENOENT") throw imageError("image-file-missing", `Image file does not exist: ${requested}`);
@@ -109,11 +139,12 @@ async function localImage(parsed) {
     mimeType: inspected.mimeType,
     rights: required(parsed.rights, "--rights"),
     rightsMetadata: rightsMetadata(parsed),
+    visualProfile: profile,
     source: { kind: "file", originalPath: canonical, fileName: path.basename(canonical) },
   };
 }
 
-async function candidateImage(task, parsed, downloader) {
+async function candidateImage(task, parsed, downloader, profile) {
   const candidateRef = required(parsed.candidateRef, "--candidate");
   const candidate = await resolveTaskImageCandidate(task, candidateRef);
   if (String(candidate.acquisitionUrl || "").startsWith("lucide:")) {
@@ -123,6 +154,7 @@ async function candidateImage(task, parsed, downloader) {
       mimeType: materialized.mimeType,
       rights: candidate.rights.rights,
       rightsMetadata: candidate.rights,
+      visualProfile: overlayVisualProfile(candidate.visualProfile, profile),
       source: { ...materialized.source, kind: "candidate", candidateRef, provider: candidate.provider },
     };
   }
@@ -132,6 +164,7 @@ async function candidateImage(task, parsed, downloader) {
     mimeType: downloaded.mimeType,
     rights: candidate.rights.rights,
     rightsMetadata: candidate.rights,
+    visualProfile: overlayVisualProfile(candidate.visualProfile, profile),
     source: {
       kind: "candidate",
       candidateRef,
@@ -144,7 +177,7 @@ async function candidateImage(task, parsed, downloader) {
   };
 }
 
-async function remoteImage(parsed, downloader) {
+async function remoteImage(parsed, downloader, profile) {
   const rights = required(parsed.rights, "--rights").toLowerCase();
   if (!REMOTE_DECLARED_RIGHTS.has(rights)) {
     throw imageError("image-rights-blocked", `Remote URL rights ${rights} are not allowed.`);
@@ -157,6 +190,7 @@ async function remoteImage(parsed, downloader) {
     mimeType: downloaded.mimeType,
     rights,
     rightsMetadata: rightsMetadata(parsed, { sourcePage }),
+    visualProfile: profile,
     source: { kind: "url", sourcePage, requestedUrl, finalUrl: downloaded.finalUrl, redirects: downloaded.redirects },
   };
 }
@@ -214,11 +248,12 @@ export async function runImageCommand(args, {
   if (parsed.command === "add") {
     if (parsed.positionals.length !== 0) throw imageError("invalid-image-command", "image add does not accept positional arguments.");
     exactlyOneSource(parsed);
+    const profile = await declaredVisualProfile(parsed);
     const input = parsed.candidateRef
-      ? await candidateImage(task, parsed, downloader)
+      ? await candidateImage(task, parsed, downloader, profile)
       : parsed.file
-        ? await localImage(parsed)
-        : await remoteImage(parsed, downloader);
+        ? await localImage(parsed, profile)
+        : await remoteImage(parsed, downloader, profile);
     const asset = await addTaskImageAsset(task, input);
     result = { ok: true, command: "add", taskId, asset };
     output.write(parsed.json ? `${JSON.stringify(result)}\n` : `${asset.path}\n`);
