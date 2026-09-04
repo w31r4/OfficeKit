@@ -17,11 +17,9 @@ Read [the PPJ language reference](references/ppj.md) before writing or changing
 a program. Do not use MJS, JSX, legacy composition/facade APIs, raw OOXML,
 XPath, relationship IDs, or another authoring engine as a substitute.
 An external script may generate JSON, but executable code is not part of PPJ.
-
 Use `powerpoint-live-control` only for an open, possibly unsaved desktop deck.
 For local PPTX and PPJ files, stay in this Skill. Never import
 `@oai/artifact-tool` or attribute its output to OfficeKit.
-
 ## Choose one route
 
 ### Create
@@ -37,9 +35,7 @@ For local PPTX and PPJ files, stay in this Skill. Never import
    source deck, also read [image sourcing](references/image-sourcing.md).
 4. Write one deck-specific Design Grammar and ordered page plan into PPJ.
 5. Build, render, review, revise the PPJ, and emit a new PPTX path.
-
 ### Create from a template, design system, or reference
-
 Read [components and templates](references/components-and-templates.md).
 A design system is binding brand authority. A selected Template Skill supplies
 style guidance and representative images. A reference PPTX may additionally
@@ -48,14 +44,12 @@ unrelated templates. Derive a deck-specific grammar and compose every page in
 PPJ; a template guides design rather than pinning a page skeleton.
 
 ### Import or edit an existing PPTX
-
 Read [imported native references](references/imported-native-ref.md), then run:
 
 ```bash
 officekit ppj import input.pptx -o deck.ppj
 officekit ppj inspect deck.ppj --query "target"
 ```
-
 Edit typed fields only when the matching capability is issued. For exact
 imported text, style, or geometry scalars, change only `value` on an existing
 `nativeRef.leaves[]` entry; never invent or move its ID, kind, or expected
@@ -70,14 +64,12 @@ the requested surface. Replace the contract only when the user asks for a
 redesign or a global style change.
 
 ### Recover an OfficeKit-authored deck
-
 Import the PPTX. When its embedded program and node map are valid, OfficeKit
 restores the authored PPJ exactly. That PPJ remains authoritative even if an
 external application changed native PPTX state. Build to a new output; never
 overwrite the input.
 
 ### Continue durable work
-
 Task state is optional. Add `--task <id>` only when immutable PPJ revisions,
 review receipts, resume, or publication evidence are useful. Resume from the
 latest verified PPJ revision. If its reported status is not `reviewed`, treat
@@ -98,18 +90,14 @@ officekit ppj review deck.ppj --task <task-id> --json
 officekit tasks <task-id> --json
 officekit ppj resume <task-id> -o resumed/deck.ppj --json
 ```
-
 The resumed PPJ is a new editable working copy with its bound source and assets.
 The immutable task revision remains read-only. Re-inspect the resumed program
 before another edit and record the new check, build, and review with the same
 task ID.
-
 ### Review and deliver
-
 Read [review and delivery](references/review-and-delivery.md). Compilation is
 not rendering, rendering is not visual understanding, and structural playback
 evidence is not desktop PowerPoint acceptance.
-
 ## Design before drawing
 
 Use this order for every new deck:
@@ -129,7 +117,6 @@ budget, and a dominant relationship or explicit `none`. Choose the carrier
 that communicates that relationship: text, image, chart, table, diagram,
 native vector, or a deliberate mix. Negative space must create focus,
 separation, or rhythm; it is not leftover canvas.
-
 Before creating `pages[].elements[]`, write a short visual attention contract
 in the existing `intent`, `design.grammar`, and page-planning fields:
 
@@ -137,13 +124,11 @@ in the existing `intent`, `design.grammar`, and page-planning fields:
 audience task → one conclusion → primary carrier → reading order
 → protected evidence → deliberate canvas occupancy → layer order
 ```
-
 Do not start with a shape helper or a decorative asset. The contract is a
 decision aid, not a fixed visual style: colors, fonts, geometry, imagery, and
 density remain free to follow the selected scenario, template, or design
 system. Use the detailed checklist in [visual attention](references/visual-attention.md)
 for new pages and material redesigns.
-
 For charts, missing observations, or layered pages, follow the four executable
 quality contracts in that reference. Do not deliver from a structural pass
 alone: render at final size, repair visible collisions or occlusion locally,
@@ -151,10 +136,8 @@ and state `visualReview: unavailable` when inspection was not possible.
 If a series has only two observations, use the sparse-observation route: an
 independent endpoint comparison is the default; a shared-axis sparse line is
 an explicit exception, never an automatic fallback.
-
 Arrays are semantic. `pages[]` is page order. `pages[].elements[]` is the real
 back-to-front z-order. Use stable IDs and edit those IDs in later turns.
-
 ## Strictly forbidden
 
 - Fabricating data, sources, citations, cases, experiments, or certainty.
@@ -175,7 +158,6 @@ back-to-front z-order. Use stable IDs and edit those IDs in later turns.
 Authoritative user templates and untouched imported design remain
 authoritative, but newly added objects still need a communication role and may
 not obscure evidence.
-
 ## Common commands
 
 ```bash
@@ -186,7 +168,6 @@ officekit ppj build deck.ppj -o deck.pptx --json
 officekit ppj render deck.ppj -o previews/ --json
 officekit ppj review deck.ppj --json
 ```
-
 `check --fix` may apply deterministic formatting fixes only. It must not invent
 copy, select a visual direction, or alter design semantics.
 

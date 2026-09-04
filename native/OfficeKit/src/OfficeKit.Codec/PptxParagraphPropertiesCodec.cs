@@ -119,7 +119,8 @@ internal static class PptxParagraphPropertiesCodec
         value == A.TextAlignmentTypeValues.Left ? "left" :
         value == A.TextAlignmentTypeValues.Center ? "center" :
         value == A.TextAlignmentTypeValues.Right ? "right" :
-        value == A.TextAlignmentTypeValues.Justified ? "justify" : string.Empty;
+        value == A.TextAlignmentTypeValues.Justified ? "justify" :
+        value == A.TextAlignmentTypeValues.Distributed ? "distributed" : string.Empty;
 
     private static A.TextAlignmentTypeValues ParseAlignment(string value) => value switch
     {
@@ -127,6 +128,7 @@ internal static class PptxParagraphPropertiesCodec
         "center" => A.TextAlignmentTypeValues.Center,
         "right" => A.TextAlignmentTypeValues.Right,
         "justify" => A.TextAlignmentTypeValues.Justified,
+        "distributed" => A.TextAlignmentTypeValues.Distributed,
         _ => throw Invalid($"Unsupported Presentation paragraph alignment {value}."),
     };
 

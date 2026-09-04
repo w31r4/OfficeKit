@@ -112,30 +112,30 @@ internal static partial class PpjPresentationProjector
 
         var root = new JsonObject
         {
-            ["schema"] = "office-kit/ppj/v1",
+            ["schema"] = StringNode("office-kit/ppj/v1"),
             ["meta"] = new JsonObject
             {
-                ["id"] = StableDocumentId(presentation.Id, sourceSha256),
-                ["title"] = string.IsNullOrWhiteSpace(presentation.Name) ? "Imported presentation" : presentation.Name,
-                ["language"] = "und",
-                ["version"] = 1,
-                ["description"] = "Source-derived PPJ projection. Unmodeled native content remains in the hash-bound PPTX source package.",
+                ["id"] = StringNode(StableDocumentId(presentation.Id, sourceSha256)),
+                ["title"] = StringNode(string.IsNullOrWhiteSpace(presentation.Name) ? "Imported presentation" : presentation.Name),
+                ["language"] = StringNode("und"),
+                ["version"] = JsonValue.Create(1),
+                ["description"] = StringNode("Source-derived PPJ projection. Unmodeled native content remains in the hash-bound PPTX source package."),
             },
             ["intent"] = ImportedIntent(),
             ["design"] = ImportedDesign(presentation, context),
             ["assets"] = assets,
             ["source"] = new JsonObject
             {
-                ["kind"] = "pptx",
-                ["uri"] = sourceUri,
-                ["sha256"] = sourceSha256,
-                ["revision"] = revision,
+                ["kind"] = StringNode("pptx"),
+                ["uri"] = StringNode(sourceUri),
+                ["sha256"] = StringNode(sourceSha256),
+                ["revision"] = StringNode(revision),
                 ["projection"] = new JsonObject
                 {
-                    ["version"] = 1,
-                    ["sha256"] = projectionSha256,
-                    ["nodeMapSha256"] = Sha256(nodeMapBytes),
-                    ["visibleObjectCount"] = context.VisibleObjectCount,
+                    ["version"] = JsonValue.Create(1),
+                    ["sha256"] = StringNode(projectionSha256),
+                    ["nodeMapSha256"] = StringNode(Sha256(nodeMapBytes)),
+                    ["visibleObjectCount"] = JsonValue.Create(context.VisibleObjectCount),
                 },
             },
             ["pages"] = pages,
@@ -177,28 +177,28 @@ internal static partial class PpjPresentationProjector
     {
         ["brief"] = new JsonObject
         {
-            ["primaryJob"] = "handoff",
-            ["expectedOutcome"] = "Continue editing this presentation while preserving source-owned native content.",
-            ["evidenceBoundary"] = "The source presentation does not declare its audience, factual authority, or intended outcome.",
+            ["primaryJob"] = StringNode("handoff"),
+            ["expectedOutcome"] = StringNode("Continue editing this presentation while preserving source-owned native content."),
+            ["evidenceBoundary"] = StringNode("The source presentation does not declare its audience, factual authority, or intended outcome."),
         },
         ["audience"] = new JsonObject
         {
-            ["description"] = "Imported presentation audience was not declared.",
+            ["description"] = StringNode("Imported presentation audience was not declared."),
         },
         ["narrative"] = new JsonObject
         {
-            ["thesis"] = "Preserve and continue the imported presentation without inventing its original intent.",
+            ["thesis"] = StringNode("Preserve and continue the imported presentation without inventing its original intent."),
         },
         ["editorial"] = new JsonObject
         {
-            ["tone"] = new JsonArray("source-derived"),
-            ["avoid"] = new JsonArray("Inventing missing facts or silently rewriting source-owned content"),
+            ["tone"] = new JsonArray { StringNode("source-derived") },
+            ["avoid"] = new JsonArray { StringNode("Inventing missing facts or silently rewriting source-owned content") },
         },
         ["delivery"] = new JsonObject
         {
-            ["mode"] = "hybrid",
-            ["mediumFit"] = "acceptable",
-            ["mediumFitNote"] = "Delivery intent was not declared in the imported file.",
+            ["mode"] = StringNode("hybrid"),
+            ["mediumFit"] = StringNode("acceptable"),
+            ["mediumFitNote"] = StringNode("Delivery intent was not declared in the imported file."),
         },
     };
 
@@ -209,7 +209,7 @@ internal static partial class PpjPresentationProjector
             ["canvas"] = ProjectCanvas(presentation, context),
             ["theme"] = new JsonObject
             {
-                ["name"] = "Source-owned presentation theme",
+                ["name"] = StringNode("Source-owned presentation theme"),
                 // Imported run and bullet styles may retain a direct theme token
                 // even though the source theme graph is opaque to the bounded
                 // writer. Keep every standard token addressable with a neutral
@@ -219,29 +219,29 @@ internal static partial class PpjPresentationProjector
             },
             ["fonts"] = new JsonArray(new JsonObject
             {
-                ["id"] = "source-font",
-                ["family"] = "Arial",
-                ["language"] = "und",
+                ["id"] = StringNode("source-font"),
+                ["family"] = StringNode("Arial"),
+                ["language"] = StringNode("und"),
             }),
             ["styles"] = new JsonObject(),
             ["grammar"] = new JsonObject
             {
-                ["name"] = "Source-derived projection",
-                ["rationale"] = "The original PPTX remains the authority for native visual styling that PPJ does not model.",
-                ["visualThesis"] = "Preserve and continue the imported presentation without inventing its original intent.",
-                ["surfaceHierarchy"] = new JsonArray("Keep source-owned surfaces unchanged unless a capability explicitly permits an edit."),
-                ["typographyRhythm"] = new JsonArray("Retain imported typography through the source package."),
-                ["geometryRules"] = new JsonArray("Retain imported geometry and z-order unless a nativeRef capability permits a change."),
-                ["densityRhythm"] = new JsonArray("Retain the source page density."),
-                ["carrierRules"] = new JsonArray("Use projected typed objects where safe and opaque native objects everywhere else."),
-                ["forbiddenPatterns"] = new JsonArray("Rebuilding opaque content", "Guessing unsupported native semantics"),
+                ["name"] = StringNode("Source-derived projection"),
+                ["rationale"] = StringNode("The original PPTX remains the authority for native visual styling that PPJ does not model."),
+                ["visualThesis"] = StringNode("Preserve and continue the imported presentation without inventing its original intent."),
+                ["surfaceHierarchy"] = new JsonArray { StringNode("Keep source-owned surfaces unchanged unless a capability explicitly permits an edit.") },
+                ["typographyRhythm"] = new JsonArray { StringNode("Retain imported typography through the source package.") },
+                ["geometryRules"] = new JsonArray { StringNode("Retain imported geometry and z-order unless a nativeRef capability permits a change.") },
+                ["densityRhythm"] = new JsonArray { StringNode("Retain the source page density.") },
+                ["carrierRules"] = new JsonArray { StringNode("Use projected typed objects where safe and opaque native objects everywhere else.") },
+                ["forbiddenPatterns"] = new JsonArray { StringNode("Rebuilding opaque content"), StringNode("Guessing unsupported native semantics") },
             },
-            ["motionPolicy"] = "explicit",
+            ["motionPolicy"] = StringNode("explicit"),
         };
         if (presentation.Masters.Count > 0)
             output["masters"] = ProjectMasters(presentation.Masters, context);
         if (presentation.Layouts.Count > 0)
-            output["layouts"] = ProjectLayouts(presentation.Layouts, context);
+            output["layouts"] = ProjectLayouts(presentation.Layouts, presentation.Masters, context);
         return output;
     }
 
@@ -254,17 +254,30 @@ internal static partial class PpjPresentationProjector
         {
             var projected = new JsonObject
             {
-                ["id"] = context.MasterId(master.Id),
-                ["name"] = master.Name,
+                ["id"] = StringNode(context.MasterId(master.Id)),
+                ["name"] = StringNode(master.Name),
             };
+            if (master.Source is not null)
+            {
+                var capabilities = new List<CapabilitySpec>();
+                if (master.Source.BackgroundEditable)
+                    capabilities.Add(new("setBackground", ["background"]));
+                if (master.Source.TextStylesEditable)
+                    capabilities.Add(new("setTextParagraphStyle", ["textStyles"]));
+                projected["nativeRef"] = NativeRef(
+                    context,
+                    $"master:{master.Id}",
+                    HashOrFallback(master.Source.MasterXmlSha256, master),
+                    capabilities);
+            }
             if (ProjectBackground(master.Background, context) is { } background)
                 projected["background"] = background;
             var textStyles = new JsonObject();
-            AddMasterTextLevels(textStyles, "title", master.TextStyles?.TitleLevels);
-            AddMasterTextLevels(textStyles, "body", master.TextStyles?.BodyLevels);
-            AddMasterTextLevels(textStyles, "other", master.TextStyles?.OtherLevels);
+            AddMasterTextLevels(textStyles, "title", master.TextStyles?.TitleLevels, context);
+            AddMasterTextLevels(textStyles, "body", master.TextStyles?.BodyLevels, context);
+            AddMasterTextLevels(textStyles, "other", master.TextStyles?.OtherLevels, context);
             if (textStyles.Count > 0) projected["textStyles"] = textStyles;
-            var placeholders = ProjectLayoutPlaceholders(master.Placeholders, context);
+            var placeholders = ProjectLayoutPlaceholders(master.Placeholders, null, context);
             if (placeholders.Count > 0) projected["placeholders"] = placeholders;
             output.Add(projected);
         }
@@ -273,21 +286,37 @@ internal static partial class PpjPresentationProjector
 
     private static JsonArray ProjectLayouts(
         IEnumerable<PresentationLayout> layouts,
+        IEnumerable<PresentationMaster> masters,
         ProjectionContext context)
     {
+        var mastersById = masters.ToDictionary(master => master.Id, StringComparer.Ordinal);
         var output = new JsonArray();
         foreach (var layout in layouts)
         {
             var projected = new JsonObject
             {
-                ["id"] = context.LayoutId(layout.Id),
-                ["name"] = layout.Name,
-                ["master"] = context.MasterId(layout.MasterId),
-                ["layoutType"] = layout.Type,
+                ["id"] = StringNode(context.LayoutId(layout.Id)),
+                ["name"] = StringNode(layout.Name),
+                ["master"] = StringNode(context.MasterId(layout.MasterId)),
+                ["layoutType"] = StringNode(layout.Type),
             };
+            if (layout.Source is not null)
+            {
+                var capabilities = new List<CapabilitySpec>();
+                if (layout.Source.BackgroundEditable)
+                    capabilities.Add(new("setBackground", ["background"]));
+                projected["nativeRef"] = NativeRef(
+                    context,
+                    $"layout:{layout.Id}",
+                    HashOrFallback(layout.Source.LayoutXmlSha256, layout),
+                    capabilities);
+            }
             if (ProjectBackground(layout.Background, context) is { } background)
                 projected["background"] = background;
-            var placeholders = ProjectLayoutPlaceholders(layout.Placeholders, context);
+            var inheritedPlaceholders = mastersById.TryGetValue(layout.MasterId, out var master)
+                ? master.Placeholders
+                : null;
+            var placeholders = ProjectLayoutPlaceholders(layout.Placeholders, inheritedPlaceholders, context);
             if (placeholders.Count > 0) projected["placeholders"] = placeholders;
             output.Add(projected);
         }
@@ -296,75 +325,137 @@ internal static partial class PpjPresentationProjector
 
     private static JsonArray ProjectLayoutPlaceholders(
         IEnumerable<PresentationPlaceholder> placeholders,
+        IEnumerable<PresentationPlaceholder>? inheritedPlaceholders,
         ProjectionContext context)
     {
+        var inheritedFrames = inheritedPlaceholders is null
+            ? new Dictionary<(string Type, uint Index), PresentationPlaceholderFrame>()
+            : inheritedPlaceholders
+                .Where(placeholder => placeholder.DirectFrame is not null)
+                .GroupBy(placeholder => (placeholder.Type, placeholder.Index))
+                .Where(group => group.Count() == 1)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.Single().DirectFrame!.Clone());
         var output = new JsonArray();
         foreach (var placeholder in placeholders)
         {
-            // An inherited or irregular placeholder has no safe PPJ frame.
-            // Keep it in the source package instead of inventing coordinates.
-            if (placeholder.DirectFrame is null) continue;
+            var frameSource = placeholder.DirectFrame;
+            if (frameSource is null &&
+                inheritedFrames.TryGetValue((placeholder.Type, placeholder.Index), out var inheritedFrame))
+                frameSource = inheritedFrame;
+            // An inherited placeholder without a matching master frame, or an
+            // irregular transform that was intentionally rejected by the
+            // native reader, still has no safe PPJ frame. Keep it source-owned
+            // instead of inventing coordinates.
+            if (frameSource is null) continue;
             var frame = new JsonObject
             {
-                ["x"] = Points(placeholder.DirectFrame.LeftEmu),
-                ["y"] = Points(placeholder.DirectFrame.TopEmu),
-                ["width"] = Math.Max(0.001, Points(placeholder.DirectFrame.WidthEmu)),
-                ["height"] = Math.Max(0.001, Points(placeholder.DirectFrame.HeightEmu)),
+                ["x"] = JsonValue.Create(Points(frameSource.LeftEmu)),
+                ["y"] = JsonValue.Create(Points(frameSource.TopEmu)),
+                ["width"] = JsonValue.Create(Math.Max(0.001, Points(frameSource.WidthEmu))),
+                ["height"] = JsonValue.Create(Math.Max(0.001, Points(frameSource.HeightEmu))),
             };
-            if (placeholder.DirectFrame.HasRotationAngle60000)
-                frame["rotation"] = placeholder.DirectFrame.RotationAngle60000 / 60_000d;
-            if (placeholder.DirectFrame.HasFlipHorizontal)
-                frame["flipH"] = placeholder.DirectFrame.FlipHorizontal;
-            if (placeholder.DirectFrame.HasFlipVertical)
-                frame["flipV"] = placeholder.DirectFrame.FlipVertical;
+            if (frameSource.HasRotationAngle60000)
+                frame["rotation"] = JsonValue.Create(frameSource.RotationAngle60000 / 60_000d);
+            if (frameSource.HasFlipHorizontal)
+                frame["flipH"] = JsonValue.Create(frameSource.FlipHorizontal);
+            if (frameSource.HasFlipVertical)
+                frame["flipV"] = JsonValue.Create(frameSource.FlipVertical);
             var projected = new JsonObject
             {
-                ["id"] = context.UniqueId(placeholder.Id),
-                ["name"] = placeholder.Name,
-                ["placeholderType"] = PlaceholderType(placeholder.Type),
-                ["index"] = placeholder.Index,
+                ["id"] = StringNode(context.UniqueId(placeholder.Id)),
+                ["name"] = StringNode(placeholder.Name),
+                ["placeholderType"] = StringNode(PlaceholderType(placeholder.Type)),
+                ["index"] = JsonValue.Create(placeholder.Index),
                 ["frame"] = frame,
             };
+            if (placeholder.Source is not null)
+            {
+                var capabilities = new List<CapabilitySpec>();
+                // A direct placeholder transform is an owner-local leaf.  The
+                // source binding has already rejected inherited/irregular
+                // geometry, so changing the existing frame cannot silently
+                // move a slide placeholder or rewrite its master graph.
+                if (placeholder.Source.DirectFramePresenceEditable &&
+                    BoundedLayoutPlaceholderType(placeholder.Type))
+                    capabilities.Add(new("setFrame", EditableFrameFields));
+                // Text is exposed only when the projection can preserve its
+                // paragraph/run topology.  A string fallback for a formula,
+                // hyperlink, or opaque run graph must remain source-owned.
+                if (placeholder.Source.TextEditable &&
+                    BoundedLayoutPlaceholderType(placeholder.Type) &&
+                    PlaceholderTextProjectionEditable(placeholder.TextBody))
+                    capabilities.Add(new("replaceText", ["text"]));
+                if (placeholder.Source.TextEditable &&
+                    BoundedLayoutPlaceholderType(placeholder.Type) &&
+                    PptxBodyPropertiesCodec.SupportsBoundedDirectLayout(placeholder.TextBody?.BodyProperties))
+                    capabilities.Add(new("setTextBodyStyle", ["text.style"]));
+                projected["nativeRef"] = NativeRef(
+                    context,
+                    $"placeholder:{placeholder.Id}",
+                    HashOrFallback(placeholder.Source.ElementSha256, placeholder),
+                    capabilities);
+            }
             if (placeholder.TextBody is not null)
-                projected["text"] = TextContent(placeholder.TextBody, PptxTextCodec.Flatten(placeholder.TextBody));
+            {
+                projected["text"] = TextContent(placeholder.TextBody, PptxTextCodec.Flatten(placeholder.TextBody), context);
+                if (TextBoxStyle(placeholder.TextBody) is { Count: > 0 } style)
+                    projected["style"] = style;
+            }
             output.Add(projected);
         }
         return output;
     }
 
+    private static bool PlaceholderTextProjectionEditable(PresentationTextBody? body) =>
+        body is not null && body.Paragraphs.Count > 0 &&
+        body.Paragraphs.All(paragraph => paragraph.Runs.Count > 0 &&
+            paragraph.Runs.All(run => run.ContentCase is
+                PresentationTextRun.ContentOneofCase.Text or
+                PresentationTextRun.ContentOneofCase.LineBreak or
+                PresentationTextRun.ContentOneofCase.Field));
+
+    private static bool BoundedLayoutPlaceholderType(string value) => value is
+        "title" or "body" or "ctrTitle" or "subtitle" or "subTitle" or
+        "content" or "obj" or "picture" or "pic" or "chart" or
+        "table" or "tbl" or "date" or "dt" or "footer" or "ftr" or
+        "slide-number" or "sldNum";
+
     private static void AddMasterTextLevels(
         JsonObject target,
         string name,
-        IEnumerable<PresentationTextParagraph>? levels)
+        IEnumerable<PresentationTextParagraph>? levels,
+        ProjectionContext context)
     {
         if (levels is null) return;
         var projected = new JsonArray();
         foreach (var level in levels)
         {
             var item = new JsonObject();
-            if (level.HasLevel) item["level"] = checked((int)level.Level);
+            if (level.HasLevel) item["level"] = JsonValue.Create(checked((int)level.Level));
             if (level.HasAlignment && ParagraphAlignment(level.Alignment) is { } alignment)
-                item["alignment"] = alignment;
+                item["alignment"] = StringNode(alignment);
             if (level.LeftMarginCase == PresentationTextParagraph.LeftMarginOneofCase.MarginLeftEmu)
-                item["indent"] = Points(level.MarginLeftEmu);
+                item["indent"] = JsonValue.Create(Points(level.MarginLeftEmu));
             if (level.IndentationCase == PresentationTextParagraph.IndentationOneofCase.IndentEmu)
-                item["hanging"] = -Points(level.IndentEmu);
+                item["hanging"] = JsonValue.Create(-Points(level.IndentEmu));
             if (level.LineSpacingCase == PresentationTextParagraph.LineSpacingOneofCase.LineSpacingPoints)
-                item["lineSpacing"] = Math.Max(0.001, level.LineSpacingPoints);
+                item["lineSpacing"] = JsonValue.Create(Math.Max(0.001, level.LineSpacingPoints));
             if (level.LineSpacingCase == PresentationTextParagraph.LineSpacingOneofCase.LineSpacingMultiplier)
-                item["lineSpacingMultiplier"] = Math.Max(0.00001, level.LineSpacingMultiplier);
+                item["lineSpacingMultiplier"] = JsonValue.Create(Math.Max(0.00001, level.LineSpacingMultiplier));
             if (level.SpaceBeforeCase == PresentationTextParagraph.SpaceBeforeOneofCase.SpaceBeforePoints)
-                item["spaceBefore"] = Math.Max(0, level.SpaceBeforePoints);
+                item["spaceBefore"] = JsonValue.Create(Math.Max(0, level.SpaceBeforePoints));
             if (level.SpaceBeforeCase == PresentationTextParagraph.SpaceBeforeOneofCase.SpaceBeforeMultiplier)
-                item["spaceBeforeMultiplier"] = Math.Max(0, level.SpaceBeforeMultiplier);
+                item["spaceBeforeMultiplier"] = JsonValue.Create(Math.Max(0, level.SpaceBeforeMultiplier));
             if (level.SpaceAfterCase == PresentationTextParagraph.SpaceAfterOneofCase.SpaceAfterPoints)
-                item["spaceAfter"] = Math.Max(0, level.SpaceAfterPoints);
+                item["spaceAfter"] = JsonValue.Create(Math.Max(0, level.SpaceAfterPoints));
             if (level.SpaceAfterCase == PresentationTextParagraph.SpaceAfterOneofCase.SpaceAfterMultiplier)
-                item["spaceAfterMultiplier"] = Math.Max(0, level.SpaceAfterMultiplier);
+                item["spaceAfterMultiplier"] = JsonValue.Create(Math.Max(0, level.SpaceAfterMultiplier));
             if (level.DefaultRunStyleCase == PresentationTextParagraph.DefaultRunStyleOneofCase.DefaultRunProperties &&
                 ProjectTextStyle(level.DefaultRunProperties) is { Count: > 0 } defaultText)
                 item["defaultText"] = defaultText;
-            if (ProjectBullet(level) is { } bullet) item["bullet"] = bullet;
+            if (ProjectBullet(level, context) is { } bullet) item["bullet"] = bullet;
             projected.Add(item);
         }
         if (projected.Count > 0) target[name] = projected;
@@ -372,9 +463,9 @@ internal static partial class PpjPresentationProjector
 
     private static JsonObject FrameDimensions(PresentationArtifact presentation) => new()
     {
-        ["width"] = Points(presentation.SlideWidthEmu),
-        ["height"] = Points(presentation.SlideHeightEmu),
-        ["unit"] = "pt",
+        ["width"] = JsonValue.Create(Points(presentation.SlideWidthEmu)),
+        ["height"] = JsonValue.Create(Points(presentation.SlideHeightEmu)),
+        ["unit"] = StringNode("pt"),
     };
 
     private static JsonObject ProjectCanvas(PresentationArtifact presentation, ProjectionContext context)
@@ -450,13 +541,16 @@ internal static partial class PpjPresentationProjector
                 slide,
                 pageId,
                 context,
-                [element.Source?.ShapeTreeIndex ?? checked((uint)elementIndex)]));
+                [element.Source?.ShapeTreeIndex ?? checked((uint)elementIndex)],
+                element.ContentCase == PresentationElement.ContentOneofCase.Shape
+                    ? EffectiveSlidePlaceholderFrame(element.Shape, slide, presentation)
+                    : null));
         }
 
         var page = new JsonObject
         {
-            ["id"] = pageId,
-            ["role"] = "source continuation",
+            ["id"] = StringNode(pageId),
+            ["role"] = StringNode("source continuation"),
             ["elements"] = elements,
             ["nativeRef"] = NativeRef(context, $"page:{pageId}", pageHash, pageCapabilities),
         };
@@ -465,16 +559,16 @@ internal static partial class PpjPresentationProjector
             var readingOrder = new JsonArray();
             foreach (var elementId in slide.ReadingOrder)
                 if (context.TryElementId(pageId, elementId, out var projectedId))
-                    readingOrder.Add(projectedId);
+                    readingOrder.Add(StringNode(projectedId));
             if (readingOrder.Count == slide.Elements.Count)
                 page["readingOrder"] = readingOrder;
         }
-        if (!string.IsNullOrWhiteSpace(slide.Name)) page["name"] = slide.Name;
+        if (!string.IsNullOrWhiteSpace(slide.Name)) page["name"] = StringNode(slide.Name);
         if (!string.IsNullOrWhiteSpace(slide.LayoutId) && context.TryLayoutId(slide.LayoutId, out var layoutId))
-            page["layout"] = layoutId;
-        if (slide.HasHidden) page["hidden"] = slide.Hidden;
+            page["layout"] = StringNode(layoutId);
+        if (slide.HasHidden) page["hidden"] = JsonValue.Create(slide.Hidden);
         if (!string.IsNullOrEmpty(slide.SpeakerNotes?.Text))
-            page["notes"] = TextContent(slide.SpeakerNotes.TextBody, slide.SpeakerNotes.Text);
+            page["notes"] = TextContent(slide.SpeakerNotes.TextBody, slide.SpeakerNotes.Text, context);
         if (ProjectBackground(slide.Background, context) is { } background) page["background"] = background;
 
         var animations = ProjectAnimations(slide, context);
@@ -483,16 +577,55 @@ internal static partial class PpjPresentationProjector
         return page;
     }
 
+    // Slide placeholders without a local a:xfrm render through the linked
+    // layout, which in turn may inherit a matching master placeholder.  Keep
+    // that effective frame in the PPJ view so the required public frame is
+    // useful for inspection and editing.  The returned frame is only a
+    // projection; the slide owner remains the source-bound edit boundary and
+    // materialization is gated by the placeholder capability below.
+    private static PresentationPlaceholderFrame? EffectiveSlidePlaceholderFrame(
+        PresentationShape shape,
+        PresentationSlide slide,
+        PresentationArtifact presentation)
+    {
+        if (shape.Placeholder is null) return null;
+        if (shape.DirectFrame is not null) return shape.DirectFrame.Clone();
+        if (!shape.Placeholder.InheritsGeometry || string.IsNullOrWhiteSpace(slide.LayoutId)) return null;
+
+        var layout = presentation.Layouts.FirstOrDefault(candidate =>
+            candidate.Id.Equals(slide.LayoutId, StringComparison.Ordinal));
+        if (layout is null) return null;
+        var keyType = shape.Placeholder.Type;
+        var keyIndex = shape.Placeholder.Index;
+        var layoutMatches = layout.Placeholders
+            .Where(candidate => candidate.Type.Equals(keyType, StringComparison.Ordinal) && candidate.Index == keyIndex)
+            .ToArray();
+        if (layoutMatches.Length > 1) return null;
+        if (layoutMatches.Length == 1 && layoutMatches[0].DirectFrame is { } layoutFrame)
+            return layoutFrame.Clone();
+
+        var master = presentation.Masters.FirstOrDefault(candidate =>
+            candidate.Id.Equals(layout.MasterId, StringComparison.Ordinal));
+        if (master is null) return null;
+        var masterMatches = master.Placeholders
+            .Where(candidate => candidate.Type.Equals(keyType, StringComparison.Ordinal) && candidate.Index == keyIndex)
+            .ToArray();
+        return masterMatches.Length == 1 && masterMatches[0].DirectFrame is { } masterFrame
+            ? masterFrame.Clone()
+            : null;
+    }
+
     private static JsonObject ProjectElement(
         PresentationElement element,
         PresentationSlide slide,
         string pageId,
         ProjectionContext context,
-        IReadOnlyList<uint> shapeTreePath)
+        IReadOnlyList<uint> shapeTreePath,
+        PresentationPlaceholderFrame? effectivePlaceholderFrame = null)
     {
         var id = context.ElementId(pageId, element.Id);
         var hash = HashOrFallback(element.Source?.ElementSha256, element);
-        var capabilities = Capabilities(element);
+        var capabilities = Capabilities(element, effectivePlaceholderFrame is not null);
         var leaves = PpjNativeLeafProjection.Describe(
             context.SourceSha256,
             pageId,
@@ -503,7 +636,7 @@ internal static partial class PpjPresentationProjector
         var nativeRef = NativeRef(context, $"element:{pageId}:{id}", hash, capabilities, leaves);
         JsonObject projected = element.ContentCase switch
         {
-            PresentationElement.ContentOneofCase.Shape => ProjectShape(element, id, nativeRef, context),
+            PresentationElement.ContentOneofCase.Shape => ProjectShape(element, id, nativeRef, context, effectivePlaceholderFrame),
             PresentationElement.ContentOneofCase.Image => ProjectImage(element, id, nativeRef, context),
             PresentationElement.ContentOneofCase.Table => ProjectTable(element, id, nativeRef, context),
             PresentationElement.ContentOneofCase.Connector => ProjectConnector(element, id, nativeRef, pageId, context),
@@ -517,8 +650,8 @@ internal static partial class PpjPresentationProjector
             PresentationElement.ContentOneofCase.Opaque => ProjectOpaque(element, id, nativeRef),
             _ => ProjectOpaque(element, id, nativeRef, "unknown"),
         };
-        if (element.HasHidden && element.Hidden) projected["hidden"] = true;
-        if (element.HasLocked && element.Locked) projected["locked"] = true;
+        if (element.HasHidden && element.Hidden) projected["hidden"] = JsonValue.Create(true);
+        if (element.HasLocked && element.Locked) projected["locked"] = JsonValue.Create(true);
         if (projected["type"]!.GetValue<string>() == "opaque")
         {
             // ProjectShape/ProjectImage may conservatively fall back to opaque
@@ -535,13 +668,18 @@ internal static partial class PpjPresentationProjector
         PresentationElement element,
         string id,
         JsonObject nativeRef,
-        ProjectionContext context)
+        ProjectionContext context,
+        PresentationPlaceholderFrame? effectivePlaceholderFrame = null)
     {
         var shape = element.Shape;
-        var frame = ShapeFrame(shape);
-        var text = TextContent(shape.TextBody, shape.Text);
-        var hasText = !string.IsNullOrEmpty(shape.Text) || shape.TextBody?.Paragraphs.Count > 0;
         var isPlaceholder = shape.Placeholder is not null;
+        if (isPlaceholder && shape.DirectFrame is null && effectivePlaceholderFrame is null)
+            return ProjectOpaque(element, id, nativeRef, "placeholder", "Preserved slide placeholder whose effective layout/master frame is ambiguous or unavailable.");
+        var frame = isPlaceholder && (effectivePlaceholderFrame ?? shape.DirectFrame) is { } placeholderFrame
+            ? ShapeFrame(placeholderFrame)
+            : ShapeFrame(shape);
+        var text = TextContent(shape.TextBody, shape.Text, context);
+        var hasText = !string.IsNullOrEmpty(shape.Text) || shape.TextBody?.Paragraphs.Count > 0;
         var isTextBox = shape.Geometry is "textbox" or "none" || string.IsNullOrEmpty(shape.Geometry);
         var lineLike = shape.Geometry == "line" || PpjLinePathCodec.IsLineLike(shape);
         // The importer deliberately leaves unsupported custom path graphs
@@ -564,16 +702,16 @@ internal static partial class PpjPresentationProjector
             common["hoverAction"] = hoverAction;
         if (shape.Placeholder is not null)
         {
-            common["type"] = "placeholder";
-            common["placeholderType"] = PlaceholderType(shape.Placeholder.Type);
-            common["index"] = shape.Placeholder.Index;
+            common["type"] = StringNode("placeholder");
+            common["placeholderType"] = StringNode(PlaceholderType(shape.Placeholder.Type));
+            common["index"] = JsonValue.Create(shape.Placeholder.Index);
             if (hasText) common["text"] = text;
             if (TextBoxStyle(shape.TextBody) is { Count: > 0 } placeholderStyle) common["style"] = placeholderStyle;
             return common;
         }
         if (shape.Geometry is "textbox" or "none" || string.IsNullOrEmpty(shape.Geometry))
         {
-            common["type"] = "text";
+            common["type"] = StringNode("text");
             common["text"] = text;
             if (TextBoxStyle(shape.TextBody) is { Count: > 0 } textStyle) common["style"] = textStyle;
             ApplyTextContainerStyle(common, shape, context);
@@ -581,7 +719,7 @@ internal static partial class PpjPresentationProjector
         }
         if (lineLike)
         {
-            common["type"] = "line";
+            common["type"] = StringNode("line");
             if (shape.Geometry == "line")
                 common["path"] = PpjLinePathCodec.Synthetic(shape);
             else if (PpjLinePathCodec.TryProjectKimi(shape) is { } kimiPath)
@@ -604,7 +742,7 @@ internal static partial class PpjPresentationProjector
             if (shape.Shadow is not null) common["shadow"] = Shadow(shape.Shadow);
             return common;
         }
-        common["type"] = "shape";
+        common["type"] = StringNode("shape");
         if (shape.Geometry == "custom")
             common["geometry"] = CanProjectCustomGeometry(shape)
                 ? ProjectCustomGeometry(shape)
@@ -615,13 +753,13 @@ internal static partial class PpjPresentationProjector
                     // the bounded custom-geometry profile. Keep the shape's
                     // native geometry behind an explicit source-bound marker
                     // while exposing its frame, image asset and capabilities.
-                    ["kind"] = "source-custom",
-                    ["sourceBound"] = true,
+                    ["kind"] = StringNode("source-custom"),
+                    ["sourceBound"] = JsonValue.Create(true),
                 };
         else
         {
-            var geometry = new JsonObject { ["kind"] = "preset", ["preset"] = shape.Geometry };
-            if (shape.PresetAdjustments.Count > 0)
+            var geometry = new JsonObject { ["kind"] = StringNode("preset"), ["preset"] = StringNode(shape.Geometry) };
+            if (PptxPresetGeometryAdjustmentCodec.IsCompleteValues(shape.Geometry, shape.PresetAdjustments))
                 geometry["adjustments"] = new JsonArray(shape.PresetAdjustments.Select(value => JsonValue.Create(value)).ToArray());
             common["geometry"] = geometry;
         }
@@ -674,15 +812,21 @@ internal static partial class PpjPresentationProjector
             var commands = new JsonArray();
             foreach (var command in source.Commands) commands.Add(ProjectCustomCommand(command));
             var path = new JsonObject { ["commands"] = commands };
-            if (source.FillMode == PresentationCustomGeometryPath.Types.FillMode.Normal) path["fill"] = true;
-            else if (source.FillMode == PresentationCustomGeometryPath.Types.FillMode.None) path["fill"] = false;
-            if (source.HasStroke) path["stroke"] = source.Stroke;
+            if (source.FillMode == PresentationCustomGeometryPath.Types.FillMode.Normal) path["fill"] = JsonValue.Create(true);
+            else if (source.FillMode == PresentationCustomGeometryPath.Types.FillMode.None) path["fill"] = JsonValue.Create(false);
+            if (source.HasStroke) path["stroke"] = JsonValue.Create(source.Stroke);
             paths.Add(path);
         }
         return new JsonObject
         {
-            ["kind"] = "custom",
-            ["viewBox"] = new JsonObject { ["x"] = 0, ["y"] = 0, ["width"] = width, ["height"] = height },
+            ["kind"] = StringNode("custom"),
+            ["viewBox"] = new JsonObject
+            {
+                ["x"] = JsonValue.Create(0),
+                ["y"] = JsonValue.Create(0),
+                ["width"] = JsonValue.Create(width),
+                ["height"] = JsonValue.Create(height),
+            },
             ["paths"] = paths,
         };
     }
@@ -693,39 +837,39 @@ internal static partial class PpjPresentationProjector
         PresentationCustomGeometryCommand.CommandOneofCase.LineTo => ProjectCustomPoint("lineTo", command.LineTo),
         PresentationCustomGeometryCommand.CommandOneofCase.QuadraticBezierTo => new JsonObject
         {
-            ["op"] = "quadraticTo",
-            ["x1"] = CustomPathPoint(command.QuadraticBezierTo.Control.X),
-            ["y1"] = CustomPathPoint(command.QuadraticBezierTo.Control.Y),
-            ["x"] = CustomPathPoint(command.QuadraticBezierTo.End.X),
-            ["y"] = CustomPathPoint(command.QuadraticBezierTo.End.Y),
+            ["op"] = StringNode("quadraticTo"),
+            ["x1"] = JsonValue.Create(CustomPathPoint(command.QuadraticBezierTo.Control.X)),
+            ["y1"] = JsonValue.Create(CustomPathPoint(command.QuadraticBezierTo.Control.Y)),
+            ["x"] = JsonValue.Create(CustomPathPoint(command.QuadraticBezierTo.End.X)),
+            ["y"] = JsonValue.Create(CustomPathPoint(command.QuadraticBezierTo.End.Y)),
         },
         PresentationCustomGeometryCommand.CommandOneofCase.CubicBezierTo => new JsonObject
         {
-            ["op"] = "cubicTo",
-            ["x1"] = CustomPathPoint(command.CubicBezierTo.Control1.X),
-            ["y1"] = CustomPathPoint(command.CubicBezierTo.Control1.Y),
-            ["x2"] = CustomPathPoint(command.CubicBezierTo.Control2.X),
-            ["y2"] = CustomPathPoint(command.CubicBezierTo.Control2.Y),
-            ["x"] = CustomPathPoint(command.CubicBezierTo.End.X),
-            ["y"] = CustomPathPoint(command.CubicBezierTo.End.Y),
+            ["op"] = StringNode("cubicTo"),
+            ["x1"] = JsonValue.Create(CustomPathPoint(command.CubicBezierTo.Control1.X)),
+            ["y1"] = JsonValue.Create(CustomPathPoint(command.CubicBezierTo.Control1.Y)),
+            ["x2"] = JsonValue.Create(CustomPathPoint(command.CubicBezierTo.Control2.X)),
+            ["y2"] = JsonValue.Create(CustomPathPoint(command.CubicBezierTo.Control2.Y)),
+            ["x"] = JsonValue.Create(CustomPathPoint(command.CubicBezierTo.End.X)),
+            ["y"] = JsonValue.Create(CustomPathPoint(command.CubicBezierTo.End.Y)),
         },
         PresentationCustomGeometryCommand.CommandOneofCase.ArcTo => new JsonObject
         {
-            ["op"] = "arcTo",
-            ["radiusX"] = CustomPathPoint(command.ArcTo.WidthRadius),
-            ["radiusY"] = CustomPathPoint(command.ArcTo.HeightRadius),
-            ["startAngle"] = NormalizeCustomPathStartAngle(command.ArcTo.StartAngle),
-            ["sweepAngle"] = CustomPathAngle(command.ArcTo.SweepAngle),
+            ["op"] = StringNode("arcTo"),
+            ["radiusX"] = JsonValue.Create(CustomPathPoint(command.ArcTo.WidthRadius)),
+            ["radiusY"] = JsonValue.Create(CustomPathPoint(command.ArcTo.HeightRadius)),
+            ["startAngle"] = JsonValue.Create(NormalizeCustomPathStartAngle(command.ArcTo.StartAngle)),
+            ["sweepAngle"] = JsonValue.Create(CustomPathAngle(command.ArcTo.SweepAngle)),
         },
-        PresentationCustomGeometryCommand.CommandOneofCase.Close => new JsonObject { ["op"] = "close" },
+        PresentationCustomGeometryCommand.CommandOneofCase.Close => new JsonObject { ["op"] = StringNode("close") },
         _ => throw new InvalidOperationException("Unsupported PPJ custom path command passed the projection gate."),
     };
 
     private static JsonObject ProjectCustomPoint(string operation, PresentationCustomGeometryPoint point) => new()
     {
-        ["op"] = operation,
-        ["x"] = CustomPathPoint(point.X),
-        ["y"] = CustomPathPoint(point.Y),
+        ["op"] = StringNode(operation),
+        ["x"] = JsonValue.Create(CustomPathPoint(point.X)),
+        ["y"] = JsonValue.Create(CustomPathPoint(point.Y)),
     };
 
     private static double CustomPathPoint(long value) => value / 1_000d;
@@ -754,27 +898,27 @@ internal static partial class PpjPresentationProjector
         if (customMask is not null && !CanProjectCustomGeometry(customMask))
             return ProjectOpaque(element, id, nativeRef, "picture", "Preserved source picture whose custom mask cannot be represented exactly in PPJ.");
         var output = ElementBase(id, element.Name, ImageFrame(image), ImageAccessibility(image), nativeRef);
-        output["type"] = "image";
-        output["asset"] = assetId;
-        if (svgAssetId is not null) output["svgAsset"] = svgAssetId;
-        output["fit"] = image.Tiled ? "tile" : "stretch";
+        output["type"] = StringNode("image");
+        output["asset"] = StringNode(assetId);
+        if (svgAssetId is not null) output["svgAsset"] = StringNode(svgAssetId);
+        output["fit"] = StringNode(image.Tiled ? "tile" : "stretch");
         if (image.Crop is not null)
         {
             output["crop"] = new JsonObject
             {
-                ["left"] = Crop(image.Crop.LeftThousandthPercent),
-                ["top"] = Crop(image.Crop.TopThousandthPercent),
-                ["right"] = Crop(image.Crop.RightThousandthPercent),
-                ["bottom"] = Crop(image.Crop.BottomThousandthPercent),
+                ["left"] = JsonValue.Create(Crop(image.Crop.LeftThousandthPercent)),
+                ["top"] = JsonValue.Create(Crop(image.Crop.TopThousandthPercent)),
+                ["right"] = JsonValue.Create(Crop(image.Crop.RightThousandthPercent)),
+                ["bottom"] = JsonValue.Create(Crop(image.Crop.BottomThousandthPercent)),
             };
         }
         if (image.HasOpacityThousandthPercent)
-            output["opacity"] = Unit(image.OpacityThousandthPercent);
+            output["opacity"] = JsonValue.Create(Unit(image.OpacityThousandthPercent));
         if (customMask is not null)
             output["mask"] = ProjectCustomGeometry(customMask);
         else if (!string.IsNullOrEmpty(image.MaskPreset) && PptxPresetGeometryAdjustmentCodec.HasProfile(image.MaskPreset))
         {
-            var mask = new JsonObject { ["kind"] = "preset", ["preset"] = image.MaskPreset };
+            var mask = new JsonObject { ["kind"] = StringNode("preset"), ["preset"] = StringNode(image.MaskPreset) };
             if (image.MaskPresetAdjustments.Count > 0)
                 mask["adjustments"] = new JsonArray(image.MaskPresetAdjustments.Select(value => JsonValue.Create(value)).ToArray());
             output["mask"] = mask;
@@ -823,12 +967,12 @@ internal static partial class PpjPresentationProjector
             return ProjectOpaque(element, id, nativeRef, "chart", "Preserved source chart outside the bounded PPJ data profile.");
 
         var output = ElementBase(id, element.Name, ChartFrame(chart), Accessibility(chart.Accessibility), nativeRef);
-        output["type"] = "chart";
-        output["chartType"] = chart.Type == SpreadsheetChartType.Bar && chart.BarDirection == "bar" ? "bar" : type;
+        output["type"] = StringNode("chart");
+        output["chartType"] = StringNode(chart.Type == SpreadsheetChartType.Bar && chart.BarDirection == "bar" ? "bar" : type!);
         if (!string.IsNullOrEmpty(chart.Title))
             output["title"] = chart.TitleBody is null
                 ? StringNode(chart.Title)
-                : TextContent(chart.TitleBody, chart.Title);
+                : TextContent(chart.TitleBody, chart.Title, context);
         var categories = new JsonArray();
         foreach (var value in chart.Categories) categories.Add(StringNode(value));
         var seriesJson = new JsonArray();
@@ -841,14 +985,14 @@ internal static partial class PpjPresentationProjector
                 values.Add(missingValueIndexes.Contains((uint)valueIndex) ? null : NumberNode(item.Values[valueIndex]));
             var entry = new JsonObject
             {
-                ["id"] = $"series-{index + 1}",
-                ["name"] = item.Name ?? string.Empty,
+                ["id"] = StringNode($"series-{index + 1}"),
+                ["name"] = StringNode(item.Name ?? string.Empty),
                 ["values"] = values,
             };
-            if (!string.IsNullOrWhiteSpace(item.CategoryFormula)) entry["categoryFormula"] = item.CategoryFormula;
-            if (!string.IsNullOrWhiteSpace(item.XValueFormula)) entry["xValueFormula"] = item.XValueFormula;
-            if (!string.IsNullOrWhiteSpace(item.ValueFormula)) entry["valueFormula"] = item.ValueFormula;
-            if (!string.IsNullOrWhiteSpace(item.BubbleSizeFormula)) entry["bubbleSizeFormula"] = item.BubbleSizeFormula;
+            if (!string.IsNullOrWhiteSpace(item.CategoryFormula)) entry["categoryFormula"] = StringNode(item.CategoryFormula);
+            if (!string.IsNullOrWhiteSpace(item.XValueFormula)) entry["xValueFormula"] = StringNode(item.XValueFormula);
+            if (!string.IsNullOrWhiteSpace(item.ValueFormula)) entry["valueFormula"] = StringNode(item.ValueFormula);
+            if (!string.IsNullOrWhiteSpace(item.BubbleSizeFormula)) entry["bubbleSizeFormula"] = StringNode(item.BubbleSizeFormula);
             if (item.XValues.Count > 0)
             {
                 var xValues = new JsonArray();
@@ -863,15 +1007,48 @@ internal static partial class PpjPresentationProjector
             }
             if (chart.Type == SpreadsheetChartType.Combo)
             {
-                entry["chartType"] = chart.ComboSeries[index].Type == SpreadsheetChartType.Bar && chart.BarDirection == "bar"
+                entry["chartType"] = StringNode(chart.ComboSeries[index].Type == SpreadsheetChartType.Bar && chart.BarDirection == "bar"
                     ? "bar"
-                    : ChartType(chart.ComboSeries[index].Type) ?? "line";
-                entry["axis"] = chart.ComboSeries[index].AxisGroup == PresentationChartAxisGroup.Secondary ? "secondary" : "primary";
+                    : ChartType(chart.ComboSeries[index].Type) ?? "line");
+                var axisIndex = chart.ComboSeries[index].AxisGroup == PresentationChartAxisGroup.Secondary ? 1 : 0;
+                entry["axis"] = StringNode(axisIndex == 1 ? "secondary" : "primary");
+                // The native chart model has two axis groups rather than the
+                // Kimi array form. Emit both bounded indexes so a projected
+                // combo series can be fed back into the dataset/encode
+                // compatibility layer without losing its 0/1 placement.
+                entry["xAxisIndex"] = JsonValue.Create(axisIndex);
+                entry["yAxisIndex"] = JsonValue.Create(axisIndex);
             }
             ProjectChartSeriesStyle(entry, item);
             seriesJson.Add(entry);
         }
-        output["data"] = new JsonObject { ["categories"] = categories, ["series"] = seriesJson };
+        var data = new JsonObject { ["categories"] = categories, ["series"] = seriesJson };
+        if (CanProjectCanonicalDataset(chart, series))
+        {
+            // Keep the legacy categories/series projection for wire
+            // compatibility, and add a deterministic dataset/encoding view
+            // only when it is a lossless view of the same native vectors.
+            // Complex formulas, sparse point overrides, and per-series
+            // topology stay on the legacy path so a re-import cannot silently
+            // discard their semantics.
+            data["dataset"] = CanonicalDataset(chart, series);
+            var encoding = chart.Type is SpreadsheetChartType.Scatter or SpreadsheetChartType.Bubble
+                ? new JsonObject
+                {
+                    ["x"] = StringNode("x"),
+                    ["y"] = StringNode("y"),
+                    ["series"] = StringNode("series"),
+                }
+                : new JsonObject
+                {
+                    ["category"] = StringNode("category"),
+                    ["series"] = StringNode("series"),
+                    ["value"] = StringNode("value"),
+                };
+            if (chart.Type == SpreadsheetChartType.Bubble) encoding["size"] = StringNode("size");
+            data["encoding"] = encoding;
+        }
+        output["data"] = data;
         if (chart.Type == SpreadsheetChartType.Radar && TryProjectRadarSpokeAxis(chart, out var spokeAxis))
             output["spokeAxis"] = spokeAxis;
         else
@@ -883,19 +1060,19 @@ internal static partial class PpjPresentationProjector
         if (chart.SecondaryYAxis is not null) output["secondaryYAxis"] = ProjectChartAxis(chart.SecondaryYAxis);
         var style = new JsonObject
         {
-            ["legend"] = chart.HasLegend
+            ["legend"] = StringNode(chart.HasLegend
                 ? chart.LegendPosition.Length == 0 ? "right" : chart.LegendPosition
-                : "none",
+                : "none"),
         };
-        if (chart.Grouping.Length > 0) style["stacking"] = chart.Grouping;
-        if (chart.HasGapWidth) style["gapWidth"] = chart.GapWidth;
-        if (chart.HasFirstSliceAngle) style["startAngle"] = chart.FirstSliceAngle;
-        if (chart.HasDoughnutHoleSize) style["holeSize"] = chart.DoughnutHoleSize;
-        if (chart.HasBubbleScale) style["bubbleScale"] = chart.BubbleScale;
-        if (chart.BubbleSizeMode.Length > 0) style["bubbleSizeMode"] = chart.BubbleSizeMode;
-        if (chart.XAxis is null && chart.HasShowCategoryAxis) style["showCategoryAxis"] = chart.ShowCategoryAxis;
-        if (chart.YAxis is null && chart.HasShowValueAxis) style["showValueAxis"] = chart.ShowValueAxis;
-        if (chart.YAxis is null && chart.HasShowGridlines) style["showGridlines"] = chart.ShowGridlines;
+        if (chart.Grouping.Length > 0) style["stacking"] = StringNode(chart.Grouping);
+        if (chart.HasGapWidth) style["gapWidth"] = JsonValue.Create(chart.GapWidth);
+        if (chart.HasFirstSliceAngle) style["startAngle"] = JsonValue.Create(chart.FirstSliceAngle);
+        if (chart.HasDoughnutHoleSize) style["holeSize"] = JsonValue.Create(chart.DoughnutHoleSize);
+        if (chart.HasBubbleScale) style["bubbleScale"] = JsonValue.Create(chart.BubbleScale);
+        if (chart.BubbleSizeMode.Length > 0) style["bubbleSizeMode"] = StringNode(chart.BubbleSizeMode);
+        if (chart.XAxis is null && chart.HasShowCategoryAxis) style["showCategoryAxis"] = JsonValue.Create(chart.ShowCategoryAxis);
+        if (chart.YAxis is null && chart.HasShowValueAxis) style["showValueAxis"] = JsonValue.Create(chart.ShowValueAxis);
+        if (chart.YAxis is null && chart.HasShowGridlines) style["showGridlines"] = JsonValue.Create(chart.ShowGridlines);
         if (chart.ChartAreaFill is not null) style["chartAreaFill"] = ProjectChartSurfaceFill(chart.ChartAreaFill);
         if (chart.PlotAreaFill is not null) style["plotAreaFill"] = ProjectChartSurfaceFill(chart.PlotAreaFill);
         if (chart.Frame is not null)
@@ -915,27 +1092,117 @@ internal static partial class PpjPresentationProjector
             style["titleTextStyle"] = ProjectChartTextStyle(chart.TitleTextStyle);
         if (chart.LegendTextStyle is not null)
             style["legendTextStyle"] = ProjectChartTextStyle(chart.LegendTextStyle);
-        if (chart.LineOptions?.HasSmooth == true) style["smooth"] = chart.LineOptions.Smooth;
-        if (chart.LineOptions?.VaryColors == true) style["varyColors"] = true;
+        if (chart.LineOptions?.HasSmooth == true) style["smooth"] = JsonValue.Create(chart.LineOptions.Smooth);
+        if (chart.LineOptions?.VaryColors == true) style["varyColors"] = JsonValue.Create(true);
         if (chart.DataLabels is not null)
         {
             var labels = new JsonObject
             {
-                ["showValue"] = chart.DataLabels.ShowValue,
-                ["showCategory"] = chart.DataLabels.ShowCategoryName,
+                ["showValue"] = JsonValue.Create(chart.DataLabels.ShowValue),
+                ["showCategory"] = JsonValue.Create(chart.DataLabels.ShowCategoryName),
             };
-            if (chart.DataLabels.HasShowSeriesName) labels["showSeries"] = chart.DataLabels.ShowSeriesName;
-            if (chart.DataLabels.HasShowPercent) labels["showPercent"] = chart.DataLabels.ShowPercent;
+            if (chart.DataLabels.HasShowSeriesName) labels["showSeries"] = JsonValue.Create(chart.DataLabels.ShowSeriesName);
+            if (chart.DataLabels.HasShowPercent) labels["showPercent"] = JsonValue.Create(chart.DataLabels.ShowPercent);
             if (chart.DataLabels.HasPosition && DataLabelPosition(chart.DataLabels.Position) is { } position)
-                labels["position"] = position;
+                labels["position"] = StringNode(position);
             if (chart.DataLabels.TextStyle is not null)
                 labels["textStyle"] = ProjectChartTextStyle(chart.DataLabels.TextStyle);
             if (chart.DataLabels.NumberFormatCode.Length > 0)
-                labels["numberFormat"] = chart.DataLabels.NumberFormatCode;
+                labels["numberFormat"] = StringNode(chart.DataLabels.NumberFormatCode);
             style["dataLabels"] = labels;
         }
         output["style"] = style;
         return output;
+    }
+
+    private static bool CanProjectCanonicalDataset(
+        PresentationChart chart,
+        IReadOnlyList<SpreadsheetChartSeriesArtifact> series)
+    {
+        if (series.Count == 0) return false;
+        if (chart.Type is SpreadsheetChartType.Scatter or SpreadsheetChartType.Bubble)
+        {
+            if (chart.Categories.Count != 0) return false;
+            return series.All(item =>
+                item.Values.Count > 0 &&
+                item.Values.Count == item.XValues.Count &&
+                (chart.Type != SpreadsheetChartType.Bubble || item.Values.Count == item.BubbleSizes.Count) &&
+                (chart.Type != SpreadsheetChartType.Scatter || item.BubbleSizes.Count == 0) &&
+                string.IsNullOrWhiteSpace(item.CategoryFormula) &&
+                string.IsNullOrWhiteSpace(item.XValueFormula) &&
+                string.IsNullOrWhiteSpace(item.ValueFormula) &&
+                string.IsNullOrWhiteSpace(item.BubbleSizeFormula) &&
+                item.MissingValueIndexes.Count == 0 &&
+                item.Trendlines.Count == 0 && item.ErrorBars is null &&
+                item.Fill is null && item.Line is null && item.Marker is null &&
+                item.SeriesFill is null && item.DataLabels is null && item.PointStyles.Count == 0);
+        }
+        if (chart.Type is not (SpreadsheetChartType.Bar or SpreadsheetChartType.Line or SpreadsheetChartType.Area or
+            SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut or SpreadsheetChartType.Radar) ||
+            chart.Categories.Count == 0)
+            return false;
+        return series.All(item =>
+            item.Values.Count == chart.Categories.Count &&
+            string.IsNullOrWhiteSpace(item.CategoryFormula) &&
+            string.IsNullOrWhiteSpace(item.XValueFormula) &&
+            string.IsNullOrWhiteSpace(item.ValueFormula) &&
+            string.IsNullOrWhiteSpace(item.BubbleSizeFormula) &&
+            item.XValues.Count == 0 && item.BubbleSizes.Count == 0 &&
+            item.MissingValueIndexes.Count == 0 &&
+            item.Trendlines.Count == 0 && item.ErrorBars is null &&
+            item.Fill is null && item.Line is null && item.Marker is null &&
+            item.SeriesFill is null && item.DataLabels is null && item.PointStyles.Count == 0);
+    }
+
+    private static JsonObject CanonicalDataset(
+        PresentationChart chart,
+        IReadOnlyList<SpreadsheetChartSeriesArtifact> series)
+    {
+        var rows = new JsonArray();
+        if (chart.Type is SpreadsheetChartType.Scatter or SpreadsheetChartType.Bubble)
+        {
+            foreach (var item in series)
+            {
+                for (var pointIndex = 0; pointIndex < item.Values.Count; pointIndex++)
+                {
+                    var row = new JsonArray
+                    {
+                        NumberNode(item.XValues[pointIndex]),
+                        StringNode(item.Name ?? string.Empty),
+                        NumberNode(item.Values[pointIndex]),
+                    };
+                    if (chart.Type == SpreadsheetChartType.Bubble)
+                        row.Add(NumberNode(item.BubbleSizes[pointIndex]));
+                    rows.Add(row);
+                }
+            }
+            return new JsonObject
+            {
+                ["cols"] = chart.Type == SpreadsheetChartType.Bubble
+                    ? new JsonArray { StringNode("x"), StringNode("series"), StringNode("y"), StringNode("size") }
+                    : new JsonArray { StringNode("x"), StringNode("series"), StringNode("y") },
+                ["rows"] = rows,
+            };
+        }
+        for (var categoryIndex = 0; categoryIndex < chart.Categories.Count; categoryIndex++)
+        {
+            foreach (var item in series)
+            {
+                var row = new JsonObject
+                {
+                    ["category"] = StringNode(chart.Categories[categoryIndex]),
+                    ["series"] = StringNode(item.Name ?? string.Empty),
+                };
+                var missing = item.MissingValueIndexes.Contains((uint)categoryIndex);
+                row["value"] = missing ? null : NumberNode(item.Values[categoryIndex]);
+                rows.Add(row);
+            }
+        }
+        return new JsonObject
+        {
+            ["cols"] = new JsonArray { StringNode("category"), StringNode("series"), StringNode("value") },
+            ["rows"] = rows,
+        };
     }
 
     private static void ProjectChartSeriesStyle(JsonObject output, SpreadsheetChartSeriesArtifact series)
@@ -943,7 +1210,7 @@ internal static partial class PpjPresentationProjector
         if (series.SeriesFill is not null)
             output["fill"] = ProjectChartSurfaceFill(series.SeriesFill);
         else if (series.Fill is not null && !string.IsNullOrEmpty(series.Fill.Rgb))
-            output["fill"] = new JsonObject { ["type"] = "solid", ["color"] = Color(series.Fill.Rgb) };
+            output["fill"] = new JsonObject { ["type"] = StringNode("solid"), ["color"] = StringNode(Color(series.Fill.Rgb)) };
         if (series.Line is not null && !string.IsNullOrEmpty(series.Line.Color?.Rgb))
             output["stroke"] = ProjectChartLine(series.Line);
         if (series.PointStyles.Count > 0)
@@ -951,11 +1218,11 @@ internal static partial class PpjPresentationProjector
             var points = new JsonArray();
             foreach (var point in series.PointStyles.OrderBy(point => point.Index))
             {
-                var item = new JsonObject { ["index"] = point.Index };
+            var item = new JsonObject { ["index"] = JsonValue.Create(point.Index) };
                 if (point.Fill is not null) item["fill"] = ProjectChartSurfaceFill(point.Fill);
                 if (point.Line is not null && !string.IsNullOrEmpty(point.Line.Color?.Rgb))
                     item["stroke"] = ProjectChartLine(point.Line);
-                if (point.HasExplosion) item["explosion"] = point.Explosion;
+                if (point.HasExplosion) item["explosion"] = JsonValue.Create(point.Explosion);
                 points.Add(item);
             }
             output["pointStyles"] = points;
@@ -966,11 +1233,11 @@ internal static partial class PpjPresentationProjector
             if (symbol is not null)
             {
                 if (!series.Marker.HasSize && series.Marker.Fill is null && series.Marker.Line is null)
-                    output["marker"] = symbol;
+                    output["marker"] = StringNode(symbol);
                 else
                 {
-                    var marker = new JsonObject { ["symbol"] = symbol };
-                    if (series.Marker.HasSize) marker["size"] = series.Marker.Size;
+                    var marker = new JsonObject { ["symbol"] = StringNode(symbol) };
+                    if (series.Marker.HasSize) marker["size"] = JsonValue.Create(series.Marker.Size);
                     if (series.Marker.Fill is not null && !string.IsNullOrEmpty(series.Marker.Fill.Rgb))
                     {
                         var color = Color(series.Marker.Fill.Rgb);
@@ -979,7 +1246,7 @@ internal static partial class PpjPresentationProjector
                             var alpha = Math.Clamp((int)Math.Round(Unit(series.Marker.FillOpacityThousandthPercent) * 255), 0, 255);
                             color += $"{alpha:X2}";
                         }
-                        marker["fill"] = color;
+                        marker["fill"] = StringNode(color);
                     }
                     if (series.Marker.Line is not null && !string.IsNullOrEmpty(series.Marker.Line.Color?.Rgb))
                         marker["stroke"] = ProjectChartLine(series.Marker.Line);
@@ -993,15 +1260,15 @@ internal static partial class PpjPresentationProjector
             foreach (var item in series.Trendlines)
             {
                 if (TrendlineType(item.Type) is not { } type) continue;
-                var trendline = new JsonObject { ["type"] = type };
-                if (!string.IsNullOrEmpty(item.Name)) trendline["name"] = item.Name;
-                if (item.HasPolynomialOrder) trendline["order"] = item.PolynomialOrder;
-                if (item.HasPeriod) trendline["period"] = item.Period;
-                if (item.HasForward) trendline["forward"] = item.Forward;
-                if (item.HasBackward) trendline["backward"] = item.Backward;
-                if (item.HasIntercept) trendline["intercept"] = item.Intercept;
-                if (item.DisplayEquation) trendline["displayEquation"] = true;
-                if (item.DisplayRSquared) trendline["displayRSquared"] = true;
+                var trendline = new JsonObject { ["type"] = StringNode(type) };
+                if (!string.IsNullOrEmpty(item.Name)) trendline["name"] = StringNode(item.Name);
+                if (item.HasPolynomialOrder) trendline["order"] = JsonValue.Create(item.PolynomialOrder);
+                if (item.HasPeriod) trendline["period"] = JsonValue.Create(item.Period);
+                if (item.HasForward) trendline["forward"] = JsonValue.Create(item.Forward);
+                if (item.HasBackward) trendline["backward"] = JsonValue.Create(item.Backward);
+                if (item.HasIntercept) trendline["intercept"] = JsonValue.Create(item.Intercept);
+                if (item.DisplayEquation) trendline["displayEquation"] = JsonValue.Create(true);
+                if (item.DisplayRSquared) trendline["displayRSquared"] = JsonValue.Create(true);
                 if (item.Line is not null && !string.IsNullOrEmpty(item.Line.Color?.Rgb))
                     trendline["stroke"] = ProjectChartLine(item.Line);
                 trendlines.Add(trendline);
@@ -1015,12 +1282,12 @@ internal static partial class PpjPresentationProjector
         {
             var projected = new JsonObject
             {
-                ["direction"] = direction,
-                ["type"] = barType,
-                ["valueType"] = valueType,
+                ["direction"] = StringNode(direction),
+                ["type"] = StringNode(barType),
+                ["valueType"] = StringNode(valueType),
             };
-            if (errorBars.HasValue) projected["value"] = errorBars.Value;
-            if (errorBars.NoEndCap) projected["noEndCap"] = true;
+            if (errorBars.HasValue) projected["value"] = JsonValue.Create(errorBars.Value);
+            if (errorBars.NoEndCap) projected["noEndCap"] = JsonValue.Create(true);
             if (errorBars.Line is not null && !string.IsNullOrEmpty(errorBars.Line.Color?.Rgb))
                 projected["stroke"] = ProjectChartLine(errorBars.Line);
             output["errorBars"] = projected;
@@ -1038,7 +1305,7 @@ internal static partial class PpjPresentationProjector
             foreach (var point in source.Points.OrderBy(point => point.Index))
             {
                 var item = ProjectChartLabelOverride(point.Override!);
-                item["index"] = point.Index;
+                item["index"] = JsonValue.Create(point.Index);
                 points.Add(item);
             }
             output["points"] = points;
@@ -1049,46 +1316,46 @@ internal static partial class PpjPresentationProjector
     private static JsonObject ProjectChartLabelOverride(SpreadsheetChartDataLabelOverrideArtifact source)
     {
         var output = new JsonObject();
-        if (source.HasShowValue) output["showValue"] = source.ShowValue;
-        if (source.HasShowCategoryName) output["showCategory"] = source.ShowCategoryName;
-        if (source.HasShowSeriesName) output["showSeries"] = source.ShowSeriesName;
-        if (source.HasShowPercent) output["showPercent"] = source.ShowPercent;
-        if (source.HasPosition && DataLabelPosition(source.Position) is { } position) output["position"] = position;
+        if (source.HasShowValue) output["showValue"] = JsonValue.Create(source.ShowValue);
+        if (source.HasShowCategoryName) output["showCategory"] = JsonValue.Create(source.ShowCategoryName);
+        if (source.HasShowSeriesName) output["showSeries"] = JsonValue.Create(source.ShowSeriesName);
+        if (source.HasShowPercent) output["showPercent"] = JsonValue.Create(source.ShowPercent);
+        if (source.HasPosition && DataLabelPosition(source.Position) is { } position) output["position"] = StringNode(position);
         if (source.TextStyle is not null) output["textStyle"] = ProjectChartTextStyle(source.TextStyle);
-        if (source.NumberFormatCode.Length > 0) output["numberFormat"] = source.NumberFormatCode;
+        if (source.NumberFormatCode.Length > 0) output["numberFormat"] = StringNode(source.NumberFormatCode);
         return output;
     }
 
     private static JsonObject ProjectChartAxis(SpreadsheetChartAxisArtifact axis)
     {
         var output = new JsonObject();
-        if (!string.IsNullOrEmpty(axis.Title)) output["title"] = axis.Title;
-        if (!string.IsNullOrEmpty(axis.NumberFormatCode)) output["numberFormat"] = axis.NumberFormatCode;
-        if (axis.HasTickLabelInterval) output["tickLabelInterval"] = axis.TickLabelInterval;
-        if (axis.HasMinimum) output["min"] = axis.Minimum;
-        if (axis.HasMaximum) output["max"] = axis.Maximum;
-        if (axis.HasMajorUnit) output["majorUnit"] = axis.MajorUnit;
-        if (axis.HasVisible) output["visible"] = axis.Visible;
-        if (axis.HasReverse) output["reverse"] = axis.Reverse;
-        if (axis.HasTickLabelsVisible) output["tickLabelsVisible"] = axis.TickLabelsVisible;
+        if (!string.IsNullOrEmpty(axis.Title)) output["title"] = StringNode(axis.Title);
+        if (!string.IsNullOrEmpty(axis.NumberFormatCode)) output["numberFormat"] = StringNode(axis.NumberFormatCode);
+        if (axis.HasTickLabelInterval) output["tickLabelInterval"] = JsonValue.Create(axis.TickLabelInterval);
+        if (axis.HasMinimum) output["min"] = JsonValue.Create(axis.Minimum);
+        if (axis.HasMaximum) output["max"] = JsonValue.Create(axis.Maximum);
+        if (axis.HasMajorUnit) output["majorUnit"] = JsonValue.Create(axis.MajorUnit);
+        if (axis.HasVisible) output["visible"] = JsonValue.Create(axis.Visible);
+        if (axis.HasReverse) output["reverse"] = JsonValue.Create(axis.Reverse);
+        if (axis.HasTickLabelsVisible) output["tickLabelsVisible"] = JsonValue.Create(axis.TickLabelsVisible);
         if (axis.AxisLine is not null && !string.IsNullOrEmpty(axis.AxisLine.Color?.Rgb))
             output["axisLine"] = ProjectChartLine(axis.AxisLine);
         else if (axis.HasAxisLineVisible)
-            output["axisLine"] = axis.AxisLineVisible;
+            output["axisLine"] = JsonValue.Create(axis.AxisLineVisible);
         if (axis.AxisLine is { } axisLine &&
             (axisLine.StartArrow.Length > 0 || axisLine.EndArrow.Length > 0))
         {
             var arrows = new JsonObject();
-            if (axisLine.StartArrow.Length > 0) arrows["start"] = axisLine.StartArrow;
-            if (axisLine.EndArrow.Length > 0) arrows["end"] = axisLine.EndArrow;
+            if (axisLine.StartArrow.Length > 0) arrows["start"] = StringNode(axisLine.StartArrow);
+            if (axisLine.EndArrow.Length > 0) arrows["end"] = StringNode(axisLine.EndArrow);
             output["axisLineArrow"] = arrows;
         }
         if (axis.MajorGridlineStyle is not null && !string.IsNullOrEmpty(axis.MajorGridlineStyle.Color?.Rgb))
             output["gridLine"] = ProjectChartLine(axis.MajorGridlineStyle);
         else if (axis.HasMajorGridlineVisible)
-            output["gridLine"] = axis.MajorGridlineVisible;
+            output["gridLine"] = JsonValue.Create(axis.MajorGridlineVisible);
         else if (axis.HasShowMajorGridlines)
-            output["gridLine"] = axis.ShowMajorGridlines;
+            output["gridLine"] = JsonValue.Create(axis.ShowMajorGridlines);
         if (axis.TextStyle is not null)
             output["textStyle"] = ProjectChartTextStyle(axis.TextStyle);
         if (axis.TitleTextStyle is not null)
@@ -1122,26 +1389,26 @@ internal static partial class PpjPresentationProjector
         if (!hasEvidence) return false;
 
         var show = !xAxis.HasVisible || xAxis.Visible;
-        if (xAxis.HasVisible) output["show"] = show;
-        if (yAxis.HasMinimum) output["min"] = yAxis.Minimum;
-        if (yAxis.HasMaximum) output["max"] = yAxis.Maximum;
-        if (yAxis.HasMajorUnit) output["majorUnit"] = yAxis.MajorUnit;
+        if (xAxis.HasVisible) output["show"] = JsonValue.Create(show);
+        if (yAxis.HasMinimum) output["min"] = JsonValue.Create(yAxis.Minimum);
+        if (yAxis.HasMaximum) output["max"] = JsonValue.Create(yAxis.Maximum);
+        if (yAxis.HasMajorUnit) output["majorUnit"] = JsonValue.Create(yAxis.MajorUnit);
 
         if (yAxis.HasTickLabelsVisible && !yAxis.TickLabelsVisible)
-            output["label"] = false;
+            output["label"] = JsonValue.Create(false);
         else if (yAxis.NumberFormatCode.Length > 0 || yAxis.TextStyle is not null)
         {
             var label = yAxis.TextStyle is null ? new JsonObject() : ProjectChartTextStyle(yAxis.TextStyle);
-            if (yAxis.NumberFormatCode.Length > 0) label["numberFormat"] = yAxis.NumberFormatCode;
+            if (yAxis.NumberFormatCode.Length > 0) label["numberFormat"] = StringNode(yAxis.NumberFormatCode);
             output["label"] = label;
         }
         else if (yAxis.HasTickLabelsVisible)
-            output["label"] = yAxis.TickLabelsVisible;
+            output["label"] = JsonValue.Create(yAxis.TickLabelsVisible);
 
         if (show)
         {
-            output["axisLine"] = ProjectRadarGuideLine(xAxis) ?? false;
-            output["gridLine"] = ProjectRadarGuideLine(yAxis) ?? false;
+            output["axisLine"] = ProjectRadarGuideLine(xAxis) ?? JsonValue.Create(false);
+            output["gridLine"] = ProjectRadarGuideLine(yAxis) ?? JsonValue.Create(false);
         }
         return true;
     }
@@ -1158,11 +1425,11 @@ internal static partial class PpjPresentationProjector
     private static JsonObject ProjectChartTextStyle(SpreadsheetChartTextStyleArtifact source)
     {
         var output = new JsonObject();
-        if (source.HasFontSizePoints) output["fontSize"] = source.FontSizePoints;
-        if (source.FontFamily.Length > 0) output["fontFamily"] = source.FontFamily;
-        if (source.FontFamilyEastAsia.Length > 0) output["fontFamilyEastAsia"] = source.FontFamilyEastAsia;
-        if (source.HasBold) output["bold"] = source.Bold;
-        if (source.HasItalic) output["italic"] = source.Italic;
+        if (source.HasFontSizePoints) output["fontSize"] = JsonValue.Create(source.FontSizePoints);
+        if (source.FontFamily.Length > 0) output["fontFamily"] = StringNode(source.FontFamily);
+        if (source.FontFamilyEastAsia.Length > 0) output["fontFamilyEastAsia"] = StringNode(source.FontFamilyEastAsia);
+        if (source.HasBold) output["bold"] = JsonValue.Create(source.Bold);
+        if (source.HasItalic) output["italic"] = JsonValue.Create(source.Italic);
         if (source.ColorRgb.Length > 0)
             output["color"] = TextColor(source.ColorRgb, null,
                 source.HasOpacityThousandthPercent, source.OpacityThousandthPercent);
@@ -1173,28 +1440,28 @@ internal static partial class PpjPresentationProjector
     {
         var output = new JsonObject
         {
-            ["color"] = Color(line.Color.Rgb),
-            ["width"] = line.HasWidthPoints ? line.WidthPoints : 0.75,
+            ["color"] = StringNode(Color(line.Color.Rgb)),
+            ["width"] = JsonValue.Create(line.HasWidthPoints ? line.WidthPoints : 0.75),
         };
-        if (ChartDash(line.DashStyle) is { } dash) output["dash"] = dash;
-        if (line.Cap is "flat" or "round" or "square") output["cap"] = line.Cap;
-        if (line.Join is "miter" or "round" or "bevel") output["join"] = line.Join;
-        if (line.HasOpacityThousandthPercent) output["opacity"] = Unit(line.OpacityThousandthPercent);
+        if (ChartDash(line.DashStyle) is { } dash) output["dash"] = StringNode(dash);
+        if (line.Cap is "flat" or "round" or "square") output["cap"] = StringNode(line.Cap);
+        if (line.Join is "miter" or "round" or "bevel") output["join"] = StringNode(line.Join);
+        if (line.HasOpacityThousandthPercent) output["opacity"] = JsonValue.Create(Unit(line.OpacityThousandthPercent));
         return output;
     }
 
     private static JsonObject ProjectChartSurfaceFill(SpreadsheetChartSurfaceFill fill)
     {
         if (fill.FillCase == SpreadsheetChartSurfaceFill.FillOneofCase.NoFill)
-            return new JsonObject { ["type"] = "none" };
+            return new JsonObject { ["type"] = StringNode("none") };
         if (fill.FillCase == SpreadsheetChartSurfaceFill.FillOneofCase.GradientFill)
             return Gradient(fill.GradientFill);
         var output = new JsonObject
         {
-            ["type"] = "solid",
-            ["color"] = Color(fill.SolidRgb),
+            ["type"] = StringNode("solid"),
+            ["color"] = StringNode(Color(fill.SolidRgb)),
         };
-        if (fill.HasOpacityThousandthPercent) output["opacity"] = Unit(fill.OpacityThousandthPercent);
+        if (fill.HasOpacityThousandthPercent) output["opacity"] = JsonValue.Create(Unit(fill.OpacityThousandthPercent));
         return output;
     }
 
@@ -1209,18 +1476,18 @@ internal static partial class PpjPresentationProjector
             return ProjectOpaque(element, id, nativeRef, "table", "Preserved source table outside the bounded rectangular grid profile.");
 
         var output = ElementBase(id, element.Name, TableFrame(table), Accessibility(table.Accessibility), nativeRef);
-        output["type"] = "table";
+        output["type"] = StringNode("table");
         var columns = new JsonArray();
         for (var index = 0; index < table.ColumnWidthsEmu.Count; index++)
-            columns.Add(new JsonObject { ["id"] = $"column-{index + 1}", ["width"] = Points(table.ColumnWidthsEmu[index]) });
+            columns.Add(new JsonObject { ["id"] = StringNode($"column-{index + 1}"), ["width"] = JsonValue.Create(Points(table.ColumnWidthsEmu[index])) });
         output["columns"] = columns;
         output["rows"] = ProjectTableRows(table, context);
         var style = new JsonObject();
-        if (table.HasFirstRow) style["headerRows"] = table.FirstRow ? 1 : 0;
-        if (table.HasBandedRows) style["bandedRows"] = table.BandedRows;
-        if (table.HasBandedColumns) style["bandedColumns"] = table.BandedColumns;
-        if (table.HasFirstColumn) style["firstColumnEmphasis"] = table.FirstColumn;
-        if (table.HasLastColumn) style["lastColumnEmphasis"] = table.LastColumn;
+        if (table.HasFirstRow) style["headerRows"] = JsonValue.Create(table.FirstRow ? 1 : 0);
+        if (table.HasBandedRows) style["bandedRows"] = JsonValue.Create(table.BandedRows);
+        if (table.HasBandedColumns) style["bandedColumns"] = JsonValue.Create(table.BandedColumns);
+        if (table.HasFirstColumn) style["firstColumnEmphasis"] = JsonValue.Create(table.FirstColumn);
+        if (table.HasLastColumn) style["lastColumnEmphasis"] = JsonValue.Create(table.LastColumn);
         if (style.Count > 0) output["style"] = style;
         return output;
     }
@@ -1242,17 +1509,20 @@ internal static partial class PpjPresentationProjector
             for (var columnIndex = 0; columnIndex < table.Rows[rowIndex].Cells.Count; columnIndex++)
             {
                 if (covered.Contains((rowIndex, columnIndex))) continue;
+                var nativeCell = table.Rows[rowIndex].Cells[columnIndex];
                 var cell = new JsonObject
                 {
-                    ["id"] = $"cell-{rowIndex + 1}-{columnIndex + 1}",
-                    ["text"] = table.Rows[rowIndex].Cells[columnIndex].Text ?? string.Empty,
+                    ["id"] = StringNode($"cell-{rowIndex + 1}-{columnIndex + 1}"),
+                    // Keep the legacy string form for uniform/opaque cells.
+                    // A bounded mixed-run cell carries its fixed-topology
+                    // text body so each direct run style remains editable.
+                    ["text"] = TextContent(nativeCell.TextBody, nativeCell.Text, context, includeBodyStyle: true),
                 };
                 if (mergeByOrigin.TryGetValue((rowIndex, columnIndex), out var merge))
                 {
-                    cell["rowSpan"] = checked((int)(merge.EndRow - merge.StartRow + 1));
-                    cell["columnSpan"] = checked((int)(merge.EndColumn - merge.StartColumn + 1));
+                    cell["rowSpan"] = JsonValue.Create(checked((int)(merge.EndRow - merge.StartRow + 1)));
+                    cell["columnSpan"] = JsonValue.Create(checked((int)(merge.EndColumn - merge.StartColumn + 1)));
                 }
-                var nativeCell = table.Rows[rowIndex].Cells[columnIndex];
                 if (nativeCell.Fill is { } fill && ProjectTableCellFill(fill, context) is { } projectedFill)
                     cell["fill"] = projectedFill;
                 if (nativeCell.Borders is { } borders)
@@ -1263,8 +1533,8 @@ internal static partial class PpjPresentationProjector
             }
             rows.Add(new JsonObject
             {
-                ["id"] = $"row-{rowIndex + 1}",
-                ["height"] = Points(table.Rows[rowIndex].HeightEmu),
+                ["id"] = StringNode($"row-{rowIndex + 1}"),
+                ["height"] = JsonValue.Create(Points(table.Rows[rowIndex].HeightEmu)),
                 ["cells"] = cells,
             });
         }
@@ -1277,15 +1547,15 @@ internal static partial class PpjPresentationProjector
         {
             var output = new JsonObject
             {
-                ["type"] = "solid",
-                ["color"] = Color(fill.SolidRgb),
+                ["type"] = StringNode("solid"),
+                ["color"] = StringNode(Color(fill.SolidRgb)),
             };
-            if (fill.HasOpacityThousandthPercent) output["opacity"] = Unit(fill.OpacityThousandthPercent);
+            if (fill.HasOpacityThousandthPercent) output["opacity"] = JsonValue.Create(Unit(fill.OpacityThousandthPercent));
             return output;
         }
         return fill.KindCase switch
         {
-            PresentationTableCellFill.KindOneofCase.NoFill => new JsonObject { ["type"] = "none" },
+            PresentationTableCellFill.KindOneofCase.NoFill => new JsonObject { ["type"] = StringNode("none") },
             PresentationTableCellFill.KindOneofCase.GradientFill => Gradient(fill.GradientFill),
             PresentationTableCellFill.KindOneofCase.ImagePaint => ProjectImagePaint(fill.ImagePaint, context),
             _ => null,
@@ -1311,8 +1581,8 @@ internal static partial class PpjPresentationProjector
     {
         var connector = element.Connector;
         var output = ElementBase(id, element.Name, ConnectorFrame(connector), Accessibility(connector.Accessibility), nativeRef);
-        output["type"] = "connector";
-        output["connectorType"] = connector.ConnectorType is "elbow" or "curved" ? connector.ConnectorType : "straight";
+        output["type"] = StringNode("connector");
+        output["connectorType"] = StringNode(connector.ConnectorType is "elbow" or "curved" ? connector.ConnectorType : "straight");
         output["from"] = ConnectorEndpoint(connector.StartTargetId, connector.StartXEmu, connector.StartYEmu, pageId, context);
         output["to"] = ConnectorEndpoint(connector.EndTargetId, connector.EndXEmu, connector.EndYEmu, pageId, context);
         output["stroke"] = Stroke(
@@ -1341,7 +1611,8 @@ internal static partial class PpjPresentationProjector
         if (group.Children.Count == 0)
             return ProjectOpaque(element, id, nativeRef, "group", "Preserved empty or unsupported native group.");
         var output = ElementBase(id, element.Name, GroupFrame(group), Accessibility(group.Accessibility), nativeRef);
-        output["type"] = "group";
+        output["type"] = StringNode("group");
+        output["childFrame"] = Frame(group.ChildLeftEmu, group.ChildTopEmu, group.ChildWidthEmu, group.ChildHeightEmu);
         var children = new JsonArray();
         for (var index = 0; index < group.Children.Count; index++)
         {
@@ -1354,6 +1625,22 @@ internal static partial class PpjPresentationProjector
                 shapeTreePath.Concat([child.Source?.ShapeTreeIndex ?? checked((uint)index)]).ToArray()));
         }
         output["elements"] = children;
+        if (children.Count > 0)
+        {
+            // DrawingML has no separate group-level accessibility order
+            // owner in the bounded profile.  The local child shape-tree order
+            // is therefore projected explicitly so a subsequent PPJ edit can
+            // request a complete, auditable permutation without flattening
+            // the group.
+            var readingOrder = new JsonArray();
+            foreach (var child in children)
+            {
+                if (child is JsonObject childObject && childObject["id"] is JsonValue childId)
+                    readingOrder.Add(childId.GetValue<string>());
+            }
+            if (readingOrder.Count == children.Count)
+                output["readingOrder"] = readingOrder;
+        }
         return output;
     }
 
@@ -1368,7 +1655,7 @@ internal static partial class PpjPresentationProjector
         var nativeKind = kind ?? opaque?.NativeKind;
         if (string.IsNullOrWhiteSpace(nativeKind)) nativeKind = element.ContentCase.ToString();
         var output = ElementBase(id, element.Name, ElementFrame(element), null, nativeRef);
-        output["type"] = "opaque";
+        output["type"] = StringNode("opaque");
         output["nativeKind"] = StringNode(nativeKind);
         output["summary"] = StringNode(summary ?? $"Preserved source-owned {nativeKind} object; only issued nativeRef capabilities are editable.");
         if (opaque is not null && PpjNativeTextProjection.TryRead(opaque.RawXml, out var nativeLeaves))
@@ -1395,12 +1682,12 @@ internal static partial class PpjPresentationProjector
     {
         var diagram = element.Opaque.DiagramText;
         var output = ElementBase(id, element.Name, ElementFrame(element), null, nativeRef);
-        output["type"] = "smartArt";
-        output["mode"] = "source-bound";
+        output["type"] = StringNode("smartArt");
+        output["mode"] = StringNode("source-bound");
         if (context.SmartArtNativeSections(element.Opaque.PreservedPartPaths) is { } nativeSections)
             output["nativeSections"] = nativeSections;
         if (!string.IsNullOrWhiteSpace(diagram.LayoutDefinitionId))
-            output["layoutDefinitionId"] = diagram.LayoutDefinitionId;
+            output["layoutDefinitionId"] = StringNode(diagram.LayoutDefinitionId);
         var nodes = new JsonArray();
         var nodeIds = new Dictionary<string, string>(StringComparer.Ordinal);
         for (var index = 0; index < diagram.Nodes.Count; index++)
@@ -1413,7 +1700,7 @@ internal static partial class PpjPresentationProjector
             var capabilities = new[] { new CapabilitySpec("setSmartArtText", ["smartArt.text"]) };
             var node = new JsonObject
             {
-                ["id"] = nodeId,
+                ["id"] = StringNode(nodeId),
                 ["text"] = SmartArtText(values),
                 ["nativeRef"] = NativeRef(
                     context,
@@ -1421,12 +1708,12 @@ internal static partial class PpjPresentationProjector
                     hash,
                     capabilities),
             };
-            node["kind"] = source.PointType switch
+            node["kind"] = StringNode(source.PointType switch
             {
                 "asst" => "assistant",
                 "doc" => "document",
                 _ => "node",
-            };
+            });
             nodes.Add(node);
         }
         output["nodes"] = nodes;
@@ -1444,12 +1731,12 @@ internal static partial class PpjPresentationProjector
                         $"elements.{id}.connections[{index}]");
                 var connection = new JsonObject
                 {
-                    ["id"] = context.UniqueId($"{id}-connection-{NormalizeId(source.ModelId, $"connection-{index + 1}")}"),
-                    ["from"] = fromId,
-                    ["to"] = toId,
-                    ["role"] = "parent",
+                    ["id"] = StringNode(context.UniqueId($"{id}-connection-{NormalizeId(source.ModelId, $"connection-{index + 1}")}")),
+                    ["from"] = StringNode(fromId),
+                    ["to"] = StringNode(toId),
+                    ["role"] = StringNode("parent"),
                 };
-                if (source.Order > 0) connection["order"] = source.Order;
+                if (source.Order > 0) connection["order"] = JsonValue.Create(source.Order);
                 connections.Add(connection);
             }
             output["connections"] = connections;
@@ -1465,25 +1752,30 @@ internal static partial class PpjPresentationProjector
     {
         var diagram = element.Diagram;
         var output = ElementBase(id, element.Name, DiagramFrame(diagram), Accessibility(diagram.Accessibility), nativeRef);
-        output["type"] = "smartArt";
-        output["mode"] = "source-bound";
-        if (!string.IsNullOrWhiteSpace(diagram.Layout)) output["layout"] = diagram.Layout;
+        output["type"] = StringNode("smartArt");
+        output["mode"] = StringNode("source-bound");
+        if (!string.IsNullOrWhiteSpace(diagram.Layout)) output["layout"] = StringNode(diagram.Layout);
         if (!string.IsNullOrWhiteSpace(diagram.DefinitionAssetId) &&
             context.TryMaterializeAsset(diagram.DefinitionAssetId, out var definitionAssetId))
         {
             output.Remove("layout");
-            output["definitionAsset"] = definitionAssetId;
+            output["definitionAsset"] = StringNode(definitionAssetId);
         }
         var nodes = new JsonArray();
         foreach (var node in diagram.Nodes)
         {
             var projected = new JsonObject
             {
-                ["id"] = node.Id,
-                ["text"] = TextContent(node.TextBody, PptxTextCodec.Flatten(node.TextBody)),
+                ["id"] = StringNode(node.Id),
+                ["text"] = TextContent(node.TextBody, PptxTextCodec.Flatten(node.TextBody), context),
             };
             if (!string.IsNullOrWhiteSpace(node.AssetId) && context.TryMaterializeAsset(node.AssetId, out var assetId))
-                projected["asset"] = assetId;
+                projected["asset"] = StringNode(assetId);
+            var cachedShape = diagram.Drawing?.Children
+                .SingleOrDefault(child => child.Name == node.Id && child.Shape is not null)?.Shape;
+            if (cachedShape?.ImageFill is { } imagePaint &&
+                context.TryMaterializeAsset(imagePaint.AssetId, out _))
+                projected["image"] = ProjectSmartArtNodeImage(imagePaint);
             nodes.Add(projected);
         }
         output["nodes"] = nodes;
@@ -1494,16 +1786,37 @@ internal static partial class PpjPresentationProjector
             {
                 var projected = new JsonObject
                 {
-                    ["id"] = connection.Id,
-                    ["from"] = connection.FromId,
-                    ["to"] = connection.ToId,
-                    ["role"] = connection.Role,
+                    ["id"] = StringNode(connection.Id),
+                    ["from"] = StringNode(connection.FromId),
+                    ["to"] = StringNode(connection.ToId),
+                    ["role"] = StringNode(connection.Role),
                 };
-                if (connection.Order > 0) projected["order"] = connection.Order;
+                if (connection.Order > 0) projected["order"] = JsonValue.Create(connection.Order);
                 connections.Add(projected);
             }
             output["connections"] = connections;
         }
+        return output;
+    }
+
+    private static JsonObject ProjectSmartArtNodeImage(PresentationImagePaint paint)
+    {
+        var output = new JsonObject
+        {
+            ["fit"] = StringNode(paint.Mode == PresentationImagePaint.Types.Mode.Tile ? "tile" : "stretch"),
+        };
+        if (paint.Crop is { } crop)
+        {
+            output["crop"] = new JsonObject
+            {
+                ["left"] = JsonValue.Create(Crop(crop.LeftThousandthPercent)),
+                ["top"] = JsonValue.Create(Crop(crop.TopThousandthPercent)),
+                ["right"] = JsonValue.Create(Crop(crop.RightThousandthPercent)),
+                ["bottom"] = JsonValue.Create(Crop(crop.BottomThousandthPercent)),
+            };
+        }
+        if (paint.HasOpacityThousandthPercent)
+            output["opacity"] = JsonValue.Create(Unit(paint.OpacityThousandthPercent));
         return output;
     }
 
@@ -1522,7 +1835,7 @@ internal static partial class PpjPresentationProjector
             return ProjectOpaque(element, id, nativeRef, "oleObject", "Preserved source OLE object whose payload could not be materialized safely.");
 
         var output = ElementBase(id, element.Name, ElementFrame(element), null, nativeRef);
-        output["type"] = "ole";
+        output["type"] = StringNode("ole");
         output["payloadAsset"] = payloadAssetId;
         return output;
     }
@@ -1532,12 +1845,12 @@ internal static partial class PpjPresentationProjector
         if (values.Count == 1) return StringNode(values[0]);
         var runs = new JsonArray();
         for (var index = 0; index < values.Count; index++)
-            runs.Add(new JsonObject { ["id"] = $"run-{index + 1}", ["text"] = values[index] });
+            runs.Add(new JsonObject { ["id"] = StringNode($"run-{index + 1}"), ["text"] = StringNode(values[index]) });
         return new JsonObject
         {
             ["paragraphs"] = new JsonArray
             {
-                new JsonObject { ["id"] = "paragraph-1", ["runs"] = runs },
+                new JsonObject { ["id"] = StringNode("paragraph-1"), ["runs"] = runs },
             },
         };
     }
@@ -1551,7 +1864,7 @@ internal static partial class PpjPresentationProjector
     {
         var output = new JsonObject
         {
-            ["id"] = id,
+            ["id"] = StringNode(id),
             ["frame"] = frame,
             ["nativeRef"] = nativeRef,
         };
@@ -1567,27 +1880,27 @@ internal static partial class PpjPresentationProjector
         switch (source.TargetCase)
         {
             case PresentationRunHyperlink.TargetOneofCase.Uri:
-                output["uri"] = source.Uri;
+                output["uri"] = StringNode(source.Uri);
                 break;
             case PresentationRunHyperlink.TargetOneofCase.SlideId:
                 if (!context.TryPageId(source.SlideId, out var pageId)) return null;
-                output["slide"] = pageId;
+                output["slide"] = StringNode(pageId);
                 break;
             case PresentationRunHyperlink.TargetOneofCase.CustomShowId:
                 if (!context.TryCustomShowId(source.CustomShowId, out var customShowId)) return null;
-                output["customShow"] = customShowId;
-                if (source.HasReturnToSlide) output["returnToSlide"] = source.ReturnToSlide;
+                output["customShow"] = StringNode(customShowId);
+                if (source.HasReturnToSlide) output["returnToSlide"] = JsonValue.Create(source.ReturnToSlide);
                 break;
             case PresentationRunHyperlink.TargetOneofCase.Action:
-                output["verb"] = source.Action;
+                output["verb"] = StringNode(source.Action);
                 break;
             default:
                 return null;
         }
-        if (source.HasTooltip) output["tooltip"] = source.Tooltip;
-        if (source.HasTargetFrame) output["targetFrame"] = source.TargetFrame;
-        if (source.HasHistory) output["history"] = source.History;
-        if (source.HasHighlightClick) output["highlightClick"] = source.HighlightClick;
+        if (source.HasTooltip) output["tooltip"] = StringNode(source.Tooltip);
+        if (source.HasTargetFrame) output["targetFrame"] = StringNode(source.TargetFrame);
+        if (source.HasHistory) output["history"] = JsonValue.Create(source.History);
+        if (source.HasHighlightClick) output["highlightClick"] = JsonValue.Create(source.HighlightClick);
         return output;
     }
 
@@ -1596,8 +1909,8 @@ internal static partial class PpjPresentationProjector
         var style = new JsonObject();
         if (!string.IsNullOrEmpty(shape.FillRgb))
         {
-            var fill = new JsonObject { ["type"] = "solid", ["color"] = Color(shape.FillRgb) };
-            if (shape.HasFillOpacityThousandthPercent) fill["opacity"] = Unit(shape.FillOpacityThousandthPercent);
+            var fill = new JsonObject { ["type"] = StringNode("solid"), ["color"] = StringNode(Color(shape.FillRgb)) };
+            if (shape.HasFillOpacityThousandthPercent) fill["opacity"] = JsonValue.Create(Unit(shape.FillOpacityThousandthPercent));
             style["fill"] = fill;
         }
         else if (shape.GradientFill is not null)
@@ -1613,9 +1926,9 @@ internal static partial class PpjPresentationProjector
         {
             style["fill"] = new JsonObject
             {
-                ["type"] = "image",
-                ["asset"] = sourceImageAssetId,
-                ["fit"] = "stretch",
+                ["type"] = StringNode("image"),
+                ["asset"] = StringNode(sourceImageAssetId),
+                ["fit"] = StringNode("stretch"),
             };
         }
         if ((!string.IsNullOrEmpty(shape.LineRgb) || !string.IsNullOrEmpty(shape.LineScheme)) && shape.LineStyle != "none")
@@ -1627,11 +1940,15 @@ internal static partial class PpjPresentationProjector
         return style;
     }
 
-    private static JsonNode TextContent(PresentationTextBody? body, string? fallback)
+    private static JsonNode TextContent(
+        PresentationTextBody? body,
+        string? fallback,
+        ProjectionContext context,
+        bool includeBodyStyle = false)
     {
         if (body is null || body.Paragraphs.Count == 0 ||
             body.Paragraphs.Any(paragraph => paragraph.Runs.Count == 0 ||
-                paragraph.Runs.Any(run => run.ContentCase is not (PresentationTextRun.ContentOneofCase.Text or PresentationTextRun.ContentOneofCase.Field))))
+                paragraph.Runs.Any(run => run.ContentCase is not (PresentationTextRun.ContentOneofCase.Text or PresentationTextRun.ContentOneofCase.LineBreak or PresentationTextRun.ContentOneofCase.Field))))
             return StringNode(fallback ?? string.Empty);
 
         var paragraphs = new JsonArray();
@@ -1640,72 +1957,90 @@ internal static partial class PpjPresentationProjector
             var source = body.Paragraphs[paragraphIndex];
             var paragraph = new JsonObject
             {
-                ["id"] = $"paragraph-{paragraphIndex + 1}",
+                ["id"] = StringNode($"paragraph-{paragraphIndex + 1}"),
             };
             var paragraphStyle = new JsonObject();
-            if (source.HasLevel) paragraphStyle["level"] = checked((int)source.Level);
+            if (source.HasLevel) paragraphStyle["level"] = JsonValue.Create(checked((int)source.Level));
             if (source.HasAlignment && ParagraphAlignment(source.Alignment) is { } alignment)
-                paragraphStyle["alignment"] = alignment;
+                paragraphStyle["alignment"] = StringNode(alignment);
             if (source.LeftMarginCase == PresentationTextParagraph.LeftMarginOneofCase.MarginLeftEmu)
-                paragraphStyle["indent"] = Points(source.MarginLeftEmu);
+                paragraphStyle["indent"] = JsonValue.Create(Points(source.MarginLeftEmu));
             if (source.IndentationCase == PresentationTextParagraph.IndentationOneofCase.IndentEmu)
-                paragraphStyle["hanging"] = -Points(source.IndentEmu);
+                paragraphStyle["hanging"] = JsonValue.Create(-Points(source.IndentEmu));
             if (source.LineSpacingCase == PresentationTextParagraph.LineSpacingOneofCase.LineSpacingPoints)
-                paragraphStyle["lineSpacing"] = Math.Max(0.001, source.LineSpacingPoints);
+                paragraphStyle["lineSpacing"] = JsonValue.Create(Math.Max(0.001, source.LineSpacingPoints));
             if (source.LineSpacingCase == PresentationTextParagraph.LineSpacingOneofCase.LineSpacingMultiplier)
-                paragraphStyle["lineSpacingMultiplier"] = Math.Max(0.00001, source.LineSpacingMultiplier);
+                paragraphStyle["lineSpacingMultiplier"] = JsonValue.Create(Math.Max(0.00001, source.LineSpacingMultiplier));
             if (source.SpaceBeforeCase == PresentationTextParagraph.SpaceBeforeOneofCase.SpaceBeforePoints)
-                paragraphStyle["spaceBefore"] = Math.Max(0, source.SpaceBeforePoints);
+                paragraphStyle["spaceBefore"] = JsonValue.Create(Math.Max(0, source.SpaceBeforePoints));
             if (source.SpaceBeforeCase == PresentationTextParagraph.SpaceBeforeOneofCase.SpaceBeforeMultiplier)
-                paragraphStyle["spaceBeforeMultiplier"] = Math.Max(0, source.SpaceBeforeMultiplier);
+                paragraphStyle["spaceBeforeMultiplier"] = JsonValue.Create(Math.Max(0, source.SpaceBeforeMultiplier));
             if (source.SpaceAfterCase == PresentationTextParagraph.SpaceAfterOneofCase.SpaceAfterPoints)
-                paragraphStyle["spaceAfter"] = Math.Max(0, source.SpaceAfterPoints);
+                paragraphStyle["spaceAfter"] = JsonValue.Create(Math.Max(0, source.SpaceAfterPoints));
             if (source.SpaceAfterCase == PresentationTextParagraph.SpaceAfterOneofCase.SpaceAfterMultiplier)
-                paragraphStyle["spaceAfterMultiplier"] = Math.Max(0, source.SpaceAfterMultiplier);
+                paragraphStyle["spaceAfterMultiplier"] = JsonValue.Create(Math.Max(0, source.SpaceAfterMultiplier));
+            if (source.TabStops.Count > 0)
+            {
+                var tabStops = new JsonArray();
+                foreach (var tab in source.TabStops)
+                    tabStops.Add(new JsonObject
+                    {
+                        ["position"] = JsonValue.Create(Points(tab.PositionEmu)),
+                        ["alignment"] = StringNode(tab.Alignment),
+                    });
+                paragraphStyle["tabStops"] = tabStops;
+            }
+            if (source.HasNoTabStops && source.NoTabStops)
+                paragraphStyle["noTabStops"] = true;
             if (source.DefaultRunStyleCase == PresentationTextParagraph.DefaultRunStyleOneofCase.DefaultRunProperties &&
                 ProjectTextStyle(source.DefaultRunProperties) is { Count: > 0 } defaultText)
                 paragraphStyle["defaultText"] = defaultText;
-            if (ProjectBullet(source) is { } bullet) paragraphStyle["bullet"] = bullet;
+            if (ProjectBullet(source, context) is { } bullet) paragraphStyle["bullet"] = bullet;
             if (paragraphStyle.Count > 0) paragraph["style"] = paragraphStyle;
 
             var runs = new JsonArray();
             for (var runIndex = 0; runIndex < source.Runs.Count; runIndex++)
             {
                 var sourceRun = source.Runs[runIndex];
-                var run = new JsonObject { ["id"] = $"run-{paragraphIndex + 1}-{runIndex + 1}" };
+                var run = new JsonObject { ["id"] = StringNode($"run-{paragraphIndex + 1}-{runIndex + 1}") };
                 if (sourceRun.ContentCase == PresentationTextRun.ContentOneofCase.Field)
                 {
                     var field = new JsonObject
                     {
-                        ["type"] = sourceRun.Field.Type,
-                        ["text"] = sourceRun.Field.Text,
+                        ["type"] = StringNode(sourceRun.Field.Type),
+                        ["text"] = StringNode(sourceRun.Field.Text),
                     };
-                    if (!string.IsNullOrWhiteSpace(sourceRun.Field.Id)) field["id"] = sourceRun.Field.Id;
+                    if (!string.IsNullOrWhiteSpace(sourceRun.Field.Id)) field["id"] = StringNode(sourceRun.Field.Id);
                     run["field"] = field;
                 }
-                else run["text"] = sourceRun.Text;
+                else if (sourceRun.ContentCase == PresentationTextRun.ContentOneofCase.LineBreak)
+                    run["break"] = true;
+                else run["text"] = StringNode(sourceRun.Text);
                 var style = RunStyle(sourceRun);
                 if (style.Count > 0) run["style"] = style;
                 if (sourceRun.HyperlinkCase == PresentationTextRun.HyperlinkOneofCase.RunHyperlink &&
                     sourceRun.RunHyperlink.TargetCase == PresentationRunHyperlink.TargetOneofCase.Uri &&
                     !string.IsNullOrWhiteSpace(sourceRun.RunHyperlink.Uri))
-                    run["hyperlink"] = new JsonObject { ["uri"] = sourceRun.RunHyperlink.Uri };
+                    run["hyperlink"] = new JsonObject { ["uri"] = StringNode(sourceRun.RunHyperlink.Uri) };
                 runs.Add(run);
             }
             paragraph["runs"] = runs;
             paragraphs.Add(paragraph);
         }
-        return new JsonObject { ["paragraphs"] = paragraphs };
+        var output = new JsonObject { ["paragraphs"] = paragraphs };
+        if (includeBodyStyle && TextBoxStyle(body) is { Count: > 0 } bodyStyle)
+            output["style"] = bodyStyle;
+        return output;
     }
 
     private static JsonObject RunStyle(PresentationTextRun run)
     {
         var style = new JsonObject();
-        if (run.HasFontFamily) style["fontFamily"] = run.FontFamily;
-        if (run.HasFontFamilyEastAsia) style["fontFamilyEastAsia"] = run.FontFamilyEastAsia;
-        if (run.HasFontSizePoints && run.FontSizePoints > 0) style["size"] = run.FontSizePoints;
-        if (run.HasBold) style["bold"] = run.Bold;
-        if (run.HasItalic) style["italic"] = run.Italic;
+        if (run.HasFontFamily) style["fontFamily"] = StringNode(run.FontFamily);
+        if (run.HasFontFamilyEastAsia) style["fontFamilyEastAsia"] = StringNode(run.FontFamilyEastAsia);
+        if (run.HasFontSizePoints && run.FontSizePoints > 0) style["size"] = JsonValue.Create(run.FontSizePoints);
+        if (run.HasBold) style["bold"] = JsonValue.Create(run.Bold);
+        if (run.HasItalic) style["italic"] = JsonValue.Create(run.Italic);
         if (run.HasColorRgb && !string.IsNullOrEmpty(run.ColorRgb))
             style["color"] = TextColor(run.ColorRgb, null, run.HasColorOpacityThousandthPercent, run.ColorOpacityThousandthPercent);
         else if (run.HasColorScheme && !string.IsNullOrEmpty(run.ColorScheme))
@@ -1714,25 +2049,25 @@ internal static partial class PpjPresentationProjector
             style["gradient"] = TextGradient(run.GradientFill);
         if (run.Shadow is not null) style["shadow"] = Shadow(run.Shadow);
         if (run.HighlightCase == PresentationTextRun.HighlightOneofCase.HighlightRgb && !string.IsNullOrEmpty(run.HighlightRgb))
-            style["highlight"] = Color(run.HighlightRgb);
-        if (run.HasUnderline) style["underline"] = run.Underline switch { "sng" => "single", "dbl" => "double", _ => run.Underline };
-        if (run.HasStrike) style["strike"] = run.Strike;
-        if (run.HasFontKerningPoints) style["kerning"] = run.FontKerningPoints;
-        if (run.HasFontBaselinePercent) style["baseline"] = run.FontBaselinePercent;
-        if (run.HasFontSpacingPoints) style["letterSpacing"] = run.FontSpacingPoints;
-        if (run.HasFontCaps) style["capitalization"] = run.FontCaps;
-        if (run.HasLanguage) style["language"] = run.Language;
+            style["highlight"] = StringNode(Color(run.HighlightRgb));
+        if (run.HasUnderline) style["underline"] = StringNode(run.Underline switch { "sng" => "single", "dbl" => "double", _ => run.Underline });
+        if (run.HasStrike) style["strike"] = JsonValue.Create(run.Strike);
+        if (run.HasFontKerningPoints) style["kerning"] = JsonValue.Create(run.FontKerningPoints);
+        if (run.HasFontBaselinePercent) style["baseline"] = JsonValue.Create(run.FontBaselinePercent);
+        if (run.HasFontSpacingPoints) style["letterSpacing"] = JsonValue.Create(run.FontSpacingPoints);
+        if (run.HasFontCaps) style["capitalization"] = StringNode(run.FontCaps);
+        if (run.HasLanguage) style["language"] = StringNode(run.Language);
         return style;
     }
 
     private static JsonObject ProjectTextStyle(PresentationTextStyle source)
     {
         var style = new JsonObject();
-        if (source.HasFontFamily) style["fontFamily"] = source.FontFamily;
-        if (source.HasFontFamilyEastAsia) style["fontFamilyEastAsia"] = source.FontFamilyEastAsia;
-        if (source.HasFontSizePoints && source.FontSizePoints > 0) style["size"] = source.FontSizePoints;
-        if (source.HasBold) style["bold"] = source.Bold;
-        if (source.HasItalic) style["italic"] = source.Italic;
+        if (source.HasFontFamily) style["fontFamily"] = StringNode(source.FontFamily);
+        if (source.HasFontFamilyEastAsia) style["fontFamilyEastAsia"] = StringNode(source.FontFamilyEastAsia);
+        if (source.HasFontSizePoints && source.FontSizePoints > 0) style["size"] = JsonValue.Create(source.FontSizePoints);
+        if (source.HasBold) style["bold"] = JsonValue.Create(source.Bold);
+        if (source.HasItalic) style["italic"] = JsonValue.Create(source.Italic);
         if (source.ColorCase == PresentationTextStyle.ColorOneofCase.ColorRgb && !string.IsNullOrEmpty(source.ColorRgb))
             style["color"] = TextColor(source.ColorRgb, null, source.HasColorOpacityThousandthPercent, source.ColorOpacityThousandthPercent);
         else if (source.ColorCase == PresentationTextStyle.ColorOneofCase.ColorScheme && !string.IsNullOrEmpty(source.ColorScheme))
@@ -1741,32 +2076,33 @@ internal static partial class PpjPresentationProjector
             style["gradient"] = TextGradient(source.GradientFill);
         if (source.Shadow is not null) style["shadow"] = Shadow(source.Shadow);
         if (source.HighlightCase == PresentationTextStyle.HighlightOneofCase.HighlightRgb && !string.IsNullOrEmpty(source.HighlightRgb))
-            style["highlight"] = Color(source.HighlightRgb);
-        if (source.HasUnderline) style["underline"] = source.Underline switch { "sng" => "single", "dbl" => "double", _ => source.Underline };
-        if (source.HasStrike) style["strike"] = source.Strike;
-        if (source.HasFontKerningPoints) style["kerning"] = source.FontKerningPoints;
-        if (source.HasFontBaselinePercent) style["baseline"] = source.FontBaselinePercent;
-        if (source.HasFontSpacingPoints) style["letterSpacing"] = source.FontSpacingPoints;
-        if (source.HasFontCaps) style["capitalization"] = source.FontCaps;
-        if (source.HasLanguage) style["language"] = source.Language;
+            style["highlight"] = StringNode(Color(source.HighlightRgb));
+        if (source.HasUnderline) style["underline"] = StringNode(source.Underline switch { "sng" => "single", "dbl" => "double", _ => source.Underline });
+        if (source.HasStrike) style["strike"] = JsonValue.Create(source.Strike);
+        if (source.HasFontKerningPoints) style["kerning"] = JsonValue.Create(source.FontKerningPoints);
+        if (source.HasFontBaselinePercent) style["baseline"] = JsonValue.Create(source.FontBaselinePercent);
+        if (source.HasFontSpacingPoints) style["letterSpacing"] = JsonValue.Create(source.FontSpacingPoints);
+        if (source.HasFontCaps) style["capitalization"] = StringNode(source.FontCaps);
+        if (source.HasLanguage) style["language"] = StringNode(source.Language);
         return style;
     }
 
-    private static JsonObject? ProjectBullet(PresentationTextParagraph paragraph)
+    private static JsonObject? ProjectBullet(PresentationTextParagraph paragraph, ProjectionContext context)
     {
         JsonObject? bullet = paragraph.BulletCase switch
         {
-            PresentationTextParagraph.BulletOneofCase.NoBullet => new JsonObject { ["type"] = "none" },
+            PresentationTextParagraph.BulletOneofCase.NoBullet => new JsonObject { ["type"] = StringNode("none") },
             PresentationTextParagraph.BulletOneofCase.BulletCharacter => new JsonObject
             {
-                ["type"] = "character",
-                ["character"] = paragraph.BulletCharacter,
+                ["type"] = StringNode("character"),
+                ["character"] = StringNode(paragraph.BulletCharacter),
             },
             PresentationTextParagraph.BulletOneofCase.AutoNumber => new JsonObject
             {
-                ["type"] = "number",
-                ["scheme"] = paragraph.AutoNumber.Scheme,
+                ["type"] = StringNode("number"),
+                ["scheme"] = StringNode(paragraph.AutoNumber.Scheme),
             },
+            PresentationTextParagraph.BulletOneofCase.PictureBullet => ProjectPictureBullet(paragraph.PictureBullet, context),
             _ => null,
         };
         if (bullet is null) return null;
@@ -1776,9 +2112,9 @@ internal static partial class PpjPresentationProjector
         if (paragraph.BulletCase == PresentationTextParagraph.BulletOneofCase.NoBullet)
             return bullet;
         if (paragraph.BulletCase == PresentationTextParagraph.BulletOneofCase.AutoNumber && paragraph.AutoNumber.HasStartAt)
-            bullet["startAt"] = checked((int)paragraph.AutoNumber.StartAt);
+            bullet["startAt"] = JsonValue.Create(checked((int)paragraph.AutoNumber.StartAt));
         if (paragraph.BulletFontCase == PresentationTextParagraph.BulletFontOneofCase.BulletFontFamily)
-            bullet["fontFamily"] = paragraph.BulletFontFamily;
+            bullet["fontFamily"] = StringNode(paragraph.BulletFontFamily);
         if (paragraph.BulletColorCase == PresentationTextParagraph.BulletColorOneofCase.BulletColorRgb)
             bullet["color"] = TextColor(
                 paragraph.BulletColorRgb,
@@ -1792,9 +2128,24 @@ internal static partial class PpjPresentationProjector
                 paragraph.HasBulletColorOpacityThousandthPercent,
                 paragraph.BulletColorOpacityThousandthPercent);
         if (paragraph.BulletSizeCase == PresentationTextParagraph.BulletSizeOneofCase.BulletSizePoints)
-            bullet["size"] = paragraph.BulletSizePoints;
+            bullet["size"] = JsonValue.Create(paragraph.BulletSizePoints);
         else if (paragraph.BulletSizeCase == PresentationTextParagraph.BulletSizeOneofCase.BulletSizePercent)
-            bullet["sizePercent"] = paragraph.BulletSizePercent;
+            bullet["sizePercent"] = JsonValue.Create(paragraph.BulletSizePercent);
+        return bullet;
+    }
+
+    private static JsonObject? ProjectPictureBullet(PresentationPictureBullet picture, ProjectionContext context)
+    {
+        var bullet = new JsonObject { ["type"] = StringNode("picture") };
+        if (picture.SourceCase == PresentationPictureBullet.SourceOneofCase.AssetId)
+        {
+            if (!context.TryMaterializeAsset(picture.AssetId, out var assetId)) return null;
+            bullet["asset"] = StringNode(assetId);
+        }
+        else if (picture.SourceCase == PresentationPictureBullet.SourceOneofCase.Uri)
+            bullet["uri"] = StringNode(picture.Uri);
+        else
+            return null;
         return bullet;
     }
 
@@ -1823,9 +2174,9 @@ internal static partial class PpjPresentationProjector
         })
             output.Add(new JsonObject
             {
-                ["id"] = item.Id,
-                ["value"] = item.Value,
-                ["role"] = "Fallback only; imported native styling remains source-owned",
+                ["id"] = StringNode(item.Id),
+                ["value"] = StringNode(item.Value),
+                ["role"] = StringNode("Fallback only; imported native styling remains source-owned"),
             });
         return output;
     }
@@ -1836,25 +2187,45 @@ internal static partial class PpjPresentationProjector
         var properties = body?.BodyProperties;
         if (properties is null) return output;
         if (properties.AnchorCase == PresentationTextBodyProperties.AnchorOneofCase.VerticalAnchor)
-            output["verticalAlignment"] = properties.VerticalAnchor == "center" ? "middle" : properties.VerticalAnchor;
+            output["verticalAlignment"] = StringNode(properties.VerticalAnchor == "center" ? "middle" : properties.VerticalAnchor);
         if (properties.WrappingCase == PresentationTextBodyProperties.WrappingOneofCase.Wrap)
-            output["wrap"] = properties.Wrap;
+            output["wrap"] = StringNode(properties.Wrap);
         if (properties.AutoFitCase == PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode)
-            output["autoFit"] = properties.AutoFitMode switch { "shrinkText" => "shrink-text", "resizeShape" => "resize-shape", _ => "none" };
+            output["autoFit"] = StringNode(properties.AutoFitMode switch { "shrinkText" => "shrink-text", "resizeShape" => "resize-shape", _ => "none" });
+        if (properties.AutoFitCase == PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode &&
+            properties.AutoFitMode == "shrinkText" && properties.NormalAutoFit is { } normalAutoFit &&
+            (normalAutoFit.FontScaleCase == PresentationNormalAutoFit.FontScaleOneofCase.FontScale1000 ||
+             normalAutoFit.LineSpacingReductionCase == PresentationNormalAutoFit.LineSpacingReductionOneofCase.LineSpacingReduction1000))
+        {
+            var normal = new JsonObject();
+            if (normalAutoFit.FontScaleCase == PresentationNormalAutoFit.FontScaleOneofCase.FontScale1000)
+                normal["fontScale"] = JsonValue.Create(normalAutoFit.FontScale1000 / 1_000d);
+            if (normalAutoFit.LineSpacingReductionCase == PresentationNormalAutoFit.LineSpacingReductionOneofCase.LineSpacingReduction1000)
+                normal["lineSpacingReduction"] = JsonValue.Create(normalAutoFit.LineSpacingReduction1000 / 1_000d);
+            output["normalAutoFit"] = normal;
+        }
         var margins = new JsonObject();
-        if (properties.LeftInsetCase == PresentationTextBodyProperties.LeftInsetOneofCase.LeftInsetEmu) margins["left"] = Points(properties.LeftInsetEmu);
-        if (properties.TopInsetCase == PresentationTextBodyProperties.TopInsetOneofCase.TopInsetEmu) margins["top"] = Points(properties.TopInsetEmu);
-        if (properties.RightInsetCase == PresentationTextBodyProperties.RightInsetOneofCase.RightInsetEmu) margins["right"] = Points(properties.RightInsetEmu);
-        if (properties.BottomInsetCase == PresentationTextBodyProperties.BottomInsetOneofCase.BottomInsetEmu) margins["bottom"] = Points(properties.BottomInsetEmu);
+        if (properties.LeftInsetCase == PresentationTextBodyProperties.LeftInsetOneofCase.LeftInsetEmu) margins["left"] = JsonValue.Create(Points(properties.LeftInsetEmu));
+        if (properties.TopInsetCase == PresentationTextBodyProperties.TopInsetOneofCase.TopInsetEmu) margins["top"] = JsonValue.Create(Points(properties.TopInsetEmu));
+        if (properties.RightInsetCase == PresentationTextBodyProperties.RightInsetOneofCase.RightInsetEmu) margins["right"] = JsonValue.Create(Points(properties.RightInsetEmu));
+        if (properties.BottomInsetCase == PresentationTextBodyProperties.BottomInsetOneofCase.BottomInsetEmu) margins["bottom"] = JsonValue.Create(Points(properties.BottomInsetEmu));
         if (margins.Count > 0) output["margins"] = margins;
         if (properties.ColumnCountCase == PresentationTextBodyProperties.ColumnCountOneofCase.Columns)
-            output["columns"] = checked((int)properties.Columns);
+            output["columns"] = JsonValue.Create(checked((int)properties.Columns));
         if (properties.ColumnSpacingCase == PresentationTextBodyProperties.ColumnSpacingOneofCase.ColumnSpacingEmu)
-            output["columnGap"] = Points(properties.ColumnSpacingEmu);
+            output["columnGap"] = JsonValue.Create(Points(properties.ColumnSpacingEmu));
         if (properties.ColumnDirectionCase == PresentationTextBodyProperties.ColumnDirectionOneofCase.RightToLeftColumns)
-            output["columnDirection"] = properties.RightToLeftColumns ? "right-to-left" : "left-to-right";
+            output["columnDirection"] = StringNode(properties.RightToLeftColumns ? "right-to-left" : "left-to-right");
         if (properties.VerticalTextCase == PresentationTextBodyProperties.VerticalTextOneofCase.VerticalTextMode)
-            output["verticalText"] = properties.VerticalTextMode;
+            output["verticalText"] = StringNode(properties.VerticalTextMode);
+        if (properties.RotationCase == PresentationTextBodyProperties.RotationOneofCase.RotationAngle60000)
+            output["rotation"] = JsonValue.Create(properties.RotationAngle60000 / 60_000d);
+        if (properties.VerticalOverflowCase == PresentationTextBodyProperties.VerticalOverflowOneofCase.VerticalOverflowMode)
+            output["verticalOverflow"] = StringNode(properties.VerticalOverflowMode);
+        if (properties.HorizontalOverflowCase == PresentationTextBodyProperties.HorizontalOverflowOneofCase.HorizontalOverflowMode)
+            output["horizontalOverflow"] = StringNode(properties.HorizontalOverflowMode);
+        if (properties.UprightTextCase == PresentationTextBodyProperties.UprightTextOneofCase.Upright)
+            output["upright"] = JsonValue.Create(properties.Upright);
         return output;
     }
 
@@ -1872,8 +2243,8 @@ internal static partial class PpjPresentationProjector
     {
         if (!string.IsNullOrEmpty(shape.FillRgb))
         {
-            var fill = new JsonObject { ["type"] = "solid", ["color"] = Color(shape.FillRgb) };
-            if (shape.HasFillOpacityThousandthPercent) fill["opacity"] = Unit(shape.FillOpacityThousandthPercent);
+            var fill = new JsonObject { ["type"] = StringNode("solid"), ["color"] = StringNode(Color(shape.FillRgb)) };
+            if (shape.HasFillOpacityThousandthPercent) fill["opacity"] = JsonValue.Create(Unit(shape.FillOpacityThousandthPercent));
             output["fill"] = fill;
         }
         else if (shape.GradientFill is not null)
@@ -1896,14 +2267,14 @@ internal static partial class PpjPresentationProjector
         if (background.ImagePaint is not null)
             return ProjectImagePaint(background.ImagePaint, context);
         if (!string.IsNullOrEmpty(background.ImageAssetId) && context.TryMaterializeAsset(background.ImageAssetId, out var assetId))
-            return new JsonObject { ["type"] = "image", ["asset"] = assetId, ["fit"] = "stretch" };
+            return new JsonObject { ["type"] = StringNode("image"), ["asset"] = StringNode(assetId), ["fit"] = StringNode("stretch") };
         if (background.GradientFill is not null)
             return Gradient(background.GradientFill);
         if (!string.IsNullOrEmpty(background.ColorRgb))
         {
-            var output = new JsonObject { ["type"] = "solid", ["color"] = Color(background.ColorRgb) };
+            var output = new JsonObject { ["type"] = StringNode("solid"), ["color"] = StringNode(Color(background.ColorRgb)) };
             if (background.HasOpacityThousandthPercent)
-                output["opacity"] = Unit(background.OpacityThousandthPercent);
+                output["opacity"] = JsonValue.Create(Unit(background.OpacityThousandthPercent));
             return output;
         }
         return null;
@@ -1914,22 +2285,22 @@ internal static partial class PpjPresentationProjector
         if (!context.TryMaterializeAsset(paint.AssetId, out var assetId)) return null;
         var output = new JsonObject
         {
-            ["type"] = "image",
-            ["asset"] = assetId,
-            ["fit"] = paint.Mode == PresentationImagePaint.Types.Mode.Tile ? "tile" : "stretch",
+            ["type"] = StringNode("image"),
+            ["asset"] = StringNode(assetId),
+            ["fit"] = StringNode(paint.Mode == PresentationImagePaint.Types.Mode.Tile ? "tile" : "stretch"),
         };
         if (paint.Crop is not null)
         {
             output["crop"] = new JsonObject
             {
-                ["left"] = Crop(paint.Crop.LeftThousandthPercent),
-                ["top"] = Crop(paint.Crop.TopThousandthPercent),
-                ["right"] = Crop(paint.Crop.RightThousandthPercent),
-                ["bottom"] = Crop(paint.Crop.BottomThousandthPercent),
+                ["left"] = JsonValue.Create(Crop(paint.Crop.LeftThousandthPercent)),
+                ["top"] = JsonValue.Create(Crop(paint.Crop.TopThousandthPercent)),
+                ["right"] = JsonValue.Create(Crop(paint.Crop.RightThousandthPercent)),
+                ["bottom"] = JsonValue.Create(Crop(paint.Crop.BottomThousandthPercent)),
             };
         }
         if (paint.HasOpacityThousandthPercent)
-            output["opacity"] = Unit(paint.OpacityThousandthPercent);
+            output["opacity"] = JsonValue.Create(Unit(paint.OpacityThousandthPercent));
         return output;
     }
 
@@ -1940,21 +2311,21 @@ internal static partial class PpjPresentationProjector
         {
             var item = new JsonObject
             {
-                ["offset"] = Unit(stop.PositionThousandthPercent),
-                ["color"] = Color(stop.ColorRgb),
+                ["offset"] = JsonValue.Create(Unit(stop.PositionThousandthPercent)),
+                ["color"] = StringNode(Color(stop.ColorRgb)),
             };
             if (stop.HasOpacityThousandthPercent)
-                item["opacity"] = Unit(stop.OpacityThousandthPercent);
+                item["opacity"] = JsonValue.Create(Unit(stop.OpacityThousandthPercent));
             stops.Add(item);
         }
         var output = new JsonObject
         {
-            ["type"] = "gradient",
-            ["kind"] = source.Kind == PresentationGradientFill.Types.Kind.Radial ? "radial" : "linear",
+            ["type"] = StringNode("gradient"),
+            ["kind"] = StringNode(source.Kind == PresentationGradientFill.Types.Kind.Radial ? "radial" : "linear"),
             ["stops"] = stops,
         };
         if (source.Kind == PresentationGradientFill.Types.Kind.Linear && source.HasAngle60000)
-            output["angle"] = source.Angle60000 / 60_000d;
+            output["angle"] = JsonValue.Create(source.Angle60000 / 60_000d);
         return output;
     }
 
@@ -1974,22 +2345,27 @@ internal static partial class PpjPresentationProjector
             if (!context.TryElementId(pageId, animation.TargetId, out var targetId)) continue;
             var item = new JsonObject
             {
-                ["id"] = context.UniqueId($"animation-{animation.Id}"),
-                ["target"] = targetId,
-                ["phase"] = animation.Phase,
-                ["effect"] = animation.Effect,
-                ["start"] = animation.Start,
-                ["durationMs"] = animation.HasDurationMs ? checked((int)animation.DurationMs) : 500,
+                ["id"] = StringNode(context.UniqueId($"animation-{animation.Id}")),
+                ["target"] = StringNode(targetId),
+                ["phase"] = StringNode(animation.Phase),
+                ["effect"] = StringNode(animation.Effect),
+                ["start"] = StringNode(animation.Start),
+                // PresentationML exposes the effective start condition, not
+                // the PPJ sugar distinction.  Emit the normalized trigger as
+                // well so imported click/previous timing remains a typed,
+                // inspectable field instead of disappearing during projection.
+                ["trigger"] = StringNode(animation.Start),
+                ["durationMs"] = JsonValue.Create(animation.HasDurationMs ? checked((int)animation.DurationMs) : 500),
             };
-            if (!string.IsNullOrEmpty(animation.Direction)) item["direction"] = animation.Direction;
-            if (animation.HasDelayMs) item["delayMs"] = checked((int)animation.DelayMs);
-            if (!string.IsNullOrEmpty(animation.TextBuild)) item["textBuild"] = animation.TextBuild;
-            if (!string.IsNullOrEmpty(animation.ChartBuild)) item["chartBuild"] = animation.ChartBuild;
-            if (animation.HasStaggerMs) item["staggerMs"] = checked((int)animation.StaggerMs);
-            if (animation.HasAnimateChartBackground) item["animateChartBackground"] = animation.AnimateChartBackground;
-            if (animation.HasRepeatCount) item["repeat"] = checked((int)animation.RepeatCount);
-            if (animation.HasAutoReverse) item["autoReverse"] = animation.AutoReverse;
-            if (!string.IsNullOrEmpty(animation.Easing) && animation.Easing != "linear") item["easing"] = animation.Easing;
+            if (!string.IsNullOrEmpty(animation.Direction)) item["direction"] = StringNode(animation.Direction);
+            if (animation.HasDelayMs) item["delayMs"] = JsonValue.Create(checked((int)animation.DelayMs));
+            if (!string.IsNullOrEmpty(animation.TextBuild)) item["textBuild"] = StringNode(animation.TextBuild);
+            if (!string.IsNullOrEmpty(animation.ChartBuild)) item["chartBuild"] = StringNode(animation.ChartBuild);
+            if (animation.HasStaggerMs) item["staggerMs"] = JsonValue.Create(checked((int)animation.StaggerMs));
+            if (animation.HasAnimateChartBackground) item["animateChartBackground"] = JsonValue.Create(animation.AnimateChartBackground);
+            if (animation.HasRepeatCount) item["repeat"] = JsonValue.Create(checked((int)animation.RepeatCount));
+            if (animation.HasAutoReverse) item["autoReverse"] = JsonValue.Create(animation.AutoReverse);
+            if (!string.IsNullOrEmpty(animation.Easing) && animation.Easing != "linear") item["easing"] = StringNode(animation.Easing);
             output.Add(item);
         }
         return output;
@@ -2009,14 +2385,14 @@ internal static partial class PpjPresentationProjector
             {
                 if (!context.TryElementId(context.PageId(fromPage.Id), pair.FromId, out var fromId) ||
                     !context.TryElementId(context.PageId(slide.Id), pair.ToId, out var toId)) continue;
-                pairs.Add(new JsonObject { ["key"] = context.UniqueId($"morph-{pair.Key}"), ["from"] = fromId, ["to"] = toId });
+                pairs.Add(new JsonObject { ["key"] = StringNode(context.UniqueId($"morph-{pair.Key}")), ["from"] = StringNode(fromId), ["to"] = StringNode(toId) });
             }
             if (pairs.Count == 0) return null;
             return new JsonObject
             {
-                ["type"] = "morph",
-                ["durationMs"] = slide.Morph.HasDurationMs ? checked((int)slide.Morph.DurationMs) : 800,
-                ["fromPage"] = context.PageId(fromPage.Id),
+                ["type"] = StringNode("morph"),
+                ["durationMs"] = JsonValue.Create(slide.Morph.HasDurationMs ? checked((int)slide.Morph.DurationMs) : 800),
+                ["fromPage"] = StringNode(context.PageId(fromPage.Id)),
                 ["morphPairs"] = pairs,
             };
         }
@@ -2024,16 +2400,16 @@ internal static partial class PpjPresentationProjector
         if (transition is null || !PpjTransitionLowering.IsBaseEffect(transition.Effect)) return null;
         var output = new JsonObject
         {
-            ["type"] = transition.Effect,
-            ["speed"] = transition.Speed,
-            ["advanceOnClick"] = transition.AdvanceOnClick,
+            ["type"] = StringNode(transition.Effect),
+            ["speed"] = StringNode(transition.Speed),
+            ["advanceOnClick"] = JsonValue.Create(transition.AdvanceOnClick),
         };
-        if (transition.HasDurationMs) output["durationMs"] = checked((int)transition.DurationMs);
-        if (!string.IsNullOrEmpty(transition.Direction)) output["direction"] = transition.Direction;
-        if (!string.IsNullOrEmpty(transition.Orientation)) output["orientation"] = transition.Orientation;
-        if (transition.HasThroughBlack) output["throughBlack"] = transition.ThroughBlack;
-        if (transition.HasSpokes) output["spokes"] = checked((int)transition.Spokes);
-        if (transition.HasAdvanceAfterMs) output["advanceAfterMs"] = checked((int)transition.AdvanceAfterMs);
+        if (transition.HasDurationMs) output["durationMs"] = JsonValue.Create(checked((int)transition.DurationMs));
+        if (!string.IsNullOrEmpty(transition.Direction)) output["direction"] = StringNode(transition.Direction);
+        if (!string.IsNullOrEmpty(transition.Orientation)) output["orientation"] = StringNode(transition.Orientation);
+        if (transition.HasThroughBlack) output["throughBlack"] = JsonValue.Create(transition.ThroughBlack);
+        if (transition.HasSpokes) output["spokes"] = JsonValue.Create(checked((int)transition.Spokes));
+        if (transition.HasAdvanceAfterMs) output["advanceAfterMs"] = JsonValue.Create(checked((int)transition.AdvanceAfterMs));
         return output;
     }
 
@@ -2049,8 +2425,8 @@ internal static partial class PpjPresentationProjector
             if (pages.Count == 0) continue;
             var item = new JsonObject
             {
-                ["id"] = context.UniqueId($"section-{section.Id}"),
-                ["name"] = string.IsNullOrWhiteSpace(section.Name) ? "Section" : section.Name,
+                ["id"] = StringNode(context.UniqueId($"section-{section.Id}")),
+                ["name"] = StringNode(string.IsNullOrWhiteSpace(section.Name) ? "Section" : section.Name),
                 ["pages"] = pages,
             };
             if (section.Source is { } source)
@@ -2081,8 +2457,8 @@ internal static partial class PpjPresentationProjector
             if (pages.Count == 0) continue;
             var item = new JsonObject
             {
-                ["id"] = context.CustomShowId(show.Id),
-                ["name"] = string.IsNullOrWhiteSpace(show.Name) ? "Custom show" : show.Name,
+                ["id"] = StringNode(context.CustomShowId(show.Id)),
+                ["name"] = StringNode(string.IsNullOrWhiteSpace(show.Name) ? "Custom show" : show.Name),
                 ["pages"] = pages,
             };
             if (show.Source is { } source)
@@ -2117,30 +2493,181 @@ internal static partial class PpjPresentationProjector
                 var commentHash = HashOrFallback(null, comment);
                 output.Add(new JsonObject
                 {
-                    ["id"] = context.UniqueId($"comment-{pageId}-{comment.Id}"),
-                    ["page"] = pageId,
-                    ["author"] = string.IsNullOrWhiteSpace(comment.Author) ? "Unknown author" : comment.Author,
-                    ["text"] = comment.Text,
-                    ["createdAt"] = createdAt.ToUniversalTime().ToString("O"),
-                    ["resolved"] = false,
-                    ["position"] = new JsonObject { ["x"] = Points(comment.PositionXEmu), ["y"] = Points(comment.PositionYEmu) },
+                    ["id"] = StringNode(context.UniqueId($"comment-{pageId}-{comment.Id}")),
+                    ["page"] = StringNode(pageId),
+                    ["author"] = StringNode(string.IsNullOrWhiteSpace(comment.Author) ? "Unknown author" : comment.Author),
+                    ["text"] = StringNode(comment.Text),
+                    ["createdAt"] = StringNode(createdAt.ToUniversalTime().ToString("O")),
+                    ["resolved"] = JsonValue.Create(false),
+                    ["position"] = new JsonObject { ["x"] = JsonValue.Create(Points(comment.PositionXEmu)), ["y"] = JsonValue.Create(Points(comment.PositionYEmu)) },
                     ["nativeRef"] = NativeRef(context, $"comment:{pageId}:{commentIndex}", commentHash, capabilities),
                 });
+            }
+
+            for (var threadIndex = 0; threadIndex < slide.ModernComments.Count; threadIndex++)
+            {
+                var thread = slide.ModernComments[threadIndex];
+                if (thread.Root is null || thread.Anchor is null || thread.Anchor.Monikers.Count != 1)
+                    continue;
+
+                var sourceTargetId = thread.TargetId;
+                if (sourceTargetId.EndsWith("/text", StringComparison.Ordinal))
+                    sourceTargetId = sourceTargetId[..^5];
+                if (!context.TryElementId(pageId, sourceTargetId, out var targetId))
+                    continue;
+
+                var rootId = context.UniqueId($"comment-{pageId}-modern-{threadIndex}-{thread.Root.Id}");
+                ProjectModernComment(
+                    output,
+                    context,
+                    pageId,
+                    targetId,
+                    thread,
+                    thread.Root,
+                    rootId,
+                    parentId: null,
+                    threadIndex,
+                    replyIndex: null,
+                    includeAnchor: true,
+                    includePosition: true);
+                for (var replyIndex = 0; replyIndex < thread.Replies.Count; replyIndex++)
+                {
+                    var reply = thread.Replies[replyIndex];
+                    ProjectModernComment(
+                        output,
+                        context,
+                        pageId,
+                        targetId,
+                        thread,
+                        reply,
+                        context.UniqueId($"comment-{pageId}-modern-{threadIndex}-reply-{replyIndex}-{reply.Id}"),
+                        rootId,
+                        threadIndex,
+                        replyIndex,
+                        includeAnchor: false,
+                        includePosition: false);
+                }
             }
         }
         return output;
     }
 
-    private static IReadOnlyList<CapabilitySpec> Capabilities(PresentationElement element)
+    private static void ProjectModernComment(
+        JsonArray output,
+        ProjectionContext context,
+        string pageId,
+        string targetId,
+        PresentationModernCommentThread thread,
+        PresentationModernComment comment,
+        string commentId,
+        string? parentId,
+        int threadIndex,
+        int? replyIndex,
+        bool includeAnchor,
+        bool includePosition)
+    {
+        if (!DateTimeOffset.TryParse(comment.CreatedAt, out var createdAt) || string.IsNullOrWhiteSpace(comment.Status))
+            return;
+
+        var capabilities = thread.Source?.Editable == true
+            ? new[]
+            {
+                new CapabilitySpec("replaceText", ["text"]),
+                new CapabilitySpec("setCommentStatus", ["status", "resolved"]),
+            }
+            : [];
+        var item = new JsonObject
+        {
+            ["id"] = StringNode(commentId),
+            ["page"] = StringNode(pageId),
+            ["kind"] = StringNode("modern"),
+            ["author"] = StringNode(string.IsNullOrWhiteSpace(comment.Author) ? "Unknown author" : comment.Author),
+            ["text"] = StringNode(comment.Text),
+            ["createdAt"] = StringNode(createdAt.ToUniversalTime().ToString("O")),
+            ["resolved"] = JsonValue.Create(!comment.Status.Equals("active", StringComparison.Ordinal)),
+            ["status"] = StringNode(comment.Status),
+            ["nativeRef"] = NativeRef(
+                context,
+                replyIndex is { } index
+                    ? $"comment:{pageId}:modern:{threadIndex}:reply:{index}"
+                    : $"comment:{pageId}:modern:{threadIndex}:root",
+                HashOrFallback(null, comment),
+                capabilities),
+        };
+        if (parentId is not null) item["parent"] = StringNode(parentId);
+        else item["target"] = StringNode(targetId);
+        if (includePosition)
+        {
+            item["position"] = new JsonObject
+            {
+                ["x"] = JsonValue.Create(Points(thread.PositionXEmu)),
+                ["y"] = JsonValue.Create(Points(thread.PositionYEmu)),
+            };
+        }
+        if (includeAnchor)
+        {
+            var anchor = new JsonObject
+            {
+                ["kind"] = StringNode(thread.Anchor.Kind == PresentationModernCommentAnchor.Types.Kind.TextRange ? "textRange" : "element"),
+                ["moniker"] = StringNode(thread.Anchor.Monikers[0].Type),
+            };
+            if (thread.Anchor.HasTextStart) anchor["textStart"] = JsonValue.Create(thread.Anchor.TextStart);
+            if (thread.Anchor.HasTextLength) anchor["textLength"] = JsonValue.Create(thread.Anchor.TextLength);
+            if (thread.Anchor.HasContextLength) anchor["contextLength"] = JsonValue.Create(thread.Anchor.ContextLength);
+            if (thread.Anchor.HasContextHash) anchor["contextHash"] = JsonValue.Create(thread.Anchor.ContextHash);
+            item["anchor"] = anchor;
+        }
+        output.Add(item);
+    }
+
+    private static IReadOnlyList<CapabilitySpec> Capabilities(
+        PresentationElement element,
+        bool hasEffectivePlaceholderFrame = false)
     {
         var output = new List<CapabilitySpec>();
         var source = element.Source;
         if (source is null) return output;
+        // Accessibility is a separate non-visual cNvPr leaf.  Keep its
+        // capability independent from the visual writer so a source-bound
+        // edit can change title/description/decorative state without
+        // widening the element's paint, geometry, or text profile.
+        if (source.AccessibilityEditable)
+            output.Add(new("setAccessibility", ["accessibility"]));
         switch (element.ContentCase)
         {
             case PresentationElement.ContentOneofCase.Shape:
                 if (source.TextEditable && TextTopologyRepresentable(element.Shape.TextBody))
+                {
                     output.Add(new("replaceText", ["text"]));
+                    // Slide placeholders use the text-only source-bound
+                    // writer; it intentionally rejects paragraph/body-style
+                    // changes because those may be inherited from the
+                    // layout/master. Keep those capabilities on ordinary
+                    // shape/text owners only.
+                    if (element.Shape.Placeholder is null)
+                    {
+                        output.Add(new("setTextParagraphStyle", [
+                            "text.paragraphs[].style.alignment",
+                            "text.paragraphs[].style.tabStops",
+                        ]));
+                        if (PptxBodyPropertiesCodec.SupportsBoundedDirectLayout(element.Shape.TextBody?.BodyProperties))
+                        {
+                            output.Add(new("setTextBodyStyle", [
+                                element.Shape.Geometry is not ("textbox" or "none" or "")
+                                    ? "textStyle"
+                                    : "text.style",
+                            ]));
+                        }
+                    }
+                }
+                if (element.Shape.Placeholder is not null &&
+                    source.DirectFramePresenceEditable &&
+                    (element.Shape.DirectFrame is not null || hasEffectivePlaceholderFrame))
+                    // A complete direct transform is owner-local.  When the
+                    // slide only inherits its geometry, the same fields are
+                    // safe to materialize on the slide after the effective
+                    // frame has been uniquely resolved from layout/master.
+                    output.Add(new("setFrame", EditableFrameFields));
                 if (source.Editable)
                 {
                     // A recognized shape-tree click action is owned by the
@@ -2190,26 +2717,60 @@ internal static partial class PpjPresentationProjector
                 output.Add(new("setFrame", EditableFrameFields));
                 output.Add(new("setOpacity", ["opacity"]));
                 output.Add(new("setImageEffects", ["image.border", "image.shadow"]));
-                if (!string.IsNullOrEmpty(element.Image.MaskPreset) &&
-                    PptxPresetGeometryAdjustmentCodec.TryExpectedCount(element.Image.MaskPreset, out var maskAdjustmentCount) &&
-                    maskAdjustmentCount > 0)
-                    output.Add(new("setImageMask", ["image.mask.adjustments"]));
-                else if (element.Image.CustomMaskPaths.Count > 0 &&
-                         CanProjectCustomGeometry(ImageMaskShape(element.Image)))
-                    output.Add(new("setImageMask", ["image.mask.paths"]));
+                if (element.Image.CustomMaskPaths.Count == 0 ||
+                    CanProjectCustomGeometry(ImageMaskShape(element.Image)))
+                {
+                    // Keep one capability per picture mask owner.  The
+                    // compiler still gates each transition by topology and
+                    // profile, while the field set covers preset identity,
+                    // complete adjustment lists, and literal path changes.
+                    output.Add(new("setImageMask", ["image.mask.preset", "image.mask.adjustments", "image.mask.paths"]));
+                }
                 break;
             case PresentationElement.ContentOneofCase.Chart when source.Editable:
                 output.Add(new("setChartTitle", ["chart.title"]));
                 output.Add(new("setChartData", ["chart.data"]));
                 output.Add(new("setChartTextStyle", ["chart.textStyle"]));
                 output.Add(new("setChartFill", ["chart.fill"]));
+                // Direct series stroke and marker graphs are parsed by the
+                // existing ChartSpace codecs.  Keep this capability separate
+                // from fill/data so a source-bound edit can change only the
+                // series style leaves and still fail closed by chart family
+                // in the compiler (scatter uses marker.line, not series.line).
+                output.Add(new("setChartSeriesStyle", [
+                    "chart.data.series[].stroke",
+                    "chart.data.series[].marker",
+                ]));
+                // Trendlines and error bars are direct c:series children with
+                // bounded readers/writers of their own.  Keep them separate
+                // from paint so a source-bound edit can replace only an
+                // existing analytic child while topology changes still fail
+                // closed in the shared ChartSpace patcher.
+                output.Add(new("setChartSeriesAnalytics", [
+                    "chart.data.series[].trendlines",
+                    "chart.data.series[].errorBars",
+                ]));
                 if (element.Chart.Frame is not null)
                     output.Add(new("setChartFrame", ["chart.frame"]));
                 output.Add(new("setChartLabels", ["chart.labels"]));
                 if (element.Chart.XAxis is not null || element.Chart.YAxis is not null ||
                     element.Chart.SecondaryXAxis is not null || element.Chart.SecondaryYAxis is not null)
                     output.Add(new("setChartAxis", ["chart.axis"]));
-                if (element.Chart.Type is SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut or SpreadsheetChartType.Bubble)
+                // Common ChartSpace plot scalars (legend placement, grouping,
+                // gap width, axis visibility, line smoothness/colour
+                // variation, and bounded circular/bubble geometry) are safe
+                // only for the parser-owned chart families below.  The
+                // capability is deliberately broad at the operation level;
+                // the source-bound compiler still checks each field and the
+                // chart family before writing the existing ChartPart.
+                if (element.Chart.Type is SpreadsheetChartType.Bar or
+                    SpreadsheetChartType.Line or
+                    SpreadsheetChartType.Area or
+                    SpreadsheetChartType.Pie or
+                    SpreadsheetChartType.Doughnut or
+                    SpreadsheetChartType.Bubble or
+                    SpreadsheetChartType.Radar or
+                    SpreadsheetChartType.Combo)
                     output.Add(new("setChartPlot", ["chart.plot"]));
                 output.Add(new("setFrame", EditableFrameFields));
                 break;
@@ -2246,6 +2807,11 @@ internal static partial class PpjPresentationProjector
             case PresentationElement.ContentOneofCase.Diagram:
                 output.Add(new("setSmartArtText", ["smartArt.text"]));
                 output.Add(new("setSmartArtGraph", ["smartArt.connections"]));
+                if (HasSmartArtPicturePaintProfile(element.Diagram))
+                {
+                    output.Add(new("setSmartArtImage", ["smartArt.nodes[].asset"]));
+                    output.Add(new("setSmartArtImagePaint", ["smartArt.nodes[].image"]));
+                }
                 output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
                 if (element.Diagram.DrawingCacheVerified)
                     output.Add(new("detachSmartArt", ["smartArt.detachToShapes"]));
@@ -2265,10 +2831,20 @@ internal static partial class PpjPresentationProjector
         return output;
     }
 
+    private static bool HasSmartArtPicturePaintProfile(PresentationDiagram diagram)
+    {
+        if (!diagram.DrawingCacheVerified || diagram.Nodes.Count == 0 ||
+            diagram.Nodes.Any(node => string.IsNullOrWhiteSpace(node.AssetId)))
+            return false;
+        return diagram.Nodes.All(node => diagram.Drawing?.Children
+            .SingleOrDefault(child => child.Name == node.Id && child.Shape is not null)
+            ?.Shape?.ImageFill is { AssetId.Length: > 0 });
+    }
+
     private static bool TextTopologyRepresentable(PresentationTextBody? body) =>
         body is not null && body.Paragraphs.Count > 0 &&
         body.Paragraphs.All(paragraph => paragraph.Runs.Count > 0 &&
-            paragraph.Runs.All(run => run.ContentCase is PresentationTextRun.ContentOneofCase.Text or PresentationTextRun.ContentOneofCase.Field));
+            paragraph.Runs.All(run => run.ContentCase is PresentationTextRun.ContentOneofCase.Text or PresentationTextRun.ContentOneofCase.LineBreak or PresentationTextRun.ContentOneofCase.Field));
 
     private static IReadOnlyList<CapabilitySpec> OpaqueCapabilities(PresentationElement element)
     {
@@ -2305,19 +2881,19 @@ internal static partial class PpjPresentationProjector
             foreach (var field in capability.Fields) fields.Add(StringNode(field));
             capabilityArray.Add(new JsonObject
             {
-                ["id"] = $"cap-{capability.Operation}-{Sha256(Encoding.UTF8.GetBytes(scope + capability.Operation))[..10]}",
-                ["operation"] = capability.Operation,
-                ["expectedHash"] = objectHash,
+                ["id"] = StringNode($"cap-{capability.Operation}-{Sha256(Encoding.UTF8.GetBytes(scope + capability.Operation))[..10]}"),
+                ["operation"] = StringNode(capability.Operation),
+                ["expectedHash"] = StringNode(objectHash),
                 ["fields"] = fields,
             });
         }
         var output = new JsonObject
         {
-            ["handle"] = $"nr-{Sha256(Encoding.UTF8.GetBytes(context.SourceSha256 + "\0" + scope))}",
-            ["sourceSha256"] = context.SourceSha256,
-            ["revision"] = context.Revision,
-            ["objectHash"] = objectHash,
-            ["capabilitySetSha256"] = Sha256(CanonicalBytes(capabilityArray)),
+            ["handle"] = StringNode($"nr-{Sha256(Encoding.UTF8.GetBytes(context.SourceSha256 + "\0" + scope))}"),
+            ["sourceSha256"] = StringNode(context.SourceSha256),
+            ["revision"] = StringNode(context.Revision),
+            ["objectHash"] = StringNode(objectHash),
+            ["capabilitySetSha256"] = StringNode(Sha256(CanonicalBytes(capabilityArray))),
             ["capabilities"] = capabilityArray,
         };
         if (leaves is { Count: > 0 }) output["leaves"] = leaves;
@@ -2327,9 +2903,19 @@ internal static partial class PpjPresentationProjector
     private static JsonObject ShapeFrame(PresentationShape shape)
     {
         var frame = Frame(shape.LeftEmu, shape.TopEmu, shape.WidthEmu, shape.HeightEmu);
-        if (shape.Transform?.HasRotationAngle60000 == true) frame["rotation"] = shape.Transform.RotationAngle60000 / 60_000d;
-        if (shape.Transform?.HasFlipHorizontal == true) frame["flipH"] = shape.Transform.FlipHorizontal;
-        if (shape.Transform?.HasFlipVertical == true) frame["flipV"] = shape.Transform.FlipVertical;
+        if (shape.Transform?.HasRotationAngle60000 == true) frame["rotation"] = JsonValue.Create(shape.Transform.RotationAngle60000 / 60_000d);
+        if (shape.Transform?.HasFlipHorizontal == true) frame["flipH"] = JsonValue.Create(shape.Transform.FlipHorizontal);
+        if (shape.Transform?.HasFlipVertical == true) frame["flipV"] = JsonValue.Create(shape.Transform.FlipVertical);
+        return frame;
+    }
+
+    private static JsonObject ShapeFrame(PresentationPlaceholderFrame source)
+    {
+        var frame = Frame(source.LeftEmu, source.TopEmu, source.WidthEmu, source.HeightEmu);
+        if (source.HasRotationAngle60000)
+            frame["rotation"] = JsonValue.Create(source.RotationAngle60000 / 60_000d);
+        if (source.HasFlipHorizontal) frame["flipH"] = JsonValue.Create(source.FlipHorizontal);
+        if (source.HasFlipVertical) frame["flipV"] = JsonValue.Create(source.FlipVertical);
         return frame;
     }
 
@@ -2342,9 +2928,9 @@ internal static partial class PpjPresentationProjector
     private static JsonObject ImageFrame(PresentationImage image)
     {
         var frame = Frame(image.LeftEmu, image.TopEmu, image.WidthEmu, image.HeightEmu);
-        if (image.Transform?.HasRotationAngle60000 == true) frame["rotation"] = image.Transform.RotationAngle60000 / 60_000d;
-        if (image.Transform?.HasFlipHorizontal == true) frame["flipH"] = image.Transform.FlipHorizontal;
-        if (image.Transform?.HasFlipVertical == true) frame["flipV"] = image.Transform.FlipVertical;
+        if (image.Transform?.HasRotationAngle60000 == true) frame["rotation"] = JsonValue.Create(image.Transform.RotationAngle60000 / 60_000d);
+        if (image.Transform?.HasFlipHorizontal == true) frame["flipH"] = JsonValue.Create(image.Transform.FlipHorizontal);
+        if (image.Transform?.HasFlipVertical == true) frame["flipV"] = JsonValue.Create(image.Transform.FlipVertical);
         return frame;
     }
 
@@ -2382,10 +2968,10 @@ internal static partial class PpjPresentationProjector
 
     private static JsonObject Frame(long left, long top, long width, long height) => new()
     {
-        ["x"] = Points(left),
-        ["y"] = Points(top),
-        ["width"] = Math.Max(0.001, Points(width)),
-        ["height"] = Math.Max(0.001, Points(height)),
+        ["x"] = JsonValue.Create(Points(left)),
+        ["y"] = JsonValue.Create(Points(top)),
+        ["width"] = JsonValue.Create(Math.Max(0.001, Points(width))),
+        ["height"] = JsonValue.Create(Math.Max(0.001, Points(height))),
     };
 
     private static JsonObject Frame(
@@ -2396,9 +2982,9 @@ internal static partial class PpjPresentationProjector
         PresentationFrameTransform? transform)
     {
         var frame = Frame(left, top, width, height);
-        if (transform?.HasRotationAngle60000 == true) frame["rotation"] = transform.RotationAngle60000 / 60_000d;
-        if (transform?.HasFlipHorizontal == true) frame["flipH"] = transform.FlipHorizontal;
-        if (transform?.HasFlipVertical == true) frame["flipV"] = transform.FlipVertical;
+        if (transform?.HasRotationAngle60000 == true) frame["rotation"] = JsonValue.Create(transform.RotationAngle60000 / 60_000d);
+        if (transform?.HasFlipHorizontal == true) frame["flipH"] = JsonValue.Create(transform.FlipHorizontal);
+        if (transform?.HasFlipVertical == true) frame["flipV"] = JsonValue.Create(transform.FlipVertical);
         return frame;
     }
 
@@ -2410,8 +2996,8 @@ internal static partial class PpjPresentationProjector
         ProjectionContext context)
     {
         if (!string.IsNullOrEmpty(targetId) && context.TryElementId(pageId, targetId, out var projected))
-            return new JsonObject { ["element"] = projected, ["anchor"] = "auto" };
-        return new JsonObject { ["x"] = Points(x), ["y"] = Points(y) };
+            return new JsonObject { ["element"] = StringNode(projected), ["anchor"] = StringNode("auto") };
+        return new JsonObject { ["x"] = JsonValue.Create(Points(x)), ["y"] = JsonValue.Create(Points(y)) };
     }
 
     private static JsonObject Stroke(
@@ -2426,15 +3012,15 @@ internal static partial class PpjPresentationProjector
         var output = new JsonObject
         {
             ["color"] = !string.IsNullOrEmpty(scheme)
-                ? new JsonObject { ["token"] = scheme }
-                : Color(string.IsNullOrEmpty(rgb) ? "000000" : rgb),
-            ["width"] = Math.Max(0, Points(widthEmu)),
+                ? new JsonObject { ["token"] = StringNode(scheme) }
+                : StringNode(Color(string.IsNullOrEmpty(rgb) ? "000000" : rgb)),
+                ["width"] = JsonValue.Create(Math.Max(0, Points(widthEmu))),
         };
         var dash = Dash(style);
         if (dash is not null) output["dash"] = StringNode(dash);
         if (cap is "flat" or "round" or "square") output["cap"] = StringNode(cap);
         if (join is "miter" or "round" or "bevel") output["join"] = StringNode(join);
-        if (opacity is not null) output["opacity"] = opacity.Value;
+        if (opacity is not null) output["opacity"] = JsonValue.Create(opacity.Value);
         return output;
     }
 
@@ -2443,33 +3029,33 @@ internal static partial class PpjPresentationProjector
         var output = new JsonObject
         {
             ["color"] = !string.IsNullOrEmpty(shadow.ColorScheme)
-                ? new JsonObject { ["token"] = shadow.ColorScheme }
-                : Color(string.IsNullOrEmpty(shadow.ColorRgb) ? "000000" : shadow.ColorRgb),
-            ["opacity"] = shadow.HasOpacityThousandthPercent ? Unit(shadow.OpacityThousandthPercent) : 1,
-            ["blur"] = Math.Max(0, Points(shadow.HasBlurRadiusEmu ? shadow.BlurRadiusEmu : 0)),
-            ["distance"] = Math.Max(0, Points(shadow.HasDistanceEmu ? shadow.DistanceEmu : 0)),
-            ["angle"] = (shadow.HasDirectionAngle60000 ? shadow.DirectionAngle60000 : 0) / 60_000d,
+                ? new JsonObject { ["token"] = StringNode(shadow.ColorScheme) }
+                : StringNode(Color(string.IsNullOrEmpty(shadow.ColorRgb) ? "000000" : shadow.ColorRgb)),
+            ["opacity"] = JsonValue.Create(shadow.HasOpacityThousandthPercent ? Unit(shadow.OpacityThousandthPercent) : 1),
+            ["blur"] = JsonValue.Create(Math.Max(0, Points(shadow.HasBlurRadiusEmu ? shadow.BlurRadiusEmu : 0))),
+            ["distance"] = JsonValue.Create(Math.Max(0, Points(shadow.HasDistanceEmu ? shadow.DistanceEmu : 0))),
+            ["angle"] = JsonValue.Create((shadow.HasDirectionAngle60000 ? shadow.DirectionAngle60000 : 0) / 60_000d),
         };
-        if (shadow.HasAlignment) output["alignment"] = shadow.Alignment;
-        if (shadow.HasRotateWithShape) output["rotateWithShape"] = shadow.RotateWithShape;
+        if (shadow.HasAlignment) output["alignment"] = StringNode(shadow.Alignment);
+        if (shadow.HasRotateWithShape) output["rotateWithShape"] = JsonValue.Create(shadow.RotateWithShape);
         return output;
     }
 
     private static JsonObject? Accessibility(PresentationNonVisualAccessibility? value)
     {
         if (value is null) return null;
-        var output = new JsonObject { ["decorative"] = value.HasDecorative && value.Decorative };
-        if (!string.IsNullOrEmpty(value.Title)) output["title"] = value.Title;
-        if (!string.IsNullOrEmpty(value.Description)) output["description"] = value.Description;
+        var output = new JsonObject { ["decorative"] = JsonValue.Create(value.HasDecorative && value.Decorative) };
+        if (!string.IsNullOrEmpty(value.Title)) output["title"] = StringNode(value.Title);
+        if (!string.IsNullOrEmpty(value.Description)) output["description"] = StringNode(value.Description);
         return output;
     }
 
     private static JsonObject? ImageAccessibility(PresentationImage image)
     {
         if (!image.HasAccessibilityDecorative && string.IsNullOrEmpty(image.AccessibilityTitle) && string.IsNullOrEmpty(image.AltText)) return null;
-        var output = new JsonObject { ["decorative"] = image.HasAccessibilityDecorative && image.AccessibilityDecorative };
-        if (!string.IsNullOrEmpty(image.AccessibilityTitle)) output["title"] = image.AccessibilityTitle;
-        if (!string.IsNullOrEmpty(image.AltText)) output["description"] = image.AltText;
+        var output = new JsonObject { ["decorative"] = JsonValue.Create(image.HasAccessibilityDecorative && image.AccessibilityDecorative) };
+        if (!string.IsNullOrEmpty(image.AccessibilityTitle)) output["title"] = StringNode(image.AccessibilityTitle);
+        if (!string.IsNullOrEmpty(image.AltText)) output["description"] = StringNode(image.AltText);
         return output;
     }
 
@@ -2598,12 +3184,12 @@ internal static partial class PpjPresentationProjector
         if (!string.IsNullOrEmpty(rgb))
         {
             var value = Color(rgb);
-            if (!hasOpacity) return value;
+            if (!hasOpacity) return StringNode(value);
             var alpha = Math.Clamp((int)Math.Round(Unit(opacity) * 255), 0, 255);
-            return $"{value}{alpha:X2}";
+            return StringNode($"{value}{alpha:X2}");
         }
-        var output = new JsonObject { ["token"] = scheme };
-        if (hasOpacity) output["alpha"] = Unit(opacity);
+        var output = new JsonObject { ["token"] = StringNode(scheme ?? string.Empty) };
+        if (hasOpacity) output["alpha"] = JsonValue.Create(Unit(opacity));
         return output;
     }
     private static double Crop(int value) => Math.Clamp(value / 100_000d, -1, 1);
@@ -2804,12 +3390,12 @@ internal static partial class PpjPresentationProjector
             var fileName = $"{hash}.{extension}";
             programAssets.Add(new JsonObject
             {
-                ["id"] = programAssetId,
-                ["uri"] = $"{AssetRoot}/{fileName}",
-                ["mimeType"] = source.ContentType,
-                ["sha256"] = hash,
-                ["rights"] = new JsonObject { ["status"] = "user-provided" },
-                ["accessibility"] = new JsonObject { ["decorative"] = false, ["description"] = "Imported source media." },
+                ["id"] = StringNode(programAssetId),
+                ["uri"] = StringNode($"{AssetRoot}/{fileName}"),
+                ["mimeType"] = StringNode(source.ContentType),
+                ["sha256"] = StringNode(hash),
+                ["rights"] = new JsonObject { ["status"] = StringNode("user-provided") },
+                ["accessibility"] = new JsonObject { ["decorative"] = JsonValue.Create(false), ["description"] = StringNode("Imported source media.") },
             });
             var materialized = source.Clone();
             materialized.Id = programAssetId;
@@ -2860,12 +3446,12 @@ internal static partial class PpjPresentationProjector
                 var fileName = $"{hash}.{extension}";
                 programAssets.Add(new JsonObject
                 {
-                    ["id"] = programAssetId,
-                    ["uri"] = $"{AssetRoot}/{fileName}",
-                    ["mimeType"] = contentType,
-                    ["sha256"] = hash,
-                    ["rights"] = new JsonObject { ["status"] = "user-provided" },
-                    ["accessibility"] = new JsonObject { ["decorative"] = false, ["description"] = "Imported embedded Office package." },
+                    ["id"] = StringNode(programAssetId),
+                    ["uri"] = StringNode($"{AssetRoot}/{fileName}"),
+                    ["mimeType"] = StringNode(contentType),
+                    ["sha256"] = StringNode(hash),
+                    ["rights"] = new JsonObject { ["status"] = StringNode("user-provided") },
+                    ["accessibility"] = new JsonObject { ["decorative"] = JsonValue.Create(false), ["description"] = StringNode("Imported embedded Office package.") },
                 });
                 resultAssets.Add(new Asset
                 {
@@ -2909,10 +3495,10 @@ internal static partial class PpjPresentationProjector
             }
             if (sections.Count == 0) return null;
             var output = new JsonObject();
-            foreach (var (name, hash) in sections) output[name] = hash;
-            output["closureSha256"] = Sha256(Encoding.UTF8.GetBytes(string.Join(
+            foreach (var (name, hash) in sections) output[name] = StringNode(hash);
+            output["closureSha256"] = StringNode(Sha256(Encoding.UTF8.GetBytes(string.Join(
                 "\n",
-                sections.Select(pair => $"{pair.Key}:{pair.Value}"))));
+                sections.Select(pair => $"{pair.Key}:{pair.Value}")))));
             return output;
         }
 
@@ -2921,20 +3507,20 @@ internal static partial class PpjPresentationProjector
             VisibleObjectCount++;
             nodes.Add(new JsonObject
             {
-                ["id"] = id,
-                ["page"] = pageId,
-                ["type"] = type,
-                ["handle"] = nativeRef["handle"]!.GetValue<string>(),
-                ["objectHash"] = nativeRef["objectHash"]!.GetValue<string>(),
-                ["capabilitySetSha256"] = nativeRef["capabilitySetSha256"]!.GetValue<string>(),
+                ["id"] = StringNode(id),
+                ["page"] = StringNode(pageId),
+                ["type"] = StringNode(type),
+                ["handle"] = StringNode(nativeRef["handle"]!.GetValue<string>()),
+                ["objectHash"] = StringNode(nativeRef["objectHash"]!.GetValue<string>()),
+                ["capabilitySetSha256"] = StringNode(nativeRef["capabilitySetSha256"]!.GetValue<string>()),
             });
         }
 
         internal JsonObject BuildNodeMap() => new()
         {
-            ["schema"] = "office-kit/ppj-node-map/v1",
-            ["sourceSha256"] = SourceSha256,
-            ["revision"] = Revision,
+            ["schema"] = StringNode("office-kit/ppj-node-map/v1"),
+            ["sourceSha256"] = StringNode(SourceSha256),
+            ["revision"] = StringNode(Revision),
             ["nodes"] = nodes,
         };
 

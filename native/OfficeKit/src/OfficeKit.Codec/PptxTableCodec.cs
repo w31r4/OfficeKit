@@ -10,7 +10,7 @@ namespace OfficeKit.Codec;
 // topology and merge ranges remain fixed after import; name, complete outer
 // frame, non-visible title/description, recognized table-property flags,
 // fixed-topology direct text runs, the bounded direct cell paint/border
-// profile, and the bounded uniform-run text-style profile are the source-bound
+// profile, and the bounded direct run-text-style profile are the source-bound
 // edits. Recognized PowerPoint style/extension shells stay in the source graph
 // instead of being rebuilt.
 internal static class PptxTableCodec
@@ -105,11 +105,12 @@ internal static class PptxTableCodec
                 var row = new PresentationTableRow { HeightEmu = nativeRow.Height.Value };
                 foreach (var cell in cells)
                 {
-                    if (!TryReadCell(cell, context, out var text, out var fill, out var borders, out var textStyle, out var styleEditable, out var textStyleEditable))
+                    if (!TryReadCell(cell, context, out var text, out var textBody, out var fill, out var borders, out var textStyle, out var styleEditable, out var textStyleEditable))
                         return false;
                     cellStyleEditable &= styleEditable;
                     cellTextStyleEditable &= textStyleEditable;
                     var modeledCell = new PresentationTableCell { Text = text };
+                    if (textBody is not null) modeledCell.TextBody = textBody;
                     if (fill is not null) modeledCell.Fill = fill;
                     if (borders is not null) modeledCell.Borders = borders;
                     if (textStyle is not null) modeledCell.TextStyle = textStyle;
@@ -227,7 +228,14 @@ internal static class PptxTableCodec
                 var requestedText = table.Rows[rowIndex].Cells[columnIndex].Text;
                 var sourceText = CellText(cells[columnIndex]);
                 PatchCellProperties(cells[columnIndex], table.Rows[rowIndex].Cells[columnIndex], slideContext);
+                PatchCellTextBody(cells[columnIndex], table.Rows[rowIndex].Cells[columnIndex], slideContext);
                 PatchCellTextStyle(cells[columnIndex], table.Rows[rowIndex].Cells[columnIndex], slideContext);
+                // A structured body patch already updates each fixed inline,
+                // including cached field text. Do not run the legacy plain
+                // text distributor afterwards: it only owns direct a:r/a:t
+                // leaves and must never flatten a field into ordinary text.
+                if (table.Rows[rowIndex].Cells[columnIndex].TextBody is not null)
+                    continue;
                 // Text replacement keeps the source paragraph and run
                 // topology. A direct plain-text paragraph may contain one or
                 // more runs; new text is distributed deterministically across
@@ -312,7 +320,7 @@ internal static class PptxTableCodec
         // unsupported relationship/effect children in the residual hash.
         var parsed = TryRead(source, context, out var parsedTable);
         var scrubCellStyles = parsed && parsedTable.CellStyleEditable;
-        var scrubCellTextStyles = parsed && parsedTable.CellTextStyleEditable;
+        var scrubCellTextStyles = parsed;
         if (source.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties is { } nonVisual)
         {
             PptxNonVisualAccessibilityCodec.ScrubModeledContent(nonVisual);
@@ -349,14 +357,25 @@ internal static class PptxTableCodec
                 if (scrubCellStyles && cell.GetFirstChild<A.TableCellProperties>() is { } cellProperties)
                     foreach (var child in cellProperties.ChildElements.Where(child => IsCellFill(child) || IsCellBorder(child)).ToArray())
                         child.Remove();
-                if (scrubCellTextStyles && cell.GetFirstChild<A.TextBody>() is { } textBody)
+                // Text-body editability is a table-wide capability in the
+                // public model, but residual hashing must scrub each cell only
+                // when that cell independently satisfies the bounded profile.
+                // This keeps a modeled picture marker's relationship leaf
+                // editable without masking an unrelated opaque cell.
+                var scrubThisCellText = scrubCellTextStyles && IsCellTextBodyEditable(cell, context);
+                if (scrubThisCellText && cell.GetFirstChild<A.TextBody>() is { } textBody)
                 {
                     var temporary = new P.Shape { TextBody = new P.TextBody { InnerXml = textBody.InnerXml } };
-                    PptxTextCodec.ScrubModeledContent(temporary.TextBody);
+                    PptxTextCodec.ScrubModeledContent(temporary.TextBody, context);
                     textBody.InnerXml = temporary.TextBody!.InnerXml;
                 }
             }
         }
+    }
+
+    private static bool IsCellTextBodyEditable(A.TableCell cell, PptxPartContext? context)
+    {
+        return TryReadCell(cell, context, out _, out _, out _, out _, out _, out _, out var editable) && editable;
     }
 
     private static void ValidateRequest(PresentationTable original, PresentationElement requested)
@@ -391,6 +410,7 @@ internal static class PptxTableCodec
             {
                 var allowedCell = allowed.Rows[rowIndex].Cells[columnIndex];
                 var requestedCell = requested.Table.Rows[rowIndex].Cells[columnIndex];
+                var originalCell = original.Rows[rowIndex].Cells[columnIndex];
                 allowedCell.Text = requestedCell.Text;
                 if (original.CellStyleEditable)
                 {
@@ -398,11 +418,21 @@ internal static class PptxTableCodec
                     allowedCell.Borders = requestedCell.Borders?.Clone();
                 }
                 if (original.CellTextStyleEditable)
+                {
                     allowedCell.TextStyle = requestedCell.TextStyle?.Clone();
+                    if (originalCell.TextBody is not null)
+                    {
+                        if (requestedCell.TextBody is null)
+                            throw new CodecException("unsupported_presentation_edit", "Source-preserving mixed-run table-cell text must retain its structured text body.");
+                        if (requestedCell.TextStyle is not null)
+                            throw new CodecException("unsupported_presentation_edit", "Source-preserving mixed-run table-cell text must use per-run styles inside text_body, not a uniform textStyle.");
+                        allowedCell.TextBody = requestedCell.TextBody.Clone();
+                    }
+                }
             }
         }
         if (!allowed.Equals(requested.Table))
-            throw new CodecException("unsupported_presentation_edit", $"Presentation table {requested.Id} may edit only its name, complete frame transform, alternative text, recognized table-property flags, bounded direct cell paint/borders, and fixed-topology plain cell text.");
+            throw new CodecException("unsupported_presentation_edit", $"Presentation table {requested.Id} may edit only its name, complete frame transform, alternative text, recognized table-property flags, bounded direct cell paint/borders, fixed-topology plain cell text, and bounded mixed-run text bodies.");
     }
 
     private static bool TryReadFrame(
@@ -432,6 +462,7 @@ internal static class PptxTableCodec
         A.TableCell cell,
         PptxPartContext? context,
         out string text,
+        out PresentationTextBody? textBody,
         out PresentationTableCellFill? fill,
         out PresentationTableCellBorders? borders,
         out PresentationTextStyle? textStyle,
@@ -439,6 +470,7 @@ internal static class PptxTableCodec
         out bool textStyleEditable)
     {
         text = string.Empty;
+        textBody = null;
         fill = null;
         borders = null;
         textStyle = null;
@@ -459,42 +491,70 @@ internal static class PptxTableCodec
 
         // Keep the table model plain, but accept the common source-bound form
         // where one cell contains several paragraphs and each paragraph has
-        // one or more direct plain-text runs. Joining those paragraphs gives
-        // the Agent a single editable cell value without flattening any run
-        // properties; Apply() splices the same paragraph/run leaves in place.
+        // one or more direct text/field/line-break inlines. Joining those
+        // paragraphs gives the Agent a single editable cell value without
+        // flattening any run properties; Apply() splices the same
+        // paragraph/inline leaves in place.
         var paragraphs = body.Elements<A.Paragraph>().ToArray();
         var lines = new List<string>(paragraphs.Length);
-        var hasAnyText = paragraphs.Any(paragraph => paragraph.Descendants<A.Text>().Any());
-        if (!hasAnyText)
+        var hasAnyInline = paragraphs.Any(paragraph => paragraph.ChildElements.Any(child => child is A.Run or A.Field or A.Break));
+        if (!hasAnyInline)
         {
-            // A normal empty cell has a paragraph shell but no source text
-            // leaf. Keep the cell readable; adding text remains fail-closed.
+            // A normal empty cell has a paragraph shell but no source inline.
+            // Keep the cell readable; adding text remains fail-closed.
             text = string.Empty;
             return true;
         }
         foreach (var paragraph in paragraphs)
         {
-            var runs = paragraph.Elements<A.Run>().ToArray();
-            var textLeaves = paragraph.Descendants<A.Text>().ToArray();
-            if (runs.Length < 1 || textLeaves.Length != runs.Length ||
-                textLeaves.Any(value => value.Parent is not A.Run || value.Text.Contains('\n')))
+            var inlines = paragraph.ChildElements
+                .Where(child => child is A.Run or A.Field or A.Break)
+                .ToArray();
+            if (inlines.Length < 1)
                 return false;
-            lines.Add(string.Concat(textLeaves.Select(value => value.Text)));
+            var line = new System.Text.StringBuilder();
+            foreach (var inline in inlines)
+            {
+                if (inline is A.Break)
+                {
+                    line.Append('\n');
+                    continue;
+                }
+                if (inline is not (A.Run or A.Field) || inline.Descendants<A.Text>().Count() != 1)
+                    return false;
+                var value = inline.GetFirstChild<A.Text>();
+                if (value is null || value.Text.Contains('\n')) return false;
+                line.Append(value.Text);
+            }
+            lines.Add(line.ToString());
         }
         text = string.Join("\n", lines);
         if (PptxTextCodec.SupportsEditing(body))
         {
             try
             {
-                var semantic = PptxTextCodec.ReadDrawingTextBody(body);
+                var semantic = PptxTextCodec.ReadDrawingTextBody(body, context);
                 var runs = semantic.Paragraphs.SelectMany(paragraph => paragraph.Runs).ToArray();
                 var styles = runs.Select(TextStyle).ToArray();
-                if (runs.Length > 0 && runs.All(run =>
+                var hasStructuredInline = runs.Any(run => run.ContentCase is
+                    PresentationTextRun.ContentOneofCase.Field or PresentationTextRun.ContentOneofCase.LineBreak);
+                if (runs.Length > 0 && !hasStructuredInline && runs.All(run =>
                         run.ContentCase == PresentationTextRun.ContentOneofCase.Text &&
                         CellTextStyleSupported(run)) &&
-                    styles.Skip(1).All(style => Equals(style, styles[0])))
+                    styles.Skip(1).All(style => Equals(style, styles[0])) &&
+                    semantic.Paragraphs.All(paragraph => !PptxParagraphPropertiesCodec.HasModeledProperties(paragraph)) &&
+                    !PptxBodyPropertiesCodec.HasModeledProperties(semantic.BodyProperties))
                 {
                     textStyle = styles[0];
+                }
+                else if (runs.Length > 0 && IsBoundedMixedRunTextBody(semantic))
+                {
+                    // Preserve a fixed-topology, direct-run body when the
+                    // cell intentionally contains heterogeneous run styles.
+                    // The projector can then expose per-run style leaves and
+                    // the compiler can apply them without flattening to one
+                    // uniform cell style.
+                    textBody = semantic;
                 }
                 else
                 {
@@ -512,6 +572,94 @@ internal static class PptxTableCodec
         }
         return text.Length <= MaxCellTextLength;
     }
+
+    internal static bool IsBoundedMixedRunTextBody(PresentationTextBody body) =>
+        BoundedTableBodyProperties(body.BodyProperties) &&
+        body.ListStyles.Count == 0 &&
+        body.Paragraphs.All(paragraph =>
+            BoundedTableParagraphProperties(paragraph) &&
+            paragraph.Runs.All(run =>
+                (run.ContentCase is PresentationTextRun.ContentOneofCase.Text or PresentationTextRun.ContentOneofCase.Field or PresentationTextRun.ContentOneofCase.LineBreak) &&
+                CellTextStyleSupported(run)));
+
+    // A structured table-cell text body may expose the direct a:bodyPr leaves
+    // that have a stable PPJ textBoxStyle spelling. Unsupported bodyPr
+    // choices (rotation, overflow, normAutofit percentages and explicit
+    // delete markers) remain source-owned so a rich-text edit cannot silently
+    // drop them. The unknown attributes/children themselves remain on the
+    // native body and are preserved by PptxBodyPropertiesCodec.Apply.
+    private static bool BoundedTableBodyProperties(PresentationTextBodyProperties? properties) =>
+        PptxBodyPropertiesCodec.SupportsBoundedDirectLayout(properties);
+
+    // A source-bound table cell may carry direct paragraph alignment and
+    // concrete spacing without requiring the broader list/layout/effects
+    // profile used by ordinary text boxes. Keep this deliberately narrow:
+    // these are stable DrawingML leaves, while complex bullet/effect graphs
+    // and inherited defaults still need their own topology and cascade
+    // contracts. A bounded direct a:bodyPr subset is accepted separately so
+    // cell text can expose vertical anchoring, wrapping and insets without
+    // flattening the text body.
+    private static bool BoundedTableParagraphProperties(PresentationTextParagraph paragraph) =>
+        (!paragraph.HasAlignment || paragraph.Alignment is "left" or "center" or "right" or "justify" or "distributed") &&
+        paragraph.LeftMarginCase is PresentationTextParagraph.LeftMarginOneofCase.None or PresentationTextParagraph.LeftMarginOneofCase.MarginLeftEmu &&
+        paragraph.IndentationCase is PresentationTextParagraph.IndentationOneofCase.None or PresentationTextParagraph.IndentationOneofCase.IndentEmu &&
+        BoundedTableSpacing(paragraph.LineSpacingCase, PresentationTextParagraph.LineSpacingOneofCase.LineSpacingPoints, PresentationTextParagraph.LineSpacingOneofCase.LineSpacingMultiplier) &&
+        BoundedTableSpacing(paragraph.SpaceBeforeCase, PresentationTextParagraph.SpaceBeforeOneofCase.SpaceBeforePoints, PresentationTextParagraph.SpaceBeforeOneofCase.SpaceBeforeMultiplier) &&
+        BoundedTableSpacing(paragraph.SpaceAfterCase, PresentationTextParagraph.SpaceAfterOneofCase.SpaceAfterPoints, PresentationTextParagraph.SpaceAfterOneofCase.SpaceAfterMultiplier) &&
+        (paragraph.BulletCase == PresentationTextParagraph.BulletOneofCase.None ||
+         paragraph.BulletCase == PresentationTextParagraph.BulletOneofCase.NoBullet ||
+         paragraph.BulletCase == PresentationTextParagraph.BulletOneofCase.BulletCharacter ||
+         paragraph.BulletCase == PresentationTextParagraph.BulletOneofCase.AutoNumber ||
+         paragraph.BulletCase == PresentationTextParagraph.BulletOneofCase.PictureBullet &&
+         paragraph.PictureBullet.SourceCase is PresentationPictureBullet.SourceOneofCase.AssetId or
+             PresentationPictureBullet.SourceOneofCase.Uri) &&
+        BoundedTableBulletStyle(paragraph) &&
+        paragraph.TabStops.Count <= 256 &&
+        (!paragraph.HasNoTabStops || paragraph.NoTabStops) &&
+        BoundedTableDefaultRunStyle(paragraph);
+
+    private static bool BoundedTableSpacing<T>(T actual, T points, T multiplier)
+        where T : Enum =>
+        EqualityComparer<T>.Default.Equals(actual, default) ||
+        EqualityComparer<T>.Default.Equals(actual, points) ||
+        EqualityComparer<T>.Default.Equals(actual, multiplier);
+
+    private static bool BoundedTableBulletStyle(PresentationTextParagraph paragraph)
+    {
+        var hasStyle = paragraph.BulletFontCase != PresentationTextParagraph.BulletFontOneofCase.None ||
+            paragraph.BulletColorCase != PresentationTextParagraph.BulletColorOneofCase.None ||
+            paragraph.BulletSizeCase != PresentationTextParagraph.BulletSizeOneofCase.None;
+        if (!hasStyle) return true;
+        if (paragraph.BulletCase is not (PresentationTextParagraph.BulletOneofCase.BulletCharacter or
+            PresentationTextParagraph.BulletOneofCase.AutoNumber or
+            PresentationTextParagraph.BulletOneofCase.PictureBullet)) return false;
+        if (paragraph.BulletCase == PresentationTextParagraph.BulletOneofCase.PictureBullet &&
+            paragraph.PictureBullet.SourceCase is not (PresentationPictureBullet.SourceOneofCase.AssetId or
+                PresentationPictureBullet.SourceOneofCase.Uri))
+            return false;
+        var font = paragraph.BulletFontCase is PresentationTextParagraph.BulletFontOneofCase.None or
+            PresentationTextParagraph.BulletFontOneofCase.BulletFontFamily or
+            PresentationTextParagraph.BulletFontOneofCase.BulletFontFollowText;
+        var color = paragraph.BulletColorCase is PresentationTextParagraph.BulletColorOneofCase.None or
+            PresentationTextParagraph.BulletColorOneofCase.BulletColorRgb or
+            PresentationTextParagraph.BulletColorOneofCase.BulletColorScheme or
+            PresentationTextParagraph.BulletColorOneofCase.BulletColorFollowText;
+        var size = paragraph.BulletSizeCase is PresentationTextParagraph.BulletSizeOneofCase.None or
+            PresentationTextParagraph.BulletSizeOneofCase.BulletSizePoints or
+            PresentationTextParagraph.BulletSizeOneofCase.BulletSizePercent or
+            PresentationTextParagraph.BulletSizeOneofCase.BulletSizeFollowText;
+        return font && color && size;
+    }
+
+    private static bool BoundedTableDefaultRunStyle(PresentationTextParagraph paragraph) =>
+        paragraph.DefaultRunStyleCase == PresentationTextParagraph.DefaultRunStyleOneofCase.None ||
+        paragraph.DefaultRunStyleCase == PresentationTextParagraph.DefaultRunStyleOneofCase.DefaultRunProperties &&
+        paragraph.DefaultRunProperties is { } style &&
+        !style.HasFontKerningPoints && !style.HasFontBaselinePercent && !style.HasFontSpacingPoints &&
+        !style.HasFontCaps && style.HighlightCase == PresentationTextStyle.HighlightOneofCase.None &&
+        style.GradientFill is null && style.Shadow is null &&
+        style.ColorCase != PresentationTextStyle.ColorOneofCase.ColorScheme &&
+        (!style.HasLanguage || style.Language.Equals("en-US", StringComparison.OrdinalIgnoreCase));
 
     private static PresentationTextStyle? TextStyle(PresentationTextRun run)
     {
@@ -665,11 +813,13 @@ internal static class PptxTableCodec
             dashValue.Equals(A.PresetLineDashValues.DashDot) ? SpreadsheetChartLineDashStyle.DashDot :
             dashValue.Equals(A.PresetLineDashValues.LargeDashDotDot) ? SpreadsheetChartLineDashStyle.DashDotDot :
             SpreadsheetChartLineDashStyle.Unspecified;
+        var cap = attributes.FirstOrDefault(attribute =>
+            attribute.LocalName == "cap" && attribute.NamespaceUri.Length == 0).Value;
         var output = new SpreadsheetChartLineStyleArtifact
         {
             Color = new SpreadsheetColor { Rgb = rgb },
             DashStyle = dashStyle,
-            Cap = source.GetAttribute("cap", string.Empty).Value switch
+            Cap = cap switch
             {
                 null or "flat" => "flat",
                 "rnd" => "round",
@@ -686,7 +836,8 @@ internal static class PptxTableCodec
             },
         };
         if (output.DashStyle == SpreadsheetChartLineDashStyle.Unspecified || output.Cap.Length == 0) return false;
-        var width = source.GetAttribute("w", string.Empty).Value;
+        var width = attributes.FirstOrDefault(attribute =>
+            attribute.LocalName == "w" && attribute.NamespaceUri.Length == 0).Value;
         if (width is not null)
         {
             if (!long.TryParse(width, NumberStyles.None, CultureInfo.InvariantCulture, out var emu) || emu < 0)
@@ -723,6 +874,12 @@ internal static class PptxTableCodec
         PresentationTableCell requested,
         PptxPartContext? slideContext)
     {
+        if (requested.TextBody is not null)
+        {
+            if (requested.TextStyle is not null)
+                throw new CodecException("unsupported_presentation_edit", "Source-preserving mixed-run table-cell text must use per-run styles inside text_body, not a uniform textStyle.");
+            return;
+        }
         if (requested.TextStyle is null && cell.GetFirstChild<A.TextBody>() is null) return;
         var sourceBody = cell.GetFirstChild<A.TextBody>();
         if (sourceBody is null)
@@ -732,25 +889,32 @@ internal static class PptxTableCodec
             return;
         }
         var paragraphs = sourceBody.Elements<A.Paragraph>().ToArray();
-        if (paragraphs.Length < 1 || paragraphs.Any(paragraph => paragraph.Elements<A.Run>().Count() < 1))
+        if (paragraphs.Length < 1 || paragraphs.Any(paragraph =>
+            paragraph.ChildElements.Count(child => child is A.Run or A.Field or A.Break) < 1))
         {
             if (requested.TextStyle is not null)
                 throw new CodecException("unsupported_presentation_edit", "Source-preserving table-cell text style requires one or more paragraphs with one or more text runs each.");
             return;
         }
 
-        var semantic = PptxTextCodec.ReadDrawingTextBody(sourceBody);
-        var sourceRuns = paragraphs.SelectMany(paragraph => paragraph.Elements<A.Run>()).ToArray();
+        var semantic = PptxTextCodec.ReadDrawingTextBody(sourceBody, slideContext);
+        var sourceRuns = paragraphs.SelectMany(paragraph =>
+            paragraph.ChildElements.Where(child => child is A.Run or A.Field or A.Break)).ToArray();
         var semanticRuns = semantic.Paragraphs.SelectMany(paragraph => paragraph.Runs).ToArray();
         if (semantic.Paragraphs.Count != paragraphs.Length || semanticRuns.Length != sourceRuns.Length ||
             semanticRuns.Any(run =>
-                run.ContentCase != PresentationTextRun.ContentOneofCase.Text ||
+                run.ContentCase is not (PresentationTextRun.ContentOneofCase.Text or PresentationTextRun.ContentOneofCase.Field or PresentationTextRun.ContentOneofCase.LineBreak) ||
                 !CellTextStyleSupported(run)))
-            throw new CodecException("unsupported_presentation_edit", "Source-preserving table-cell text style requires paragraphs of plain text runs.");
+            throw new CodecException("unsupported_presentation_edit", "Source-preserving table-cell text style requires paragraphs of direct text, field, or line-break inlines.");
         for (var index = 0; index < semanticRuns.Length; index++)
         {
             var run = semanticRuns[index];
-            var replacement = new PresentationTextRun { Text = run.Text };
+            var replacement = run.ContentCase switch
+            {
+                PresentationTextRun.ContentOneofCase.Field => new PresentationTextRun { Field = run.Field.Clone() },
+                PresentationTextRun.ContentOneofCase.LineBreak => new PresentationTextRun { LineBreak = true },
+                _ => new PresentationTextRun { Text = run.Text },
+            };
             if (requested.TextStyle is { } style)
             {
                 if (style.HasBold) replacement.Bold = style.Bold;
@@ -783,6 +947,53 @@ internal static class PptxTableCodec
         };
         PptxTextCodec.Apply(temporary, requestedShape, slideContext!);
         sourceBody.InnerXml = temporary.TextBody!.InnerXml;
+    }
+
+    private static void PatchCellTextBody(
+        A.TableCell cell,
+        PresentationTableCell requested,
+        PptxPartContext? slideContext)
+    {
+        if (requested.TextBody is null) return;
+        var sourceBody = cell.GetFirstChild<A.TextBody>();
+        if (sourceBody is null)
+            throw new CodecException("unsupported_presentation_edit", "Source-preserving PPTX export cannot add a table-cell text body.");
+        if (!IsBoundedMixedRunTextBody(requested.TextBody))
+            throw new CodecException("unsupported_presentation_edit", "Source-preserving mixed-run table-cell text requires fixed-topology direct text or field runs with bounded direct styles.");
+        var sourceSemantic = PptxTextCodec.ReadDrawingTextBody(sourceBody, slideContext);
+        ValidateFieldIdentity(sourceSemantic, requested.TextBody);
+        var temporary = new P.Shape { TextBody = new P.TextBody { InnerXml = sourceBody.InnerXml } };
+        var requestedShape = new PresentationShape
+        {
+            Text = PptxTextCodec.Flatten(requested.TextBody),
+            TextBody = requested.TextBody,
+        };
+        PptxTextCodec.Apply(temporary, requestedShape, slideContext!);
+        sourceBody.InnerXml = temporary.TextBody!.InnerXml;
+    }
+
+    private static void ValidateFieldIdentity(PresentationTextBody source, PresentationTextBody requested)
+    {
+        if (source.Paragraphs.Count != requested.Paragraphs.Count)
+            throw new CodecException("presentation_text_topology_changed", "Source-preserving table-cell text requires the original paragraph topology.");
+        for (var paragraphIndex = 0; paragraphIndex < source.Paragraphs.Count; paragraphIndex++)
+        {
+            var sourceRuns = source.Paragraphs[paragraphIndex].Runs;
+            var requestedRuns = requested.Paragraphs[paragraphIndex].Runs;
+            if (sourceRuns.Count != requestedRuns.Count)
+                throw new CodecException("presentation_text_topology_changed", "Source-preserving table-cell text requires the original inline topology.");
+            for (var runIndex = 0; runIndex < sourceRuns.Count; runIndex++)
+            {
+                var sourceRun = sourceRuns[runIndex];
+                var requestedRun = requestedRuns[runIndex];
+                if (sourceRun.ContentCase != PresentationTextRun.ContentOneofCase.Field ||
+                    requestedRun.ContentCase != PresentationTextRun.ContentOneofCase.Field)
+                    continue;
+                if (!string.Equals(sourceRun.Field.Id, requestedRun.Field.Id, StringComparison.Ordinal) ||
+                    !string.Equals(sourceRun.Field.Type, requestedRun.Field.Type, StringComparison.Ordinal))
+                    throw new CodecException("unsupported_presentation_edit", "Source-preserving table-cell field edits may change cached text only; field ID and type are source-owned.");
+            }
+        }
     }
 
     private static void ReplaceCellPaint(

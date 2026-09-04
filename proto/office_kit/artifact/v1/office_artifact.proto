@@ -215,7 +215,8 @@ message PresentationEditOperation {
   // lineRgb, lineScheme, lineStyle, lineCap, lineJoin, lineStartArrow,
   // lineEndArrow, lineWidthEmu,
   // leftEmu, topEmu,
-  // widthEmu, heightEmu, imageAsset, chartTitleText, chartDataValue,
+  // widthEmu, heightEmu, imageAsset, chartTitleText, chartDataCategory,
+  // chartDataValue, chartDataXValue, chartDataYValue, chartDataBubbleSize,
   // diagramText, deleteElement.
   string leaf_kind = 14;
   // Compiler-issued dependent-part binding for a native leaf that is not
@@ -224,7 +225,9 @@ message PresentationEditOperation {
   string target_part_path = 15;
   string expected_target_part_sha256 = 16;
   string relationship_id = 17;
-  // Additional source-bound package binding for a chartDataValue operation.
+  // Additional source-bound package binding for a chart data channel
+  // (chartDataCategory, chartDataValue, chartDataXValue, chartDataYValue, or
+  // chartDataBubbleSize) operation.
   // The codec resolves every field again through ChartPart externalData and
   // the embedded workbook relationship graph before changing either cache.
   string embedded_package_part_path = 18;
@@ -2752,9 +2755,11 @@ message PresentationTable {
   // table-property edits may remain available independently.
   bool cell_style_editable = 18;
   // Source evidence only. True when every visible cell has one or more
-  // paragraphs whose direct runs are plain text and share one bounded direct
-  // run-style profile. This is independent from cell_style_editable so a
-  // complex text body does not withdraw safe fill/border edits.
+  // paragraphs whose direct runs are plain text and remain within one bounded
+  // direct run-style profile. The profile permits either one shared style or
+  // fixed-topology mixed styles that are projected through text_body. This is
+  // independent from cell_style_editable so a complex text body does not
+  // withdraw safe fill/border edits.
   bool cell_text_style_editable = 19;
 }
 
@@ -2778,8 +2783,9 @@ message PresentationTableCell {
   PresentationTableCellBorders borders = 4;
   // Direct text style for a visible cell whose plain-text runs share one
   // bounded direct style. The source-bound profile only exposes explicitly
-  // present run properties; inherited/default paragraph styles and
-  // style-inconsistent runs remain opaque.
+  // present run properties; inherited/default paragraph styles and advanced
+  // style graphs remain opaque. A style-inconsistent but fixed-topology body
+  // is carried in text_body instead of this uniform compatibility field.
   PresentationTextStyle text_style = 5;
 }
 
@@ -3275,6 +3281,10 @@ message PresentationNativeChartDataPoint {
   string worksheet_source_sha256 = 6;
   string worksheet_name = 7;
   string cell_reference = 8;
+  // Canonical chart channel. Empty is treated as `value` for wire
+  // compatibility with older native chart projections; category plots use
+  // `category`, while scatter/bubble points may use `x`, `y`, or `size`.
+  string channel = 9;
 }
 
 message PresentationOleWorkbook {

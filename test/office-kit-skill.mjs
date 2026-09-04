@@ -4,8 +4,16 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import JSZip from "jszip";
 
-import { queryTemplates } from "../src/templates/search.mjs";
+import { compilePpjToPptx, projectPptxToPpj } from "../src/ppj/native.mjs";
+
+import {
+  applyTemplateImageReplacement,
+  applyTemplateImageReplacementToPptx,
+  planTemplateImageReplacement,
+  queryTemplates,
+} from "../src/templates/search.mjs";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const pluginRoot = path.join(repoRoot, "skills", "office-kit");
@@ -128,6 +136,7 @@ for (const candidate of presentationCatalog.candidates) {
   assert.equal(candidate.provenance.license, "AGPL-3.0-or-later");
   assert.ok(candidate.examples.length >= 4 && candidate.examples.length <= 6);
   assert.equal(candidate.examplePaths.length, candidate.examples.length);
+  assert.ok(Array.isArray(candidate.imageSlots));
   assert.equal(Object.hasOwn(candidate, "referencePath"), false);
   assert.equal(Object.hasOwn(candidate, "editProfile"), false);
   for (const reference of [candidate.referenceProgram, candidate.referencePptx]) {
@@ -143,6 +152,439 @@ for (const candidate of presentationCatalog.candidates) {
     ...candidate.examplePaths.map((entry) => fs.access(entry)),
   ]);
 }
+const evidenceLedgerTemplate = presentationCatalog.candidates.find(
+  (candidate) => candidate.id === "artifact-template-evidence-ledger",
+);
+assert.ok(evidenceLedgerTemplate, "the evidence-ledger template must be discoverable");
+assert.deepEqual(evidenceLedgerTemplate.imageSlots, [
+  {
+    id: "hero-source",
+    role: "hero",
+    examplePath: "assets/examples/01-cover.png",
+    allowedFit: ["cover", "contain"],
+    allowedMask: ["none", "roundRect"],
+    minWidthPx: 1200,
+    minHeightPx: 675,
+    rights: ["user-provided", "generated", "official-press-kit"],
+    example: {
+      path: "assets/examples/01-cover.png",
+      sha256: "0bd555742143388d3e5402d50a1efaf77f0e482a1dd6856fc1947640af890bd5",
+      absolutePath: path.join(
+        presentationTemplateRoot,
+        "artifact-template-evidence-ledger",
+        "assets/examples/01-cover.png",
+      ),
+    },
+  },
+  {
+    id: "chart-source",
+    role: "chart-source",
+    examplePath: "assets/examples/04-data.png",
+    allowedFit: ["contain"],
+    allowedMask: ["none"],
+    minWidthPx: 900,
+    minHeightPx: 500,
+    rights: ["generated", "internal"],
+    example: {
+      path: "assets/examples/04-data.png",
+      sha256: "d061df156f691165abff7595ada15e11596798ff78fdfaf6386e5432d33a4293",
+      absolutePath: path.join(
+        presentationTemplateRoot,
+        "artifact-template-evidence-ledger",
+        "assets/examples/04-data.png",
+      ),
+    },
+  },
+]);
+const imageReplacementPlan = planTemplateImageReplacement({
+  template: evidenceLedgerTemplate,
+  slotId: "hero-source",
+  asset: {
+    id: "asset/presentation/hero-replacement",
+    widthPx: 1600,
+    heightPx: 900,
+    rights: "generated",
+    sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  },
+  fit: "cover",
+  mask: "roundRect",
+  accessibility: { decorative: false, description: "Replacement hero image" },
+});
+assert.deepEqual(imageReplacementPlan, {
+  schema: "office-kit/template-image-slot/v1",
+  operation: "replace-image-slot",
+  templateId: "artifact-template-evidence-ledger",
+  slotId: "hero-source",
+  role: "hero",
+  asset: {
+    id: "asset/presentation/hero-replacement",
+    widthPx: 1600,
+    heightPx: 900,
+    rights: "generated",
+    sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  },
+  overrides: {
+    fit: "cover",
+    mask: "roundRect",
+    accessibility: { decorative: false, description: "Replacement hero image" },
+  },
+  preserve: ["fit", "mask", "crop", "focus", "accessibility"],
+  policy: {
+    allowedFit: ["cover", "contain"],
+    allowedMask: ["none", "roundRect"],
+    minWidthPx: 1200,
+    minHeightPx: 675,
+    rights: ["user-provided", "generated", "official-press-kit"],
+  },
+});
+assert.throws(
+  () => planTemplateImageReplacement({
+    template: evidenceLedgerTemplate,
+    slotId: "hero-source",
+    asset: { id: "asset/small", widthPx: 640, heightPx: 360, rights: "generated" },
+  }),
+  /asset\.widthPx must be at least 1200/,
+);
+assert.throws(
+  () => planTemplateImageReplacement({
+    template: evidenceLedgerTemplate,
+    slotId: "hero-source",
+    asset: { id: "asset/blocked", widthPx: 1600, heightPx: 900, rights: "cc-by" },
+  }),
+  /asset\.rights must be allowed/,
+);
+
+const sourceProgram = JSON.parse(await fs.readFile(
+  path.join(repoRoot, "test", "fixtures", "presentation", "evidence-ledger-canonical.ppj"),
+  "utf8",
+));
+const sourceProgramSnapshot = structuredClone(sourceProgram);
+const appliedImageReplacement = applyTemplateImageReplacement({
+  program: sourceProgram,
+  plan: imageReplacementPlan,
+  elementId: "claim-mark",
+  assetDeclaration: {
+    id: imageReplacementPlan.asset.id,
+    uri: "ppj-assets/hero-replacement.svg",
+    mimeType: "image/svg+xml",
+    sha256: imageReplacementPlan.asset.sha256,
+    rights: { status: "generated" },
+    accessibility: { decorative: false, description: "Replacement hero asset" },
+  },
+});
+assert.deepEqual(sourceProgram, sourceProgramSnapshot, "template replacement must not mutate its input program");
+assert.equal(appliedImageReplacement.sourceBound, false);
+assert.equal(appliedImageReplacement.addedAsset, true);
+assert.deepEqual(appliedImageReplacement.changedFields, [
+  "image.asset",
+  "image.fit",
+  "image.mask.preset",
+  "accessibility",
+]);
+const appliedImage = appliedImageReplacement.program.pages
+  .flatMap((page) => page.elements ?? [])
+  .find((element) => element.id === "claim-mark");
+assert.equal(appliedImage.asset, imageReplacementPlan.asset.id);
+assert.equal(appliedImage.fit, "cover");
+assert.deepEqual(appliedImage.mask, { kind: "preset", preset: "roundRect" });
+assert.deepEqual(appliedImage.crop, sourceProgram.pages[0].elements.find((element) => element.id === "claim-mark").crop);
+assert.deepEqual(appliedImage.accessibility, imageReplacementPlan.overrides.accessibility);
+assert.equal(appliedImageReplacement.program.assets.at(-1).id, imageReplacementPlan.asset.id);
+
+const noOpImageReplacement = applyTemplateImageReplacement({
+  program: appliedImageReplacement.program,
+  plan: imageReplacementPlan,
+  elementId: "claim-mark",
+});
+assert.equal(noOpImageReplacement.addedAsset, false);
+assert.deepEqual(noOpImageReplacement.changedFields, []);
+assert.deepEqual(noOpImageReplacement.program, appliedImageReplacement.program);
+
+const sourceBoundPlanProgram = structuredClone(sourceProgram);
+sourceBoundPlanProgram.pages[0].elements.find((element) => element.id === "claim-mark").nativeRef = {
+  capabilities: [
+    { operation: "replaceImage", fields: ["image.asset"] },
+    { operation: "setImageFit", fields: ["image.fit"] },
+    { operation: "setImageMask", fields: ["image.mask.preset"] },
+  ],
+};
+const sourceBoundImageReplacementPlan = {
+  ...imageReplacementPlan,
+  overrides: { fit: "cover", mask: "roundRect" },
+};
+const sourceBoundApplied = applyTemplateImageReplacement({
+  program: sourceBoundPlanProgram,
+  plan: sourceBoundImageReplacementPlan,
+  elementId: "claim-mark",
+  assetDeclaration: {
+    id: imageReplacementPlan.asset.id,
+    uri: "ppj-assets/hero-replacement.svg",
+    mimeType: "image/svg+xml",
+    sha256: imageReplacementPlan.asset.sha256,
+    rights: { status: "generated" },
+    accessibility: { decorative: false, description: "Replacement hero asset" },
+  },
+});
+assert.equal(sourceBoundApplied.sourceBound, true);
+assert.ok(sourceBoundApplied.changedFields.includes("image.asset"));
+const missingSourceCapability = structuredClone(sourceBoundPlanProgram);
+missingSourceCapability.pages[0].elements.find((element) => element.id === "claim-mark").nativeRef.capabilities = [
+  { operation: "replaceImage", fields: ["image.asset"] },
+];
+assert.throws(
+  () => applyTemplateImageReplacement({
+    program: missingSourceCapability,
+    plan: sourceBoundImageReplacementPlan,
+    elementId: "claim-mark",
+    assetDeclaration: {
+      id: imageReplacementPlan.asset.id,
+      uri: "ppj-assets/hero-replacement.svg",
+      mimeType: "image/svg+xml",
+      sha256: imageReplacementPlan.asset.sha256,
+      rights: { status: "generated" },
+      accessibility: { decorative: false, description: "Replacement hero asset" },
+    },
+  }),
+  /setImageFit\.image\.fit/,
+);
+assert.throws(
+  () => applyTemplateImageReplacement({
+    program: sourceProgram,
+    plan: {
+      ...imageReplacementPlan,
+      overrides: { ...imageReplacementPlan.overrides, mask: "custom" },
+      policy: { ...imageReplacementPlan.policy, allowedMask: ["none", "roundRect", "custom"] },
+    },
+    elementId: "claim-mark",
+    assetDeclaration: {
+      id: imageReplacementPlan.asset.id,
+      uri: "ppj-assets/hero-replacement.svg",
+      mimeType: "image/svg+xml",
+      sha256: imageReplacementPlan.asset.sha256,
+      rights: { status: "generated" },
+      accessibility: { decorative: false, description: "Replacement hero asset" },
+    },
+  }),
+  /custom template image masks/,
+);
+
+const nativeReplacementBytes = Buffer.from("template-native-replacement");
+const nativeReplacementHash = sha256(nativeReplacementBytes);
+const nativeReplacementPlan = planTemplateImageReplacement({
+  template: evidenceLedgerTemplate,
+  slotId: "hero-source",
+  asset: {
+    id: "asset/presentation/native-replacement",
+    widthPx: 1600,
+    heightPx: 900,
+    rights: "generated",
+    sha256: nativeReplacementHash,
+  },
+  fit: "cover",
+  mask: "roundRect",
+});
+const nativeCompileCalls = [];
+const nativeProjectCalls = [];
+const nativeWorkflow = await applyTemplateImageReplacementToPptx({
+  program: sourceProgram,
+  plan: nativeReplacementPlan,
+  elementId: "claim-mark",
+  assetDeclaration: {
+    id: nativeReplacementPlan.asset.id,
+    uri: "ppj-assets/native-replacement.png",
+    mimeType: "image/png",
+    sha256: nativeReplacementHash,
+    rights: { status: "generated" },
+    accessibility: { decorative: false },
+  },
+  assetData: nativeReplacementBytes,
+  compile: async (programBytes, options) => {
+    nativeCompileCalls.push({ programBytes, options });
+    const file = Uint8Array.from([0x50, 0x50, 0x54, 0x58]);
+    return {
+      file,
+      outputSha256: sha256(file),
+      changedParts: ["ppt/slides/slide1.xml", "ppt/media/image-native.png"],
+      sourceBound: false,
+    };
+  },
+  project: async (file, options) => {
+    nativeProjectCalls.push({ file, options });
+    return {
+      programJson: Uint8Array.from(Buffer.from(JSON.stringify(sourceProgram), "utf8")),
+      sourceBound: false,
+    };
+  },
+});
+assert.equal(nativeCompileCalls.length, 1);
+assert.equal(nativeProjectCalls.length, 1);
+assert.equal(nativeCompileCalls[0].options.source.byteLength, 0);
+assert.equal(nativeCompileCalls[0].options.assets.length, 1);
+assert.equal(nativeCompileCalls[0].options.assets[0].id, nativeReplacementPlan.asset.id);
+assert.deepEqual(
+  Buffer.from(nativeCompileCalls[0].options.assets[0].data),
+  nativeReplacementBytes,
+);
+assert.deepEqual(nativeWorkflow.compile.changedParts, [
+  "ppt/slides/slide1.xml",
+  "ppt/media/image-native.png",
+]);
+assert.equal(nativeWorkflow.reproject.sourceBound, false);
+assert.match(
+  Buffer.from(nativeCompileCalls[0].programBytes).toString("utf8"),
+  /native-replacement/,
+);
+const nativeSourceAsset = await fs.readFile(
+  path.join(repoRoot, "test", "fixtures", "presentation", "ppj-assets", "evidence-mark.svg"),
+);
+const nativeSourceAssetHash = sha256(nativeSourceAsset);
+assert.equal(
+  sourceProgram.assets.find((asset) => asset.id === "evidence-mark").sha256,
+  nativeSourceAssetHash,
+);
+const nativeRealPlan = planTemplateImageReplacement({
+  template: evidenceLedgerTemplate,
+  slotId: "hero-source",
+  asset: {
+    id: "asset.presentation.native-real-replacement",
+    widthPx: 1600,
+    heightPx: 900,
+    rights: "generated",
+    sha256: nativeSourceAssetHash,
+  },
+  fit: "cover",
+  mask: "roundRect",
+});
+const nativeRealWorkflow = await applyTemplateImageReplacementToPptx({
+  program: sourceProgram,
+  plan: nativeRealPlan,
+  elementId: "claim-mark",
+  assetDeclaration: {
+    id: nativeRealPlan.asset.id,
+    uri: "ppj-assets/native-real-replacement.svg",
+    mimeType: "image/svg+xml",
+    sha256: nativeSourceAssetHash,
+    rights: { status: "generated" },
+    accessibility: { decorative: false },
+  },
+  assetData: nativeSourceAsset,
+  assetDataById: { "evidence-mark": nativeSourceAsset },
+});
+assert.ok(nativeRealWorkflow.compile.file.byteLength > 0);
+assert.match(nativeRealWorkflow.compile.outputSha256, /^[a-f0-9]{64}$/u);
+assert.ok(Array.isArray(nativeRealWorkflow.compile.changedParts));
+assert.ok(nativeRealWorkflow.reproject.programJson.byteLength > 0);
+assert.equal(nativeRealWorkflow.reproject.sourceBound, false);
+const nativeRealProgram = JSON.parse(Buffer.from(nativeRealWorkflow.reproject.programJson).toString("utf8"));
+assert.equal(
+  nativeRealProgram.pages.flatMap((page) => page.elements ?? []).find((element) => element.id === "claim-mark").asset,
+  nativeRealPlan.asset.id,
+);
+
+// A real imported/source-bound fixture must survive the same replacement
+// transaction.  Start from a native-authored package, remove only its PPJ
+// sidecar, then project the remaining PPTX as an imported source package.
+// This keeps the test deterministic while exercising source-byte identity,
+// changed-part reporting, media rehydration, and second projection.
+const sourceBoundAuthored = await compilePpjToPptx(
+  Buffer.from(JSON.stringify(sourceProgram), "utf8"),
+  {
+    assets: [{
+      id: "evidence-mark",
+      fileName: "evidence-mark.svg",
+      mimeType: "image/svg+xml",
+      sha256: nativeSourceAssetHash,
+      data: nativeSourceAsset,
+    }],
+  },
+);
+const sourceBoundSource = await stripEmbeddedPpj(sourceBoundAuthored.file);
+const importedSourceBound = await projectPptxToPpj(sourceBoundSource, {
+  sourceUri: "template/source.pptx",
+  assetRootUri: "template/assets",
+});
+assert.equal(importedSourceBound.sourceBound, true);
+const importedSourceBoundProgram = JSON.parse(
+  Buffer.from(importedSourceBound.programJson).toString("utf8"),
+);
+const importedSourceBoundImage = importedSourceBoundProgram.pages
+  .flatMap((page) => page.elements ?? [])
+  .find((element) => element.type === "image");
+assert.ok(importedSourceBoundImage?.nativeRef, "projected source image must expose native capabilities");
+const sourceBoundReplacementBytes = Buffer.from(
+  nativeSourceAsset.toString("utf8").replace(
+    "</svg>",
+    "<!-- source-bound replacement -->\n</svg>",
+  ),
+  "utf8",
+);
+const sourceBoundReplacementHash = sha256(sourceBoundReplacementBytes);
+const sourceBoundReplacementPlan = planTemplateImageReplacement({
+  template: evidenceLedgerTemplate,
+  slotId: "hero-source",
+  asset: {
+    id: "asset.presentation.native-sourcebound-replacement",
+    widthPx: 1600,
+    heightPx: 900,
+    rights: "generated",
+    sha256: sourceBoundReplacementHash,
+  },
+  fit: "cover",
+  mask: "roundRect",
+});
+const sourceBoundWorkflow = await applyTemplateImageReplacementToPptx({
+  program: importedSourceBoundProgram,
+  plan: sourceBoundReplacementPlan,
+  elementId: importedSourceBoundImage.id,
+  source: sourceBoundSource,
+  assetDeclaration: {
+    id: sourceBoundReplacementPlan.asset.id,
+    uri: "template/assets/source-bound-replacement.svg",
+    mimeType: "image/svg+xml",
+    sha256: sourceBoundReplacementHash,
+    rights: { status: "generated" },
+    accessibility: { decorative: false },
+  },
+  assetData: sourceBoundReplacementBytes,
+  assetDataById: { [importedSourceBoundImage.asset]: nativeSourceAsset },
+  sourceUri: "template/source.pptx",
+  assetRootUri: "template/assets",
+});
+assert.equal(sourceBoundWorkflow.sourceBound, true);
+assert.equal(sourceBoundWorkflow.compile.sourceBound, true);
+assert.ok(sourceBoundWorkflow.compile.changedParts.length > 0);
+assert.equal(sourceBoundWorkflow.reproject.sourceBound, true);
+const sourceBoundReprojectedProgram = JSON.parse(
+  Buffer.from(sourceBoundWorkflow.reproject.programJson).toString("utf8"),
+);
+const sourceBoundReprojectedImage = sourceBoundReprojectedProgram.pages
+  .flatMap((page) => page.elements ?? [])
+  .find((element) => element.id === importedSourceBoundImage.id);
+const sourceBoundReprojectedAsset = sourceBoundReprojectedProgram.assets.find(
+  (asset) => asset.sha256 === sourceBoundReplacementHash,
+);
+assert.ok(sourceBoundReprojectedAsset, "reprojected source-bound deck must contain the replacement media");
+assert.equal(sourceBoundReprojectedImage.asset, sourceBoundReprojectedAsset.id);
+assert.notEqual(sourceBoundReprojectedAsset.id, importedSourceBoundImage.asset);
+await assert.rejects(
+  applyTemplateImageReplacementToPptx({
+    program: sourceProgram,
+    plan: nativeReplacementPlan,
+    elementId: "claim-mark",
+    assetDeclaration: {
+      id: nativeReplacementPlan.asset.id,
+      uri: "ppj-assets/native-replacement.png",
+      mimeType: "image/png",
+      sha256: nativeReplacementHash,
+      rights: { status: "generated" },
+      accessibility: { decorative: false },
+    },
+    assetData: Buffer.from("wrong-bytes"),
+    compile: async () => { throw new Error("compile must not run"); },
+    project: async () => { throw new Error("project must not run"); },
+  }),
+  /bytes do not match its declared SHA-256/,
+);
 
 const ranked = await queryTemplates({
   kind: "presentation",
@@ -612,6 +1054,26 @@ async function exists(filePath) {
 
 function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
+}
+
+async function stripEmbeddedPpj(bytes) {
+  const zip = await JSZip.loadAsync(bytes);
+  for (const name of Object.keys(zip.files)) {
+    if (name.startsWith("officeKit/")) zip.remove(name);
+  }
+  let relationships = await zip.file("_rels/.rels").async("string");
+  relationships = relationships.replace(
+    /<Relationship\b(?=[^>]*\bType="https:\/\/schemas\.officekit\.dev\/relationships\/presentation-program")[^>]*(?:\/>|>[\s\S]*?<\/Relationship>)/g,
+    "",
+  );
+  zip.file("_rels/.rels", relationships);
+  let contentTypes = await zip.file("[Content_Types].xml").async("string");
+  contentTypes = contentTypes.replace(
+    /<Override\b(?=[^>]*\bPartName="\/officeKit\/)[^>]*(?:\/>|>[\s\S]*?<\/Override>)/g,
+    "",
+  );
+  zip.file("[Content_Types].xml", contentTypes);
+  return zip.generateAsync({ type: "uint8array" });
 }
 
 async function writeBrokenTemplate(root, id, sidecar) {

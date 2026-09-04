@@ -65,7 +65,11 @@ internal static partial class PptxChartCodec
             if (TryReadComboChart(xml, out chart, out var comboDocument, out editable, allowChartFrameDecorations: true))
             {
                 editable &= PptxChartFrameCodec.TryRead(comboDocument.Root!, chartContext, out var comboFrame, out var comboFrameEditable);
-                if (comboFrame is not null && (comboFrame.ImageFill is not null || comboFrame.Line is not null || comboFrame.Shadow is not null)) chart.Frame = comboFrame;
+                if (comboFrame is not null && (comboFrame.Fill is not null || comboFrame.ImageFill is not null || comboFrame.Line is not null || comboFrame.Shadow is not null))
+                {
+                    chart.Frame = comboFrame;
+                    if (comboFrame.Fill is not null) chart.ChartAreaFill = null;
+                }
                 editable &= comboFrameEditable;
                 editable &= PptxChartTitleTextCodec.TryRead(comboDocument, chart);
                 chart.LeftEmu = left;
@@ -79,7 +83,11 @@ internal static partial class PptxChartCodec
             if (!TryReadChart(xml, out var semantic, out var document, out editable)) return false;
             chart = FromSpreadsheet(semantic, left, top, width, height);
             editable &= PptxChartFrameCodec.TryRead(document.Root!, chartContext, out var frame, out var frameEditable);
-            if (frame is not null && (frame.ImageFill is not null || frame.Line is not null || frame.Shadow is not null)) chart.Frame = frame;
+            if (frame is not null && (frame.Fill is not null || frame.ImageFill is not null || frame.Line is not null || frame.Shadow is not null))
+            {
+                chart.Frame = frame;
+                if (frame.Fill is not null) chart.ChartAreaFill = null;
+            }
             editable &= frameEditable;
             editable &= PptxChartTitleTextCodec.TryRead(document, chart);
             chart.FrameTransform = frameTransform;
@@ -201,8 +209,21 @@ internal static partial class PptxChartCodec
             return;
         }
         if (chart.ComboSeries.Count != 0) throw Invalid(elementId, "must not carry combo_series unless type is combo");
-        if (!allowFormulas && chart.Series.Any(series => !string.IsNullOrWhiteSpace(series.CategoryFormula) || !string.IsNullOrWhiteSpace(series.XValueFormula) || !string.IsNullOrWhiteSpace(series.ValueFormula) || !string.IsNullOrWhiteSpace(series.BubbleSizeFormula) || ErrorBarsUseFormula(series)))
+        var hasFormulas = chart.Series.Any(series => !string.IsNullOrWhiteSpace(series.CategoryFormula) ||
+            !string.IsNullOrWhiteSpace(series.XValueFormula) ||
+            !string.IsNullOrWhiteSpace(series.ValueFormula) ||
+            !string.IsNullOrWhiteSpace(series.BubbleSizeFormula) ||
+            ErrorBarsUseFormula(series));
+        if (hasFormulas && !allowFormulas)
             throw Invalid(elementId, "must use literal categories and values without workbook formulas");
+        if (hasFormulas && chart.Series.Any(series =>
+                !FormulaProfileIsSafe(series.CategoryFormula) ||
+                !FormulaProfileIsSafe(series.XValueFormula) ||
+                !FormulaProfileIsSafe(series.ValueFormula) ||
+                !FormulaProfileIsSafe(series.BubbleSizeFormula) ||
+                !FormulaProfileIsSafe(series.ErrorBars?.Plus?.Formula ?? string.Empty) ||
+                !FormulaProfileIsSafe(series.ErrorBars?.Minus?.Formula ?? string.Empty)))
+            throw Invalid(elementId, "contains a formula outside the local worksheet range profile");
         var spreadsheet = ToSpreadsheet(chart, elementId, name);
         try
         {

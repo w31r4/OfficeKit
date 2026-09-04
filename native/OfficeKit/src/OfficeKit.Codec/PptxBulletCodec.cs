@@ -95,7 +95,9 @@ internal static class PptxBulletCodec
     internal static void Scrub(A.TextParagraphPropertiesType target, PptxPartContext? context)
     {
         var choices = BulletChoices(target).ToArray();
-        if (choices.Length == 1 && Modeled(choices[0], context)) choices[0].Remove();
+        if (choices.Length == 1 && (Modeled(choices[0], context) ||
+            choices[0] is A.PictureBullet picture && context?.IsPictureRelationship(picture) == true))
+            choices[0].Remove();
     }
 
     private static OpenXmlElement Build(PresentationTextParagraph source, PptxPartContext? context) => source.BulletCase switch

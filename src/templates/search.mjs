@@ -45,6 +45,33 @@ const VALID_PRESENTATION_EXAMPLE_ROLES = new Set([
   "closing",
   "mixed",
 ]);
+const VALID_IMAGE_SLOT_ROLES = new Set([
+  "hero",
+  "thumbnail",
+  "avatar",
+  "background",
+  "logo",
+  "diagram",
+  "screenshot",
+  "photo",
+  "icon",
+  "chart-source",
+  "any",
+]);
+const VALID_IMAGE_SLOT_FITS = new Set(["contain", "cover", "stretch"]);
+const VALID_IMAGE_SLOT_MASKS = new Set(["none", "rect", "roundRect", "ellipse", "custom"]);
+const VALID_IMAGE_SLOT_RIGHTS = new Set([
+  "user-provided",
+  "generated",
+  "permission",
+  "public-domain",
+  "cc0",
+  "cc-by",
+  "official-press-kit",
+  "internal",
+  "other",
+]);
+const IMAGE_SLOT_ID_PATTERN = /^[a-z][a-z0-9-]{0,63}$/u;
 const BM25_FIELD_WEIGHTS = Object.freeze({
   identity: 1.5,
   useWhen: 4,
@@ -205,6 +232,567 @@ export async function queryTemplates({
     retrievalStatus: candidates.length === 0 ? "none" : "candidates",
     selectionMade: false,
   };
+}
+
+// Build a deterministic, metadata-only replacement plan for a selected
+// presentation image slot. The plan is consumed by the PPJ authoring path;
+// this catalog helper never mutates a template or a source-bound PPTX.
+export function planTemplateImageReplacement({
+  template,
+  slotId,
+  asset,
+  fit = null,
+  mask = null,
+  accessibility = null,
+} = {}) {
+  if (template == null || typeof template !== "object" || Array.isArray(template) ||
+      template.kind !== "presentation" || typeof template.id !== "string") {
+    throw new Error("template must be a presentation search candidate");
+  }
+  if (typeof slotId !== "string" || !IMAGE_SLOT_ID_PATTERN.test(slotId)) {
+    throw new Error("slotId must be a lowercase image-slot identifier");
+  }
+  const slot = (template.imageSlots ?? []).find((candidate) => candidate.id === slotId);
+  if (slot == null) throw new Error(`image slot ${slotId} was not found in ${template.id}`);
+  if (asset == null || typeof asset !== "object" || Array.isArray(asset)) {
+    throw new Error("asset must be an image asset metadata object");
+  }
+  assertAssetId(asset.id, "asset.id");
+  const widthPx = asset.widthPx;
+  const heightPx = asset.heightPx;
+  validateReplacementDimension(widthPx, "asset.widthPx");
+  validateReplacementDimension(heightPx, "asset.heightPx");
+  if (slot.minWidthPx != null && widthPx < slot.minWidthPx) {
+    throw new Error(`asset.widthPx must be at least ${slot.minWidthPx} for image slot ${slotId}`);
+  }
+  if (slot.minHeightPx != null && heightPx < slot.minHeightPx) {
+    throw new Error(`asset.heightPx must be at least ${slot.minHeightPx} for image slot ${slotId}`);
+  }
+  const rights = typeof asset.rights === "string"
+    ? asset.rights
+    : asset.rights?.status;
+  if (slot.rights?.length > 0 && !slot.rights.includes(rights)) {
+    throw new Error(`asset.rights must be allowed by image slot ${slotId}`);
+  }
+  if (asset.sha256 != null) assertHash(asset.sha256, "asset.sha256");
+  if (fit != null) {
+    assertEnum(fit, "fit", VALID_IMAGE_SLOT_FITS);
+    if (slot.allowedFit?.length > 0 && !slot.allowedFit.includes(fit)) {
+      throw new Error(`fit ${fit} is not allowed by image slot ${slotId}`);
+    }
+  }
+  if (mask != null) {
+    assertEnum(mask, "mask", VALID_IMAGE_SLOT_MASKS);
+    if (slot.allowedMask?.length > 0 && !slot.allowedMask.includes(mask)) {
+      throw new Error(`mask ${mask} is not allowed by image slot ${slotId}`);
+    }
+  }
+  if (accessibility != null &&
+      (typeof accessibility !== "object" || Array.isArray(accessibility))) {
+    throw new Error("accessibility must be an object when provided");
+  }
+  return {
+    schema: "office-kit/template-image-slot/v1",
+    operation: "replace-image-slot",
+    templateId: template.id,
+    slotId,
+    role: slot.role,
+    asset: {
+      id: asset.id,
+      widthPx,
+      heightPx,
+      ...(rights == null ? {} : { rights }),
+      ...(asset.sha256 == null ? {} : { sha256: asset.sha256 }),
+    },
+    overrides: {
+      ...(fit == null ? {} : { fit }),
+      ...(mask == null ? {} : { mask }),
+      ...(accessibility == null ? {} : { accessibility: structuredClone(accessibility) }),
+    },
+    preserve: ["fit", "mask", "crop", "focus", "accessibility"],
+    policy: {
+      allowedFit: [...(slot.allowedFit ?? [])],
+      allowedMask: [...(slot.allowedMask ?? [])],
+      minWidthPx: slot.minWidthPx ?? null,
+      minHeightPx: slot.minHeightPx ?? null,
+      rights: [...(slot.rights ?? [])],
+    },
+  };
+}
+
+// Apply a validated replacement plan to one explicit PPJ image owner.  This
+// is deliberately a pure transaction: the caller receives a cloned program
+// and may pass it to the PPJ validator/compiler with the matching asset bytes.
+// A template slot has no stable identity inside an arbitrary deck, so the
+// target element must always be named by the caller instead of being guessed
+// from role, z-order, or image content.
+export function applyTemplateImageReplacement({
+  program,
+  plan,
+  elementId,
+  assetDeclaration = null,
+} = {}) {
+  assertProgramObject(program);
+  validateTemplateImageReplacementPlan(plan);
+  assertElementId(elementId, "elementId");
+
+  const root = structuredClone(program);
+  if (!Array.isArray(root.pages)) throw new Error("program.pages must be an array");
+  const matches = [];
+  for (const page of root.pages) collectProgramElements(page?.elements, elementId, matches);
+  for (const component of root.components ?? []) {
+    collectProgramElements(component?.elements, elementId, matches);
+  }
+  if (matches.length !== 1) {
+    throw new Error(`PPJ image element ${elementId} must resolve exactly once`);
+  }
+  const target = matches[0];
+  if (target?.type !== "image") {
+    throw new Error(`PPJ element ${elementId} is not an image`);
+  }
+
+  const assets = root.assets;
+  if (!Array.isArray(assets)) throw new Error("program.assets must be an array");
+  const existingAsset = assets.find((asset) => asset?.id === plan.asset.id) ?? null;
+  let addedAsset = false;
+  if (existingAsset == null) {
+    if (assetDeclaration == null) {
+      throw new Error(`assetDeclaration is required for new image asset ${plan.asset.id}`);
+    }
+    const normalized = normalizeTemplateAssetDeclaration(plan.asset, assetDeclaration);
+    assets.push(normalized);
+    addedAsset = true;
+  } else {
+    validateExistingTemplateAsset(plan.asset, existingAsset);
+    if (assetDeclaration != null) {
+      const normalized = normalizeTemplateAssetDeclaration(plan.asset, assetDeclaration);
+      if (!sameAssetIdentity(existingAsset, normalized)) {
+        throw new Error(`assetDeclaration for ${plan.asset.id} conflicts with the existing PPJ asset`);
+      }
+    }
+  }
+
+  const sourceBound = target.nativeRef != null && typeof target.nativeRef === "object";
+  const changedFields = [];
+  if (target.asset !== plan.asset.id) {
+    if (sourceBound) requireTemplateCapability(target, "replaceImage", "image.asset");
+    target.asset = plan.asset.id;
+    changedFields.push("image.asset");
+  }
+
+  const overrides = plan.overrides;
+  if (Object.hasOwn(overrides, "fit")) {
+    const fit = overrides.fit;
+    if (target.focus != null && fit !== "cover") {
+      throw new Error("image.focus cannot be preserved when a replacement fit is not cover");
+    }
+    if (sourceBound) requireTemplateCapability(target, "setImageFit", "image.fit");
+    if (target.fit !== fit) {
+      target.fit = fit;
+      changedFields.push("image.fit");
+    }
+  }
+
+  if (Object.hasOwn(overrides, "mask")) {
+    const mask = overrides.mask;
+    if (mask === "custom") {
+      throw new Error("custom template image masks require explicit PPJ geometry and cannot be synthesized from a slot plan");
+    }
+    const nextMask = mask === "none" || mask === "rect"
+      ? null
+      : { kind: "preset", preset: mask };
+    if (!sameJsonValue(target.mask ?? null, nextMask)) {
+      if (sourceBound) {
+        requireTemplateCapability(target, "setImageMask", "image.mask.preset");
+        if (target.mask?.kind === "custom") {
+          requireTemplateCapability(target, "setImageMask", "image.mask.paths");
+        }
+        if (target.mask?.kind === "preset" && (target.mask.adjustments?.length ?? 0) > 0) {
+          requireTemplateCapability(target, "setImageMask", "image.mask.adjustments");
+        }
+      }
+      if (nextMask == null) delete target.mask;
+      else target.mask = nextMask;
+      changedFields.push("image.mask.preset");
+    }
+  }
+
+  if (Object.hasOwn(overrides, "accessibility")) {
+    if (sourceBound) {
+      throw new Error("source-bound template image accessibility overrides require an explicit accessibility capability");
+    }
+    if (!sameJsonValue(target.accessibility ?? null, overrides.accessibility)) {
+      target.accessibility = structuredClone(overrides.accessibility);
+      changedFields.push("accessibility");
+    }
+  }
+
+  return Object.freeze({
+    program: root,
+    elementId,
+    templateId: plan.templateId,
+    slotId: plan.slotId,
+    sourceBound,
+    addedAsset,
+    changedFields: Object.freeze([...new Set(changedFields)]),
+  });
+}
+
+// Apply a replacement plan and run the resulting PPJ through the native
+// presentation compiler and projector.  The native imports stay dynamic so
+// template search remains metadata-only and does not initialize OfficeKit at
+// module load time.  A caller may inject compile/project functions for a
+// harness, but the default path is always the bundled PPJ NativeAOT codec.
+export async function applyTemplateImageReplacementToPptx({
+  program,
+  plan,
+  elementId,
+  source = new Uint8Array(),
+  assetDeclaration = null,
+  assetData = null,
+  assetDataById = null,
+  includeNodeMap = true,
+  sourceUri = null,
+  assetRootUri = null,
+  limits = {},
+  compile = null,
+  project = null,
+} = {}) {
+  const applied = applyTemplateImageReplacement({
+    program,
+    plan,
+    elementId,
+    assetDeclaration,
+  });
+  const sourceBytes = copyBinary(source, "PPTX source");
+  const sourceDescriptor = applied.program.source;
+  if (sourceDescriptor != null) {
+    if (sourceBytes.byteLength === 0) {
+      throw new Error("source-bound template replacement requires the exact PPTX source bytes");
+    }
+    if (typeof sourceDescriptor.sha256 === "string" &&
+        hashBytes(sourceBytes) !== sourceDescriptor.sha256) {
+      throw new Error("source-bound template replacement source bytes do not match program.source.sha256");
+    }
+  } else if (sourceBytes.byteLength !== 0) {
+    throw new Error("source-free template replacement cannot attach a PPTX source package");
+  }
+
+  const replacementAsset = applied.program.assets.find((asset) => asset?.id === plan.asset.id);
+  if (replacementAsset == null) {
+    throw new Error(`PPJ replacement asset ${plan.asset.id} is missing after applying the plan`);
+  }
+  const nativeAssets = [];
+  for (const declaration of applied.program.assets) {
+    const rawData = declaration.id === replacementAsset.id
+      ? assetData
+      : lookupAssetData(assetDataById, declaration.id);
+    if (rawData == null) {
+      if (declaration.id === replacementAsset.id && applied.addedAsset) {
+        throw new Error(`assetData is required for new image asset ${replacementAsset.id}`);
+      }
+      // Source-bound compilation rehydrates baseline assets from the exact
+      // PPTX package. Source-free compilation will reject any omitted
+      // declaration in the native compiler; keeping the omission here lets a
+      // caller use a fail-closed injected harness without fabricating bytes.
+      continue;
+    }
+    const data = copyBinary(rawData, `PPJ asset ${declaration.id}`);
+    if (data.byteLength === 0) throw new Error(`PPJ asset ${declaration.id} must contain bytes`);
+    const digest = hashBytes(data);
+    if (digest !== declaration.sha256) {
+      throw new Error(`PPJ asset ${declaration.id} bytes do not match its declared SHA-256`);
+    }
+    nativeAssets.push({
+      id: declaration.id,
+      fileName: declaration.uri,
+      mimeType: declaration.mimeType,
+      sha256: declaration.sha256,
+      data,
+    });
+  }
+
+  const nativeCompile = compile ?? (await import("../ppj/native.mjs")).compilePpjToPptx;
+  if (typeof nativeCompile !== "function") throw new TypeError("compile must be a function");
+  const compiled = await nativeCompile(
+    Buffer.from(JSON.stringify(applied.program), "utf8"),
+    {
+      source: sourceBytes,
+      assets: nativeAssets,
+      includeNodeMap: Boolean(includeNodeMap),
+      limits,
+    },
+  );
+  const compileReceipt = validateTemplateCompileReceipt(compiled);
+
+  const nativeProject = project ?? (await import("../ppj/native.mjs")).projectPptxToPpj;
+  if (typeof nativeProject !== "function") throw new TypeError("project must be a function");
+  const projectionSourceUri = sourceUri ?? sourceDescriptor?.uri ??
+    "deck.assets/source/template-image-replacement.pptx";
+  const projectionAssetRootUri = assetRootUri ?? inferAssetRootUri(applied.program.assets);
+  assertRelativeAssetPath(projectionSourceUri, "sourceUri");
+  assertRelativeAssetPath(projectionAssetRootUri, "assetRootUri");
+  const reprojected = validateTemplateProjectionReceipt(await nativeProject(
+    compileReceipt.file,
+    {
+      sourceUri: projectionSourceUri,
+      assetRootUri: projectionAssetRootUri,
+      includeNodeMap: Boolean(includeNodeMap),
+      limits,
+    },
+  ));
+  if (sourceDescriptor != null && reprojected.sourceBound !== true) {
+    throw new Error("source-bound template replacement did not remain source-bound after reprojection");
+  }
+
+  return Object.freeze({
+    ...applied,
+    compile: compileReceipt,
+    reproject: reprojected,
+  });
+}
+
+function copyBinary(value, label) {
+  if (value instanceof Uint8Array) return Uint8Array.from(value);
+  if (Buffer.isBuffer(value)) return Uint8Array.from(value);
+  throw new TypeError(`${label} must be a Uint8Array.`);
+}
+
+function lookupAssetData(assetDataById, id) {
+  if (assetDataById == null) return null;
+  if (assetDataById instanceof Map) return assetDataById.get(id) ?? null;
+  if (typeof assetDataById !== "object" || Array.isArray(assetDataById)) {
+    throw new TypeError("assetDataById must be a Map or an object keyed by PPJ asset id");
+  }
+  return Object.hasOwn(assetDataById, id) ? assetDataById[id] : null;
+}
+
+function hashBytes(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function validateTemplateCompileReceipt(value) {
+  if (value == null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("native template replacement compiler returned an invalid receipt");
+  }
+  const file = copyBinary(value.file, "native template replacement PPTX");
+  if (file.byteLength === 0) throw new Error("native template replacement compiler returned an empty PPTX");
+  if (typeof value.outputSha256 !== "string" || !HASH_PATTERN.test(value.outputSha256) ||
+      hashBytes(file) !== value.outputSha256) {
+    throw new Error("native template replacement compiler returned an invalid output hash");
+  }
+  if (!Array.isArray(value.changedParts) ||
+      !value.changedParts.every((part) => typeof part === "string" && part.length > 0)) {
+    throw new Error("native template replacement compiler returned invalid changed parts");
+  }
+  return Object.freeze({ ...value, file });
+}
+
+function validateTemplateProjectionReceipt(value) {
+  if (value == null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("native template replacement projector returned an invalid receipt");
+  }
+  const programJson = copyBinary(value.programJson, "reprojected PPJ");
+  if (programJson.byteLength === 0) throw new Error("native template replacement projector returned an empty PPJ");
+  return Object.freeze({ ...value, programJson });
+}
+
+function inferAssetRootUri(assets) {
+  for (const asset of assets ?? []) {
+    if (typeof asset?.uri !== "string") continue;
+    const separator = asset.uri.lastIndexOf("/");
+    if (separator > 0) return asset.uri.slice(0, separator);
+  }
+  return "deck.assets/media";
+}
+
+function assertProgramObject(value) {
+  if (value == null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("program must be a PPJ object");
+  }
+}
+
+function assertElementId(value, label) {
+  if (typeof value !== "string" || value.trim() !== value || value.length === 0 || value.length > 512 || /[\0\r\n]/u.test(value)) {
+    throw new Error(`${label} must be a bounded non-empty element identifier`);
+  }
+}
+
+function validateTemplateImageReplacementPlan(plan) {
+  if (plan == null || typeof plan !== "object" || Array.isArray(plan)) {
+    throw new Error("plan must be a template image replacement plan");
+  }
+  assertObjectKeys(plan, "plan", [
+    "schema",
+    "operation",
+    "templateId",
+    "slotId",
+    "role",
+    "asset",
+    "overrides",
+    "preserve",
+    "policy",
+  ]);
+  if (plan.schema !== "office-kit/template-image-slot/v1" || plan.operation !== "replace-image-slot") {
+    throw new Error("plan must use office-kit/template-image-slot/v1 replace-image-slot semantics");
+  }
+  assertTemplateId(plan.templateId, "plan.templateId");
+  if (typeof plan.slotId !== "string" || !IMAGE_SLOT_ID_PATTERN.test(plan.slotId)) {
+    throw new Error("plan.slotId must be a lowercase image-slot identifier");
+  }
+  assertEnum(plan.role, "plan.role", VALID_IMAGE_SLOT_ROLES);
+  if (plan.asset == null || typeof plan.asset !== "object" || Array.isArray(plan.asset)) {
+    throw new Error("plan.asset must be an image asset metadata object");
+  }
+  assertObjectKeys(plan.asset, "plan.asset", ["id", "widthPx", "heightPx", "rights", "sha256"]);
+  assertAssetId(plan.asset.id, "plan.asset.id");
+  validateReplacementDimension(plan.asset.widthPx, "plan.asset.widthPx");
+  validateReplacementDimension(plan.asset.heightPx, "plan.asset.heightPx");
+  if (plan.asset.rights != null) assertEnum(plan.asset.rights, "plan.asset.rights", VALID_IMAGE_SLOT_RIGHTS);
+  if (plan.asset.sha256 != null) assertHash(plan.asset.sha256, "plan.asset.sha256");
+  if (plan.overrides == null || typeof plan.overrides !== "object" || Array.isArray(plan.overrides)) {
+    throw new Error("plan.overrides must be an object");
+  }
+  assertObjectKeys(plan.overrides, "plan.overrides", ["fit", "mask", "accessibility"]);
+  if (plan.overrides.fit != null) assertEnum(plan.overrides.fit, "plan.overrides.fit", VALID_IMAGE_SLOT_FITS);
+  if (plan.overrides.mask != null) assertEnum(plan.overrides.mask, "plan.overrides.mask", VALID_IMAGE_SLOT_MASKS);
+  if (plan.overrides.accessibility != null) validateTemplateAccessibility(plan.overrides.accessibility);
+  if (!Array.isArray(plan.preserve) || plan.preserve.length > 16 ||
+      !plan.preserve.every((field) => typeof field === "string" && field.length > 0)) {
+    throw new Error("plan.preserve must be a bounded field list");
+  }
+  if (plan.policy == null || typeof plan.policy !== "object" || Array.isArray(plan.policy)) {
+    throw new Error("plan.policy must be an object");
+  }
+  assertObjectKeys(plan.policy, "plan.policy", ["allowedFit", "allowedMask", "minWidthPx", "minHeightPx", "rights"]);
+  for (const field of ["allowedFit", "allowedMask", "rights"]) {
+    if (!Array.isArray(plan.policy[field])) throw new Error(`plan.policy.${field} must be an array`);
+  }
+  validateBoundedEnumArray(plan.policy.allowedFit, "plan.policy.allowedFit", VALID_IMAGE_SLOT_FITS, 3, { allowEmpty: true });
+  validateBoundedEnumArray(plan.policy.allowedMask, "plan.policy.allowedMask", VALID_IMAGE_SLOT_MASKS, 16, { allowEmpty: true });
+  validateBoundedEnumArray(plan.policy.rights, "plan.policy.rights", VALID_IMAGE_SLOT_RIGHTS, 16, { allowEmpty: true });
+  validateOptionalPixelDimension(plan.policy.minWidthPx, "plan.policy.minWidthPx");
+  validateOptionalPixelDimension(plan.policy.minHeightPx, "plan.policy.minHeightPx");
+  if (plan.policy.minWidthPx != null && plan.asset.widthPx < plan.policy.minWidthPx) {
+    throw new Error("plan.asset.widthPx does not satisfy plan.policy.minWidthPx");
+  }
+  if (plan.policy.minHeightPx != null && plan.asset.heightPx < plan.policy.minHeightPx) {
+    throw new Error("plan.asset.heightPx does not satisfy plan.policy.minHeightPx");
+  }
+  if (plan.overrides.fit != null && plan.policy.allowedFit.length > 0 && !plan.policy.allowedFit.includes(plan.overrides.fit)) {
+    throw new Error("plan.overrides.fit is not allowed by plan.policy.allowedFit");
+  }
+  if (plan.overrides.mask != null && plan.policy.allowedMask.length > 0 && !plan.policy.allowedMask.includes(plan.overrides.mask)) {
+    throw new Error("plan.overrides.mask is not allowed by plan.policy.allowedMask");
+  }
+  if (plan.asset.rights != null && plan.policy.rights.length > 0 && !plan.policy.rights.includes(plan.asset.rights)) {
+    throw new Error("plan.asset.rights is not allowed by plan.policy.rights");
+  }
+}
+
+function collectProgramElements(elements, id, output) {
+  for (const element of elements ?? []) {
+    if (element?.id === id) output.push(element);
+    collectProgramElements(element?.elements, id, output);
+    collectProgramElements(element?.children, id, output);
+  }
+}
+
+function normalizeTemplateAssetDeclaration(planAsset, declaration) {
+  if (declaration == null || typeof declaration !== "object" || Array.isArray(declaration)) {
+    throw new Error("assetDeclaration must be an object");
+  }
+  assertObjectKeys(declaration, "assetDeclaration", [
+    "id",
+    "uri",
+    "mimeType",
+    "sha256",
+    "widthPx",
+    "heightPx",
+    "rights",
+    "accessibility",
+  ]);
+  if (declaration.id !== planAsset.id) throw new Error("assetDeclaration.id must match plan.asset.id");
+  assertRelativeAssetPath(declaration.uri, "assetDeclaration.uri");
+  if (typeof declaration.mimeType !== "string" || !/^[A-Za-z0-9!#$&^_.+-]+\/[A-Za-z0-9!#$&^_.+-]+$/u.test(declaration.mimeType)) {
+    throw new Error("assetDeclaration.mimeType must be a valid MIME type");
+  }
+  assertHash(declaration.sha256, "assetDeclaration.sha256");
+  if (planAsset.sha256 != null && declaration.sha256 !== planAsset.sha256) {
+    throw new Error("assetDeclaration.sha256 must match plan.asset.sha256");
+  }
+  const widthPx = declaration.widthPx ?? planAsset.widthPx;
+  const heightPx = declaration.heightPx ?? planAsset.heightPx;
+  validateReplacementDimension(widthPx, "assetDeclaration.widthPx");
+  validateReplacementDimension(heightPx, "assetDeclaration.heightPx");
+  if (widthPx !== planAsset.widthPx || heightPx !== planAsset.heightPx) {
+    throw new Error("assetDeclaration dimensions must match plan.asset metadata");
+  }
+  if (declaration.rights == null || typeof declaration.rights !== "object" || Array.isArray(declaration.rights)) {
+    throw new Error("assetDeclaration.rights must be an object");
+  }
+  if (typeof declaration.rights.status !== "string") throw new Error("assetDeclaration.rights.status is required");
+  if (planAsset.rights != null && declaration.rights.status !== planAsset.rights) {
+    throw new Error("assetDeclaration.rights.status must match plan.asset.rights");
+  }
+  validateTemplateAccessibility(declaration.accessibility);
+  return {
+    ...structuredClone(declaration),
+    widthPx,
+    heightPx,
+  };
+}
+
+function validateExistingTemplateAsset(planAsset, existing) {
+  if (existing == null || typeof existing !== "object" || Array.isArray(existing)) {
+    throw new Error(`PPJ asset ${planAsset.id} is invalid`);
+  }
+  if (existing.sha256 != null && planAsset.sha256 != null && existing.sha256 !== planAsset.sha256) {
+    throw new Error(`PPJ asset ${planAsset.id} does not match plan.asset.sha256`);
+  }
+  if (existing.widthPx != null && existing.widthPx !== planAsset.widthPx) {
+    throw new Error(`PPJ asset ${planAsset.id} does not match plan.asset.widthPx`);
+  }
+  if (existing.heightPx != null && existing.heightPx !== planAsset.heightPx) {
+    throw new Error(`PPJ asset ${planAsset.id} does not match plan.asset.heightPx`);
+  }
+  const rights = existing.rights?.status;
+  if (planAsset.rights != null && rights != null && rights !== planAsset.rights) {
+    throw new Error(`PPJ asset ${planAsset.id} does not match plan.asset.rights`);
+  }
+}
+
+function sameAssetIdentity(left, right) {
+  return left.id === right.id && left.uri === right.uri && left.mimeType === right.mimeType &&
+    left.sha256 === right.sha256 && left.widthPx === right.widthPx && left.heightPx === right.heightPx &&
+    sameJsonValue(left.rights, right.rights) && sameJsonValue(left.accessibility, right.accessibility);
+}
+
+function validateTemplateAccessibility(value) {
+  if (value == null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("accessibility must be an object");
+  }
+  assertObjectKeys(value, "accessibility", ["decorative", "title", "description"]);
+  if (typeof value.decorative !== "boolean") throw new Error("accessibility.decorative must be a boolean");
+  if (value.title != null) assertShortString(value.title, "accessibility.title", 512);
+  if (value.description != null) assertShortString(value.description, "accessibility.description", 2048);
+  if (value.decorative && (value.title != null || value.description != null)) {
+    throw new Error("decorative accessibility cannot include title or description");
+  }
+}
+
+function requireTemplateCapability(element, operation, field) {
+  const capabilities = element.nativeRef?.capabilities;
+  if (!Array.isArray(capabilities)) {
+    throw new Error(`source-bound image ${element.id} does not expose ${operation}.${field}`);
+  }
+  const supported = capabilities.some((capability) =>
+    capability?.operation === operation && Array.isArray(capability.fields) && capability.fields.includes(field));
+  if (!supported) throw new Error(`source-bound image ${element.id} does not expose ${operation}.${field}`);
+}
+
+function sameJsonValue(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 async function resolveRoots(explicitRoots, projectPath) {
@@ -375,8 +963,25 @@ async function readTemplate({ expectedId, root, templatePath }) {
       metadata.referencePptx,
       "referencePptx",
     );
+    const imageSlots = (metadata.imageSlots ?? []).map((slot) => {
+      const exampleIndex = metadata.examples.findIndex((example) => example.path === slot.examplePath);
+      if (exampleIndex < 0) throw new Error(`imageSlots.${slot.id} example binding is missing`);
+      const example = metadata.examples[exampleIndex];
+      return {
+        ...slot,
+        allowedFit: slot.allowedFit == null ? [] : [...slot.allowedFit],
+        allowedMask: slot.allowedMask == null ? [] : [...slot.allowedMask],
+        rights: slot.rights == null ? [] : [...slot.rights],
+        example: {
+          path: example.path,
+          sha256: example.sha256,
+          absolutePath: examplePaths[exampleIndex],
+        },
+      };
+    });
     return {
       ...shared,
+      imageSlots,
       examples: metadata.examples.map((example, index) => ({
         role: example.role,
         path: example.path,
@@ -538,6 +1143,7 @@ function validatePresentationMetadata(value, expectedId) {
       "contentShapes",
       "visualTraits",
       "visualCommitment",
+      "imageSlots",
       "referenceProgram",
       "referencePptx",
       "provenance",
@@ -582,6 +1188,7 @@ function validatePresentationMetadata(value, expectedId) {
     roles.add(example.role);
   }
   if (roles.size < 3) throw new Error("examples must cover at least 3 distinct roles");
+  validatePresentationImageSlots(value.imageSlots, value.examples);
   validatePresentationReference(value.referenceProgram, "referenceProgram", ".ppj");
   validatePresentationReference(value.referencePptx, "referencePptx", ".pptx");
   if (value.provenance == null || typeof value.provenance !== "object" || Array.isArray(value.provenance)) {
@@ -596,6 +1203,65 @@ function validatePresentationMetadata(value, expectedId) {
   assertShortString(value.provenance.source, "provenance.source", 500);
   assertHash(value.provenance.guideSha256, "provenance.guideSha256");
   assertHash(value.provenance.previewSha256, "provenance.previewSha256");
+}
+
+function validatePresentationImageSlots(value, examples) {
+  if (value == null) return;
+  if (!Array.isArray(value) || value.length > 64) {
+    throw new Error("imageSlots must contain 0-64 entries");
+  }
+  const exampleByPath = new Map(examples.map((example) => [example.path, example]));
+  const ids = new Set();
+  for (const [index, slot] of value.entries()) {
+    if (slot == null || typeof slot !== "object" || Array.isArray(slot)) {
+      throw new Error(`imageSlots[${index}] must be an object`);
+    }
+    assertObjectKeys(slot, `imageSlots[${index}]`, [
+      "id",
+      "role",
+      "examplePath",
+      "allowedFit",
+      "allowedMask",
+      "minWidthPx",
+      "minHeightPx",
+      "rights",
+    ]);
+    if (typeof slot.id !== "string" || !IMAGE_SLOT_ID_PATTERN.test(slot.id)) {
+      throw new Error(`imageSlots[${index}].id must be a lowercase identifier`);
+    }
+    if (ids.has(slot.id)) throw new Error(`imageSlots must use unique ids: ${slot.id}`);
+    ids.add(slot.id);
+    assertEnum(slot.role, `imageSlots[${index}].role`, VALID_IMAGE_SLOT_ROLES);
+    if (typeof slot.examplePath !== "string" || !exampleByPath.has(slot.examplePath)) {
+      throw new Error(`imageSlots[${index}].examplePath must reference a declared example`);
+    }
+    validateBoundedEnumArray(slot.allowedFit, `imageSlots[${index}].allowedFit`, VALID_IMAGE_SLOT_FITS, 3);
+    validateBoundedEnumArray(slot.allowedMask, `imageSlots[${index}].allowedMask`, VALID_IMAGE_SLOT_MASKS, 16);
+    validateBoundedEnumArray(slot.rights, `imageSlots[${index}].rights`, VALID_IMAGE_SLOT_RIGHTS, 16);
+    validateOptionalPixelDimension(slot.minWidthPx, `imageSlots[${index}].minWidthPx`);
+    validateOptionalPixelDimension(slot.minHeightPx, `imageSlots[${index}].minHeightPx`);
+  }
+}
+
+function validateBoundedEnumArray(value, label, allowed, max, { allowEmpty = false } = {}) {
+  if (value == null) return;
+  const minimum = allowEmpty ? 0 : 1;
+  if (!Array.isArray(value) || value.length < minimum || value.length > max) {
+    throw new Error(`${label} must contain ${minimum}-${max} values`);
+  }
+  const seen = new Set();
+  for (const item of value) {
+    assertEnum(item, label, allowed);
+    if (seen.has(item)) throw new Error(`${label} must not contain duplicates`);
+    seen.add(item);
+  }
+}
+
+function validateOptionalPixelDimension(value, label) {
+  if (value == null) return;
+  if (!Number.isSafeInteger(value) || value < 1 || value > 16_384) {
+    throw new Error(`${label} must be an integer from 1 to 16384`);
+  }
 }
 
 function validatePresentationReference(value, label, extension) {
@@ -1228,6 +1894,18 @@ function assertEnglishSearchArray(value, label, bounds) {
 function assertEnum(value, label, allowed) {
   if (!allowed.has(value)) {
     throw new Error(`${label} must be one of ${[...allowed].join(", ")}`);
+  }
+}
+
+function assertAssetId(value, label) {
+  if (typeof value !== "string" || value.trim() !== value || value.length === 0 || value.length > 512 || /[\0\r\n]/u.test(value)) {
+    throw new Error(`${label} must be a bounded non-empty asset identifier`);
+  }
+}
+
+function validateReplacementDimension(value, label) {
+  if (!Number.isSafeInteger(value) || value < 1 || value > 16_384) {
+    throw new Error(`${label} must be an integer from 1 to 16384`);
   }
 }
 

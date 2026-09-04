@@ -34,7 +34,7 @@ The PPTX codec SHALL mutate only declared leaves and required dependent content,
 - **THEN** only that ChartPart changes, replacing the new token recovers its exact source bytes, and the owning graphicFrame, relationship, chart data, and plot topology remain unchanged
 
 #### Scenario: Dependent chart-data edit
-- **WHEN** one issued direct numeric bar-chart cache point resolves to exactly one cell in a uniquely bound embedded XLSX
+- **WHEN** one issued direct numeric category-cache point or scatter/bubble X/Y/size cache point resolves to exactly one cell in a uniquely bound embedded XLSX
 - **THEN** only the ChartPart and embedded XLSX change, masking the cache token and nested worksheet token recovers both exact source parts, and every other outer and embedded OPC part remains byte-identical
 
 #### Scenario: Dependent SmartArt run edit

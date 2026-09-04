@@ -52,7 +52,7 @@ const rotatedProgram = {
     grammar: {
       tokens: { accent: { kind: "color", value: "#336699" } },
       stylePrecedence: [{ target: "fill.color", sources: ["inline", "styleRef", "default"] }],
-      predicates: [{ id: "visual-elements", field: "element.type", op: "in", value: ["shape", "text"] }],
+      predicates: [{ id: "visual-elements", field: "element.type", op: "in", value: ["shape", "text", "line"] }],
     },
   },
   pages: [{
@@ -62,6 +62,8 @@ const rotatedProgram = {
       { id: "rotated", type: "shape", frame: { x: 100, y: 100, width: 100, height: 100, rotation: 45 }, style: { fill: { color: { token: "accent" } } } },
       { id: "neighbor", type: "shape", frame: { x: 210, y: 150, width: 50, height: 50 } },
       { id: "shadow-edge", type: "shape", frame: { x: 900, y: 80, width: 50, height: 50 }, style: { shadow: { color: "#000000", blur: 10, distance: 30, angle: 0 } } },
+      { id: "arrow-line", type: "line", frame: { x: 100, y: 0, width: 100, height: 2 }, viewBox: [100, 2], points: "0,1 100,1", curve: "sharp", stroke: { color: "#000000", width: 2 }, endArrow: "triangle" },
+      { id: "arrow-neighbor", type: "shape", frame: { x: 190, y: -3, width: 30, height: 20 } },
       { id: "text-overflow", type: "text", frame: { x: 48, y: 300, width: 36, height: 14 }, text: "A long label that cannot fit", textStyle: { margins: { left: 2, right: 2, top: 1, bottom: 1 }, autoFit: "none" } },
     ],
   }],
@@ -71,7 +73,7 @@ const rotatedReceipt = {
   ...ppjReceipt,
   programJson: Buffer.from(rotatedJson),
   programSha256: createHash("sha256").update(rotatedJson).digest("hex"),
-  expandedElementCount: 4,
+  expandedElementCount: 6,
 };
 const visualBoundsReport = await reviewPpjArtifact(bytes, { ppjReceipt: rotatedReceipt });
 const rotatedOverlap = visualBoundsReport.layout.issues.find((entry) => entry.type === "elementOverlap" && entry.ids?.includes("rotated"));
@@ -80,6 +82,14 @@ assert.ok(rotatedOverlap?.visualBounds?.[0]?.[2] > 100);
 const shadowOverflow = visualBoundsReport.layout.issues.find((entry) => entry.type === "frameOutsideCanvas" && entry.id === "shadow-edge");
 assert.equal(shadowOverflow?.visualBounds?.shadow, true);
 assert.ok(shadowOverflow?.bbox?.[2] > 50);
+const arrowOverflow = visualBoundsReport.layout.issues.find((entry) => entry.type === "frameOutsideCanvas" && entry.id === "arrow-line");
+assert.equal(arrowOverflow?.visualBounds?.arrowheads, true);
+assert.deepEqual(arrowOverflow?.visualBounds?.arrowKinds, ["triangle"]);
+assert.ok(arrowOverflow?.bbox?.[1] < 0);
+assert.match(arrowOverflow?.recommendation || "", /arrowhead visual bounds/u);
+const arrowOverlap = visualBoundsReport.layout.issues.find((entry) => entry.type === "elementOverlap" && entry.ids?.includes("arrow-line"));
+assert.equal(arrowOverlap?.detection, "arrow-visual-bounds");
+assert.match(arrowOverlap?.recommendation || "", /arrow endpoint/u);
 const textOverflow = visualBoundsReport.layout.issues.find((entry) => entry.type === "textOverflowEstimated" && entry.id === "text-overflow");
 assert.equal(textOverflow?.severity, "warning");
 assert.equal(textOverflow?.measurement?.method, "deterministic-character-metric");

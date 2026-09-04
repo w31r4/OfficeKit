@@ -6,7 +6,9 @@ PPJ uses the same bounded geometry union for shapes and image masks, but authore
 
 - Compile PPJ `image.mask.kind: "custom"` through the existing bounded custom-geometry path vocabulary into native picture shape properties.
 - Carry canonical custom mask paths through the additive Office wire, picture validation, import, and PPJ projection.
-- Preserve custom-mask identity during source-bound edits and reject topology mutation unless a future capability explicitly owns it.
+- Preserve custom-mask identity during unrelated source-bound edits, while
+  allowing a capability-issued transition between a recognized
+  no-adjustment preset and bounded literal custom geometry.
 - Remove custom-path image masks from the authored fail-closed registry boundary and add focused Agent guidance.
 
 ## Capabilities

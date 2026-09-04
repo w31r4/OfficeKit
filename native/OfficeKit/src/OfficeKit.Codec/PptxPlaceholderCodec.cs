@@ -163,6 +163,17 @@ internal static class PptxPlaceholderCodec
         sourceShape.TextBody is not null &&
         PptxTextCodec.SupportsEditing(sourceShape.TextBody);
 
+    // A slide placeholder can own a direct transform even though its normal
+    // geometry is inherited from the layout/master.  Keep this profile
+    // deliberately narrower than text editing: only the complete, standard
+    // a:xfrm profile may be moved, resized, or transformed.  A placeholder
+    // with no local a:xfrm is also eligible for one explicit materialization
+    // operation; the caller must first prove its effective frame from the
+    // linked layout.
+    internal static bool SupportsSlideFrameEditing(P.Shape sourceShape) =>
+        NativePlaceholder(sourceShape) is not null &&
+        SupportsDirectFramePresenceEditing(sourceShape);
+
     internal static void ApplySlideText(
         P.Shape sourceShape,
         PresentationElement original,
@@ -177,15 +188,47 @@ internal static class PptxPlaceholderCodec
                 $"Presentation slide placeholder {requested.Id} has no safely editable owner-local text graph.");
 
         PptxTextCodec.Validate(requested.Shape);
+        var originalFrame = original.Shape.DirectFrame;
+        var requestedFrame = requested.Shape.DirectFrame;
+        var directFrameChanged = originalFrame is null
+            ? requestedFrame is not null
+            : requestedFrame is null || !originalFrame.Equals(requestedFrame);
+        if (directFrameChanged)
+        {
+            if (!SupportsSlideFrameEditing(sourceShape) ||
+                requestedFrame is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation slide placeholder {requested.Id} can materialize or move only a complete direct frame with a recognized rotation/flip profile.");
+            PptxPlaceholderCodec.ValidateDirectFrame(requestedFrame, requested.Id);
+        }
+
         var allowed = original.Clone();
         allowed.Source = requested.Source?.Clone();
         CopyTextContent(allowed.Shape, requested.Shape, requested.Id);
+        if (directFrameChanged)
+        {
+            allowed.Shape.LeftEmu = requested.Shape.LeftEmu;
+            allowed.Shape.TopEmu = requested.Shape.TopEmu;
+            allowed.Shape.WidthEmu = requested.Shape.WidthEmu;
+            allowed.Shape.HeightEmu = requested.Shape.HeightEmu;
+            allowed.Shape.DirectFrame = requested.Shape.DirectFrame!.Clone();
+            // BuildPlaceholder necessarily represents the edited owner-local
+            // frame as a direct slide transform.  Accept that one identity
+            // state transition while retaining every other placeholder
+            // identity field as source-bound.
+            allowed.Shape.Placeholder = requested.Shape.Placeholder.Clone();
+        }
         if (!allowed.Equals(requested))
+        {
             throw new CodecException(
                 "unsupported_presentation_edit",
-                $"Presentation slide placeholder {requested.Id} may edit only owner-local text content; identity, geometry, formatting, and shape semantics remain source-bound.");
+                $"Presentation slide placeholder {requested.Id} may edit only owner-local text content and a complete direct x/y/width/height/rotation/flip frame; identity, formatting, and shape semantics remain source-bound (allowed={allowed.Shape}, requested={requested.Shape}).");
+        }
 
         PptxTextCodec.Apply(sourceShape, requested.Shape, partContext);
+        if (directFrameChanged)
+            ApplyDirectFrame(sourceShape, requested.Shape.DirectFrame!);
     }
 
     private static void CopyTextContent(

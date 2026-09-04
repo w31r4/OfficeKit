@@ -33,6 +33,7 @@ internal sealed record PpjDesignModel(
     IReadOnlySet<string> FontIds,
     IReadOnlySet<string> TextStyleIds,
     IReadOnlySet<string> ShapeStyleIds,
+    IReadOnlySet<string> ImageStyleIds,
     IReadOnlySet<string> ChartStyleIds,
     IReadOnlySet<string> TableStyleIds,
     string MotionPolicy,
@@ -42,6 +43,7 @@ internal sealed record PpjDesignModel(
 internal sealed record PpjMasterModel(
     string Id,
     string Name,
+    PpjNativeRefModel? NativeRef,
     JsonElement? Background,
     IReadOnlyList<JsonElement> TitleTextLevels,
     IReadOnlyList<JsonElement> BodyTextLevels,
@@ -54,6 +56,7 @@ internal sealed record PpjLayoutModel(
     string Name,
     string MasterId,
     string LayoutType,
+    PpjNativeRefModel? NativeRef,
     JsonElement? Background,
     IReadOnlyList<PpjLayoutPlaceholderModel> Placeholders,
     JsonElement Raw);
@@ -64,6 +67,7 @@ internal sealed record PpjLayoutPlaceholderModel(
     string PlaceholderType,
     uint Index,
     PpjFrameModel Frame,
+    PpjNativeRefModel? NativeRef,
     PpjTextContentModel? Text,
     JsonElement? Style,
     JsonElement Raw);
@@ -157,6 +161,7 @@ internal sealed class PpjImageElementModel : PpjElementModel
 {
     internal required string AssetId { get; init; }
     internal string? SvgAssetId { get; init; }
+    internal string? StyleRef { get; init; }
     internal string? Fit { get; init; }
     internal string? MaskKind { get; init; }
     internal string? MaskPreset { get; init; }
@@ -195,6 +200,8 @@ internal sealed record PpjChartSeriesModel(
     int? Levels,
     string? ChartType,
     string? Axis,
+    int? XAxisIndex,
+    int? YAxisIndex,
     JsonElement Raw);
 
 internal sealed class PpjTableElementModel : PpjElementModel
@@ -231,6 +238,8 @@ internal sealed record PpjConnectorEndpointModel(
 internal sealed class PpjGroupElementModel : PpjElementModel
 {
     internal required IReadOnlyList<PpjElementModel> Elements { get; init; }
+    internal PpjFrameModel ChildFrame { get; init; } = new(0, 0, 1, 1, 0, false, false);
+    internal IReadOnlyList<string> ReadingOrder { get; init; } = [];
 }
 
 internal sealed class PpjMediaElementModel : PpjElementModel
@@ -270,6 +279,7 @@ internal sealed record PpjSmartArtNodeModel(
     string? StyleRef,
     string? ShapeStyleRef,
     string? AssetId,
+    JsonElement? Image,
     PpjNativeRefModel? NativeRef,
     JsonElement Raw);
 
@@ -322,7 +332,7 @@ internal sealed record PpjFormulaModel(string Syntax, string Source);
 
 internal sealed record PpjTextFieldModel(string? Id, string Type, string Text);
 
-internal sealed record PpjRunModel(string? Id, string? Text, PpjFormulaModel? Formula, PpjTextFieldModel? Field);
+internal sealed record PpjRunModel(string? Id, string? Text, PpjFormulaModel? Formula, PpjTextFieldModel? Field, bool LineBreak);
 
 internal sealed record PpjPageModel(
     string Id,
@@ -457,9 +467,11 @@ internal sealed record PpjCommentModel(
     string PageId,
     string? TargetId,
     string? ParentId,
+    string Kind,
     string Author,
     string Text,
     bool Resolved,
+    string? Status,
     PpjNativeRefModel? NativeRef,
     JsonElement Raw);
 
@@ -495,6 +507,7 @@ internal static class PpjProgramParser
                 IdSet(design.GetProperty("fonts")),
                 OptionalIdSet(styles, "text"),
                 OptionalIdSet(styles, "shape"),
+                OptionalIdSet(styles, "image"),
                 OptionalIdSet(styles, "chart"),
                 OptionalIdSet(styles, "table"),
                 design.GetProperty("motionPolicy").GetString()!,
@@ -547,6 +560,7 @@ internal static class PpjProgramParser
         return new PpjMasterModel(
             master.GetProperty("id").GetString()!,
             master.GetProperty("name").GetString()!,
+            master.TryGetProperty("nativeRef", out var nativeRef) ? ParseNativeRef(nativeRef) : null,
             master.TryGetProperty("background", out var background) ? background.Clone() : null,
             textStyles.ValueKind == JsonValueKind.Object ? OptionalArray(textStyles, "title").Select(item => item.Clone()).ToArray() : [],
             textStyles.ValueKind == JsonValueKind.Object ? OptionalArray(textStyles, "body").Select(item => item.Clone()).ToArray() : [],
@@ -560,6 +574,7 @@ internal static class PpjProgramParser
         layout.GetProperty("name").GetString()!,
         layout.GetProperty("master").GetString()!,
         layout.GetProperty("layoutType").GetString()!,
+        layout.TryGetProperty("nativeRef", out var nativeRef) ? ParseNativeRef(nativeRef) : null,
         layout.TryGetProperty("background", out var background) ? background.Clone() : null,
         OptionalArray(layout, "placeholders").Select(ParseLayoutPlaceholder).ToArray(),
         layout.Clone());
@@ -570,6 +585,7 @@ internal static class PpjProgramParser
         placeholder.GetProperty("placeholderType").GetString()!,
         placeholder.GetProperty("index").GetUInt32(),
         ParseFrame(placeholder.GetProperty("frame")),
+        placeholder.TryGetProperty("nativeRef", out var nativeRef) ? ParseNativeRef(nativeRef) : null,
         placeholder.TryGetProperty("text", out var text) ? ParseText(text) : null,
         placeholder.TryGetProperty("style", out var style) ? style.Clone() : null,
         placeholder.Clone());
@@ -593,24 +609,32 @@ internal static class PpjProgramParser
         page.TryGetProperty("nativeRef", out var nativeRef) ? ParseNativeRef(nativeRef) : null,
         page.Clone());
 
-    private static PpjAnimationModel ParseAnimation(JsonElement animation) => new(
-        animation.GetProperty("id").GetString()!,
-        animation.GetProperty("target").GetString()!,
-        animation.GetProperty("phase").GetString()!,
-        animation.GetProperty("effect").GetString()!,
-        OptionalString(animation, "direction"),
-        animation.GetProperty("start").GetString()!,
-        animation.GetProperty("durationMs").GetInt32(),
-        OptionalInt(animation, "delayMs"),
-        OptionalString(animation, "textBuild"),
-        OptionalString(animation, "chartBuild"),
-        OptionalInt(animation, "staggerMs"),
+    private static PpjAnimationModel ParseAnimation(JsonElement animation)
+    {
+        // `trigger` is the explicit animation-array form of the timing graph
+        // sugar.  `timeline` leaves the required start condition authoritative;
+        // every other value is normalized into the same wire start condition.
+        var start = animation.GetProperty("start").GetString()!;
+        var trigger = OptionalString(animation, "trigger");
+        return new(
+            animation.GetProperty("id").GetString()!,
+            animation.GetProperty("target").GetString()!,
+            animation.GetProperty("phase").GetString()!,
+            animation.GetProperty("effect").GetString()!,
+            OptionalString(animation, "direction"),
+            trigger is null or "timeline" ? start : trigger,
+            animation.GetProperty("durationMs").GetInt32(),
+            OptionalInt(animation, "delayMs"),
+            OptionalString(animation, "textBuild"),
+            OptionalString(animation, "chartBuild"),
+            OptionalInt(animation, "staggerMs"),
             animation.TryGetProperty("animateChartBackground", out var animateChartBackground)
-            ? animateChartBackground.GetBoolean()
-            : null,
-        OptionalString(animation, "easing"),
-        animation.TryGetProperty("repeat", out var repeat) ? repeat.GetInt32() : null,
-        animation.TryGetProperty("autoReverse", out var autoReverse) ? autoReverse.GetBoolean() : null);
+                ? animateChartBackground.GetBoolean()
+                : null,
+            OptionalString(animation, "easing"),
+            animation.TryGetProperty("repeat", out var repeat) ? repeat.GetInt32() : null,
+            animation.TryGetProperty("autoReverse", out var autoReverse) ? autoReverse.GetBoolean() : null);
+    }
 
     private static IEnumerable<PpjAnimationModel> ParseTimingAnimations(JsonElement page)
     {
@@ -704,9 +728,11 @@ internal static class PpjProgramParser
         comment.GetProperty("page").GetString()!,
         OptionalString(comment, "target"),
         OptionalString(comment, "parent"),
+        OptionalString(comment, "kind") ?? "legacy",
         comment.GetProperty("author").GetString()!,
         comment.GetProperty("text").GetString()!,
         comment.GetProperty("resolved").GetBoolean(),
+        OptionalString(comment, "status"),
         comment.TryGetProperty("nativeRef", out var nativeRef) ? ParseNativeRef(nativeRef) : null,
         comment.Clone());
 
@@ -754,7 +780,12 @@ internal static class PpjProgramParser
             {
                 AssetId = element.GetProperty("asset").GetString()!,
                 SvgAssetId = OptionalString(element, "svgAsset"),
-                Fit = OptionalString(element, "fit"),
+                StyleRef = OptionalString(element, "styleRef"),
+                // `fit` may be a typed design-grammar reference.  Keep the
+                // model's convenience value literal-only; compiler paths
+                // resolve the raw token against the program catalog so a
+                // token object never reaches JsonElement.GetString().
+                Fit = OptionalLiteralString(element, "fit"),
                 MaskKind = element.TryGetProperty("mask", out var mask) ? OptionalString(mask, "kind") : null,
                 MaskPreset = element.TryGetProperty("mask", out mask) ? OptionalString(mask, "preset") : null,
                 MaskAdjustments = element.TryGetProperty("mask", out mask) ? ParsePresetAdjustments(mask) : [],
@@ -783,6 +814,10 @@ internal static class PpjProgramParser
             "group" => new PpjGroupElementModel
             {
                 Elements = element.GetProperty("elements").EnumerateArray().Select(ParseElement).ToArray(),
+                ChildFrame = element.TryGetProperty("childFrame", out var childFrame)
+                    ? ParseFrame(childFrame)
+                    : common.Frame,
+                ReadingOrder = OptionalArray(element, "readingOrder").Select(item => item.GetString()!).ToArray(),
             },
             "media" => new PpjMediaElementModel
             {
@@ -965,6 +1000,8 @@ internal static class PpjProgramParser
             series.TryGetProperty("levels", out var levels) ? levels.GetInt32() : null,
             OptionalString(series, "chartType"),
             OptionalString(series, "axis"),
+            series.TryGetProperty("xAxisIndex", out var xAxisIndex) ? xAxisIndex.GetInt32() : null,
+            series.TryGetProperty("yAxisIndex", out var yAxisIndex) ? yAxisIndex.GetInt32() : null,
             series.Clone())).ToArray());
 
     private static JsonElement CanonicalDataset(JsonElement data, string chartType)
@@ -1128,6 +1165,10 @@ internal static class PpjProgramParser
                 ["name"] = definition.TryGetProperty("name", out var name) ? name.GetString() : InferSeriesName(encode, columnNames, type, definitionIndex),
                 ["values"] = new JsonArray(),
             };
+            if (definition.TryGetProperty("xAxisIndex", out var authoredXAxisIndex))
+                item["xAxisIndex"] = authoredXAxisIndex.GetInt32();
+            if (definition.TryGetProperty("yAxisIndex", out var authoredYAxisIndex))
+                item["yAxisIndex"] = authoredYAxisIndex.GetInt32();
             var values = (JsonArray)item["values"]!;
             if (type is "scatter" or "bubble")
             {
@@ -1177,7 +1218,7 @@ internal static class PpjProgramParser
             if (chartType == "combo" || (chartType == "candlestick" && definitionIndex > 0)) item["chartType"] = effectiveType;
             if (indexedSecondary) item["axis"] = "secondary";
             else if (definition.TryGetProperty("axis", out var axis)) item["axis"] = axis.GetString();
-            foreach (var property in new[] { "fill", "stroke", "color", "marker", "dataLabels" })
+            foreach (var property in new[] { "fill", "stroke", "color", "marker", "trendlines", "errorBars", "dataLabels" })
                 if (definition.TryGetProperty(property, out var value)) item[property] = ToNode(value);
             ApplySeriesDefaults(
                 item,
@@ -1281,12 +1322,26 @@ internal static class PpjProgramParser
             }
             if (defaultValue is JsonObject defaultObject && existing is JsonObject existingObject)
             {
-                var merged = (JsonObject)defaultObject.DeepClone();
-                foreach (var child in existingObject)
-                    merged[child.Key] = child.Value?.DeepClone();
-                item[property.Name] = merged;
+                item[property.Name] = MergeSeriesDefaultObjects(defaultObject, existingObject);
             }
         }
+    }
+
+    private static JsonObject MergeSeriesDefaultObjects(JsonObject defaults, JsonObject overrides)
+    {
+        var merged = (JsonObject)defaults.DeepClone();
+        foreach (var child in overrides)
+        {
+            if (child.Value is JsonObject overrideObject && merged[child.Key] is JsonObject defaultObject)
+            {
+                merged[child.Key] = MergeSeriesDefaultObjects(defaultObject, overrideObject);
+            }
+            else
+            {
+                merged[child.Key] = child.Value?.DeepClone();
+            }
+        }
+        return merged;
     }
 
     private static bool IsSeriesDefaultType(string property) => property is
@@ -1428,6 +1483,7 @@ internal static class PpjProgramParser
         OptionalString(node, "styleRef"),
         OptionalString(node, "shapeStyleRef"),
         OptionalString(node, "asset"),
+        node.TryGetProperty("image", out var image) ? image.Clone() : null,
         node.TryGetProperty("nativeRef", out var nativeRef) ? ParseNativeRef(nativeRef) : null,
         node.Clone());
 
@@ -1454,7 +1510,8 @@ internal static class PpjProgramParser
                         : null,
                     run.TryGetProperty("field", out var field)
                         ? new PpjTextFieldModel(OptionalString(field, "id"), field.GetProperty("type").GetString()!, field.GetProperty("text").GetString()!)
-                        : null)).ToArray())).ToArray());
+                        : null,
+                    run.TryGetProperty("break", out var lineBreak) && lineBreak.ValueKind == JsonValueKind.True)).ToArray())).ToArray());
     }
 
     private static PpjFrameModel ParseFrame(JsonElement frame) => new(
@@ -1545,6 +1602,11 @@ internal static class PpjProgramParser
 
     private static string? OptionalString(JsonElement owner, string name) =>
         owner.TryGetProperty(name, out var value) ? value.GetString() : null;
+
+    private static string? OptionalLiteralString(JsonElement owner, string name) =>
+        owner.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
 
     private static bool OptionalBool(JsonElement owner, string name) =>
         owner.TryGetProperty(name, out var value) && value.GetBoolean();

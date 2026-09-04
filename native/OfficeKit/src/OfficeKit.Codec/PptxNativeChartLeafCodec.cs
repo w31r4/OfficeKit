@@ -16,13 +16,11 @@ internal sealed record PptxNativeChartTitleLeaf(uint Index, string Text, XElemen
 
 internal sealed record PptxNativeChartDataPointResolution(
     PresentationNativeChartDataPoint Binding,
-    XElement CacheValue,
-    WorksheetPart WorksheetPart,
-    S.Cell Cell);
+    XElement CacheValue);
 
 internal sealed record PptxNativeChartDataResolution(
-    EmbeddedPackagePart Part,
-    byte[] PackageBytes,
+    EmbeddedPackagePart? Part,
+    byte[]? PackageBytes,
     IReadOnlyList<PptxNativeChartDataPointResolution> Points);
 
 internal sealed record PptxNativeChartResolution(
@@ -34,9 +32,16 @@ internal sealed record PptxNativeChartResolution(
 
 // Describes and re-proves a deliberately tiny source-owned chart surface.
 // A native chart remains opaque; only direct rich-title a:r/a:t leaves and
-// uniquely bound direct numeric category-chart cache points are projected.
-// The cache profile is limited to category plots whose series values are a
-// single c:val/c:numRef stream: bar, line, area, pie, doughnut and radar.
+// uniquely bound direct cache points are projected. The cache profile is
+// limited to plots whose editable value channels are direct c:val/c:numRef
+// (category plots, including the bounded column/line/area combo topology) or
+// c:xVal/c:numRef, c:yVal/c:numRef, and (for bubbles)
+// c:bubbleSize/c:numRef. Category labels additionally use direct
+// c:cat/c:strRef caches backed by one inline/string worksheet cell, or a
+// self-contained c:strLit cache; numeric channels likewise accept c:numLit
+// literal caches. Shared strings, formulas and other workbook cell graphs
+// remain opaque. Each channel is proved independently; an unproven channel
+// remains opaque.
 // Styles,
 // extensions, plot topology, and every other ChartSpace token stay owned by
 // the original package.
@@ -138,9 +143,23 @@ internal static partial class PptxNativeChartLeafCodec
         if (TryResolveData(part, document, limits, out var resolvedData))
         {
             data = resolvedData;
-            binding.EmbeddedPackagePartPath = PartPath(data.Part);
-            binding.EmbeddedPackageSourceSha256 = Hash(data.PackageBytes);
-            binding.EmbeddedPackageRelationshipId = part.GetIdOfPart(data.Part);
+            // A chart may retain an externalData package even when every
+            // exposed point is a self-contained literal cache. Do not attach
+            // that unrelated package to literal leaves; when a channel really
+            // resolves to a worksheet, expose only the reference-backed set so
+            // each native leaf has one unambiguous footprint.
+            if (data.Points.Any(point => !string.IsNullOrEmpty(point.Binding.WorksheetPartPath)))
+                data = data with
+                {
+                    Points = data.Points.Where(point => !string.IsNullOrEmpty(point.Binding.WorksheetPartPath)).ToArray(),
+                };
+            if (data.Part is not null && data.PackageBytes is not null &&
+                data.Points.Any(point => !string.IsNullOrEmpty(point.Binding.WorksheetPartPath)))
+            {
+                binding.EmbeddedPackagePartPath = PartPath(data.Part);
+                binding.EmbeddedPackageSourceSha256 = Hash(data.PackageBytes);
+                binding.EmbeddedPackageRelationshipId = part.GetIdOfPart(data.Part);
+            }
             binding.DataPoints.Add(data.Points.Select(point => point.Binding));
         }
         if (leaves.Length == 0 && data is null) return false;
@@ -166,7 +185,8 @@ internal static partial class PptxNativeChartLeafCodec
         expected.EmbeddedPackagePartPath.Equals(actual.EmbeddedPackagePartPath, StringComparison.OrdinalIgnoreCase) &&
         expected.EmbeddedPackageSourceSha256.Equals(actual.EmbeddedPackageSourceSha256, StringComparison.OrdinalIgnoreCase) &&
         expected.EmbeddedPackageRelationshipId == actual.EmbeddedPackageRelationshipId &&
-        expected.DataPoints.SequenceEqual(actual.DataPoints);
+        expected.DataPoints.Count == actual.DataPoints.Count &&
+        expected.DataPoints.Zip(actual.DataPoints).All(pair => SameDataPoint(pair.First, pair.Second));
 
     internal static bool SameTitleBinding(PresentationNativeChart expected, PresentationNativeChart actual) =>
         expected.PartPath.Equals(actual.PartPath, StringComparison.OrdinalIgnoreCase) &&
@@ -186,6 +206,8 @@ internal static partial class PptxNativeChartLeafCodec
         {
             var root = chartDocument.Root!;
             var externalData = root.Elements(ChartNs + "externalData").ToArray();
+            if (externalData.Length == 0)
+                return TryResolveLiteralData(root, limits, out resolved);
             if (externalData.Length != 1) return false;
             var relationshipId = externalData[0].Attribute(RelationshipsNs + "id")?.Value;
             if (string.IsNullOrWhiteSpace(relationshipId)) return false;
@@ -206,7 +228,8 @@ internal static partial class PptxNativeChartLeafCodec
             var series = plotArea.Elements()
                 .Where(element => element.Name is var name &&
                     (name == ChartNs + "barChart" || name == ChartNs + "lineChart" || name == ChartNs + "areaChart" ||
-                     name == ChartNs + "pieChart" || name == ChartNs + "doughnutChart" || name == ChartNs + "radarChart"))
+                     name == ChartNs + "pieChart" || name == ChartNs + "doughnutChart" || name == ChartNs + "radarChart" ||
+                     name == ChartNs + "scatterChart" || name == ChartNs + "bubbleChart"))
                 .SelectMany(element => element.Elements(ChartNs + "ser"))
                 .ToArray();
             if (series.Length == 0 || series.Length > 64) return false;
@@ -214,49 +237,82 @@ internal static partial class PptxNativeChartLeafCodec
             var points = new List<PptxNativeChartDataPointResolution>();
             for (var seriesIndex = 0; seriesIndex < series.Length; seriesIndex++)
             {
-                var valueOwner = AssertSingle(series[seriesIndex].Elements(ChartNs + "val"));
-                var numberReference = AssertSingle(valueOwner?.Elements(ChartNs + "numRef"));
-                var formula = AssertSingle(numberReference?.Elements(ChartNs + "f"))?.Value;
-                var cache = AssertSingle(numberReference?.Elements(ChartNs + "numCache"));
-                if (string.IsNullOrWhiteSpace(formula) || cache is null || !TryParseRange(formula, out var range)) continue;
-                var sheet = sheets.SingleOrDefault(candidate => string.Equals(candidate.Name?.Value, range.SheetName, StringComparison.OrdinalIgnoreCase));
-                if (sheet?.Id?.Value is not string sheetRelationshipId || workbookPart.GetPartById(sheetRelationshipId) is not WorksheetPart worksheetPart) continue;
-                var worksheetBytes = ReadPart(worksheetPart);
-                var worksheetHash = Hash(worksheetBytes);
-                var cachePoints = cache.Elements(ChartNs + "pt").ToArray();
-                foreach (var cachePoint in cachePoints)
+                var plotName = series[seriesIndex].Parent?.Name;
+                var channels = plotName == ChartNs + "scatterChart"
+                    ? new[] { (Channel: "x", Owner: "xVal") , (Channel: "y", Owner: "yVal") }
+                    : plotName == ChartNs + "bubbleChart"
+                        ? new[] { (Channel: "x", Owner: "xVal") , (Channel: "y", Owner: "yVal") , (Channel: "size", Owner: "bubbleSize") }
+                        : new[] { (Channel: "category", Owner: "cat") , (Channel: "value", Owner: "val") };
+                foreach (var channel in channels)
                 {
-                    if (!uint.TryParse(cachePoint.Attribute("idx")?.Value, out var pointIndex) || pointIndex >= range.Length) continue;
-                    var cacheValue = AssertSingle(cachePoint.Elements(ChartNs + "v"));
-                    if (cacheValue is null || !ValidNumber(cacheValue.Value)) continue;
-                    var cellReference = range.CellAt(pointIndex);
-                    var cells = worksheetPart.Worksheet?.Descendants<S.Cell>()
-                        .Where(cell => string.Equals(cell.CellReference?.Value, cellReference, StringComparison.OrdinalIgnoreCase))
-                        .ToArray() ?? [];
-                    var dataType = cells.Length == 1 ? cells[0].DataType?.Value : null;
-                    if (cells.Length != 1 || cells[0].CellFormula is not null || cells[0].InlineString is not null ||
-                        (dataType is not null && dataType != S.CellValues.Number) || cells[0].CellValue is null ||
-                        cells[0].CellValue!.Text != cacheValue.Value) continue;
-                    points.Add(new PptxNativeChartDataPointResolution(
-                        new PresentationNativeChartDataPoint
+                    var valueOwner = AssertSingle(series[seriesIndex].Elements(ChartNs + channel.Owner));
+                    var referenceName = channel.Channel == "category" ? "strRef" : "numRef";
+                    var cacheName = channel.Channel == "category" ? "strCache" : "numCache";
+                    var literalName = channel.Channel == "category" ? "strLit" : "numLit";
+                    var literal = AssertSingle(valueOwner?.Elements(ChartNs + literalName));
+                    if (literal is not null)
+                    {
+                        foreach (var cachePoint in literal.Elements(ChartNs + "pt"))
                         {
-                            SeriesIndex = checked((uint)seriesIndex),
-                            PointIndex = pointIndex,
-                            Value = cacheValue.Value,
-                            Formula = formula,
-                            WorksheetPartPath = PartPath(worksheetPart),
-                            WorksheetSourceSha256 = worksheetHash,
-                            WorksheetName = range.SheetName,
-                            CellReference = cellReference,
-                        },
-                        cacheValue,
-                        worksheetPart,
-                        cells[0]));
-                    if (points.Count > MaxDataPointLeaves) return false;
+                            if (!uint.TryParse(cachePoint.Attribute("idx")?.Value, out var pointIndex)) continue;
+                            var cacheValue = AssertSingle(cachePoint.Elements(ChartNs + "v"));
+                            if (cacheValue is null || pointIndex >= MaxDataPointLeaves ||
+                                channel.Channel == "category" && !ValidText(cacheValue.Value) ||
+                                channel.Channel != "category" && !ValidNumber(cacheValue.Value)) continue;
+                            points.Add(new PptxNativeChartDataPointResolution(
+                                new PresentationNativeChartDataPoint
+                                {
+                                    SeriesIndex = checked((uint)seriesIndex),
+                                    PointIndex = pointIndex,
+                                    Value = cacheValue.Value,
+                                    Formula = string.Empty,
+                                    Channel = channel.Channel,
+                                },
+                                cacheValue));
+                            if (points.Count > MaxDataPointLeaves) return false;
+                        }
+                        continue;
+                    }
+                    var reference = AssertSingle(valueOwner?.Elements(ChartNs + referenceName));
+                    var formula = AssertSingle(reference?.Elements(ChartNs + "f"))?.Value;
+                    var cache = AssertSingle(reference?.Elements(ChartNs + cacheName));
+                    if (string.IsNullOrWhiteSpace(formula) || cache is null || !TryParseRange(formula, out var range)) continue;
+                    var sheet = sheets.SingleOrDefault(candidate => string.Equals(candidate.Name?.Value, range.SheetName, StringComparison.OrdinalIgnoreCase));
+                    if (sheet?.Id?.Value is not string sheetRelationshipId || workbookPart.GetPartById(sheetRelationshipId) is not WorksheetPart worksheetPart) continue;
+                    var worksheetBytes = ReadPart(worksheetPart);
+                    var worksheetHash = Hash(worksheetBytes);
+                    var cachePoints = cache.Elements(ChartNs + "pt").ToArray();
+                    foreach (var cachePoint in cachePoints)
+                    {
+                        if (!uint.TryParse(cachePoint.Attribute("idx")?.Value, out var pointIndex) || pointIndex >= range.Length) continue;
+                        var cacheValue = AssertSingle(cachePoint.Elements(ChartNs + "v"));
+                        if (cacheValue is null || channel.Channel == "category" && !ValidText(cacheValue.Value) || channel.Channel != "category" && !ValidNumber(cacheValue.Value)) continue;
+                        var cellReference = range.CellAt(pointIndex);
+                        var cells = worksheetPart.Worksheet?.Descendants<S.Cell>()
+                            .Where(cell => string.Equals(cell.CellReference?.Value, cellReference, StringComparison.OrdinalIgnoreCase))
+                            .ToArray() ?? [];
+                        if (cells.Length != 1 || !TryReadCellValue(cells[0], channel.Channel == "category", out var cellValue) ||
+                            cellValue != cacheValue.Value) continue;
+                        points.Add(new PptxNativeChartDataPointResolution(
+                            new PresentationNativeChartDataPoint
+                            {
+                                SeriesIndex = checked((uint)seriesIndex),
+                                PointIndex = pointIndex,
+                                Value = cacheValue.Value,
+                                Formula = formula,
+                                WorksheetPartPath = PartPath(worksheetPart),
+                                WorksheetSourceSha256 = worksheetHash,
+                                WorksheetName = range.SheetName,
+                                CellReference = cellReference,
+                                Channel = channel.Channel,
+                            },
+                            cacheValue));
+                        if (points.Count > MaxDataPointLeaves) return false;
+                    }
                 }
             }
             if (points.Count == 0 || points
-                    .GroupBy(point => (point.Binding.SeriesIndex, point.Binding.PointIndex))
+                    .GroupBy(point => (point.Binding.SeriesIndex, point.Binding.PointIndex, Channel(point.Binding)))
                     .Any(group => group.Count() != 1))
                 return false;
             resolved = new PptxNativeChartDataResolution(packagePart, packageBytes, points);
@@ -267,6 +323,91 @@ internal static partial class PptxNativeChartLeafCodec
             return false;
         }
     }
+
+    private static bool TryResolveLiteralData(
+        XElement root,
+        EffectiveCodecLimits limits,
+        out PptxNativeChartDataResolution resolved)
+    {
+        resolved = null!;
+        try
+        {
+            var chart = AssertSingle(root.Elements(ChartNs + "chart"));
+            var plotArea = AssertSingle(chart?.Elements(ChartNs + "plotArea"));
+            if (plotArea is null) return false;
+            var series = plotArea.Elements()
+                .Where(element => element.Name is var name &&
+                    (name == ChartNs + "barChart" || name == ChartNs + "lineChart" || name == ChartNs + "areaChart" ||
+                     name == ChartNs + "pieChart" || name == ChartNs + "doughnutChart" || name == ChartNs + "radarChart" ||
+                     name == ChartNs + "scatterChart" || name == ChartNs + "bubbleChart"))
+                .SelectMany(element => element.Elements(ChartNs + "ser"))
+                .ToArray();
+            if (series.Length == 0 || series.Length > 64) return false;
+
+            var points = new List<PptxNativeChartDataPointResolution>();
+            for (var seriesIndex = 0; seriesIndex < series.Length; seriesIndex++)
+            {
+                var plotName = series[seriesIndex].Parent?.Name;
+                var channels = plotName == ChartNs + "scatterChart"
+                    ? new[] { (Channel: "x", Owner: "xVal") , (Channel: "y", Owner: "yVal") }
+                    : plotName == ChartNs + "bubbleChart"
+                        ? new[] { (Channel: "x", Owner: "xVal") , (Channel: "y", Owner: "yVal") , (Channel: "size", Owner: "bubbleSize") }
+                        : new[] { (Channel: "category", Owner: "cat") , (Channel: "value", Owner: "val") };
+                foreach (var channel in channels)
+                {
+                    var valueOwner = AssertSingle(series[seriesIndex].Elements(ChartNs + channel.Owner));
+                    var literalName = channel.Channel == "category" ? "strLit" : "numLit";
+                    var literal = AssertSingle(valueOwner?.Elements(ChartNs + literalName));
+                    if (literal is null) continue;
+                    foreach (var cachePoint in literal.Elements(ChartNs + "pt"))
+                    {
+                        if (!uint.TryParse(cachePoint.Attribute("idx")?.Value, out var pointIndex)) continue;
+                        var cacheValue = AssertSingle(cachePoint.Elements(ChartNs + "v"));
+                        if (cacheValue is null || pointIndex >= MaxDataPointLeaves ||
+                            channel.Channel == "category" && !ValidText(cacheValue.Value) ||
+                            channel.Channel != "category" && !ValidNumber(cacheValue.Value)) continue;
+                        points.Add(new PptxNativeChartDataPointResolution(
+                            new PresentationNativeChartDataPoint
+                            {
+                                SeriesIndex = checked((uint)seriesIndex),
+                                PointIndex = pointIndex,
+                                Value = cacheValue.Value,
+                                Formula = string.Empty,
+                                Channel = channel.Channel,
+                            },
+                            cacheValue));
+                        if (points.Count > MaxDataPointLeaves) return false;
+                    }
+                }
+            }
+            if (points.Count == 0 || points
+                    .GroupBy(point => (point.Binding.SeriesIndex, point.Binding.PointIndex, Channel(point.Binding)))
+                    .Any(group => group.Count() != 1))
+                return false;
+            resolved = new PptxNativeChartDataResolution(null, null, points);
+            return true;
+        }
+        catch (Exception exception) when (exception is CodecException or XmlException or InvalidOperationException or OverflowException)
+        {
+            return false;
+        }
+    }
+
+    private static string Channel(PresentationNativeChartDataPoint point) =>
+        string.IsNullOrEmpty(point.Channel) ? "value" : point.Channel;
+
+    internal static bool SameDataPoint(
+        PresentationNativeChartDataPoint expected,
+        PresentationNativeChartDataPoint actual) =>
+        expected.SeriesIndex == actual.SeriesIndex &&
+        expected.PointIndex == actual.PointIndex &&
+        expected.Value == actual.Value &&
+        expected.Formula == actual.Formula &&
+        expected.WorksheetPartPath.Equals(actual.WorksheetPartPath, StringComparison.OrdinalIgnoreCase) &&
+        expected.WorksheetSourceSha256.Equals(actual.WorksheetSourceSha256, StringComparison.OrdinalIgnoreCase) &&
+        expected.WorksheetName.Equals(actual.WorksheetName, StringComparison.OrdinalIgnoreCase) &&
+        expected.CellReference.Equals(actual.CellReference, StringComparison.OrdinalIgnoreCase) &&
+        Channel(expected).Equals(Channel(actual), StringComparison.Ordinal);
 
     private static XElement? AssertSingle(IEnumerable<XElement>? elements)
     {
@@ -281,6 +422,34 @@ internal static partial class PptxNativeChartLeafCodec
         value.Length is > 0 and <= 128 &&
         double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var number) &&
         double.IsFinite(number);
+
+    private static bool TryReadCellValue(S.Cell cell, bool text, out string value)
+    {
+        value = string.Empty;
+        if (cell.CellFormula is not null) return false;
+        if (text)
+        {
+            if (cell.DataType?.Value == S.CellValues.InlineString && cell.InlineString is { } inline &&
+                inline.ChildElements.Count == 1 && inline.FirstChild is S.Text inlineText)
+            {
+                value = inlineText.Text;
+                return ValidText(value);
+            }
+            if (cell.DataType?.Value == S.CellValues.String && cell.CellValue is { } stringValue &&
+                cell.ChildElements.Count == 1)
+            {
+                value = stringValue.Text;
+                return ValidText(value);
+            }
+            return false;
+        }
+        if (cell.InlineString is not null ||
+            cell.DataType?.Value is { } dataType && dataType != S.CellValues.Number ||
+            cell.CellValue is not { } cellValue || cell.ChildElements.Count != 1)
+            return false;
+        value = cellValue.Text;
+        return ValidNumber(value);
+    }
 
     private static bool TryParseRange(string formula, out PptxCellRange range)
     {

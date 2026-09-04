@@ -50,7 +50,7 @@ internal static class PptxSmartArtCodec
         slideContext.TrackAddedPart(colorsPart);
         slideContext.TrackAddedPart(drawingPart);
         var drawingRelationshipId = slidePart.GetIdOfPart(drawingPart);
-        var imageRelationshipIds = AddCachedDrawingImages(diagram, drawingPart, slideContext.Assets);
+        var imageRelationshipIds = AddCachedDrawingImages(diagram, drawingPart, slideContext);
 
         var definition = string.IsNullOrWhiteSpace(diagram.DefinitionAssetId)
             ? null
@@ -193,7 +193,7 @@ internal static class PptxSmartArtCodec
                 Order = uint.TryParse(metadata.Attribute("order")?.Value, out var order) ? order : 0,
             });
         }
-        output.Drawing = ReadCachedDrawing(output, drawingPart, out var drawingCacheVerified);
+        output.Drawing = ReadCachedDrawing(output, drawingPart, assets, out var drawingCacheVerified);
         output.DrawingCacheVerified = drawingCacheVerified;
         diagram = output;
         return true;
@@ -516,7 +516,7 @@ internal static class PptxSmartArtCodec
         var properties = new XElement(DspNs + "spPr",
             new XElement(transform),
             new XElement(ANs + "prstGeom", new XAttribute("prst", geometry), new XElement(ANs + "avLst")),
-            imageRelationshipId is null ? SolidFill(shape) : ImageFill(imageRelationshipId),
+            imageRelationshipId is null ? SolidFill(shape) : ImageFill(imageRelationshipId, shape.ImageFill),
             new XElement(ANs + "ln", new XAttribute("w", Math.Max(1, shape.LineWidthEmu)),
                 new XElement(ANs + "solidFill", new XElement(ANs + "schemeClr", new XAttribute("val", "lt1"))),
                 new XElement(ANs + "prstDash", new XAttribute("val", "solid"))));
@@ -544,28 +544,43 @@ internal static class PptxSmartArtCodec
         return new XElement(ANs + "solidFill", new XElement(ANs + "schemeClr", new XAttribute("val", string.IsNullOrWhiteSpace(shape.FillScheme) ? "accent1" : shape.FillScheme)));
     }
 
-    private static XElement ImageFill(string relationshipId) => new(ANs + "blipFill",
-        new XElement(ANs + "blip", new XAttribute(RNs + "embed", relationshipId)),
-        new XElement(ANs + "stretch", new XElement(ANs + "fillRect")));
+    private static XElement ImageFill(string relationshipId, PresentationImagePaint? paint = null)
+    {
+        var blip = new XElement(ANs + "blip", new XAttribute(RNs + "embed", relationshipId));
+        if (paint?.HasOpacityThousandthPercent == true)
+            blip.Add(new XElement(ANs + "alphaModFix", new XAttribute("amt", paint.OpacityThousandthPercent)));
+        var fill = new XElement(ANs + "blipFill", blip);
+        if (paint?.Crop is { } crop)
+            fill.Add(new XElement(ANs + "srcRect",
+                new XAttribute("l", crop.LeftThousandthPercent),
+                new XAttribute("t", crop.TopThousandthPercent),
+                new XAttribute("r", crop.RightThousandthPercent),
+                new XAttribute("b", crop.BottomThousandthPercent)));
+        fill.Add(paint?.Mode == PresentationImagePaint.Types.Mode.Tile
+            ? new XElement(ANs + "tile")
+            : new XElement(ANs + "stretch", new XElement(ANs + "fillRect")));
+        return fill;
+    }
 
     private static IReadOnlyDictionary<string, string> AddCachedDrawingImages(
         PresentationDiagram diagram,
         DiagramPersistLayoutPart drawingPart,
-        PptxAssetCatalog? assets)
+        PptxPartContext slideContext)
     {
         var output = new Dictionary<string, string>(StringComparer.Ordinal);
         var relationshipByAsset = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var node in diagram.Nodes.Where(node => !string.IsNullOrWhiteSpace(node.AssetId)))
         {
-            if (assets is null)
+            if (slideContext.Assets is null)
                 throw new CodecException("invalid_presentation_asset", "SmartArt picture nodes require the presentation asset catalog.");
             if (!relationshipByAsset.TryGetValue(node.AssetId, out var relationshipId))
             {
-                var asset = assets.Get(node.AssetId);
+                var asset = slideContext.Assets.Get(node.AssetId);
                 relationshipId = $"rIdOfficeKitSmartArtImage{relationshipByAsset.Count + 1}";
                 var part = drawingPart.AddImagePart(PptxAssetCatalog.ImagePartTypeFor(asset.ContentType), relationshipId);
                 using var source = new MemoryStream(asset.Data.ToByteArray(), writable: false);
                 part.FeedData(source);
+                slideContext.TrackAddedPart(drawingPart, part);
                 relationshipByAsset.Add(node.AssetId, relationshipId);
             }
             output.Add(node.Id, relationshipId);
@@ -576,6 +591,7 @@ internal static class PptxSmartArtCodec
     private static PresentationGroup ReadCachedDrawing(
         PresentationDiagram diagram,
         DiagramPersistLayoutPart? part,
+        PptxAssetCatalog assets,
         out bool verified)
     {
         var group = new PresentationGroup
@@ -593,10 +609,94 @@ internal static class PptxSmartArtCodec
         try { if (part is not null) drawing = ReadXml(part); }
         catch (Exception exception) when (exception is IOException or System.Xml.XmlException) { }
         verified = drawing is not null;
+        var drawingContext = part is null
+            ? null
+            : new PptxPartContext(
+                part,
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                assets: assets);
         foreach (var node in diagram.Nodes)
         {
             var native = drawing?.Descendants(DspNs + "sp").SingleOrDefault(shape =>
                 shape.Element(DspNs + "nvSpPr")?.Element(DspNs + "cNvPr")?.Attribute("name")?.Value == node.Id);
+            var blips = native?.Descendants(ANs + "blip").ToArray() ?? [];
+            var nodeAssetVerified = true;
+            if (blips.Length > 1)
+            {
+                verified = false;
+                nodeAssetVerified = false;
+                node.AssetId = string.Empty;
+            }
+            if (blips.Length == 1)
+            {
+                var embed = blips[0].Attribute(RNs + "embed")?.Value ?? string.Empty;
+                var link = blips[0].Attribute(RNs + "link")?.Value ?? string.Empty;
+                if (embed.Length == 0 || link.Length != 0 || part is null)
+                {
+                    verified = false;
+                    nodeAssetVerified = false;
+                    node.AssetId = string.Empty;
+                }
+                else
+                {
+                    try
+                    {
+                        if (part.GetPartById(embed) is not ImagePart imagePart)
+                        {
+                            verified = false;
+                            nodeAssetVerified = false;
+                            node.AssetId = string.Empty;
+                        }
+                        else
+                        {
+                            var importedAssetId = assets.Import(imagePart).Id;
+                            if (!string.IsNullOrWhiteSpace(node.AssetId) &&
+                                !node.AssetId.Equals(importedAssetId, StringComparison.Ordinal))
+                            {
+                                verified = false;
+                                nodeAssetVerified = false;
+                            }
+                            else
+                                node.AssetId = importedAssetId;
+                            if (!nodeAssetVerified) node.AssetId = string.Empty;
+                        }
+                    }
+                    catch (Exception exception) when (exception is ArgumentOutOfRangeException or CodecException)
+                    {
+                        verified = false;
+                        nodeAssetVerified = false;
+                        node.AssetId = string.Empty;
+                    }
+                }
+            }
+            else if (blips.Length == 0 && !string.IsNullOrWhiteSpace(node.AssetId))
+            {
+                verified = false;
+                nodeAssetVerified = false;
+                node.AssetId = string.Empty;
+            }
+            PresentationImagePaint? imagePaint = null;
+            var blipFill = native?.Element(DspNs + "spPr")?.Element(ANs + "blipFill");
+            if (blipFill is not null && drawingContext is not null && nodeAssetVerified)
+            {
+                try
+                {
+                    var typedBlipFill = new A.BlipFill(blipFill.ToString(SaveOptions.DisableFormatting));
+                    if (PptxImagePaintCodec.TryRead(typedBlipFill, drawingContext, out var parsedPaint) &&
+                        (string.IsNullOrWhiteSpace(node.AssetId) ||
+                         node.AssetId.Equals(parsedPaint.AssetId, StringComparison.Ordinal)))
+                    {
+                        imagePaint = parsedPaint;
+                        node.AssetId = parsedPaint.AssetId;
+                    }
+                }
+                catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
+                {
+                    // The asset-only profile above may still be safe for a
+                    // replacement, but a non-canonical blip graph must not
+                    // receive the image-paint capability.
+                }
+            }
             var transform = native?.Element(DspNs + "spPr")?.Element(ANs + "xfrm");
             var nativeOffset = transform?.Element(ANs + "off");
             var nativeExtents = transform?.Element(ANs + "ext");
@@ -612,6 +712,7 @@ internal static class PptxSmartArtCodec
                 HeightEmu = Math.Max(1, LongAttribute(nativeExtents, "cy", diagram.HeightEmu)),
                 TextBody = node.TextBody?.Clone(),
                 Text = PptxTextCodec.Flatten(node.TextBody),
+                ImageFill = imagePaint,
             };
             group.Children.Add(new PresentationElement { Id = $"{node.Id}-cache", Name = node.Id, Shape = shape });
         }

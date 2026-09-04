@@ -96,6 +96,48 @@ internal static class PptxBodyPropertiesCodec
          source.ColumnDirectionCase != PresentationTextBodyProperties.ColumnDirectionOneofCase.None ||
          source.UprightTextCase != PresentationTextBodyProperties.UprightTextOneofCase.None);
 
+    // A source-bound text-body style may expose only direct bodyPr leaves with
+    // a stable PPJ textBoxStyle spelling.  The bounded profile includes the
+    // scalar rotation, overflow and upright attributes and canonical
+    // normAutofit percentages.  Other bodyPr children remain source-owned.
+    internal static bool SupportsBoundedDirectLayout(PresentationTextBodyProperties? source)
+    {
+        if (source is null) return true;
+        return (source.LeftInsetCase is PresentationTextBodyProperties.LeftInsetOneofCase.None or PresentationTextBodyProperties.LeftInsetOneofCase.LeftInsetEmu) &&
+            (source.TopInsetCase is PresentationTextBodyProperties.TopInsetOneofCase.None or PresentationTextBodyProperties.TopInsetOneofCase.TopInsetEmu) &&
+            (source.RightInsetCase is PresentationTextBodyProperties.RightInsetOneofCase.None or PresentationTextBodyProperties.RightInsetOneofCase.RightInsetEmu) &&
+            (source.BottomInsetCase is PresentationTextBodyProperties.BottomInsetOneofCase.None or PresentationTextBodyProperties.BottomInsetOneofCase.BottomInsetEmu) &&
+            (source.AnchorCase is PresentationTextBodyProperties.AnchorOneofCase.None or PresentationTextBodyProperties.AnchorOneofCase.VerticalAnchor) &&
+            (source.WrappingCase is PresentationTextBodyProperties.WrappingOneofCase.None or PresentationTextBodyProperties.WrappingOneofCase.Wrap) &&
+            (source.AutoFitCase is PresentationTextBodyProperties.AutoFitOneofCase.None or PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode) &&
+            (source.VerticalTextCase is PresentationTextBodyProperties.VerticalTextOneofCase.None or PresentationTextBodyProperties.VerticalTextOneofCase.VerticalTextMode) &&
+            (source.ColumnCountCase is PresentationTextBodyProperties.ColumnCountOneofCase.None or PresentationTextBodyProperties.ColumnCountOneofCase.Columns) &&
+            (source.ColumnSpacingCase is PresentationTextBodyProperties.ColumnSpacingOneofCase.None or PresentationTextBodyProperties.ColumnSpacingOneofCase.ColumnSpacingEmu) &&
+            (source.ColumnDirectionCase is PresentationTextBodyProperties.ColumnDirectionOneofCase.None or PresentationTextBodyProperties.ColumnDirectionOneofCase.RightToLeftColumns) &&
+            (source.RotationCase is PresentationTextBodyProperties.RotationOneofCase.None or PresentationTextBodyProperties.RotationOneofCase.RotationAngle60000) &&
+            (source.VerticalOverflowCase is PresentationTextBodyProperties.VerticalOverflowOneofCase.None or PresentationTextBodyProperties.VerticalOverflowOneofCase.VerticalOverflowMode) &&
+            (source.HorizontalOverflowCase is PresentationTextBodyProperties.HorizontalOverflowOneofCase.None or PresentationTextBodyProperties.HorizontalOverflowOneofCase.HorizontalOverflowMode) &&
+            (source.UprightTextCase is PresentationTextBodyProperties.UprightTextOneofCase.None or PresentationTextBodyProperties.UprightTextOneofCase.Upright) &&
+            SupportsBoundedNormalAutoFit(source);
+    }
+
+    private static bool SupportsBoundedNormalAutoFit(PresentationTextBodyProperties source)
+    {
+        if (source.NormalAutoFit is not { } normal) return true;
+        if (source.AutoFitCase != PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode || source.AutoFitMode != "shrinkText")
+            return false;
+        if (normal.FontScaleCase is not (PresentationNormalAutoFit.FontScaleOneofCase.None or PresentationNormalAutoFit.FontScaleOneofCase.FontScale1000) ||
+            normal.LineSpacingReductionCase is not (PresentationNormalAutoFit.LineSpacingReductionOneofCase.None or PresentationNormalAutoFit.LineSpacingReductionOneofCase.LineSpacingReduction1000))
+            return false;
+        if (normal.FontScaleCase == PresentationNormalAutoFit.FontScaleOneofCase.FontScale1000 &&
+            (normal.FontScale1000 < MinFontScale1000 || normal.FontScale1000 > MaxFontScale1000))
+            return false;
+        if (normal.LineSpacingReductionCase == PresentationNormalAutoFit.LineSpacingReductionOneofCase.LineSpacingReduction1000 &&
+            (normal.LineSpacingReduction1000 < MinLineSpacingReduction1000 || normal.LineSpacingReduction1000 > MaxLineSpacingReduction1000))
+            return false;
+        return true;
+    }
+
     internal static void Build(A.BodyProperties target, PresentationTextBody source)
     {
         if (source.BodyProperties is not { } properties) return;

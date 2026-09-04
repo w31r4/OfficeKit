@@ -29,6 +29,29 @@ reference program only when its license and relevance allow reuse. A reference
 PPTX may also be imported as a source-bound artifact; that is a different route
 from style guidance.
 
+It may also declare `imageSlots`. Each slot has a stable lowercase `id`, a
+semantic `role`, an `examplePath` pointing at one of the declared calibration
+examples, and optional `allowedFit`, `allowedMask`, minimum pixel dimensions,
+and `rights` constraints. The catalog validates the example path and all enum
+and size bounds before returning the slot in a search result. This is guidance
+and an input contract; it does not infer saliency or rewrite a source-bound
+PPTX. A selected slot plus content-addressed image metadata can be turned into
+an `office-kit/template-image-slot/v1` replacement plan. The plan checks fit,
+mask, dimensions, rights, and optional accessibility metadata, and explicitly
+preserves the existing image's fit, mask, crop, focus, and accessibility unless
+an override is requested. `applyTemplateImageReplacement` then binds the plan
+to a caller-supplied unique PPJ `elementId`, clones the program, adds or
+verifies the complete asset declaration, applies only supported fit/mask and
+accessibility overrides, and returns a program suitable for PPJ validation and
+compilation. `applyTemplateImageReplacementToPptx` is the explicit transaction
+boundary when a PPTX is available: it verifies the exact source bytes and
+replacement asset hash, invokes the PPJ NativeAOT compiler, requires a
+changed-parts/output-hash receipt, and reprojects the resulting PPTX before
+returning. Source-bound owners must already expose the required native
+capability; custom mask geometry, guessed role matches, stale source bytes,
+invalid asset bytes, and unsupported relationships fail closed rather than
+being flattened.
+
 ## Native masters and layouts
 
 Use `design.masters[]`, `design.layouts[]`, and `pages[].layout` when a new deck

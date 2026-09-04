@@ -482,6 +482,11 @@ internal static class PptxCodec
                 SetElementZOrderCapability(importedElement, zOrderPlan);
                 target.Elements.Add(importedElement);
             }
+            // PPJ exposes the direct shape-tree order explicitly as the
+            // page's initial reading-order permutation.  It is intentionally
+            // copied from the native order rather than inferred later from
+            // projected z-order or nested component expansion.
+            target.ReadingOrder.Add(target.Elements.Select(element => element.Id));
             artifact.Slides.Add(target);
             if (slideIndex > 0)
                 slideParts[slideIndex - 1].UnloadRootElement();
@@ -1343,9 +1348,9 @@ internal static class PptxCodec
                     }
                     else if (sourceElement is P.GraphicFrame sourceTable &&
                              requested.ContentCase == PresentationElement.ContentOneofCase.Table &&
-                             PptxTableCodec.TryRead(sourceTable, out _))
+                             PptxTableCodec.TryRead(sourceTable, slideContext, out _))
                     {
-                        PptxTableCodec.Apply(sourceTable, requested);
+                        PptxTableCodec.Apply(sourceTable, requested, slideContext);
                         changed = true;
                     }
                     else if (sourceElement is P.ConnectionShape sourceConnector &&
@@ -1361,6 +1366,11 @@ internal static class PptxCodec
                     {
                         var replacement = PptxChartCodec.Apply(sourceChart, requested, slideContext);
                         changedParts.Add(replacement.PartPath);
+                        changedParts.UnionWith(replacement.ChangedPartPaths);
+                        addedRelationshipIds.UnionWith(replacement.AddedRelationshipKeys);
+                        addedPartPaths.UnionWith(replacement.AddedPartPaths);
+                        removedSourceRelationshipKeys.UnionWith(replacement.RemovedRelationshipKeys);
+                        removedSourcePartPaths.UnionWith(replacement.RemovedPartPaths);
                         replacedOpaquePartHashes.Add(replacement.PartPath, replacement.Sha256);
                         changed |= replacement.SlideChanged;
                     }
@@ -1692,6 +1702,11 @@ internal static class PptxCodec
             var shapeAllowNegativeOffset = allowNegativeOffset || Geometry(sourceShape) == "line";
             editable = IsSimpleShape(sourceShape, slideContext, shapeAllowNegativeOffset);
             element.Shape = ReadShape(sourceShape, slideContext);
+            var nonVisual = sourceShape.NonVisualShapeProperties?.NonVisualDrawingProperties;
+            if (PptxHyperlinkCodec.TryReadElementAction(nonVisual, slideContext, out var action))
+                element.Shape.Action = action;
+            if (PptxHyperlinkCodec.TryReadElementHoverAction(nonVisual, slideContext, out var hoverAction))
+                element.Shape.HoverAction = hoverAction;
             modeled = true;
         }
         else if (source is P.Picture sourcePicture && !nativeMediaPicture && PptxPictureCodec.TryRead(sourcePicture, slideContext, out var image))
@@ -1708,7 +1723,7 @@ internal static class PptxCodec
             var chartEditable = false;
             var diagramModeled = slideContext.Owner is SlidePart slidePart && slideContext.Assets is { } diagramAssets &&
                 PptxSmartArtCodec.TryRead(sourceFrame, slidePart, diagramAssets, out diagram);
-            var tableModeled = !diagramModeled && PptxTableCodec.TryRead(sourceFrame, out table);
+            var tableModeled = !diagramModeled && PptxTableCodec.TryRead(sourceFrame, slideContext, out table);
             var chartModeled = !diagramModeled && PptxChartCodec.TryRead(sourceFrame, slideContext, out chart, out chartEditable);
             editable = chartModeled ? chartEditable : tableModeled;
             if (diagramModeled)
@@ -1755,6 +1770,8 @@ internal static class PptxCodec
             ShapeTreeIndex = checked((uint)elementIndex),
             ElementSha256 = HashElement(source),
             Editable = editable,
+            DirectFramePresenceEditable = source is P.Shape slidePlaceholder &&
+                PptxPlaceholderCodec.SupportsSlideFrameEditing(slidePlaceholder),
             TextEditable = source is P.Shape textShape && textShape.TextBody is not null && PptxTextCodec.SupportsEditing(textShape.TextBody),
             AccessibilityEditable = editable && (
                 (source is P.Picture accessibilityPicture && element.ContentCase == PresentationElement.ContentOneofCase.Image &&
@@ -1834,14 +1851,19 @@ internal static class PptxCodec
         if (sourceElements.Count != requestedSourceOrder.Count || requestedSourceOrder.Distinct().Count() != sourceElements.Count ||
             requestedSourceOrder.Any(index => index < 0 || index >= sourceElements.Count))
             throw new CodecException("presentation_group_topology_changed", "Presentation group-child reorder must be a complete permutation of the local source shape tree.");
-        OpenXmlElement anchor = group.GetFirstChild<P.GroupShapeProperties>() ??
+        if (group.GetFirstChild<P.GroupShapeProperties>() is null)
             throw new CodecException("missing_group_shape_properties", "Presentation group has no group-shape properties anchor.");
         foreach (var sourceElement in sourceElements) sourceElement.Remove();
         foreach (var sourceIndex in requestedSourceOrder)
         {
             var sourceElement = sourceElements[sourceIndex];
-            group.InsertAfter(sourceElement, anchor);
-            anchor = sourceElement;
+            // AppendChild is used for local group children instead of the
+            // generic InsertAfter helper: the Open XML SDK can normalize a
+            // mixed p:grpSp choice back to its schema order when the anchor
+            // is a group-properties sibling.  The group shell remains first;
+            // appending only the already-detached drawing nodes preserves
+            // their requested local z-order deterministically.
+            group.AppendChild(sourceElement);
         }
     }
 
@@ -2039,6 +2061,8 @@ internal static class PptxCodec
             !PptxPresetGeometryAdjustmentCodec.TryRead(properties.GetFirstChild<A.PresetGeometry>(), geometry, out _)) return false;
         var imageFill = properties.GetFirstChild<A.BlipFill>();
         var imageFillSupported = imageFill is not null && PptxShapeImageFillCodec.TryRead(imageFill, slideContext, out _);
+        var linePathSupported = geometry == "custom" &&
+            PpjLinePathCodec.IsLineLike(ReadShape(shape, slideContext));
         if (geometry == "custom")
         {
             var frame = ReadFrame(shape);
@@ -2063,12 +2087,16 @@ internal static class PptxCodec
                 allowSourceBoundCustomImageFill: geometry == "custom" && imageFillSupported)) return false;
         var outline = properties.GetFirstChild<A.Outline>();
         if (!PptxLineStyleCodec.TryRead(outline, out var lineStyle)) return false;
-        if (!string.Equals(geometry, "line", StringComparison.Ordinal) &&
+        if (!string.Equals(geometry, "line", StringComparison.Ordinal) && !linePathSupported &&
             (lineStyle.StartArrow.Length > 0 || lineStyle.EndArrow.Length > 0)) return false;
         if (!PptxShadowCodec.TryRead(properties, out _)) return false;
         if (properties.ChildElements.Any(child => child is not A.Transform2D and not A.PresetGeometry and not A.CustomGeometry and not A.NoFill and not A.SolidFill and not A.GradientFill and not A.BlipFill and not A.Outline and not A.EffectList)) return false;
+        // A literal single stroked custom path is the source-bound line
+        // profile.  It has no text body by design, but its path/stroke/frame
+        // leaves are still safely editable through setLinePath/setStroke.
         return PptxTextCodec.SupportsEditing(shape.TextBody) ||
-            geometry == "custom" && imageFillSupported && shape.TextBody is null;
+            geometry == "custom" && imageFillSupported && shape.TextBody is null ||
+            linePathSupported;
     }
 
     private static bool SimpleFill(
@@ -2142,8 +2170,13 @@ internal static class PptxCodec
         // that native geometry while allowing the owning frame to move. A
         // populated custom path list remains the normal editable geometry path.
         if (!sourceHasImageFill || semantic.CustomPaths.Count > 0)
-            PptxCustomGeometryCodec.Apply(properties, semantic, source.Id);
+        PptxCustomGeometryCodec.Apply(properties, semantic, source.Id);
         PptxNonVisualAccessibilityCodec.ApplyBound(shape.NonVisualShapeProperties?.NonVisualDrawingProperties, semantic.Accessibility);
+        if (shape.NonVisualShapeProperties?.NonVisualDrawingProperties is { } actionOwner)
+        {
+            PptxHyperlinkCodec.ApplyElementAction(actionOwner, semantic.Action, slideContext);
+            PptxHyperlinkCodec.ApplyElementHoverAction(actionOwner, semantic.HoverAction, slideContext);
+        }
         if (shape.NonVisualShapeProperties?.NonVisualShapeDrawingProperties is { } drawingProperties)
             drawingProperties.TextBox = semantic.Geometry == "textbox" ? true : null;
         if ((!sourceHasImageFill || semantic.ImageFill is not null) && !FillMatches(properties, semantic, slideContext))
@@ -2324,17 +2357,30 @@ internal static class PptxCodec
         Action<int, PresentationSlide>? validateSlide = null)
     {
         var artifact = plan.Presentation;
-        if (artifact.Masters.Count > 1)
-            throw new CodecException(
-                "unsupported_presentation_features",
-                "New PPTX authoring supports one canonical master. Multiple slide-master graphs require a validated source package.");
-        var authoredMaster = artifact.Masters.FirstOrDefault();
-        var canonicalMasterId = authoredMaster?.Id ?? "__officekit/default-master";
+        var authoredMasters = artifact.Masters.Count == 0
+            ? [new PresentationMaster { Id = "__officekit/default-master", Name = "Office Clean Room" }]
+            : artifact.Masters.ToArray();
+        var canonicalMasterId = authoredMasters[0].Id;
         var presentationPart = package.AddPresentationPart();
-        var masterPart = presentationPart.AddNewPart<SlideMasterPart>("rIdMaster1");
-        var themePart = masterPart.AddNewPart<ThemePart>("rIdTheme1");
-
-        themePart.Theme = BasicTheme(artifact.AuthoredTheme);
+        var masterEntries = new List<(PresentationMaster Master, SlideMasterPart Part, ThemePart Theme, P.SlideLayoutIdList LayoutIds)>();
+        for (var masterIndex = 0; masterIndex < authoredMasters.Length; masterIndex++)
+        {
+            var master = authoredMasters[masterIndex];
+            var masterPart = presentationPart.AddNewPart<SlideMasterPart>($"rIdMaster{masterIndex + 1}");
+            var ownerThemePart = masterPart.AddNewPart<ThemePart>($"rIdTheme{masterIndex + 1}");
+            ownerThemePart.Theme = BasicTheme(artifact.AuthoredTheme);
+            var layoutIds = new P.SlideLayoutIdList();
+            masterPart.SlideMaster = new P.SlideMaster(
+                new P.CommonSlideData(BasicShapeTree())
+                {
+                    Name = string.IsNullOrWhiteSpace(master.Name) ? "Office Clean Room" : master.Name,
+                },
+                BasicColorMap(),
+                layoutIds,
+                new P.TextStyles(new P.TitleStyle(), new P.BodyStyle(), new P.OtherStyle()));
+            masterEntries.Add((master, masterPart, ownerThemePart, layoutIds));
+        }
+        var themePart = masterEntries[0].Theme;
         var sourceLayouts = artifact.Layouts.ToList();
         PresentationLayout? fallbackLayout = null;
         if (sourceLayouts.Count == 0 || artifact.Slides.Any(slide => string.IsNullOrWhiteSpace(slide.LayoutId)))
@@ -2351,39 +2397,45 @@ internal static class PptxCodec
             sourceLayouts.Insert(0, fallbackLayout);
         }
 
-        var layoutIdList = new P.SlideLayoutIdList();
-        var layoutEntries = new List<(PresentationLayout Layout, SlideLayoutPart Part)>();
+        var layoutEntries = new List<(PresentationLayout Layout, SlideLayoutPart Part, int MasterIndex)>();
         for (var layoutIndex = 0; layoutIndex < sourceLayouts.Count; layoutIndex++)
         {
             var sourceLayout = sourceLayouts[layoutIndex];
-            var relationshipId = $"rIdLayout{layoutIndex + 1}";
-            var layoutPart = masterPart.AddNewPart<SlideLayoutPart>(relationshipId);
-            layoutPart.AddPart(masterPart, "rIdMaster1");
+            var masterIndex = string.IsNullOrWhiteSpace(sourceLayout.MasterId)
+                ? 0
+                : Array.FindIndex(authoredMasters, master => master.Id.Equals(sourceLayout.MasterId, StringComparison.Ordinal));
+            if (masterIndex < 0)
+                throw new CodecException("invalid_presentation_layout", $"Presentation layout {sourceLayout.Id} references missing master {sourceLayout.MasterId}.");
+            var owner = masterEntries[masterIndex];
+            var localLayoutIndex = owner.LayoutIds.ChildElements.Count;
+            var relationshipId = $"rIdLayout{localLayoutIndex + 1}";
+            var layoutPart = owner.Part.AddNewPart<SlideLayoutPart>(relationshipId);
+            layoutPart.AddPart(owner.Part, $"rIdMaster{masterIndex + 1}");
             var layoutRoot = new P.SlideLayout(
                 new P.CommonSlideData(BasicShapeTree()) { Name = string.IsNullOrWhiteSpace(sourceLayout.Name) ? "Blank" : sourceLayout.Name },
                 new P.ColorMapOverride(new A.MasterColorMapping()))
             { Preserve = true };
             layoutRoot.SetAttribute(new OpenXmlAttribute("type", string.Empty, SourceFreeLayoutType(sourceLayout)));
             layoutPart.SlideLayout = layoutRoot;
-            layoutIdList.Append(new P.SlideLayoutId
+            owner.LayoutIds.Append(new P.SlideLayoutId
             {
                 Id = checked(2_147_483_649U + (uint)layoutIndex),
                 RelationshipId = relationshipId,
             });
-            layoutEntries.Add((sourceLayout, layoutPart));
+            layoutEntries.Add((sourceLayout, layoutPart, masterIndex));
         }
         var layoutPartById = layoutEntries.ToDictionary(entry => entry.Layout.Id, entry => entry.Part, StringComparer.Ordinal);
         var defaultLayoutPart = fallbackLayout is not null
             ? layoutPartById[fallbackLayout.Id]
             : layoutEntries[0].Part;
-        masterPart.SlideMaster = new P.SlideMaster(
-            new P.CommonSlideData(BasicShapeTree()) { Name = string.IsNullOrWhiteSpace(authoredMaster?.Name) ? "Office Clean Room" : authoredMaster.Name },
-            BasicColorMap(),
-            layoutIdList,
-            new P.TextStyles(new P.TitleStyle(), new P.BodyStyle(), new P.OtherStyle()));
 
         var slideIdList = new P.SlideIdList();
         var slideParts = new SlidePart[artifact.Slides.Count];
+        // Authored source-free plans materialize element graphs lazily. Keep
+        // only the pages that carry modern comments so the source-free
+        // comment validator can resolve drawing monikers without retaining
+        // every materialized slide until package finalization.
+        var sourceFreeModernCommentSlides = artifact.Slides.ToArray();
         for (var slideIndex = 0; slideIndex < artifact.Slides.Count; slideIndex++)
         {
             var source = artifact.Slides[slideIndex];
@@ -2408,13 +2460,16 @@ internal static class PptxCodec
             .Select((part, index) => (Part: part, Id: artifact.Slides[index].Id))
             .ToDictionary(item => item.Id, item => item.Part, StringComparer.Ordinal);
         var customShowCatalog = PptxCustomShowCatalog.From(artifact.CustomShows);
-        var masterContext = new PptxPartContext(masterPart, slideIdByPartPath, slidePartById, assetCatalog, customShowCatalog);
-        PptxBackgroundCodec.Build(masterPart.SlideMaster.CommonSlideData!, authoredMaster?.Background, masterContext);
-        PptxMasterTextStylesCodec.Build(masterPart.SlideMaster, authoredMaster?.TextStyles, masterContext);
-        var masterShapeTree = masterPart.SlideMaster.CommonSlideData!.ShapeTree!;
-        foreach (var (placeholder, index) in (authoredMaster?.Placeholders ?? []).Select((placeholder, index) => (placeholder, index)))
-            masterShapeTree.Append(PptxPlaceholderCodec.Build(placeholder, checked((uint)(index + 2)), masterContext));
-        foreach (var (layout, layoutPart) in layoutEntries)
+        foreach (var (master, ownerPart, _, _) in masterEntries)
+        {
+            var masterContext = new PptxPartContext(ownerPart, slideIdByPartPath, slidePartById, assetCatalog, customShowCatalog);
+            PptxBackgroundCodec.Build(ownerPart.SlideMaster.CommonSlideData!, master.Background, masterContext);
+            PptxMasterTextStylesCodec.Build(ownerPart.SlideMaster, master.TextStyles, masterContext);
+            var masterShapeTree = ownerPart.SlideMaster.CommonSlideData!.ShapeTree!;
+            foreach (var (placeholder, index) in master.Placeholders.Select((placeholder, index) => (placeholder, index)))
+                masterShapeTree.Append(PptxPlaceholderCodec.Build(placeholder, checked((uint)(index + 2)), masterContext));
+        }
+        foreach (var (layout, layoutPart, _) in layoutEntries)
         {
             var layoutContext = new PptxPartContext(layoutPart, slideIdByPartPath, slidePartById, assetCatalog, customShowCatalog);
             var layoutCommon = layoutPart.SlideLayout!.CommonSlideData!;
@@ -2434,6 +2489,8 @@ internal static class PptxCodec
             var source = plan.MaterializeSlide(
                 slideIndex,
                 plan.RequiresPreviousSlide(slideIndex) ? previousSlide : null);
+            if (source.ModernComments.Count > 0)
+                sourceFreeModernCommentSlides[slideIndex] = source;
             validateSlide?.Invoke(slideIndex, source);
             var slidePart = slideParts[slideIndex];
             var slideCommon = slidePart.Slide!.CommonSlideData!;
@@ -2455,7 +2512,14 @@ internal static class PptxCodec
         }
         var notesMasterRelationshipId = PptxSpeakerNotesCodec.BuildSourceFree(presentationPart, themePart, slideParts, artifact.Slides);
         var presentationRoot = new P.Presentation();
-        presentationRoot.Append(new P.SlideMasterIdList(new P.SlideMasterId { Id = 2_147_483_648U, RelationshipId = "rIdMaster1" }));
+        var masterIdList = new P.SlideMasterIdList();
+        for (var masterIndex = 0; masterIndex < masterEntries.Count; masterIndex++)
+            masterIdList.Append(new P.SlideMasterId
+            {
+                Id = checked(2_147_483_648U + (uint)masterIndex),
+                RelationshipId = $"rIdMaster{masterIndex + 1}",
+            });
+        presentationRoot.Append(masterIdList);
         if (notesMasterRelationshipId is not null)
             presentationRoot.Append(new P.NotesMasterIdList(new P.NotesMasterId { Id = notesMasterRelationshipId }));
         presentationRoot.Append(
@@ -2483,10 +2547,14 @@ internal static class PptxCodec
         }
         presentationPart.Presentation = presentationRoot;
         PptxLegacyCommentsCodec.BuildSourceFree(presentationPart, slideParts, artifact.Slides);
-        PptxModernCommentsCodec.BuildSourceFree(presentationPart, slideIdList.Elements<P.SlideId>().ToArray(), slideParts, artifact.Slides);
-        themePart.Theme.Save();
-        foreach (var (_, layoutPart) in layoutEntries) layoutPart.SlideLayout!.Save();
-        masterPart.SlideMaster.Save();
+        PptxModernCommentsCodec.BuildSourceFree(
+            presentationPart,
+            slideIdList.Elements<P.SlideId>().ToArray(),
+            slideParts,
+            sourceFreeModernCommentSlides);
+        foreach (var (_, _, ownerTheme, _) in masterEntries) ownerTheme.Theme.Save();
+        foreach (var (_, layoutPart, _) in layoutEntries) layoutPart.SlideLayout!.Save();
+        foreach (var (_, ownerPart, _, _) in masterEntries) ownerPart.SlideMaster.Save();
         presentationPart.Presentation.Save();
     }
 
@@ -2643,7 +2711,7 @@ internal static class PptxCodec
             PresentationElement.ContentOneofCase.Image => PptxPictureCodec.Build(element, nativeIdsByElementId[element.Id], slideContext),
             PresentationElement.ContentOneofCase.Table => PptxTableCodec.Build(element, nativeIdsByElementId[element.Id], slideContext),
             PresentationElement.ContentOneofCase.Connector => PptxConnectorCodec.Build(element, nativeIdsByElementId[element.Id], nativeIdsByElementId),
-            PresentationElement.ContentOneofCase.Chart => PptxChartCodec.Build(element, nativeIdsByElementId[element.Id], slidePart),
+            PresentationElement.ContentOneofCase.Chart => PptxChartCodec.Build(element, nativeIdsByElementId[element.Id], slidePart, slideContext),
             PresentationElement.ContentOneofCase.Diagram => PptxSmartArtCodec.Build(element, nativeIdsByElementId[element.Id], slideContext, slidePart),
             PresentationElement.ContentOneofCase.Group => BuildGroup(element, nativeIdsByElementId, slideContext, slidePart, package),
             PresentationElement.ContentOneofCase.Media when package is not null =>
@@ -2719,6 +2787,10 @@ internal static class PptxCodec
         }
         var nonVisual = new P.NonVisualDrawingProperties { Id = nativeId, Name = source.Name };
         PptxNonVisualAccessibilityCodec.ApplyAuthored(nonVisual, semantic.Accessibility);
+        if (semantic.Action is not null)
+            PptxHyperlinkCodec.AppendElementAction(nonVisual, semantic.Action, slideContext);
+        if (semantic.HoverAction is not null)
+            PptxHyperlinkCodec.AppendElementHoverAction(nonVisual, semantic.HoverAction, slideContext);
         return new P.Shape(
             new P.NonVisualShapeProperties(
                 nonVisual,
@@ -2868,8 +2940,8 @@ internal static class PptxCodec
             ApplyShape(shape, requested, slideContext);
         else if (source is P.Picture picture && requested.ContentCase == PresentationElement.ContentOneofCase.Image && PptxPictureCodec.TryRead(picture, slideContext, out _))
             PptxPictureCodec.Apply(picture, requested, slideContext);
-        else if (source is P.GraphicFrame table && requested.ContentCase == PresentationElement.ContentOneofCase.Table && PptxTableCodec.TryRead(table, out _))
-            PptxTableCodec.Apply(table, requested);
+        else if (source is P.GraphicFrame table && requested.ContentCase == PresentationElement.ContentOneofCase.Table && PptxTableCodec.TryRead(table, slideContext, out _))
+            PptxTableCodec.Apply(table, requested, slideContext);
         else if (source is P.ConnectionShape connector && requested.ContentCase == PresentationElement.ContentOneofCase.Connector && PptxConnectorCodec.TryRead(connector, elementIdsByNativeId, out _))
             PptxConnectorCodec.Apply(connector, requested, nativeIdsByElementId);
         else if (source is P.GraphicFrame chart && requested.ContentCase == PresentationElement.ContentOneofCase.Chart && PptxChartCodec.TryRead(chart, slideContext, out _, out var chartEditable) && chartEditable)
@@ -3094,6 +3166,27 @@ internal static class PptxCodec
         if (element.ContentCase == PresentationElement.ContentOneofCase.Group)
         {
             foreach (var child in element.Group.Children) NormalizeSemanticForHash(child);
+            return;
+        }
+        if (element.ContentCase == PresentationElement.ContentOneofCase.Table)
+        {
+            // A direct tab-stop delete is represented in PPJ as the explicit
+            // noTabStops edit intent, while DrawingML represents the result
+            // simply by omitting a:tabLst. Normalize the table-cell text body
+            // through the same semantic rule used by ordinary text shapes so
+            // post-write validation treats those two forms as equivalent.
+            foreach (var cell in element.Table.Rows.SelectMany(row => row.Cells))
+            {
+                if (cell.TextBody is null) continue;
+                var text = new PresentationShape
+                {
+                    Text = cell.Text,
+                    TextBody = cell.TextBody.Clone(),
+                };
+                PptxTextCodec.NormalizeSemantics(text);
+                cell.Text = text.Text;
+                cell.TextBody = text.TextBody;
+            }
             return;
         }
         if (element.ContentCase == PresentationElement.ContentOneofCase.Chart)
@@ -3421,7 +3514,15 @@ internal static class PptxCodec
             PptxConnectorCodec.Validate(element.Connector, element.Id, element.Name);
         else if (element.ContentCase == PresentationElement.ContentOneofCase.Chart)
         {
-            PptxChartCodec.Validate(element.Chart, element.Id, element.Name);
+            // Imported source-bound charts may expose a bounded local
+            // worksheet formula reference.  Source-free authoring remains
+            // literal-only; the chart codec validates the formula profile
+            // before allowing this narrow source-bound exception.
+            PptxChartCodec.Validate(
+                element.Chart,
+                element.Id,
+                element.Name,
+                allowFormulas: hasSourcePackage && element.Source?.Editable == true);
             items += checked((ulong)(
                 element.Chart.Series.Sum(series => series.Values.Count) +
                 element.Chart.ComboSeries.Sum(entry => entry.Series?.Values.Count ?? 0)));
@@ -3553,7 +3654,13 @@ internal static class PptxCodec
         var unexpected = changed.Where(path => !allowedPaths.Contains(path)).Take(8).ToArray();
         if (unexpected.Length > 0)
             throw new CodecException("presentation_unowned_part_changed", $"Source-preserving PPTX export changed unowned package parts: {string.Join(", ", unexpected)}.");
-        return changed.Order(StringComparer.OrdinalIgnoreCase).ToArray();
+        // Include owned package additions in the receipt.  An image/SVG
+        // replacement changes its slide relationship and creates a new media
+        // part; both are part of the observable source-bound package delta.
+        var added = after.Keys.Except(before.Keys, StringComparer.OrdinalIgnoreCase)
+            .Where(path => allowedPaths.Contains(path));
+        return changed.Concat(added).Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
     private static void AssertOpaqueGraphMatchesWithModeledAdditions(
@@ -3566,6 +3673,13 @@ internal static class PptxCodec
         IReadOnlySet<string> removedSourceRelationshipKeys)
     {
         var guarded = actual.Clone();
+        var modeledRelationshipPartPaths = allowedAddedRelationshipIds
+            .Concat(removedSourceRelationshipKeys)
+            .Select(key => key.IndexOf('\0') is var separator && separator > 0
+                ? RelationshipPartPathFor(key[..separator])
+                : string.Empty)
+            .Where(path => path.Length > 0)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var removed = new HashSet<string>(StringComparer.Ordinal);
         foreach (var relationship in guarded.PackageRelationships.ToArray())
         {
@@ -3589,10 +3703,17 @@ internal static class PptxCodec
         {
             var before = expected.Parts.SingleOrDefault(part => part.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
             var after = guarded.Parts.SingleOrDefault(part => part.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
+            var expectedRelationships = before?.Relationships
+                .Where(relationship => !removedSourceRelationshipKeys.Contains($"{relationship.SourcePath}\0{relationship.Id}"))
+                .ToArray();
+            var actualRelationships = after?.Relationships
+                .Where(relationship => !allowedAddedRelationshipIds.Contains($"{relationship.SourcePath}\0{relationship.Id}"))
+                .ToArray();
             if (before is null || after is null ||
                 !before.ContentType.Equals(after.ContentType, StringComparison.OrdinalIgnoreCase) ||
                 !after.Sha256.Equals(requestedHash, StringComparison.OrdinalIgnoreCase) ||
-                !before.Relationships.SequenceEqual(after.Relationships))
+                !(expectedRelationships ?? []).Select(OpaqueRelationshipSignature)
+                    .SequenceEqual((actualRelationships ?? []).Select(OpaqueRelationshipSignature), StringComparer.Ordinal))
                 throw new CodecException("opaque_content_not_preserved", $"Modeled PPTX OLE workbook replacement did not preserve the package contract for {path}.", path);
         }
         PackageGuards.AssertOpaqueGraphMatches(
@@ -3602,7 +3723,20 @@ internal static class PptxCodec
             ignoreRelationship: relationship =>
                 removedSourcePartPaths.Contains(relationship.SourcePath) ||
                 removedSourceRelationshipKeys.Contains($"{relationship.SourcePath}\0{relationship.Id}"),
-            ignorePart: part => allowedChangedPartHashes.ContainsKey(part.Path) || removedSourcePartPaths.Contains(part.Path));
+            ignorePart: part => allowedChangedPartHashes.ContainsKey(part.Path) ||
+                modeledRelationshipPartPaths.Contains(part.Path) ||
+                removedSourcePartPaths.Contains(part.Path));
+    }
+
+    private static string OpaqueRelationshipSignature(OpaqueOpcRelationship relationship) =>
+        $"{relationship.SourcePath}\0{relationship.Id}\0{relationship.Type}\0{relationship.Target}\0{relationship.TargetMode}";
+
+    private static string RelationshipPartPathFor(string ownerPath)
+    {
+        var separator = ownerPath.LastIndexOf('/');
+        var directory = separator < 0 ? string.Empty : ownerPath[..separator];
+        var fileName = separator < 0 ? ownerPath : ownerPath[(separator + 1)..];
+        return directory.Length == 0 ? $"_rels/{fileName}.rels" : $"{directory}/_rels/{fileName}.rels";
     }
 
     private static void AssertPlannedPartsRemoved(byte[] sourceBytes, byte[] outputBytes, IReadOnlySet<string> removedPartPaths)
@@ -4033,7 +4167,7 @@ internal static class PptxCodec
                 {
                     if (beforeElement is not P.GraphicFrame beforeTable || afterElement is not P.GraphicFrame afterTable)
                         throw new CodecException("presentation_postwrite_element_mismatch", $"PPTX slide {slideIndex + 1} edited table {elementIndex + 1} changed native element type.", PartPath(outputSlides[slideIndex]));
-                    if (!TableResidualHash(beforeTable).Equals(TableResidualHash(afterTable), StringComparison.OrdinalIgnoreCase))
+                    if (!TableResidualHash(beforeTable, sourceContext).Equals(TableResidualHash(afterTable, outputContext), StringComparison.OrdinalIgnoreCase))
                         throw new CodecException(
                             "presentation_unmodeled_table_content_changed",
                             $"PPTX slide {slideIndex + 1} edited table {elementIndex + 1} changed unmodeled native content.",
@@ -4210,7 +4344,7 @@ internal static class PptxCodec
             else if (child.ContentCase == PresentationElement.ContentOneofCase.Table)
             {
                 if (beforeChild is not P.GraphicFrame beforeTable || afterChild is not P.GraphicFrame afterTable ||
-                    !TableResidualHash(beforeTable).Equals(TableResidualHash(afterTable), StringComparison.OrdinalIgnoreCase))
+                    !TableResidualHash(beforeTable, sourceContext).Equals(TableResidualHash(afterTable, outputContext), StringComparison.OrdinalIgnoreCase))
                     throw new CodecException("presentation_unmodeled_table_content_changed", $"PPTX slide {slideIndex + 1} {location} child table {index + 1} changed unmodeled content.", PartPath(outputContext.Owner));
             }
             else if (child.ContentCase == PresentationElement.ContentOneofCase.Connector)
@@ -4994,11 +5128,20 @@ internal static class PptxCodec
     {
         if (context.RelationshipsChanged)
         {
-            changedParts.Add(RelationshipPartPath(owner));
-            foreach (var id in context.AddedRelationshipIds)
-                addedRelationshipIds.Add($"{PartPath(owner)}\0{id}");
-            foreach (var id in context.RemovedRelationshipIds)
-                removedRelationshipKeys.Add($"{PartPath(owner)}\0{id}");
+            foreach (var key in context.AddedRelationshipKeys)
+            {
+                var separator = key.IndexOf('\0');
+                if (separator <= 0 || separator == key.Length - 1) continue;
+                addedRelationshipIds.Add(key);
+                changedParts.Add(RelationshipPartPathFor(key[..separator]));
+            }
+            foreach (var key in context.RemovedRelationshipKeys)
+            {
+                var separator = key.IndexOf('\0');
+                if (separator <= 0 || separator == key.Length - 1) continue;
+                removedRelationshipKeys.Add(key);
+                changedParts.Add(RelationshipPartPathFor(key[..separator]));
+            }
         }
         foreach (var path in context.AddedPartPaths)
         {
@@ -5019,15 +5162,24 @@ internal static class PptxCodec
         var shape = (P.Shape)source.CloneNode(true);
         PptxElementStateCodec.ScrubModeledContent(shape);
         PptxNonVisualAccessibilityCodec.ScrubModeledContent(shape.NonVisualShapeProperties?.NonVisualDrawingProperties);
+        PptxHyperlinkCodec.ScrubElementAction(shape.NonVisualShapeProperties?.NonVisualDrawingProperties, slideContext);
+        PptxHyperlinkCodec.ScrubElementHoverAction(shape.NonVisualShapeProperties?.NonVisualDrawingProperties, slideContext);
         if (shape.NonVisualShapeProperties?.NonVisualDrawingProperties is { } nonVisual) nonVisual.Name = string.Empty;
         if (shape.NonVisualShapeProperties?.NonVisualShapeDrawingProperties is { } drawingProperties) drawingProperties.TextBox = null;
         if (shape.ShapeProperties is { } properties)
         {
+            var placeholderShape = shape.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.GetFirstChild<P.PlaceholderShape>() is not null;
             if (properties.Transform2D is { } transform)
             {
                 if (transform.Offset is { } offset) { offset.X = 0L; offset.Y = 0L; }
                 if (transform.Extents is { } extents) { extents.Cx = 1L; extents.Cy = 1L; }
                 PptxShapeTransformCodec.Scrub(transform);
+                // Adding the first owner-local a:xfrm is the bounded
+                // materialization operation for an inherited slide
+                // placeholder.  The frame itself is modeled separately, so
+                // normalize transform presence in the residual hash while
+                // keeping every non-placeholder topology change visible.
+                if (placeholderShape) transform.Remove();
             }
             properties.GetFirstChild<A.CustomGeometry>()?.Remove();
             if (properties.GetFirstChild<A.PresetGeometry>() is { } geometry)
@@ -5077,11 +5229,11 @@ internal static class PptxCodec
         return HashElement(picture);
     }
 
-    private static string TableResidualHash(P.GraphicFrame source)
+    private static string TableResidualHash(P.GraphicFrame source, PptxPartContext? context = null)
     {
         var table = (P.GraphicFrame)source.CloneNode(true);
         PptxElementStateCodec.ScrubModeledContent(table);
-        PptxTableCodec.ScrubModeledContent(table);
+        PptxTableCodec.ScrubModeledContent(table, context);
         return HashElement(table);
     }
 

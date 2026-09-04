@@ -12,9 +12,11 @@ internal static class PpjSemanticValidator
         new Dictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal)
         {
             ["replaceText"] = Set("text", "visibleText"),
+            ["setTextParagraphStyle"] = Set("textStyles", "text.paragraphs[].style.alignment", "text.paragraphs[].style.tabStops"),
             ["setFill"] = Set("fill"),
             ["setStroke"] = Set("stroke"),
             ["setLinePath"] = Set("line.path"),
+            ["setTextBodyStyle"] = Set("text.style", "textStyle"),
             ["setShapeEffects"] = Set("shape.shadow"),
             ["setOpacity"] = Set("opacity"),
             ["setFrame"] = Set("frame.x", "frame.y", "frame.width", "frame.height", "frame.rotation", "frame.flipH", "frame.flipV"),
@@ -27,7 +29,7 @@ internal static class PpjSemanticValidator
             ["replaceSvg"] = Set("image.svgAsset"),
             ["setImageCrop"] = Set("image.crop"),
             ["setImageFit"] = Set("image.fit"),
-            ["setImageMask"] = Set("image.mask.adjustments", "image.mask.paths"),
+            ["setImageMask"] = Set("image.mask.preset", "image.mask.adjustments", "image.mask.paths"),
             ["setImageEffects"] = Set("image.border", "image.shadow"),
             ["setTableStyle"] = Set("table.style"),
             ["setTableGeometry"] = Set("table.geometry"),
@@ -36,13 +38,18 @@ internal static class PpjSemanticValidator
             ["setChartData"] = Set("chart.data"),
             ["setChartTextStyle"] = Set("chart.textStyle"),
             ["setChartFill"] = Set("chart.fill"),
+            ["setChartSeriesStyle"] = Set("chart.data.series[].stroke", "chart.data.series[].marker"),
+            ["setChartSeriesAnalytics"] = Set("chart.data.series[].trendlines", "chart.data.series[].errorBars"),
             ["setChartFrame"] = Set("chart.frame"),
             ["setChartLabels"] = Set("chart.labels"),
             ["setChartAxis"] = Set("chart.axis"),
             ["setChartPlot"] = Set("chart.plot"),
             ["setAction"] = Set("action"),
             ["setHoverAction"] = Set("hoverAction"),
+            ["setCommentStatus"] = Set("status", "resolved"),
             ["setSmartArtText"] = Set("smartArt.text"),
+            ["setSmartArtImage"] = Set("smartArt.nodes[].asset"),
+            ["setSmartArtImagePaint"] = Set("smartArt.nodes[].image"),
             ["setOlePayload"] = Set("ole.payload"),
             ["setName"] = Set("name"),
             ["setPages"] = Set("pages"),
@@ -116,7 +123,12 @@ internal static class PpjSemanticValidator
                 globalElementIds,
                 diagnostics);
             pageElements[page.Id] = localElements;
-            ValidateReadingOrder(page, pagePath, diagnostics);
+            // A source-bound page may still carry the previous direct-order
+            // permutation while the request omits a source element for a
+            // capability-issued deletion.  The source compiler filters that
+            // proven stale ID against the exact baseline; source-free PPJ
+            // remains strict and must provide a complete permutation.
+            ValidateReadingOrder(page, pagePath, program.Source is not null, diagnostics);
 
             foreach (var (element, path) in WalkElements(page.Elements, $"{pagePath}.elements"))
                 ValidateElement(element, path, program, components, assetIds, localElements, inComponent: false, diagnostics);
@@ -201,18 +213,35 @@ internal static class PpjSemanticValidator
     private static void ValidateReadingOrder(
         PpjPageModel page,
         string path,
+        bool sourceBound,
         List<PpjDiagnostic> diagnostics)
     {
-        if (page.ReadingOrder.Count == 0) return;
-        var directIds = page.Elements.Select(element => element.Id).ToArray();
+        ValidateReadingOrder(page.Elements, page.ReadingOrder, path, sourceBound, diagnostics);
+    }
+
+    private static void ValidateReadingOrder(
+        IReadOnlyList<PpjElementModel> elements,
+        IReadOnlyList<string> readingOrder,
+        string path,
+        bool sourceBound,
+        List<PpjDiagnostic> diagnostics)
+    {
+        if (readingOrder.Count == 0) return;
+        var directIds = elements.Select(element => element.Id).ToArray();
         var expected = directIds.ToHashSet(StringComparer.Ordinal);
-        var actual = page.ReadingOrder.ToHashSet(StringComparer.Ordinal);
-        if (page.ReadingOrder.Count != directIds.Length || actual.Count != page.ReadingOrder.Count ||
-            !expected.SetEquals(actual))
+        var actual = readingOrder.ToHashSet(StringComparer.Ordinal);
+        // Source-bound requests can be based on a projection made before a
+        // capability-issued deletion or append.  The compiler re-proves
+        // those stale/missing IDs against the exact source page; the syntax
+        // validator only rejects duplicate entries here.  Source-free PPJ
+        // has no such baseline and therefore stays a strict permutation.
+        var invalid = actual.Count != readingOrder.Count ||
+            (sourceBound ? false : !expected.SetEquals(actual));
+        if (invalid)
         {
             diagnostics.Add(new(
                 "ppj.accessibility.readingOrder",
-                "readingOrder must be a complete permutation of the page's direct element IDs; it is not inferred from z-order or nested component expansion.",
+                "readingOrder must be a complete permutation of the owning container's direct element IDs; it is not inferred from z-order or nested component expansion.",
                 path + ".readingOrder"));
         }
     }
@@ -230,7 +259,7 @@ internal static class PpjSemanticValidator
             ValidateTextStyleLevels(master.TitleTextLevels, path + ".textStyles.title", diagnostics);
             ValidateTextStyleLevels(master.BodyTextLevels, path + ".textStyles.body", diagnostics);
             ValidateTextStyleLevels(master.OtherTextLevels, path + ".textStyles.other", diagnostics);
-            ValidateLayoutPlaceholders(master.Placeholders, path + ".placeholders", diagnostics);
+            ValidateLayoutPlaceholders(master.Placeholders, path + ".placeholders", program.Source, diagnostics);
         }
 
         for (var layoutIndex = 0; layoutIndex < program.Design.Layouts.Count; layoutIndex++)
@@ -242,7 +271,7 @@ internal static class PpjSemanticValidator
                     "ppj.layout.master",
                     $"Layout {layout.Id} references missing master {layout.MasterId}.",
                     path + ".master"));
-            ValidateLayoutPlaceholders(layout.Placeholders, path + ".placeholders", diagnostics);
+            ValidateLayoutPlaceholders(layout.Placeholders, path + ".placeholders", program.Source, diagnostics);
         }
 
         for (var pageIndex = 0; pageIndex < program.Pages.Count; pageIndex++)
@@ -400,6 +429,7 @@ internal static class PpjSemanticValidator
     private static void ValidateLayoutPlaceholders(
         IReadOnlyList<PpjLayoutPlaceholderModel> placeholders,
         string path,
+        PpjSourceModel? source,
         List<PpjDiagnostic> diagnostics)
     {
         var ids = new HashSet<string>(StringComparer.Ordinal);
@@ -407,6 +437,7 @@ internal static class PpjSemanticValidator
         for (var index = 0; index < placeholders.Count; index++)
         {
             var placeholder = placeholders[index];
+            ValidateNativeRef(placeholder.NativeRef, source, $"{path}[{index}].nativeRef", diagnostics);
             if (!ids.Add(placeholder.Id))
                 diagnostics.Add(new(
                     "ppj.placeholder.id",
@@ -664,7 +695,8 @@ internal static class PpjSemanticValidator
                 break;
             case PpjImageElementModel image:
                 ValidateAssetRef(image.AssetId, assetIds, $"{path}.asset", diagnostics);
-                ValidateImageFocus(image.Raw, image.Fit, path, diagnostics);
+                ValidateStyleRef(image.StyleRef, program.Design.ImageStyleIds, $"{path}.styleRef", diagnostics);
+                ValidateImageFocus(image.Raw, ResolveImageFit(program.Root, image.Raw, image.Fit, path, diagnostics), path, diagnostics);
                 if (image.SvgAssetId is not null)
                 {
                     ValidateAssetRef(image.SvgAssetId, assetIds, $"{path}.svgAsset", diagnostics);
@@ -690,6 +722,14 @@ internal static class PpjSemanticValidator
             case PpjConnectorElementModel connector:
                 ValidateConnectorEndpoint(connector.From, localElements, $"{path}.from", diagnostics);
                 ValidateConnectorEndpoint(connector.To, localElements, $"{path}.to", diagnostics);
+                break;
+            case PpjGroupElementModel group:
+                // Unlike a page, a group cannot append a topmost authored
+                // overlay to a source-owned child tree.  Its explicit order
+                // therefore has to name every direct child even in a
+                // source-bound request; the compiler will still re-prove
+                // each child's native reorder capability.
+                ValidateReadingOrder(group.Elements, group.ReadingOrder, path, sourceBound: false, diagnostics);
                 break;
             case PpjMediaElementModel media:
                 ValidateAssetRef(media.AssetId, assetIds, $"{path}.asset", diagnostics);
@@ -894,6 +934,17 @@ internal static class PpjSemanticValidator
                 diagnostics.Add(new("ppj.chart.levelsType", "levels applies only to treemap and sunburst charts.", $"{seriesPath}.levels"));
             if (chart.ChartType == "combo" && string.IsNullOrEmpty(series.ChartType))
                 diagnostics.Add(new("ppj.chart.comboSeriesType", "Every combo-chart series requires chartType.", $"{seriesPath}.chartType"));
+            var xAxisIndex = series.XAxisIndex;
+            var yAxisIndex = series.YAxisIndex;
+            if (xAxisIndex is not null || yAxisIndex is not null)
+            {
+                if (chart.ChartType != "combo")
+                    diagnostics.Add(new("ppj.chart.axisIndexType", "xAxisIndex and yAxisIndex apply only to combo charts.", seriesPath));
+                if (xAxisIndex is < 0 or > 1 || yAxisIndex is < 0 or > 1)
+                    diagnostics.Add(new("ppj.chart.axisIndexRange", "Combo axis indexes are bounded to primary (0) and secondary (1) axes.", seriesPath));
+                if (series.Axis == "primary" && (xAxisIndex == 1 || yAxisIndex == 1))
+                    diagnostics.Add(new("ppj.chart.axisIndexConflict", "A primary axis series cannot carry a secondary xAxisIndex or yAxisIndex.", seriesPath));
+            }
             if (chart.ChartType != "combo" && series.ChartType is not null)
             {
                 var validCandlestickOverlay = chart.ChartType == "candlestick" && index > 0 &&
@@ -1050,6 +1101,7 @@ internal static class PpjSemanticValidator
         }
         if (chart.Raw.TryGetProperty("style", out style) &&
             style.TryGetProperty("stacking", out var stacking) &&
+            stacking.ValueKind == JsonValueKind.String &&
             stacking.GetString() == "stream")
         {
             if (chart.ChartType != "area")
@@ -1093,7 +1145,7 @@ internal static class PpjSemanticValidator
         }
 
         if (labels.TryGetProperty("showPercent", out var seriesPercent) &&
-            seriesPercent.GetBoolean() && nativeType is not ("pie" or "doughnut"))
+            seriesPercent.ValueKind == JsonValueKind.True && nativeType is not ("pie" or "doughnut"))
             diagnostics.Add(new(
                 "ppj.chart.seriesDataLabelPercent",
                 "Percentage labels require a pie or doughnut series.",
@@ -1122,7 +1174,7 @@ internal static class PpjSemanticValidator
                     "A missing chart point cannot carry a label override.",
                     pointPath + ".index"));
             if (point.TryGetProperty("showPercent", out var pointPercent) &&
-                pointPercent.GetBoolean() && nativeType is not ("pie" or "doughnut"))
+                pointPercent.ValueKind == JsonValueKind.True && nativeType is not ("pie" or "doughnut"))
                 diagnostics.Add(new(
                     "ppj.chart.dataLabelPointPercent",
                     "Percentage labels require a pie or doughnut series.",
@@ -1203,7 +1255,11 @@ internal static class PpjSemanticValidator
 
         if (spokeAxis.TryGetProperty("min", out var minimum) &&
             spokeAxis.TryGetProperty("max", out var maximum) &&
-            minimum.GetDouble() >= maximum.GetDouble())
+            minimum.ValueKind == JsonValueKind.Number &&
+            maximum.ValueKind == JsonValueKind.Number &&
+            minimum.TryGetDouble(out var minimumValue) &&
+            maximum.TryGetDouble(out var maximumValue) &&
+            minimumValue >= maximumValue)
             diagnostics.Add(new(
                 "ppj.chart.spokeAxisDomain",
                 "Radar spokeAxis minimum must be smaller than maximum.",
@@ -1546,12 +1602,14 @@ internal static class PpjSemanticValidator
                         "ppj.chart.numericComboStyleField",
                         $"{property.Name} is not part of the bounded numeric combo style profile.",
                         path + ".style." + property.Name));
-        if (style.ValueKind == JsonValueKind.Object && style.TryGetProperty("legend", out var legend) && legend.GetString() is not ("none" or "right"))
+        if (style.ValueKind == JsonValueKind.Object && style.TryGetProperty("legend", out var legend) &&
+            legend.ValueKind == JsonValueKind.String && legend.GetString() is not ("none" or "right"))
             diagnostics.Add(new(
                 "ppj.chart.numericComboLegend",
                 "Numeric combo legends support only none or right.",
                 path + ".style.legend"));
-        if (style.ValueKind == JsonValueKind.Object && style.TryGetProperty("bubbleScale", out var bubbleScale) && bubbleScale.GetInt32() < 10)
+        if (style.ValueKind == JsonValueKind.Object && style.TryGetProperty("bubbleScale", out var bubbleScale) &&
+            bubbleScale.ValueKind == JsonValueKind.Number && bubbleScale.GetInt32() < 10)
             diagnostics.Add(new(
                 "ppj.chart.numericComboBubbleScale",
                 "Generated numeric combo bubbles require bubbleScale between 10 and 300.",
@@ -1561,8 +1619,8 @@ internal static class PpjSemanticValidator
         ValidateNumericVectorAxis(chart.Raw, "yAxis", path, diagnostics);
         var requiresZero = chart.Data.Series.Any(series => series.ChartType is "area" or "column");
         if (requiresZero && chart.Raw.TryGetProperty("yAxis", out var yAxis) &&
-            (yAxis.TryGetProperty("min", out var minimum) && minimum.GetDouble() > 0 ||
-             yAxis.TryGetProperty("max", out var maximum) && maximum.GetDouble() < 0))
+            (yAxis.TryGetProperty("min", out var minimum) && minimum.ValueKind == JsonValueKind.Number && minimum.GetDouble() > 0 ||
+             yAxis.TryGetProperty("max", out var maximum) && maximum.ValueKind == JsonValueKind.Number && maximum.GetDouble() < 0))
             diagnostics.Add(new(
                 "ppj.chart.numericComboBaseline",
                 "Area and column overlays require zero inside the explicit Y domain.",
@@ -1582,12 +1640,20 @@ internal static class PpjSemanticValidator
                     "ppj.chart.numericComboAxisField",
                     $"{property.Name} is not supported by a generated numeric axis.",
                     $"{path}.{axisName}.{property.Name}"));
-        if (axis.TryGetProperty("numberFormat", out var numberFormat) &&
-            !VectorChartNumberFormats.Contains(numberFormat.GetString()!, StringComparer.Ordinal))
-            diagnostics.Add(new(
-                "ppj.chart.numericComboNumberFormat",
-                $"Generated numeric axes support {string.Join(", ", VectorChartNumberFormats)}.",
-                $"{path}.{axisName}.numberFormat"));
+        if (axis.TryGetProperty("numberFormat", out var numberFormat))
+        {
+            if (numberFormat.ValueKind == JsonValueKind.Object && numberFormat.TryGetProperty("token", out _))
+                diagnostics.Add(new(
+                    "ppj.chart.numericComboNumberFormat",
+                    "Generated numeric axes require a literal number format; grammar tokens are supported only by native ChartPart axes.",
+                    $"{path}.{axisName}.numberFormat"));
+            else if (numberFormat.ValueKind != JsonValueKind.String ||
+                     !VectorChartNumberFormats.Contains(numberFormat.GetString()!, StringComparer.Ordinal))
+                diagnostics.Add(new(
+                    "ppj.chart.numericComboNumberFormat",
+                    $"Generated numeric axes support {string.Join(", ", VectorChartNumberFormats)}.",
+                    $"{path}.{axisName}.numberFormat"));
+        }
     }
 
     private static void ValidateHeatmap(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)
@@ -2409,7 +2475,8 @@ internal static class PpjSemanticValidator
                     "ppj.chart.waterfallStyleField",
                     $"{property} is not part of the bounded waterfall style profile.",
                     $"{path}.style.{property}"));
-        if (style.TryGetProperty("legend", out var legend) && legend.GetString() != "none")
+        if (style.TryGetProperty("legend", out var legend) &&
+            legend.ValueKind == JsonValueKind.String && legend.GetString() != "none")
             diagnostics.Add(new(
                 "ppj.chart.waterfallLegend",
                 "Waterfall charts do not expose the internal lowering series through a legend.",
@@ -2466,7 +2533,16 @@ internal static class PpjSemanticValidator
         if (!chart.TryGetProperty(property, out var axis) ||
             !axis.TryGetProperty("min", out var minimum) ||
             !axis.TryGetProperty("max", out var maximum)) return;
-        if (minimum.GetDouble() >= maximum.GetDouble())
+        // Grammar token references are resolved by the authored/source-bound
+        // compiler after schema and token-kind validation.  The semantic
+        // validator cannot compare their values without duplicating the
+        // compiler's precedence rules, so it only performs this early check
+        // for literal numeric bounds.
+        if (minimum.ValueKind == JsonValueKind.Number &&
+            maximum.ValueKind == JsonValueKind.Number &&
+            minimum.TryGetDouble(out var minimumValue) &&
+            maximum.TryGetDouble(out var maximumValue) &&
+            minimumValue >= maximumValue)
             diagnostics.Add(new(
                 "ppj.chart.axisBounds",
                 "Axis min must be less than max.",
@@ -2697,7 +2773,7 @@ internal static class PpjSemanticValidator
                     }
                     else
                     {
-                        ValidateImageSlotPolicy(image, slot.ImagePolicy, program.Assets, $"{path}.slots.{supplied.Key}[{index}]", diagnostics);
+                        ValidateImageSlotPolicy(image, slot.ImagePolicy, program.Root, program.Assets, $"{path}.slots.{supplied.Key}[{index}]", diagnostics);
                     }
                 }
             }
@@ -2745,12 +2821,14 @@ internal static class PpjSemanticValidator
     private static void ValidateImageSlotPolicy(
         PpjImageElementModel image,
         PpjImageSlotPolicyModel policy,
+        JsonElement root,
         IReadOnlyList<PpjAssetModel> assets,
         string path,
         List<PpjDiagnostic> diagnostics)
     {
-        if (policy.AllowedFit.Count > 0 && !policy.AllowedFit.Contains(image.Fit ?? "contain", StringComparer.Ordinal))
-            diagnostics.Add(new("ppj.component.imageFit", $"Image fit {image.Fit ?? "contain"} is not allowed by slot policy {policy.Role}.", $"{path}.fit"));
+        var fit = ResolveImageFit(root, image.Raw, image.Fit, path, diagnostics) ?? "contain";
+        if (policy.AllowedFit.Count > 0 && !policy.AllowedFit.Contains(fit, StringComparer.Ordinal))
+            diagnostics.Add(new("ppj.component.imageFit", $"Image fit {fit} is not allowed by slot policy {policy.Role}.", $"{path}.fit"));
         var mask = image.MaskKind switch
         {
             "preset" => image.MaskPreset ?? "none",
@@ -2807,6 +2885,47 @@ internal static class PpjSemanticValidator
                 "Image focal point x and y must be finite normalized values between 0 and 1.",
                 path + ".focus"));
         }
+    }
+
+    private static string? ResolveImageFit(
+        JsonElement root,
+        JsonElement raw,
+        string? literalFit,
+        string path,
+        List<PpjDiagnostic> diagnostics)
+    {
+        if (literalFit is not null || !raw.TryGetProperty("fit", out var fit)) return literalFit;
+        if (fit.ValueKind != JsonValueKind.Object ||
+            !fit.TryGetProperty("token", out var tokenValue) ||
+            tokenValue.ValueKind != JsonValueKind.String)
+            return literalFit;
+        var token = tokenValue.GetString()!;
+        var tokens = root.GetProperty("design").TryGetProperty("grammar", out var grammar) &&
+            grammar.TryGetProperty("tokens", out var tokenMap) &&
+            tokenMap.ValueKind == JsonValueKind.Object
+            ? tokenMap
+            : default;
+        if (tokens.ValueKind != JsonValueKind.Object || !tokens.TryGetProperty(token, out var definition))
+        {
+            diagnostics.Add(new("ppj.grammar.tokenUnknown", $"PPJ grammar token {token} for image fit is not declared.", $"{path}.fit"));
+            return null;
+        }
+        if (definition.ValueKind != JsonValueKind.Object ||
+            !definition.TryGetProperty("kind", out var kind) ||
+            !string.Equals(kind.GetString(), "string", StringComparison.Ordinal))
+        {
+            diagnostics.Add(new("ppj.grammar.tokenKind", $"PPJ grammar token {token} for image fit must declare kind string.", $"{path}.fit"));
+            return null;
+        }
+        if (!definition.TryGetProperty("value", out var value) || value.ValueKind != JsonValueKind.String)
+        {
+            diagnostics.Add(new("ppj.grammar.tokenValue", $"PPJ grammar token {token} for image fit must resolve to a string.", $"{path}.fit"));
+            return null;
+        }
+        var resolved = value.GetString();
+        if (resolved is not ("cover" or "contain" or "stretch" or "tile" or "none"))
+            diagnostics.Add(new("ppj.image.fit", $"Image fit {resolved ?? "(empty)"} is outside the bounded profile.", $"{path}.fit"));
+        return resolved;
     }
 
     private static void ValidateRequiredArguments(
@@ -2934,6 +3053,28 @@ internal static class PpjSemanticValidator
         }
         if (expandedTimingNodes > 64)
             diagnostics.Add(new("ppj.animation.timingBudget", $"Page expands to {expandedTimingNodes} timing nodes; the limit is 64.", $"{pagePath}.animations"));
+
+        // The compact animation array accepts the same explicit trigger sugar
+        // as timingGraph.  Keep `start` authoritative for `timeline`, but do
+        // not let a mismatched trigger silently change the native schedule.
+        if (page.Raw.TryGetProperty("animations", out var rawAnimations))
+        {
+            for (var index = 0; index < rawAnimations.GetArrayLength(); index++)
+            {
+                var animation = rawAnimations[index];
+                var path = $"{pagePath}.animations[{index}]";
+                if (!animation.TryGetProperty("trigger", out var trigger)) continue;
+                var triggerValue = trigger.GetString();
+                if (triggerValue is not (null or "timeline" or "onClick" or "afterPrevious" or "withPrevious"))
+                    diagnostics.Add(new("ppj.animation.triggerUnsupported", "The animation trigger is outside the bounded click/previous profile.", path + ".trigger"));
+                else if (triggerValue is not null and not "timeline" &&
+                         triggerValue != animation.GetProperty("start").GetString())
+                    diagnostics.Add(new(
+                        "ppj.animation.triggerMismatch",
+                        "A non-timeline animation trigger must agree with the node start condition; use trigger=timeline to retain start as the source of truth.",
+                        path + ".trigger"));
+            }
+        }
     }
 
     private static void ValidateTimingGraph(JsonElement page, string pagePath, List<PpjDiagnostic> diagnostics)
@@ -2970,6 +3111,7 @@ internal static class PpjSemanticValidator
         chart.ChartType == "area" &&
         chart.Raw.TryGetProperty("style", out var style) &&
         style.TryGetProperty("stacking", out var stacking) &&
+        stacking.ValueKind == JsonValueKind.String &&
         stacking.GetString() == "stream";
 
     private static bool IsInlineSizedBubble(PpjChartElementModel chart) =>
@@ -3102,12 +3244,51 @@ internal static class PpjSemanticValidator
         {
             var comment = program.Comments[index];
             var path = $"$.comments[{index}]";
+            if (comment.Kind is not ("legacy" or "modern"))
+                diagnostics.Add(new("ppj.comment.kind", $"Comment kind {comment.Kind} is outside the bounded legacy/modern profile.", $"{path}.kind"));
+            if (comment.Kind == "legacy" && comment.Status is not null)
+                diagnostics.Add(new("ppj.comment.status", "Legacy comments cannot carry a modern status.", $"{path}.status"));
+            if (comment.Kind == "modern")
+            {
+                if (comment.Status is not ("active" or "resolved" or "closed"))
+                    diagnostics.Add(new("ppj.comment.status", "Modern comments require active, resolved, or closed status.", $"{path}.status"));
+                else if (comment.Resolved != !comment.Status.Equals("active", StringComparison.Ordinal))
+                    diagnostics.Add(new("ppj.comment.statusMismatch", "Modern comment resolved must agree with status (active=false; resolved/closed=true).", path));
+                if (comment.ParentId is null)
+                {
+                    if (comment.TargetId is null)
+                        diagnostics.Add(new("ppj.comment.target", "A modern root comment requires an element target.", $"{path}.target"));
+                    if (!comment.Raw.TryGetProperty("anchor", out var anchor) || anchor.ValueKind != JsonValueKind.Object)
+                    {
+                        diagnostics.Add(new("ppj.comment.anchor", "A modern root comment requires an anchor.", $"{path}.anchor"));
+                    }
+                    else
+                    {
+                        var anchorKind = anchor.TryGetProperty("kind", out var kind) ? kind.GetString() : null;
+                        var hasRange = anchor.TryGetProperty("textStart", out _) || anchor.TryGetProperty("textLength", out _);
+                        if (anchorKind == "textRange" && (!anchor.TryGetProperty("textStart", out _) || !anchor.TryGetProperty("textLength", out _)))
+                            diagnostics.Add(new("ppj.comment.anchor", "A textRange modern comment anchor requires textStart and textLength.", $"{path}.anchor"));
+                        if (anchorKind == "element" && hasRange)
+                            diagnostics.Add(new("ppj.comment.anchor", "An element modern comment anchor cannot carry text-range fields.", $"{path}.anchor"));
+                    }
+                }
+                else
+                {
+                    if (comment.TargetId is not null)
+                        diagnostics.Add(new("ppj.comment.target", "A modern reply inherits its root target and cannot declare target.", $"{path}.target"));
+                    if (comment.Raw.TryGetProperty("anchor", out _))
+                        diagnostics.Add(new("ppj.comment.anchor", "A modern reply inherits its root anchor and cannot declare anchor.", $"{path}.anchor"));
+                }
+            }
             if (!pageIds.Contains(comment.PageId))
                 diagnostics.Add(new("ppj.comment.page", $"Comment page {comment.PageId} does not exist.", $"{path}.page"));
             else if (comment.TargetId is not null && !pageElements[comment.PageId].ContainsKey(comment.TargetId))
                 diagnostics.Add(new("ppj.comment.target", $"Comment target {comment.TargetId} does not exist on page {comment.PageId}.", $"{path}.target"));
             if (comment.ParentId is not null && !comments.ContainsKey(comment.ParentId))
                 diagnostics.Add(new("ppj.comment.parent", $"Parent comment {comment.ParentId} does not exist.", $"{path}.parent"));
+            else if (comment.ParentId is not null && comments.TryGetValue(comment.ParentId, out var parent) &&
+                     (parent.Kind != "modern" || parent.PageId != comment.PageId || parent.ParentId is not null))
+                diagnostics.Add(new("ppj.comment.parent", "Modern replies must directly reference a root modern comment on the same page.", $"{path}.parent"));
             ValidateNativeRef(comment.NativeRef, program.Source, $"{path}.nativeRef", diagnostics);
         }
     }

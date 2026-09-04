@@ -151,6 +151,181 @@ function unionBounds(left, right) {
   return [minX, minY, maxX - minX, maxY - minY];
 }
 
+function rotatePoint(point, frame, rotation) {
+  if (Math.abs(rotation) < 1e-12) return point;
+  const radians = rotation * Math.PI / 180;
+  const centerX = frame[0] + frame[2] / 2;
+  const centerY = frame[1] + frame[3] / 2;
+  const dx = point[0] - centerX;
+  const dy = point[1] - centerY;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  return [centerX + dx * cos - dy * sin, centerY + dx * sin + dy * cos];
+}
+
+function arrowKinds(element) {
+  return ["startArrow", "endArrow"]
+    .map((side) => typeof element?.[side] === "string" && element[side] !== "none" ? element[side] : null);
+}
+
+function lineStrokeWidth(element) {
+  const candidates = [element?.stroke?.width, element?.style?.stroke?.width];
+  for (const candidate of candidates) {
+    const value = Number(candidate);
+    if (Number.isFinite(value) && value > 0) return value;
+  }
+  // A token or an omitted width has no numeric visual extent at review time.
+  // One point is a deliberately conservative, deterministic fallback.
+  return 1;
+}
+
+function finitePoint(x, y) {
+  const point = [Number(x), Number(y)];
+  return point.every(Number.isFinite) ? point : null;
+}
+
+function mapPathPoint(point, frame, viewBox) {
+  if (!point) return null;
+  const [x, y] = point;
+  const originX = Number(viewBox?.x ?? 0);
+  const originY = Number(viewBox?.y ?? 0);
+  const width = Number(viewBox?.width);
+  const height = Number(viewBox?.height);
+  if (![originX, originY, width, height].every(Number.isFinite) || width <= 0 || height <= 0) return null;
+  return [
+    frame[0] + ((x - originX) / width) * frame[2],
+    frame[1] + ((y - originY) / height) * frame[3],
+  ];
+}
+
+function arrowEndpointGeometry(element, frame) {
+  const fallbackStart = [frame[0], frame[1] + frame[3] / 2];
+  const fallbackEnd = [frame[0] + frame[2], frame[1] + frame[3] / 2];
+  let start = fallbackStart;
+  let end = fallbackEnd;
+  let startDirection = fallbackEnd;
+  let endDirection = fallbackStart;
+
+  const pointsText = element?.points;
+  if (typeof pointsText === "string") {
+    const viewBox = Array.isArray(element?.viewBox) && element.viewBox.length === 2
+      ? { x: 0, y: 0, width: element.viewBox[0], height: element.viewBox[1] }
+      : { x: 0, y: 0, width: frame[2], height: frame[3] };
+    const points = pointsText.split(/[ \t]+/u)
+      .map((token) => token.split(","))
+      .map(([x, y]) => mapPathPoint(finitePoint(x, y), frame, viewBox))
+      .filter(Boolean);
+    if (points.length >= 2) {
+      start = points[0];
+      end = points.at(-1);
+      startDirection = points[1];
+      endDirection = points.at(-2);
+    }
+  } else if (element?.path && Array.isArray(element.path.commands)) {
+    const commands = element.path.commands;
+    const first = commands[0];
+    const firstPoint = first?.op === "moveTo" ? mapPathPoint(finitePoint(first.x, first.y), frame, element.path.viewBox) : null;
+    const firstNext = commands.slice(1).find((command) => command && ["lineTo", "quadraticTo", "cubicTo"].includes(command.op));
+    const firstDirection = firstNext?.op === "cubicTo"
+      ? mapPathPoint(finitePoint(firstNext.x1, firstNext.y1), frame, element.path.viewBox)
+      : firstNext?.op === "quadraticTo"
+        ? mapPathPoint(finitePoint(firstNext.x1, firstNext.y1), frame, element.path.viewBox)
+        : mapPathPoint(finitePoint(firstNext?.x, firstNext?.y), frame, element.path.viewBox);
+    const last = [...commands].reverse().find((command) => command && ["lineTo", "quadraticTo", "cubicTo"].includes(command.op));
+    const lastPoint = last ? mapPathPoint(finitePoint(last.x, last.y), frame, element.path.viewBox) : null;
+    const lastDirection = last?.op === "cubicTo"
+      ? mapPathPoint(finitePoint(last.x2, last.y2), frame, element.path.viewBox)
+      : last?.op === "quadraticTo"
+        ? mapPathPoint(finitePoint(last.x1, last.y1), frame, element.path.viewBox)
+        : commands.length > 2
+          ? mapPathPoint(finitePoint(commands.at(-2)?.x, commands.at(-2)?.y), frame, element.path.viewBox)
+          : firstPoint;
+    if (firstPoint && firstDirection && lastPoint && lastDirection) {
+      start = firstPoint;
+      startDirection = firstDirection;
+      end = lastPoint;
+      endDirection = lastDirection;
+    }
+  } else if (Number.isFinite(Number(element?.from?.x)) && Number.isFinite(Number(element?.from?.y)) &&
+    Number.isFinite(Number(element?.to?.x)) && Number.isFinite(Number(element?.to?.y))) {
+    start = [Number(element.from.x), Number(element.from.y)];
+    end = [Number(element.to.x), Number(element.to.y)];
+    startDirection = end;
+    endDirection = start;
+  }
+
+  const rotation = normalizedDegrees(element?.frame?.rotation);
+  const flipPoint = (point) => {
+    let transformed = point;
+    if (element?.frame?.flipH === true) transformed = [frame[0] + frame[2] - (transformed[0] - frame[0]), transformed[1]];
+    if (element?.frame?.flipV === true) transformed = [transformed[0], frame[1] + frame[3] - (transformed[1] - frame[1])];
+    return rotatePoint(transformed, frame, rotation);
+  };
+  return {
+    start: flipPoint(start),
+    end: flipPoint(end),
+    startDirection: flipPoint(startDirection),
+    endDirection: flipPoint(endDirection),
+  };
+}
+
+function arrowBounds(element, frame) {
+  const kinds = arrowKinds(element);
+  if (!kinds.some(Boolean)) return null;
+  const geometry = arrowEndpointGeometry(element, frame);
+  const width = lineStrokeWidth(element);
+  const length = Math.max(width * 4, 6);
+  const halfWidth = Math.max(width * 2.5, 4);
+  const points = [];
+  const addHead = (tip, direction, kind, atStart) => {
+    // The head tip sits on the path endpoint; its base is directed back into
+    // the path for both ends. This keeps the proxy conservative perpendicular
+    // to the stroke without inventing an extension beyond the endpoint.
+    let dx = direction[0] - tip[0];
+    let dy = direction[1] - tip[1];
+    const magnitude = Math.hypot(dx, dy);
+    if (!(magnitude > 1e-9)) {
+      dx = atStart ? 1 : -1;
+      dy = 0;
+    } else {
+      dx /= magnitude;
+      dy /= magnitude;
+    }
+    const perpendicular = [-dy, dx];
+    const base = [tip[0] + dx * length, tip[1] + dy * length];
+    points.push(tip, [base[0] + perpendicular[0] * halfWidth, base[1] + perpendicular[1] * halfWidth],
+      [base[0] - perpendicular[0] * halfWidth, base[1] - perpendicular[1] * halfWidth]);
+    if (kind === "diamond" || kind === "oval") {
+      points.push([base[0] + dx * length * 0.35, base[1] + dy * length * 0.35]);
+    }
+  };
+  if (kinds[0]) addHead(geometry.start, geometry.startDirection, kinds[0], true);
+  if (kinds[1]) addHead(geometry.end, geometry.endDirection, kinds[1], false);
+  if (!points.length) return null;
+  const strokePad = width / 2;
+  const xs = points.map(([x]) => x);
+  const ys = points.map(([, y]) => y);
+  return {
+    bbox: [Math.min(...xs) - strokePad, Math.min(...ys) - strokePad,
+      Math.max(...xs) - Math.min(...xs) + strokePad * 2, Math.max(...ys) - Math.min(...ys) + strokePad * 2],
+    kinds: kinds.filter(Boolean),
+  };
+}
+
+function visualRecommendation(visual, kind) {
+  if (visual?.hasArrowheads && kind === "outside") return "Adjust the line endpoint or canvas margin after checking the arrowhead visual bounds.";
+  if (visual?.hasArrowheads) return "Review the arrow endpoint and z-order using the conservative arrowhead visual bounds.";
+  if (visual?.hasShadow) return kind === "outside"
+    ? "Move the element or increase the canvas margin after checking the shadow visual bounds."
+    : "Review the shadow extent before changing z-order or the element frame.";
+  if (visual?.hasRotation) return kind === "outside"
+    ? "Move the element or increase the canvas margin after checking the rotated visual bounds."
+    : "Review the rotated visual bounds before changing z-order or the element frame.";
+  return kind === "outside"
+    ? "Move the element inside the canvas or explicitly expand the canvas."
+    : "Adjust one frame or the z-order after confirming the intended overlap.";
+}
+
 function visualBounds(element) {
   const frame = frameValues(element);
   if (!frame) return null;
@@ -158,6 +333,14 @@ function visualBounds(element) {
   let bbox = rotatedBounds(frame, rotation);
   let hasRotation = Math.abs(rotation) > 1e-9;
   let hasShadow = false;
+  let hasArrowheads = false;
+  let arrowKindsFound = [];
+  const arrows = arrowBounds(element, frame);
+  if (arrows) {
+    bbox = unionBounds(bbox, arrows.bbox);
+    hasArrowheads = true;
+    arrowKindsFound = arrows.kinds;
+  }
   for (const candidate of shadowCandidates(element)) {
     const shadow = shadowValues(candidate);
     if (!shadow) continue;
@@ -169,7 +352,7 @@ function visualBounds(element) {
     bbox = unionBounds(bbox, shadowBox);
     hasShadow = true;
   }
-  return { bbox, frame, rotation, hasRotation, hasShadow };
+  return { bbox, frame, rotation, hasRotation, hasShadow, hasArrowheads, arrowKinds: arrowKindsFound };
 }
 
 function hasVisibleText(element) {
@@ -475,7 +658,7 @@ function layoutReview(program, records, options = {}) {
       ));
     }
     if (Number.isFinite(width) && Number.isFinite(height) && (visualBox[0] < -boundsPadding || visualBox[1] < -boundsPadding || visualBox[0] + visualBox[2] > width + boundsPadding || visualBox[1] + visualBox[3] > height + boundsPadding)) {
-      issues.push(issue("frameOutsideCanvas", `Element ${element.id || "<anonymous>"} on page ${page} extends beyond the PPJ canvas.`, "warning", { slide: page, id: element.id, bbox: visualBox, frame: [x, y, w, h], visualBounds: { rotation: visual.rotation, shadow: visual.hasShadow } }));
+      issues.push(issue("frameOutsideCanvas", `Element ${element.id || "<anonymous>"} on page ${page} extends beyond the PPJ canvas.`, "warning", { slide: page, id: element.id, bbox: visualBox, frame: [x, y, w, h], visualBounds: { rotation: visual.rotation, shadow: visual.hasShadow, arrowheads: visual.hasArrowheads, arrowKinds: visual.arrowKinds }, recommendation: visualRecommendation(visual, "outside") }));
     }
   }
   const canvasArea = Number.isFinite(width) && Number.isFinite(height) ? Math.max(0, width * height) : 0;
@@ -509,9 +692,12 @@ function layoutReview(program, records, options = {}) {
             bbox: [left.values, right.values],
             detection: left.visual.hasRotation || left.visual.hasShadow || right.visual.hasRotation || right.visual.hasShadow
               ? "rotated-visual-bounds"
+              : left.visual.hasArrowheads || right.visual.hasArrowheads
+                ? "arrow-visual-bounds"
               : "axis-aligned-frame",
             frames: [left.visual.frame, right.visual.frame],
             visualBounds: [left.values, right.values],
+            recommendation: visualRecommendation(left.visual.hasArrowheads || left.visual.hasRotation || left.visual.hasShadow ? left.visual : right.visual, "overlap"),
           },
         ));
       }

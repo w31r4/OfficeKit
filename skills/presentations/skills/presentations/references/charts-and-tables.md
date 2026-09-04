@@ -387,11 +387,29 @@ graphs remain source-preserved. An imported chart must issue `setChartFill`;
 chart-frame paint changes use `setChartFrame`; neither
 `setChartData` nor `setChartTextStyle` authorizes paint changes.
 
+For a recognized source-bound line, scatter, or radar series, marker identity,
+size, direct RGB/alpha fill, marker outline, and (except scatter) the direct
+series stroke are separately owned by `setChartSeriesStyle`. A change may add,
+replace, or remove only those existing ChartPart nodes and must re-import the
+result. Scatter series lines, theme/transformed colors, picture/effect marker
+graphs, unsupported family markers, and irregular ChartML remain source-owned;
+do not redraw them as shapes to make an edit appear to succeed.
+
+For a recognized source-bound bar/column or line series, the existing
+trendline list and scalar error-bar object are separately owned by
+`setChartSeriesAnalytics`. Their bounded type, parameters, display flags and
+direct stroke can be replaced in place, but the list/object must already exist
+with the same cardinality. Adding, removing, custom error-bar data,
+formula/workbook synchronization, extensions and complex ChartML remain
+source-owned and fail closed.
+
 The scalar marker spelling and `showDataLabels` / `dataLabelPosition` remain
 valid for older PPJ. Do not combine either legacy spelling with its structured
 form. On an imported source-bound chart, a `setChartData` capability owns only
 series names and values; it cannot be used to smuggle axis, marker, label,
-trendline, error-bar or paint changes.
+trendline, error-bar or paint changes. Use the separately issued
+`setChartSeriesAnalytics` capability for bounded existing trendline/error-bar
+replacement.
 
 Scatter and bubble charts use numeric channels rather than shared category
 labels:
@@ -1139,11 +1157,15 @@ single directly embedded `a:blipFill` image paint (crop, stretch/tile, opacity),
 and direct RGB four-side strokes with width, preset dash, cap, join, and
 optional opacity. Image replacement updates the owning SlidePart relationship
 and media closure, removing an unreferenced old image. If another cell in the
-same SlidePart reuses that relationship, the replacement is copy-on-write and
-the old relationship/media remains for the other cell. These edits patch the
-existing SlidePart and survive a second projection. External/cross-owner image
-graphs, text-style inheritance, effects, automatic reflow, merges, and unknown
-extensions remain source-owned.
+	same SlidePart reuses that relationship, the replacement is copy-on-write and
+	the old relationship/media remains for the other cell. These edits patch the
+	existing SlidePart and survive a second projection. A narrower imported
+	mixed-run body profile also preserves `text.paragraphs[].runs[].style` when
+	every direct run is plain, fixed-topology, and in the bounded direct style
+	set; source-bound edits patch each original run without flattening to one
+	uniform cell style. Paragraph/list/field/layout properties, text-style
+	inheritance, effects, automatic reflow, merges, and unknown extensions remain
+	source-owned.
 
 For compact repeated styling, `cellStyle` supplies the base; `bodyStyles`
 cycles through rows between the first and last row; `firstRowStyle`,

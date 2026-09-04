@@ -1417,7 +1417,7 @@ function validateTaskEditPlan(value, outputSha256) {
     "text", "tableCellText", "nativeText", "fillRgb", "fillOpacityThousandthPercent", "fillScheme",
     "shadowBlurRadiusEmu", "shadowDistanceEmu", "shadowDirectionDegrees", "shadowAlignment", "shadowColorRgb", "shadowColorScheme", "shadowOpacityThousandthPercent",
     "lineRgb", "lineScheme", "lineStyle", "lineCap", "lineJoin", "lineStartArrow", "lineEndArrow", "lineWidthEmu",
-    "leftEmu", "topEmu", "widthEmu", "heightEmu", "rotationDegrees", "flipHorizontal", "flipVertical", "imageAsset", "imageSvgAsset", "chartTitleText", "chartDataValue",
+    "leftEmu", "topEmu", "widthEmu", "heightEmu", "rotationDegrees", "flipHorizontal", "flipVertical", "imageAsset", "imageSvgAsset", "chartTitleText", "chartDataValue", "chartDataXValue", "chartDataYValue", "chartDataBubbleSize",
     "diagramText", "deleteElement",
   ]);
   for (const operation of value.operations) {
@@ -1547,10 +1547,10 @@ const TASK_NESTED_FOOTPRINT_KEYS = new Set([
 
 function taskOperationKeys(operation, leafKind) {
   const allowed = new Set(TASK_OPERATION_COMMON_KEYS);
-  if (leafKind === "chartTitleText" || leafKind === "chartDataValue" || leafKind === "diagramText") {
+  if (leafKind === "chartTitleText" || leafKind === "diagramText" || leafKind === "chartDataValue" || leafKind === "chartDataXValue" || leafKind === "chartDataYValue" || leafKind === "chartDataBubbleSize") {
     for (const key of TASK_OPERATION_DEPENDENT_KEYS) allowed.add(key);
   }
-  if (leafKind === "chartDataValue") for (const key of TASK_OPERATION_CHART_DATA_KEYS) allowed.add(key);
+  if (leafKind === "chartDataValue" || leafKind === "chartDataXValue" || leafKind === "chartDataYValue" || leafKind === "chartDataBubbleSize") for (const key of TASK_OPERATION_CHART_DATA_KEYS) allowed.add(key);
   if (leafKind === "diagramText") for (const key of TASK_OPERATION_DIAGRAM_KEYS) allowed.add(key);
   if (leafKind === "imageAsset") for (const key of TASK_OPERATION_IMAGE_KEYS) allowed.add(key);
   if (leafKind === "deleteElement") for (const key of TASK_OPERATION_DELETION_KEYS) allowed.add(key);
@@ -1576,7 +1576,7 @@ function validateDependentTaskOperation(operation, footprint, leafKind, changedP
     }
     return;
   }
-  const dependent = leafKind === "chartTitleText" || leafKind === "chartDataValue" || leafKind === "diagramText";
+  const dependent = leafKind === "chartTitleText" || leafKind === "diagramText" || leafKind === "chartDataValue" || leafKind === "chartDataXValue" || leafKind === "chartDataYValue" || leafKind === "chartDataBubbleSize";
   if (!dependent) {
     if (footprint.mutationPartPath !== operation.slidePartPath || footprint.nestedFootprints.length !== 0 ||
         operation.targetPartPath != null || operation.embeddedPackagePartPath != null || operation.diagramModelId != null) {
@@ -1588,7 +1588,7 @@ function validateDependentTaskOperation(operation, footprint, leafKind, changedP
       !boundedIdentifier(operation.relationshipId, 255) || footprint.mutationPartPath !== operation.targetPartPath) {
     throw taskError("invalid-edit-plan", "Dependent Edit Plan operation binding is invalid.");
   }
-  if (leafKind === "chartDataValue") {
+  if (leafKind === "chartDataValue" || leafKind === "chartDataXValue" || leafKind === "chartDataYValue" || leafKind === "chartDataBubbleSize") {
     if (!safeChartPartPath(operation.targetPartPath) || !finiteNumericToken(operation.expectedValue) || !finiteNumericToken(operation.value) ||
         !safeEmbeddedPackagePartPath(operation.embeddedPackagePartPath) || !isSha(operation.expectedEmbeddedPackageSha256) ||
         !boundedIdentifier(operation.embeddedPackageRelationshipId, 255) ||

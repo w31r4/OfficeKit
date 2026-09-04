@@ -81,9 +81,21 @@ internal static partial class PptxChartCodec
                 throw Invalid(elementId, "combo series type must be column, line, or area");
             if (!families.TryGetValue(entry.Type, out var family)) families[entry.Type] = family = [];
             family.Add(entry);
-            if (!allowFormulas && (!string.IsNullOrWhiteSpace(entry.Series.CategoryFormula) || !string.IsNullOrWhiteSpace(entry.Series.ValueFormula) ||
-                !string.IsNullOrWhiteSpace(entry.Series.XValueFormula) || !string.IsNullOrWhiteSpace(entry.Series.BubbleSizeFormula) || ErrorBarsUseFormula(entry.Series)))
+            var hasFormulas = !string.IsNullOrWhiteSpace(entry.Series.CategoryFormula) ||
+                !string.IsNullOrWhiteSpace(entry.Series.ValueFormula) ||
+                !string.IsNullOrWhiteSpace(entry.Series.XValueFormula) ||
+                !string.IsNullOrWhiteSpace(entry.Series.BubbleSizeFormula) ||
+                ErrorBarsUseFormula(entry.Series);
+            if (hasFormulas && !allowFormulas)
                 throw Invalid(elementId, "must use literal categories and values without workbook formulas");
+            if (hasFormulas &&
+                (!FormulaProfileIsSafe(entry.Series.CategoryFormula) ||
+                 !FormulaProfileIsSafe(entry.Series.ValueFormula) ||
+                 !FormulaProfileIsSafe(entry.Series.XValueFormula) ||
+                 !FormulaProfileIsSafe(entry.Series.BubbleSizeFormula) ||
+                 !FormulaProfileIsSafe(entry.Series.ErrorBars?.Plus?.Formula ?? string.Empty) ||
+                 !FormulaProfileIsSafe(entry.Series.ErrorBars?.Minus?.Formula ?? string.Empty)))
+                throw Invalid(elementId, "contains a formula outside the local worksheet range profile");
         }
         if (families.Count < 2) throw Invalid(elementId, "must contain at least two distinct column, line, or area plot families");
         if (families.ContainsKey(SpreadsheetChartType.Bar) && chart.BarDirection == "bar")

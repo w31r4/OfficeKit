@@ -12,6 +12,10 @@ namespace OfficeKit.Codec;
 internal static class PptxPresetGeometryAdjustmentCodec
 {
     private const string ResourceName = "OfficeKit.Ppj.PresetGeometryProfiles.json";
+    // A source-bound projection may need to retain the native slot order even
+    // when one or more formulas are not literal.  This value is outside the
+    // DrawingML adjustment range and is never emitted to authored PPJ.
+    internal const int MissingValue = int.MinValue;
     private sealed record Profile(string NativeToken, string[] Guides, bool Alias);
 
     internal static readonly int MinimumValue;
@@ -109,9 +113,64 @@ internal static class PptxPresetGeometryAdjustmentCodec
         return true;
     }
 
+    // Narrow source-bound escape hatch for a partial or formula-backed
+    // preset adjustment list.  The public PPJ geometry array remains hidden;
+    // callers use the returned slot vector only to issue independently safe
+    // literal native leaves.  Unknown children, attributes, preset tokens,
+    // or guide order are rejected rather than guessed.  Non-literal slots are
+    // represented by MissingValue so a sibling literal can still be edited
+    // without rebuilding the preset geometry graph.
+    internal static bool TryReadLiteralSlots(A.PresetGeometry? native, string geometry, out int[] values)
+    {
+        values = [];
+        if (native is null || !TryProfile(geometry, out var profile) ||
+            !TryPreset(geometry, out var expectedPreset) ||
+            native.Preset?.Value is not { } actualPreset || !actualPreset.Equals(expectedPreset) ||
+            !HasOnlyAttributes(native, "prst") || native.ChildElements.Count != 1 ||
+            native.FirstChild is not A.AdjustValueList list || list.HasAttributes)
+            return false;
+
+        var guides = list.Elements<A.ShapeGuide>().ToArray();
+        if (list.ChildElements.Count != guides.Length || guides.Length > profile.Guides.Length)
+            return false;
+        if (guides.Length == 0)
+        {
+            values = [];
+            return true;
+        }
+
+        values = Enumerable.Repeat(MissingValue, profile.Guides.Length).ToArray();
+        for (var index = 0; index < guides.Length; index++)
+        {
+            var guide = guides[index];
+            if (!HasOnlyAttributes(guide, "name", "fmla") || guide.ChildElements.Count != 0 ||
+                guide.Name?.Value is not { Length: > 0 } || guide.Formula?.Value is not { } formula)
+                return false;
+            if (TryLiteral(formula, out var value) && value >= MinimumValue && value <= MaximumValue)
+                values[index] = value;
+        }
+        return true;
+    }
+
+    internal static bool IsMissingValue(int value) => value == MissingValue;
+
+    internal static bool IsCompleteValues(string geometry, IReadOnlyList<int> values) =>
+        TryExpectedCount(geometry, out var expectedCount) &&
+        values.Count == expectedCount &&
+        values.All(value => value != MissingValue && value >= MinimumValue && value <= MaximumValue);
+
     internal static void Read(A.PresetGeometry? native, string geometry, PresentationShape target)
     {
-        if (TryRead(native, geometry, out var values)) target.PresetAdjustments.Add(values);
+        if (TryRead(native, geometry, out var values))
+        {
+            target.PresetAdjustments.Add(values);
+            return;
+        }
+        // Keep a fixed internal slot vector for a source-bound partial graph.
+        // ValidatePresentationElement exits early for non-editable imported
+        // elements, and ProjectShape hides this vector from public PPJ.
+        if (TryReadLiteralSlots(native, geometry, out values) && values.Length > 0)
+            target.PresetAdjustments.Add(values);
     }
 
     internal static void Validate(string geometry, IEnumerable<int> values, string shapeId)
@@ -147,5 +206,13 @@ internal static class PptxPresetGeometryAdjustmentCodec
         var attributes = element.GetAttributes();
         return attributes.Count == names.Length && attributes.All(attribute =>
             attribute.NamespaceUri.Length == 0 && names.Contains(attribute.LocalName, StringComparer.Ordinal));
+    }
+
+    private static bool TryLiteral(string formula, out int value)
+    {
+        value = 0;
+        var tokens = formula.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return tokens.Length == 2 && tokens[0] == "val" &&
+            int.TryParse(tokens[1], NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out value);
     }
 }

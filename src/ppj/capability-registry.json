@@ -105,7 +105,6 @@
     "slideCommentThread.resolve": "$.comments[].resolved",
     "table.delete": "$.pages[].elements[]",
     "table.merge": "$.pages[].elements[].rows[].cells[].rowSpan/columnSpan",
-    "table.setGeometry": "$.pages[].elements[].columns[].width and $.pages[].elements[].rows[].height",
     "table.setAccessibilityMetadata": "$.pages[].elements[].accessibility"
   },
   "authoredCompilerBoundaries": [
@@ -152,11 +151,11 @@
       "reason": "The compiler owns a bounded centered silhouette with 2..12 complete non-negative series over 3..64 ordered categories. It emits stable editable cubic paths and labels. Native ChartParts have no centered-stream stacking mode, so ChartPart build animation, negative or missing values, secondary axes, per-point labels and unsupported series options fail closed."
     },
     {
-      "feature": "native chart labels, bubble scale and axis lines",
-      "ppjPath": "pages[].elements[].style.dataLabels, pages[].elements[].data.series[].dataLabels, pages[].elements[].style.bubbleScale/bubbleSizeMode and pages[].elements[].xAxis/yAxis/secondaryXAxis/secondaryYAxis reverse/axisLine/gridLine",
+      "feature": "native chart labels, plot scalars, bubble scale and axis lines",
+      "ppjPath": "pages[].elements[].style.dataLabels, pages[].elements[].data.series[].dataLabels, pages[].elements[].style.legend/stacking/gapWidth/smooth/varyColors/bubbleScale/bubbleSizeMode and pages[].elements[].xAxis/yAxis/secondaryXAxis/secondaryYAxis title/reverse/visible/numberFormat/tickLabelInterval/min/max/majorUnit/tickLabelsVisible/axisLine/gridLine",
       "behavior": "partial",
-      "sourceBound": "Recognized imported ChartParts issue setChartLabels for plot defaults plus bounded series defaults and sparse zero-based point overrides, setChartPlot for native bubble scale and size semantics, and setChartAxis for bounded axis direction plus direct axis/grid line styling. Each capability owns only its declared field group and patches the existing ChartPart.",
-      "reason": "PPJ owns plot-, series- and sparse point-level label visibility, native position, direct number format and bounded typography; bubble scale from 0 through 300; native area/width size semantics; presence-aware axis reversal; and direct RGB/no-fill axis and major-grid lines. Exact visible radii and logarithmic sizing are a separate authored vector capability, not a native source-bound ChartPart mutation. Custom label text/layout/shape/effect/leader-line graphs, source-linked formats, theme/effect line graphs and unsupported topology remain source-owned and fail closed."
+      "sourceBound": "Recognized imported ChartParts issue setChartLabels for plot defaults plus bounded series defaults and sparse zero-based point overrides, setChartPlot for common legend/stacking/gap/axis visibility/gridline/line-option scalars and native bubble/circular size semantics, and setChartAxis for bounded axis titles/direction, number-format, numeric bounds/units, tick-label visibility/intervals, direct axis/grid line styling, and kind-checked grammar token references. Each capability owns only its declared field group and patches the existing ChartPart.",
+      "reason": "PPJ owns plot-, series- and sparse point-level label visibility, common plot enums/integers/booleans, native position, direct number format and bounded typography; bubble scale from 0 through 300; native area/width size semantics; presence-aware axis reversal, finite numeric bounds/units and tick intervals; and direct RGB/no-fill axis and major-grid lines. Exact visible radii and logarithmic sizing are a separate authored vector capability, not a native source-bound ChartPart mutation. Custom label text/layout/shape/effect/leader-line graphs, source-linked formats, theme/effect line graphs and unsupported topology remain source-owned and fail closed."
     },
     {
       "feature": "native sparse chart point styles",
@@ -164,6 +163,20 @@
       "behavior": "partial",
       "sourceBound": "Canonical imported bar, column, pie and doughnut ChartParts project bounded c:dPt state and reuse setChartFill. A source-bound edit adds, replaces or removes only sorted sparse point fill, outline or legal explosion state inside the existing ChartPart before a second projection proves the requested semantics.",
       "reason": "PPJ owns zero-based point indexes, none/solid/gradient direct fill, bounded RGB outline and pie/doughnut explosion from 0 through 400. Missing points, marker overrides, picture options, 3D state, effects, extensions, unknown children and irregular paint or line graphs remain source-owned and fail closed."
+    },
+    {
+      "feature": "native chart series stroke and markers",
+      "ppjPath": "pages[].elements[].data.series[].stroke and pages[].elements[].data.series[].marker",
+      "behavior": "partial",
+      "sourceBound": "Recognized imported line, scatter and radar ChartParts expose line/scatter/radar marker identity, size, direct RGB/alpha fill and marker outline through setChartSeriesStyle; non-scatter series direct stroke uses the same capability. A bounded source-bound edit adds, replaces or removes only these series style nodes inside the existing ChartPart and then proves a second projection.",
+      "reason": "The native reader/writer owns the finite marker catalog (none, dot, circle, square, diamond, triangle, x, star, plus, dash), sizes 2 through 72, direct RGB paint, bounded dash/width/cap/join/opacity, and line/scatter/radar family checks. Scatter series lines, theme/transformed colors, picture/effect marker graphs, unsupported family markers and irregular ChartML remain source-owned and fail closed."
+    },
+    {
+      "feature": "native chart trendlines and scalar error bars",
+      "ppjPath": "pages[].elements[].data.series[].trendlines and pages[].elements[].data.series[].errorBars",
+      "behavior": "partial",
+      "sourceBound": "Recognized imported bar/column or line ChartParts expose the existing bounded c:trendline and scalar c:errBars children through setChartSeriesAnalytics. A source-bound edit may replace the values of an existing same-count trendline list or existing scalar error-bar object inside the ChartPart and then proves a second projection; adding, removing, or changing child topology fails closed.",
+      "reason": "The shared ChartSpace codecs already own six trendline types, polynomial/moving-average constraints, forecast/intercept/display flags, bounded direct line styling, and fixed-value/percentage/standard-deviation/standard-error error bars. Custom error-bar data, formulas/workbook synchronization, extensions, 3D/complex combo semantics, and topology changes remain source-owned and fail closed."
     },
     {
       "feature": "native chart axis arrowheads",
@@ -192,6 +205,27 @@
       "behavior": "partial",
       "sourceBound": "An authored formula may be added inside ordinary compiler-owned rich text, including one eligible topmost typed text overlay on a source-bound page. Third-party a14:m/OMML is preserved but is never reverse-translated into guessed LaTeX, and existing imported formulas receive no mutation capability.",
       "reason": "PPJ compiles one bounded, non-executable LaTeX subset to canonical editable Office Math and restores the exact source only from an embedded PPJ snapshot. Arbitrary TeX, raw OMML, environments, macros and unsupported formula styling fail closed."
+    },
+    {
+      "feature": "source-bound paragraph tab stops",
+      "ppjPath": "pages[].elements[].text.paragraphs[].style.tabStops and noTabStops",
+      "behavior": "partial",
+      "sourceBound": "Recognized text bodies issue setTextParagraphStyle for fixed-topology tab-stop edits. PPJ positions are expressed in points and lower to the owning paragraph's a:tabLst; noTabStops explicitly removes only that modeled list.",
+      "reason": "Only a single direct tab-stop list with bounded left, center, right or decimal alignment is modeled. Inherited list styles, malformed lists, reflow and other paragraph extensions remain source-owned and fail closed."
+    },
+    {
+      "feature": "source-bound text-container body layout",
+      "ppjPath": "pages[].elements[].style or textStyle",
+      "behavior": "partial",
+      "sourceBound": "Recognized fixed-topology text, shape-text and placeholder bodies issue setTextBodyStyle when their direct a:bodyPr state is within the bounded profile. Existing body-property leaves can be changed in place without adding a body or rewriting paragraph/run topology.",
+      "reason": "The profile owns vertical alignment, wrapping, insets, columns, column gap/direction, vertical-text mode, rotation, overflow, upright, and canonical normAutofit percentages. Inheritance, explicit deletion and unknown/effect-rich bodyPr state remain source-owned and fail closed."
+    },
+    {
+      "feature": "source-bound table-cell text-body layout",
+      "ppjPath": "pages[].elements[].rows[].cells[].text.style",
+      "behavior": "partial",
+      "sourceBound": "Recognized fixed-topology table cells expose a structured rich-text text.style object and reuse setTableCellStyle/table.cell.textStyle to patch the existing a:bodyPr leaves.",
+      "reason": "The bounded profile owns direct vertical alignment, wrapping, insets, columns, column gap/direction, vertical-text, rotation, overflow, upright, and canonical normAutofit percentages that have a textBoxStyle spelling. Explicit delete markers, inheritance and unknown bodyPr extensions remain source-owned and fail closed."
     },
     {
       "feature": "named icon catalog",
@@ -239,8 +273,8 @@
       "feature": "native Office SmartArt parts",
       "ppjPath": "pages[].elements[] where type is smartArt",
       "behavior": "partial",
-      "sourceBound": "Authored PPJ emits one native diagram frame with data, layout, style, colors and cached-drawing parts. Custom definition assets execute bounded placement, gap, column and reverse operators and round-trip as content-addressed JSON. OfficeKit-owned native graphs issue text, connection, frame and verified detach capabilities. Every closed third-party diagram projects as typed SmartArt: proven nodes and parent edges are editable by issued text leaves, while unknown graphs stay typed read-only with path-independent section hashes.",
-      "reason": "Arbitrary DiagramML programs, unsupported operator kinds, shared or external native closures and unverified caches fail closed. detachToShapes is explicit and reports semantic loss."
+      "sourceBound": "Authored PPJ emits one native diagram frame with data, layout, style, colors and cached-drawing parts. Custom definition assets execute bounded placement, gap, column and reverse operators and round-trip as content-addressed JSON. OfficeKit-owned native graphs issue text, connection, frame and verified detach capabilities; a picture-layout graph whose cached drawing has one embedded blip per node additionally projects canonical stretch/tile crop/opacity paint and issues setSmartArtImage/setSmartArtImagePaint for replacing an existing content-addressed node asset or its cached paint. Every closed third-party diagram projects as typed SmartArt: proven nodes and parent edges are editable by issued text leaves, while unknown graphs stay typed read-only with path-independent section hashes.",
+      "reason": "Arbitrary DiagramML programs, unsupported operator kinds, shared or external native closures, multiple/effect-bearing/linked picture blips and unverified caches fail closed. Picture asset/image add/remove and topology edits are not exposed. detachToShapes is explicit and reports semantic loss."
     },
     {
       "feature": "native-theme bullet identity and uncommon numbering schemes",
@@ -280,6 +314,8 @@
     "textBodyWrap": { "valueType": "string", "unit": "enum", "ppjLocation": "textBoxStyle.wrap", "surface": "native-leaf", "boundary": "Text body wrapping mode." },
     "textBodyColumnCount": { "valueType": "number", "unit": "integer", "ppjLocation": "textBoxStyle.columns", "surface": "native-leaf", "boundary": "Text body column count." },
     "textBodyAutoFit": { "valueType": "string", "unit": "enum", "ppjLocation": "textBoxStyle.autoFit", "surface": "native-leaf", "boundary": "Text body auto-fit mode." },
+    "textBodyNormalAutoFitFontScale": { "valueType": "number", "unit": "thousandth-percent", "ppjLocation": "textBoxStyle.normalAutoFit.fontScale", "surface": "native-leaf", "boundary": "Direct canonical a:normAutofit fontScale from 1% through 100%, exposed as a percentage with three decimal places." },
+    "textBodyNormalAutoFitLineSpacingReduction": { "valueType": "number", "unit": "thousandth-percent", "ppjLocation": "textBoxStyle.normalAutoFit.lineSpacingReduction", "surface": "native-leaf", "boundary": "Direct canonical a:normAutofit lnSpcReduction from 0% through 13200%, exposed as a percentage with three decimal places." },
     "textBodyColumnDirection": { "valueType": "boolean", "unit": "boolean", "ppjLocation": "textBoxStyle.columnDirection", "surface": "native-leaf", "boundary": "Existing right-to-left-columns flag; authored PPJ uses a direction enum." },
     "textBodyVerticalText": { "valueType": "string", "unit": "enum", "ppjLocation": "textBoxStyle.verticalText", "surface": "native-leaf", "boundary": "DrawingML vertical text orientation." },
     "fontSizePoints": { "valueType": "number", "unit": "pt", "ppjLocation": "run.style.size", "surface": "native-leaf", "boundary": "One located run property." },
@@ -316,19 +352,30 @@
     "lineStartArrow": { "valueType": "string", "unit": "enum", "ppjLocation": "stroke.startArrow", "surface": "native-leaf", "boundary": "Existing line head-end type on an imported line shape or connector." },
     "lineEndArrow": { "valueType": "string", "unit": "enum", "ppjLocation": "stroke.endArrow", "surface": "native-leaf", "boundary": "Existing line tail-end type on an imported line shape or connector." },
     "lineWidthEmu": { "valueType": "number", "unit": "emu", "ppjLocation": "stroke.width", "surface": "native-leaf", "boundary": "Line width; authored PPJ uses points." },
-    "leftEmu": { "valueType": "number", "unit": "emu", "ppjLocation": "frame.x", "surface": "native-leaf", "boundary": "Object x position; authored PPJ uses points." },
-    "topEmu": { "valueType": "number", "unit": "emu", "ppjLocation": "frame.y", "surface": "native-leaf", "boundary": "Object y position; authored PPJ uses points." },
-    "widthEmu": { "valueType": "number", "unit": "emu", "ppjLocation": "frame.width", "surface": "native-leaf", "boundary": "Object width; authored PPJ uses points." },
-    "heightEmu": { "valueType": "number", "unit": "emu", "ppjLocation": "frame.height", "surface": "native-leaf", "boundary": "Object height; authored PPJ uses points." },
-    "rotationDegrees": { "valueType": "number", "unit": "degrees", "ppjLocation": "frame.rotation", "surface": "native-leaf", "boundary": "Object rotation." },
-    "flipHorizontal": { "valueType": "boolean", "unit": "boolean", "ppjLocation": "frame.flipH", "surface": "native-leaf", "boundary": "Object horizontal flip." },
-    "flipVertical": { "valueType": "boolean", "unit": "boolean", "ppjLocation": "frame.flipV", "surface": "native-leaf", "boundary": "Object vertical flip." },
+    "leftEmu": { "valueType": "number", "unit": "emu", "ppjLocation": "frame.x", "surface": "native-leaf", "boundary": "Object x position; authored PPJ uses points. For an imported ordinary group, this is only outer grpSp off/@x." },
+    "topEmu": { "valueType": "number", "unit": "emu", "ppjLocation": "frame.y", "surface": "native-leaf", "boundary": "Object y position; authored PPJ uses points. For an imported ordinary group, this is only outer grpSp off/@y." },
+    "widthEmu": { "valueType": "number", "unit": "emu", "ppjLocation": "frame.width", "surface": "native-leaf", "boundary": "Object width; authored PPJ uses points. For an imported ordinary group, this is only outer grpSp ext/@cx." },
+    "heightEmu": { "valueType": "number", "unit": "emu", "ppjLocation": "frame.height", "surface": "native-leaf", "boundary": "Object height; authored PPJ uses points. For an imported ordinary group, this is only outer grpSp ext/@cy." },
+    "childLeftEmu": { "valueType": "number", "unit": "emu", "ppjLocation": "childFrame.x", "surface": "native-leaf", "boundary": "Imported ordinary-group local child coordinate origin, mapped to grpSp a:xfrm chOff/@x; editing this coordinate changes the group transform but not any child frame." },
+    "childTopEmu": { "valueType": "number", "unit": "emu", "ppjLocation": "childFrame.y", "surface": "native-leaf", "boundary": "Imported ordinary-group local child coordinate origin, mapped to grpSp a:xfrm chOff/@y; editing this coordinate changes the group transform but not any child frame." },
+    "childWidthEmu": { "valueType": "number", "unit": "emu", "ppjLocation": "childFrame.width", "surface": "native-leaf", "boundary": "Imported ordinary-group local child coordinate width, mapped to grpSp a:xfrm chExt/@cx; positive values only." },
+    "childHeightEmu": { "valueType": "number", "unit": "emu", "ppjLocation": "childFrame.height", "surface": "native-leaf", "boundary": "Imported ordinary-group local child coordinate height, mapped to grpSp a:xfrm chExt/@cy; positive values only." },
+    "rotationDegrees": { "valueType": "number", "unit": "degrees", "ppjLocation": "frame.rotation", "surface": "native-leaf", "boundary": "Object rotation; for an imported ordinary group, only explicit outer grpSp rot is exposed." },
+    "flipHorizontal": { "valueType": "boolean", "unit": "boolean", "ppjLocation": "frame.flipH", "surface": "native-leaf", "boundary": "Object horizontal flip; for an imported ordinary group, only explicit outer grpSp flipH is exposed." },
+    "flipVertical": { "valueType": "boolean", "unit": "boolean", "ppjLocation": "frame.flipV", "surface": "native-leaf", "boundary": "Object vertical flip; for an imported ordinary group, only explicit outer grpSp flipV is exposed." },
     "imageOpacityThousandthPercent": { "valueType": "number", "unit": "thousandth-percent", "ppjLocation": "image.opacity", "surface": "native-leaf", "boundary": "Existing direct picture alpha-modulation token only." },
-    "imageMaskPreset": { "valueType": "string", "unit": "preset-geometry", "ppjLocation": "image.mask.preset", "surface": "native-leaf", "boundary": "Existing recognized picture preset-mask token only." },
+    "imageMaskPreset": { "valueType": "string", "unit": "preset-geometry", "ppjLocation": "image.mask.preset", "surface": "native-leaf", "boundary": "Recognized picture preset-mask identity; the native rectangle default is exposed as rect, direct native-leaf edits remain limited to no-adjustment masks, and typed semantic source-bound identity changes may replace complete adjustment lists across supported presets." },
+    "imageMaskAdjustment": { "valueType": "number", "unit": "DrawingML signed integer", "ppjLocation": "image.mask.adjustments[] or nativeRef.leaves[]", "surface": "native-leaf", "boundary": "One ordered picture preset adjustment whose formula is exactly val N; complete masks expose every slot, while a structurally simple opaque partial/formula graph may expose only independently literal siblings. Token-splice edits preserve the preset token, guide order, mask topology, and picture relationships; malformed, extension-bearing, child-bearing, calculated-target, or unknown graphs remain source-owned." },
+    "customGeometryAdjustment": { "valueType": "number", "unit": "DrawingML signed integer", "ppjLocation": "shape.geometry or nativeRef.leaves[]", "surface": "native-leaf", "boundary": "One ordered custom-geometry adjustment whose formula is exactly val N. Token-splice edits change only the numeric formula value and preserve guide names, path references, handles, and other topology. A strict image-filled shape may expose only independently literal siblings from a structurally simple partial/formula adjustment list; formula-valued adjustments, calculated guides, effects, extensions, and non-image opaque graphs remain source-owned." },
+    "presetGeometryAdjustment": { "valueType": "number", "unit": "DrawingML signed integer", "ppjLocation": "shape.geometry.adjustments[] or nativeRef.leaves[]", "surface": "native-leaf", "boundary": "One ordered preset-shape adjustment whose formula is exactly val N and whose preset matches a known profile. Complete lists also project as typed geometry; structurally simple partial or formula-backed lists expose only independently literal sibling slots, without fabricating an incomplete PPJ adjustment vector. Token-splice edits change only the numeric formula value and preserve the preset token, guide order, shape topology, and non-target XML; malformed, child-bearing, extension-bearing, non-literal target, or unknown graphs remain source-owned." },
     "imageAsset": { "valueType": "asset", "unit": "asset-id", "ppjLocation": "image.asset", "surface": "typed-operation", "boundary": "Same-format source-bound raster replacement." },
     "imageSvgAsset": { "valueType": "asset", "unit": "asset-id", "ppjLocation": "image.asset", "surface": "typed-operation", "boundary": "Safe source-bound SVG replacement." },
     "chartTitleText": { "valueType": "string", "unit": "text", "ppjLocation": "chart.title", "surface": "typed-operation", "boundary": "Existing chart title text." },
-    "chartDataValue": { "valueType": "number", "unit": "number", "ppjLocation": "chart.data or opaque.nativeRef.leaves[]", "surface": "native-leaf or typed-operation", "boundary": "A typed chart point or one opaque native point with an independently proven ChartPart/cache/workbook binding; only the bounded local bar/line/area/pie/doughnut/radar category-cache profile synchronizes an embedded worksheet cell." },
+    "chartDataCategory": { "valueType": "string", "unit": "text", "ppjLocation": "opaque.nativeRef.leaves[]", "surface": "native-leaf", "boundary": "One independently proven category cache point backed by direct ChartML c:strLit or a direct inline/string cell in a unique embedded worksheet; literal caches change only the ChartPart, while shared-string, formula, external, and irregular workbook cells remain opaque." },
+    "chartDataValue": { "valueType": "number", "unit": "number", "ppjLocation": "chart.data or opaque.nativeRef.leaves[]", "surface": "native-leaf", "boundary": "A typed chart point, a literal ChartML c:numLit cache changed only in its ChartPart, or one opaque native category/value point with an independently proven ChartPart/cache/workbook binding; reference-backed points update their matching embedded worksheet cell with the cache." },
+    "chartDataXValue": { "valueType": "number", "unit": "number", "ppjLocation": "opaque.nativeRef.leaves[]", "surface": "native-leaf", "boundary": "One independently proven scatter/bubble X cache point; direct c:numLit caches are ChartPart-only, while c:numRef caches update with their unique embedded worksheet cell." },
+    "chartDataYValue": { "valueType": "number", "unit": "number", "ppjLocation": "opaque.nativeRef.leaves[]", "surface": "native-leaf", "boundary": "One independently proven scatter/bubble Y cache point; direct c:numLit caches are ChartPart-only, while c:numRef caches update with their unique embedded worksheet cell." },
+    "chartDataBubbleSize": { "valueType": "number", "unit": "number", "ppjLocation": "opaque.nativeRef.leaves[]", "surface": "native-leaf", "boundary": "One independently proven bubble-size cache point; direct c:numLit caches are ChartPart-only, while c:numRef caches update with their unique embedded worksheet cell." },
     "diagramText": { "valueType": "string", "unit": "text", "ppjLocation": "smartArt.nodes[].text", "surface": "typed-operation", "boundary": "Located SmartArt diagram text leaf." },
     "deleteElement": { "valueType": "boolean", "unit": "operation", "ppjLocation": "pages[].elements[]", "surface": "typed-operation", "boundary": "Capability-issued element deletion with relationship proof." }
   },
@@ -483,7 +530,6 @@
     "table.delete": "ppj-state",
     "table.deletionCapability": "native-ref",
     "table.merge": "ppj-state",
-    "table.setGeometry": "native-ref",
     "table.setAccessibilityMetadata": "ppj-state"
   },
   "hostOnly": [

@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -193,19 +194,19 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphBulletFontFamily" or "paragraphBulletColorRgb" or "paragraphBulletColorScheme" or "paragraphBulletSizePoints" or "paragraphBulletSizePercent" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontLanguage" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fontColorScheme" or "fontKerningPoints" or "fontBaselinePercent" or "fontSpacingPoints" or "fontCaps" or "fontHighlightRgb" or "fontHighlightScheme" or "fillRgb" or "fillOpacityThousandthPercent" or "shadowOpacityThousandthPercent" or "shadowBlurRadiusEmu" or "shadowDistanceEmu" or "shadowDirectionDegrees" or "shadowAlignment" or "shadowColorRgb" or "shadowColorScheme" or "imageOpacityThousandthPercent" or "imageMaskPreset" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
+            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphBulletFontFamily" or "paragraphBulletColorRgb" or "paragraphBulletColorScheme" or "paragraphBulletSizePoints" or "paragraphBulletSizePercent" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyNormalAutoFitFontScale" or "textBodyNormalAutoFitLineSpacingReduction" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontLanguage" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fontColorScheme" or "fontKerningPoints" or "fontBaselinePercent" or "fontSpacingPoints" or "fontCaps" or "fontHighlightRgb" or "fontHighlightScheme" or "fillRgb" or "fillOpacityThousandthPercent" or "shadowOpacityThousandthPercent" or "shadowBlurRadiusEmu" or "shadowDistanceEmu" or "shadowDirectionDegrees" or "shadowAlignment" or "shadowColorRgb" or "shadowColorScheme" or "imageOpacityThousandthPercent" or "imageMaskPreset" or "imageMaskAdjustment" or "customGeometryAdjustment" or "presetGeometryAdjustment" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "childLeftEmu" or "childTopEmu" or "childWidthEmu" or "childHeightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataCategory" or "chartDataValue" or "chartDataXValue" or "chartDataYValue" or "chartDataBubbleSize" or "diagramText" or "deleteElement"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
                 throw new CodecException("invalid_presentation_edit_precondition", $"PPTX edit operation {operation.OperationId} requires SHA-256 preconditions.");
             if (!Hash(Encoding.UTF8.GetBytes(operation.ExpectedValue)).Equals(operation.ExpectedTextSha256, StringComparison.OrdinalIgnoreCase))
                 throw new CodecException("presentation_text_hash_mismatch", $"PPTX edit operation {operation.OperationId} expected text does not match expected_text_sha256.");
-            if (leafKind is "chartTitleText" or "chartDataValue" or "diagramText")
+            if (leafKind is "chartTitleText" or "diagramText" || IsChartDataLeafKind(leafKind))
             {
                 if (!DependentXmlPartPathPattern().IsMatch(operation.TargetPartPath) || operation.TargetPartPath.Contains("..", StringComparison.Ordinal) ||
                     !IsSha256(operation.ExpectedTargetPartSha256) || string.IsNullOrWhiteSpace(operation.RelationshipId) || operation.RelationshipId.Length > 255)
                     throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid source-bound dependent-part binding.");
-                if (leafKind == "chartDataValue") ValidateEmbeddedWorkbookBinding(operation);
+                if (IsChartDataLeafKind(leafKind) && HasEmbeddedWorkbookBinding(operation)) ValidateEmbeddedWorkbookBinding(operation);
                 if (leafKind is "chartTitleText" or "diagramText" && HasEmbeddedWorkbookBinding(operation))
                     throw new CodecException("invalid_presentation_edit_target", $"PPTX {leafKind} operation {operation.OperationId} cannot attach an embedded-workbook data binding.");
             }
@@ -240,10 +241,20 @@ internal static partial class PptxEditPlanCodec
             {
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} cannot attach an element deletion to {leafKind}.");
             }
-            if (leafKind != "chartDataValue" && (operation.ChartSeriesIndex != 0 || operation.ChartPointIndex != 0))
+            if (!IsChartDataLeafKind(leafKind) && (operation.ChartSeriesIndex != 0 || operation.ChartPointIndex != 0))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} cannot attach chart-data indices to {leafKind}.");
-            if (leafKind == "chartDataValue" && (!ValidFiniteNumber(operation.ExpectedValue) || !ValidFiniteNumber(operation.Value)))
-                throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} chart data value must be a finite numeric token.");
+            if (IsChartDataLeafKind(leafKind))
+            {
+                if (leafKind == "chartDataCategory")
+                {
+                    if (!PpjNativeLeafProjection.ValidTextToken(operation.ExpectedValue) || !PpjNativeLeafProjection.ValidTextToken(operation.Value))
+                        throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} chart category must be a bounded text token.");
+                }
+                else if (!ValidFiniteNumber(operation.ExpectedValue) || !ValidFiniteNumber(operation.Value))
+                {
+                    throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} chart data value must be a finite numeric token.");
+                }
+            }
             if (leafKind == "fontSizePoints")
             {
                 if (!uint.TryParse(operation.ExpectedValue, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var expectedFontSize) ||
@@ -337,6 +348,13 @@ internal static partial class PptxEditPlanCodec
                 var requested = ParseTextBodyAutoFitToken(operation.Value, operation);
                 if (expected == requested)
                     throw new CodecException("presentation_edit_plan_noop", $"PPTX edit operation {operation.OperationId} must change its text-body AutoFit mode.");
+            }
+            if (leafKind is "textBodyNormalAutoFitFontScale" or "textBodyNormalAutoFitLineSpacingReduction")
+            {
+                var expected = ParseTextBodyNormalAutoFitToken(operation.ExpectedValue, leafKind, operation);
+                var requested = ParseTextBodyNormalAutoFitToken(operation.Value, leafKind, operation);
+                if (expected == requested)
+                    throw new CodecException("presentation_edit_plan_noop", $"PPTX edit operation {operation.OperationId} must change its text-body normal AutoFit percentage.");
             }
             if (leafKind == "textBodyColumnDirection")
             {
@@ -502,7 +520,7 @@ internal static partial class PptxEditPlanCodec
                     operation.ExpectedValue == operation.Value)
                     throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} {leafKind} must use a changed supported arrow type.");
             }
-            if (leafKind is not ("chartTitleText" or "chartDataValue" or "diagramText") &&
+            if (leafKind is not ("chartTitleText" or "diagramText") && !IsChartDataLeafKind(leafKind) &&
                 (!string.IsNullOrEmpty(operation.TargetPartPath) || !string.IsNullOrEmpty(operation.ExpectedTargetPartSha256) || !string.IsNullOrEmpty(operation.RelationshipId) || HasEmbeddedWorkbookBinding(operation)))
             {
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} cannot attach a dependent-part binding to {leafKind}.");
@@ -534,7 +552,7 @@ internal static partial class PptxEditPlanCodec
             {
                 if (!long.TryParse(operation.ExpectedValue, System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out _) ||
                     !long.TryParse(operation.Value, System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out var requested) ||
-                    (leafKind is "widthEmu" or "heightEmu" && requested <= 0))
+                    (leafKind is "widthEmu" or "heightEmu" or "childWidthEmu" or "childHeightEmu" && requested <= 0))
                     throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} has an invalid geometry scalar.");
                 if (leafKind == "lineWidthEmu" && (requested < 0 || requested > 20_116_800))
                     throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} has an invalid line width.");
@@ -616,7 +634,7 @@ internal static partial class PptxEditPlanCodec
                 proofs.Add(new PptxEditPlanProof(operation, elementHash, diagram.Binding.PartPath, leaf.RawTextOrdinal));
                 continue;
             }
-            if (LeafKind(operation) is "chartTitleText" or "chartDataValue")
+            if (LeafKind(operation) is "chartTitleText" || IsChartDataLeafKind(LeafKind(operation)))
             {
                 if (element is not P.GraphicFrame || projectedElement.ContentCase != PresentationElement.ContentOneofCase.Opaque ||
                     projectedElement.Opaque.NativeChart is null ||
@@ -626,21 +644,37 @@ internal static partial class PptxEditPlanCodec
                     !operation.ExpectedTargetPartSha256.Equals(chart.Binding.SourceSha256, StringComparison.OrdinalIgnoreCase) ||
                     operation.RelationshipId != chart.Binding.RelationshipId)
                     throw new CodecException("presentation_chart_binding_mismatch", $"PPTX edit operation {operation.OperationId} no longer resolves to its unique source-bound ChartPart.", operation.SlidePartPath);
-                if (LeafKind(operation) == "chartDataValue")
+                if (IsChartDataLeafKind(LeafKind(operation)))
                 {
-                    if (!PptxNativeChartLeafCodec.SameBinding(projectedElement.Opaque.NativeChart, chart.Binding) || chart.Data is null ||
-                        !PptxNativeObjectCatalog.HasUniqueInboundRelationship(presentationPart, chart.Data.Part) ||
-                        !operation.EmbeddedPackagePartPath.Equals(chart.Binding.EmbeddedPackagePartPath, StringComparison.OrdinalIgnoreCase) ||
-                        !operation.ExpectedEmbeddedPackageSha256.Equals(chart.Binding.EmbeddedPackageSourceSha256, StringComparison.OrdinalIgnoreCase) ||
-                        operation.EmbeddedPackageRelationshipId != chart.Binding.EmbeddedPackageRelationshipId)
+                    if (!PptxNativeChartLeafCodec.SameBinding(projectedElement.Opaque.NativeChart, chart.Binding) || chart.Data is null)
                         throw new CodecException("presentation_chart_data_binding_mismatch", $"PPTX edit operation {operation.OperationId} no longer resolves to its unique source-bound embedded workbook.", operation.TargetPartPath);
                     var point = chart.Data.Points.SingleOrDefault(candidate =>
-                        candidate.Binding.SeriesIndex == operation.ChartSeriesIndex && candidate.Binding.PointIndex == operation.ChartPointIndex);
+                        candidate.Binding.SeriesIndex == operation.ChartSeriesIndex &&
+                        candidate.Binding.PointIndex == operation.ChartPointIndex &&
+                        ChartDataChannel(LeafKind(operation)) == NativeChartDataChannel(candidate.Binding));
                     if (point is null || point.Binding.Value != operation.ExpectedValue || point.Binding.Formula != operation.ChartFormula ||
                         !point.Binding.WorksheetPartPath.Equals(operation.EmbeddedWorksheetPartPath, StringComparison.OrdinalIgnoreCase) ||
                         !point.Binding.WorksheetSourceSha256.Equals(operation.ExpectedEmbeddedWorksheetSha256, StringComparison.OrdinalIgnoreCase) ||
                         !point.Binding.CellReference.Equals(operation.EmbeddedCellReference, StringComparison.OrdinalIgnoreCase))
                         throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} chart data point no longer matches its cache/workbook binding.", operation.TargetPartPath);
+                    if (string.IsNullOrEmpty(operation.EmbeddedPackagePartPath))
+                    {
+                        if (!string.IsNullOrEmpty(chart.Binding.EmbeddedPackagePartPath) ||
+                            !string.IsNullOrEmpty(chart.Binding.EmbeddedPackageSourceSha256) ||
+                            !string.IsNullOrEmpty(chart.Binding.EmbeddedPackageRelationshipId) ||
+                            !string.IsNullOrEmpty(point.Binding.Formula) ||
+                            !string.IsNullOrEmpty(point.Binding.WorksheetPartPath) ||
+                            !string.IsNullOrEmpty(point.Binding.WorksheetSourceSha256) ||
+                            !string.IsNullOrEmpty(point.Binding.WorksheetName) ||
+                            !string.IsNullOrEmpty(point.Binding.CellReference))
+                            throw new CodecException("presentation_chart_data_binding_mismatch", $"PPTX edit operation {operation.OperationId} literal chart cache unexpectedly carries an embedded-workbook binding.", operation.TargetPartPath);
+                    }
+                    else if (chart.Data.Part is null || chart.Data.PackageBytes is null ||
+                             !PptxNativeObjectCatalog.HasUniqueInboundRelationship(presentationPart, chart.Data.Part) ||
+                             !operation.EmbeddedPackagePartPath.Equals(chart.Binding.EmbeddedPackagePartPath, StringComparison.OrdinalIgnoreCase) ||
+                             !operation.ExpectedEmbeddedPackageSha256.Equals(chart.Binding.EmbeddedPackageSourceSha256, StringComparison.OrdinalIgnoreCase) ||
+                             operation.EmbeddedPackageRelationshipId != chart.Binding.EmbeddedPackageRelationshipId)
+                        throw new CodecException("presentation_chart_data_binding_mismatch", $"PPTX edit operation {operation.OperationId} no longer resolves to its unique source-bound embedded workbook.", operation.TargetPartPath);
                     proofs.Add(new PptxEditPlanProof(operation, elementHash, chart.Binding.PartPath));
                     continue;
                 }
@@ -671,12 +705,25 @@ internal static partial class PptxEditPlanCodec
                 projectedElement.ContentCase == PresentationElement.ContentOneofCase.Shape &&
                  ((projectedElement.Source.Editable &&
                    (LeafKind(operation) is "fillRgb" or "fillScheme" or "fillOpacityThousandthPercent" or "shadowOpacityThousandthPercent" or "shadowColorRgb" or "shadowColorScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical" ||
+                   LeafKind(operation) == "customGeometryAdjustment" && HasSafeNativeCustomGeometryAdjustment(shape, operation.NativeLeafIndex) ||
+                    LeafKind(operation) == "presetGeometryAdjustment" && HasSafeNativePresetGeometryAdjustment(shape, operation.NativeLeafIndex) ||
                     (LeafKind(operation) is "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow") && HasSafeNativeShapeStyle(shape, LeafKind(operation)) ||
                     (LeafKind(operation) is "shadowBlurRadiusEmu" or "shadowDistanceEmu" or "shadowDirectionDegrees" or "shadowAlignment") && shape.ShapeProperties is not null && HasSafeNativeShadowGeometry(shape.ShapeProperties, LeafKind(operation)))) ||
+                 (!projectedElement.Source.Editable &&
+                  LeafKind(operation) == "presetGeometryAdjustment" &&
+                  HasSafeNativePresetGeometryAdjustment(shape, operation.NativeLeafIndex)) ||
                  (!projectedElement.Source.Editable && LeafKind(operation) is ("fillRgb" or "fillOpacityThousandthPercent" or "shadowOpacityThousandthPercent" or "shadowColorRgb" or "shadowColorScheme" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu" or "shadowBlurRadiusEmu" or "shadowDistanceEmu" or "shadowDirectionDegrees" or "shadowAlignment") && HasSafeNativeShapeStyle(shape, LeafKind(operation))) ||
-                 (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphBulletFontFamily" or "paragraphBulletColorRgb" or "paragraphBulletColorScheme" or "paragraphBulletSizePoints" or "paragraphBulletSizePercent" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontLanguage" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fontColorScheme" or "fontKerningPoints" or "fontBaselinePercent" or "fontSpacingPoints" or "fontCaps" or "fontHighlightRgb" or "fontHighlightScheme" or "rotationDegrees" or "flipHorizontal" or "flipVertical") && PptxCodec.SupportsBoundTextLeaf(shape))))
+                 (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphBulletFontFamily" or "paragraphBulletColorRgb" or "paragraphBulletColorScheme" or "paragraphBulletSizePoints" or "paragraphBulletSizePercent" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyNormalAutoFitFontScale" or "textBodyNormalAutoFitLineSpacingReduction" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontLanguage" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fontColorScheme" or "fontKerningPoints" or "fontBaselinePercent" or "fontSpacingPoints" or "fontCaps" or "fontHighlightRgb" or "fontHighlightScheme" or "rotationDegrees" or "flipHorizontal" or "flipVertical") && PptxCodec.SupportsBoundTextLeaf(shape))))
             {
                 ProveLeafValue(shape, operation);
+            }
+            else if (element is P.GroupShape groupGeometry &&
+                     projectedElement.ContentCase == PresentationElement.ContentOneofCase.Group &&
+                     projectedElement.Source.Editable &&
+                     PptxNativeObjectCatalog.SupportsPlacementEditing(groupGeometry) &&
+                     (IsGeometryLeaf(LeafKind(operation)) || IsGroupChildGeometryLeaf(LeafKind(operation))))
+            {
+                ProveLeafValue(groupGeometry, operation);
             }
             else if (element is P.GraphicFrame table &&
                      projectedElement.ContentCase == PresentationElement.ContentOneofCase.Table &&
@@ -715,7 +762,8 @@ internal static partial class PptxEditPlanCodec
                      PptxNativeObjectCatalog.SupportsPlacementEditing(picture) &&
                      (IsGeometryLeaf(LeafKind(operation)) ||
                       LeafKind(operation) == "imageOpacityThousandthPercent" && HasSafeNativePictureOpacity(picture) ||
-                      LeafKind(operation) == "imageMaskPreset" && HasSafeNativePictureMask(picture)))
+                      LeafKind(operation) == "imageMaskPreset" && HasSafeNativePictureMask(picture) ||
+                      LeafKind(operation) == "imageMaskAdjustment" && HasSafeNativePictureMaskAdjustment(picture, operation.NativeLeafIndex)))
             {
                 ProveLeafValue(picture, operation);
             }
@@ -734,16 +782,16 @@ internal static partial class PptxEditPlanCodec
             return CompileDiagramTextXmlPatches(partBytes, proofs);
         if (proofs.Any(proof => LeafKind(proof.Operation) == "diagramText"))
             throw new CodecException("presentation_edit_plan_scope_violation", "PPTX edit plan mixed SmartArt and non-SmartArt leaves in one mutation part.", proofs[0].MutationPartPath);
-        if (proofs.All(proof => LeafKind(proof.Operation) is "chartTitleText" or "chartDataValue"))
+        if (proofs.All(proof => LeafKind(proof.Operation) is "chartTitleText" || IsChartDataLeafKind(LeafKind(proof.Operation))))
         {
             var chartPatches = new List<PptxXmlPatch>();
             var titleProofs = proofs.Where(proof => LeafKind(proof.Operation) == "chartTitleText").ToArray();
-            var dataProofs = proofs.Where(proof => LeafKind(proof.Operation) == "chartDataValue").ToArray();
+            var dataProofs = proofs.Where(proof => IsChartDataLeafKind(LeafKind(proof.Operation))).ToArray();
             if (titleProofs.Length > 0) chartPatches.AddRange(CompileChartTitleXmlPatches(partBytes, titleProofs));
             if (dataProofs.Length > 0) chartPatches.AddRange(CompileChartDataXmlPatches(partBytes, dataProofs));
             return OrderedNonOverlapping(chartPatches, proofs[0].MutationPartPath);
         }
-        if (proofs.Any(proof => LeafKind(proof.Operation) is "chartTitleText" or "chartDataValue"))
+        if (proofs.Any(proof => LeafKind(proof.Operation) is "chartTitleText" || IsChartDataLeafKind(LeafKind(proof.Operation))))
             throw new CodecException("presentation_edit_plan_scope_violation", "PPTX edit plan mixed slide and ChartPart leaves in one mutation part.", proofs[0].MutationPartPath);
         var (xml, bomBytes) = DecodeXml(partBytes);
         var drawingPrefixes = NamespacePattern().Matches(xml)
@@ -866,6 +914,13 @@ internal static partial class PptxEditPlanCodec
                 patches.Add(CompileTextBodyAutoFitXmlPatch(xml, range, proof));
                 continue;
             }
+            if (leafKind is "textBodyNormalAutoFitFontScale" or "textBodyNormalAutoFitLineSpacingReduction")
+            {
+                if (range.LocalName != "sp")
+                    throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {leafKind} target has the wrong native element type.", operation.SlidePartPath);
+                patches.Add(CompileTextBodyNormalAutoFitXmlPatch(xml, range, proof));
+                continue;
+            }
             if (leafKind == "textBodyColumnDirection")
             {
                 if (range.LocalName != "sp")
@@ -880,7 +935,7 @@ internal static partial class PptxEditPlanCodec
                 patches.Add(CompileTextBodyVerticalTextXmlPatch(xml, range, proof));
                 continue;
             }
-            if ((leafKind is "rotationDegrees" or "flipHorizontal" or "flipVertical") && range.LocalName is not ("sp" or "pic"))
+            if ((leafKind is "rotationDegrees" or "flipHorizontal" or "flipVertical") && range.LocalName is not ("sp" or "pic" or "grpSp"))
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {leafKind} target has the wrong native element type.", operation.SlidePartPath);
             if (leafKind is "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontLanguage" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fontColorScheme" or "fontKerningPoints" or "fontBaselinePercent" or "fontSpacingPoints" or "fontCaps" or "fontHighlightRgb" or "fontHighlightScheme")
             {
@@ -1287,6 +1342,48 @@ internal static partial class PptxEditPlanCodec
              kind == "lineScheme" && HasSafeNativeSchemeFill(directLineSolid));
     }
 
+    private static bool HasSafeNativeCustomGeometryAdjustment(P.Shape shape, uint nativeIndex)
+    {
+        var geometry = shape.ShapeProperties?.GetFirstChild<A.CustomGeometry>();
+        var adjustments = geometry?.GetFirstChild<A.AdjustValueList>();
+        if (geometry is null || adjustments is null || geometry.HasAttributes || adjustments.HasAttributes ||
+            adjustments.ChildElements.Count != adjustments.Elements<A.ShapeGuide>().Count())
+            return false;
+        var guides = adjustments.Elements<A.ShapeGuide>().ToArray();
+        if (nativeIndex >= (uint)guides.Length) return false;
+        var guide = guides[nativeIndex];
+        if (guide.ChildElements.Count != 0 || guide.GetAttributes().Any(attribute =>
+                attribute.NamespaceUri.Length != 0 || attribute.LocalName is not ("name" or "fmla")) ||
+            guide.Name?.Value is not { Length: > 0 } || guide.Formula?.Value is not { } formula)
+            return false;
+        return TryLiteralCustomAdjustment(formula, out _);
+    }
+
+    private static bool HasSafeNativePresetGeometryAdjustment(P.Shape shape, uint nativeIndex)
+    {
+        var geometry = shape.ShapeProperties?.GetFirstChild<A.PresetGeometry>();
+        if (geometry is null || geometry.Preset?.Value is not { } preset ||
+            !PptxCustomGeometryCodec.TryPresetName(preset, out var geometryName) ||
+            !PptxPresetGeometryAdjustmentCodec.TryExpectedCount(geometryName, out var expectedCount) ||
+            !PptxPresetGeometryAdjustmentCodec.TryReadLiteralSlots(geometry, geometryName, out var values))
+            return false;
+        return expectedCount > 0 && nativeIndex < (uint)values.Length &&
+            !PptxPresetGeometryAdjustmentCodec.IsMissingValue(values[(int)nativeIndex]);
+    }
+
+    private static bool TryLiteralCustomAdjustment(string formula, out string value)
+    {
+        value = string.Empty;
+        var tokens = formula.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (tokens.Length != 2 || tokens[0] != "val" ||
+            !long.TryParse(tokens[1], System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out var parsed) ||
+            parsed is < int.MinValue or > int.MaxValue)
+            return false;
+        value = parsed.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return true;
+    }
+
     private static bool HasSafeNativeShadowGeometry(OpenXmlCompositeElement properties, string kind)
     {
         if (!PptxShadowCodec.TryRead(properties, out var shadow) || shadow is null)
@@ -1370,6 +1467,37 @@ internal static partial class PptxEditPlanCodec
             geometry.Preset?.Value is not { } preset)
             return false;
         return PptxCustomGeometryCodec.TryPresetName(preset, out _);
+    }
+
+    private static bool HasSafeNativePictureMaskAdjustment(P.Picture picture, uint nativeIndex)
+    {
+        var geometry = picture.ShapeProperties?.GetFirstChild<A.PresetGeometry>();
+        if (geometry?.Preset?.Value is not { } preset ||
+            !PptxCustomGeometryCodec.TryPresetName(preset, out _) ||
+            geometry.GetAttributes().Count != 1 ||
+            geometry.GetAttributes()[0].NamespaceUri.Length != 0 ||
+            geometry.GetAttributes()[0].LocalName != "prst" ||
+            geometry.ChildElements.Count != 1 ||
+            geometry.FirstChild is not A.AdjustValueList adjustments ||
+            adjustments.HasAttributes ||
+            adjustments.ChildElements.Count != adjustments.Elements<A.ShapeGuide>().Count())
+            return false;
+        var guides = adjustments.Elements<A.ShapeGuide>().ToArray();
+        if (nativeIndex >= (uint)guides.Length) return false;
+        var target = guides[nativeIndex];
+        if (target.ChildElements.Count != 0 || target.GetAttributes().Any(attribute =>
+                attribute.NamespaceUri.Length != 0 || attribute.LocalName is not ("name" or "fmla")) ||
+            target.Name?.Value is not { Length: > 0 } || target.Formula?.Value is not { } targetFormula)
+            return false;
+        // Every sibling guide must retain a simple attribute-only shape. Its
+        // formula may remain source-owned, but a malformed/child-bearing
+        // sibling would make the indexed token splice ambiguous.
+        if (guides.Any(guide => guide.ChildElements.Count != 0 ||
+                guide.GetAttributes().Any(attribute =>
+                    attribute.NamespaceUri.Length != 0 || attribute.LocalName is not ("name" or "fmla")) ||
+                guide.Name?.Value is not { Length: > 0 } || guide.Formula?.Value is null))
+            return false;
+        return TryLiteralCustomAdjustment(targetFormula, out _);
     }
 
     private static bool HasSafeNativeRgbFill(A.SolidFill fill)
@@ -1602,6 +1730,25 @@ internal static partial class PptxEditPlanCodec
                 throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded direct text-body AutoFit mode.", operation.SlidePartPath);
             return mode;
         }
+        if (kind is "textBodyNormalAutoFitFontScale" or "textBodyNormalAutoFitLineSpacingReduction")
+        {
+            if (element is not P.Shape shape)
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {kind} target is not a shape.", operation.SlidePartPath);
+            var bodyProperties = shape.TextBody?.BodyProperties;
+            var choices = bodyProperties?.ChildElements
+                .Where(child => child is A.NoAutoFit or A.NormalAutoFit or A.ShapeAutoFit)
+                .ToArray() ?? [];
+            if (choices.Length != 1 || choices[0] is not A.NormalAutoFit normal || normal.ChildElements.Count != 0)
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded direct normal AutoFit child.", operation.SlidePartPath);
+            var attributeName = kind == "textBodyNormalAutoFitFontScale" ? "fontScale" : "lnSpcReduction";
+            var attributes = normal.GetAttributes().ToArray();
+            if (attributes.Any(attribute => attribute.NamespaceUri.Length != 0 || attribute.LocalName is not ("fontScale" or "lnSpcReduction")))
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} normal AutoFit child has unsupported attributes.", operation.SlidePartPath);
+            var selected = attributes.Where(attribute => attribute.LocalName == attributeName).ToArray();
+            if (selected.Length != 1)
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded direct normal AutoFit {attributeName} attribute.", operation.SlidePartPath);
+            return ParseTextBodyNormalAutoFitToken(selected[0].Value ?? throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} normal AutoFit value is missing.", operation.SlidePartPath), kind, operation);
+        }
         if (kind == "textBodyColumnDirection")
         {
             if (element is not P.Shape shape)
@@ -1768,6 +1915,39 @@ internal static partial class PptxEditPlanCodec
                 throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded explicit image mask preset.", operation.SlidePartPath);
             return mask;
         }
+        if (kind == "imageMaskAdjustment")
+        {
+            if (element is not P.Picture picture || !HasSafeNativePictureMaskAdjustment(picture, operation.NativeLeafIndex))
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded literal image mask adjustment.", operation.SlidePartPath);
+            var geometry = picture.ShapeProperties!.GetFirstChild<A.PresetGeometry>()!;
+            var adjustments = geometry.GetFirstChild<A.AdjustValueList>()!.Elements<A.ShapeGuide>().ToArray();
+            var formula = adjustments[(int)operation.NativeLeafIndex].Formula?.Value;
+            return formula is not null && TryLiteralCustomAdjustment(formula, out var value)
+                ? value
+                : MissingLeaf(operation);
+        }
+        if (kind == "customGeometryAdjustment")
+        {
+            if (element is not P.Shape shape || !HasSafeNativeCustomGeometryAdjustment(shape, operation.NativeLeafIndex))
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded literal custom-geometry adjustment.", operation.SlidePartPath);
+            var guides = shape.ShapeProperties!.GetFirstChild<A.CustomGeometry>()!
+                .GetFirstChild<A.AdjustValueList>()!.Elements<A.ShapeGuide>().ToArray();
+            var formula = guides[(int)operation.NativeLeafIndex].Formula?.Value;
+            return formula is not null && TryLiteralCustomAdjustment(formula, out var value)
+                ? value
+                : MissingLeaf(operation);
+        }
+        if (kind == "presetGeometryAdjustment")
+        {
+            if (element is not P.Shape shape || !HasSafeNativePresetGeometryAdjustment(shape, operation.NativeLeafIndex))
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded literal preset-geometry adjustment.", operation.SlidePartPath);
+            var guides = shape.ShapeProperties!.GetFirstChild<A.PresetGeometry>()!
+                .GetFirstChild<A.AdjustValueList>()!.Elements<A.ShapeGuide>().ToArray();
+            var formula = guides[(int)operation.NativeLeafIndex].Formula?.Value;
+            return formula is not null && TryLiteralCustomAdjustment(formula, out var value)
+                ? value
+                : MissingLeaf(operation);
+        }
         if (kind is "shadowBlurRadiusEmu" or "shadowDistanceEmu" or "shadowDirectionDegrees" or "shadowAlignment")
         {
             if (element is not P.Shape shadowShape || shadowShape.ShapeProperties is null ||
@@ -1791,6 +1971,26 @@ internal static partial class PptxEditPlanCodec
             if (!PptxNativeStyleLeafCodec.TryResolve(group, operation.NativeLeafIndex, out var leaf) || leaf.Kind != kind)
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} target is not a bounded source-bound group style leaf.", operation.SlidePartPath);
             return leaf.Value;
+        }
+        if (element is P.GroupShape groupGeometry && (IsGeometryLeaf(kind) || IsGroupChildGeometryLeaf(kind)))
+        {
+            var groupTransform = groupGeometry.GroupShapeProperties?.GetFirstChild<A.TransformGroup>() ??
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded group transform.", operation.SlidePartPath);
+            return kind switch
+            {
+                "leftEmu" => groupTransform.Offset?.X?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? MissingLeaf(operation),
+                "topEmu" => groupTransform.Offset?.Y?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? MissingLeaf(operation),
+                "widthEmu" => groupTransform.Extents?.Cx?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? MissingLeaf(operation),
+                "heightEmu" => groupTransform.Extents?.Cy?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? MissingLeaf(operation),
+                "childLeftEmu" => groupTransform.ChildOffset?.X?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? MissingLeaf(operation),
+                "childTopEmu" => groupTransform.ChildOffset?.Y?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? MissingLeaf(operation),
+                "childWidthEmu" => groupTransform.ChildExtents?.Cx?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? MissingLeaf(operation),
+                "childHeightEmu" => groupTransform.ChildExtents?.Cy?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? MissingLeaf(operation),
+                "rotationDegrees" => groupTransform.Rotation?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? MissingLeaf(operation),
+                "flipHorizontal" => groupTransform.HorizontalFlip?.Value is { } horizontal ? (horizontal ? "1" : "0") : MissingLeaf(operation),
+                "flipVertical" => groupTransform.VerticalFlip?.Value is { } vertical ? (vertical ? "1" : "0") : MissingLeaf(operation),
+                _ => throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported group leaf kind {kind}.", operation.SlidePartPath),
+            };
         }
         var properties = element switch
         {
@@ -1878,7 +2078,8 @@ internal static partial class PptxEditPlanCodec
         value == A.TextAlignmentTypeValues.Left ? "left" :
         value == A.TextAlignmentTypeValues.Center ? "center" :
         value == A.TextAlignmentTypeValues.Right ? "right" :
-        value == A.TextAlignmentTypeValues.Justified ? "justify" : string.Empty;
+        value == A.TextAlignmentTypeValues.Justified ? "justify" :
+        value == A.TextAlignmentTypeValues.Distributed ? "distributed" : string.Empty;
 
     private static string ParagraphAlignmentName(string value) =>
         value switch
@@ -1887,6 +2088,7 @@ internal static partial class PptxEditPlanCodec
             "ctr" => "center",
             "r" => "right",
             "just" => "justify",
+            "dist" => "distributed",
             _ => string.Empty,
         };
 
@@ -1934,7 +2136,8 @@ internal static partial class PptxEditPlanCodec
         var owner = elementRange.LocalName;
         if (owner == "grpSp" && (LeafKind(operation) is "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu"))
             return CompileNativeStyleXmlPatch(xml, elementRange, proof);
-        var properties = DirectChildRange(xml, elementRange, owner, "spPr", operation);
+        var propertiesName = owner == "grpSp" ? "grpSpPr" : "spPr";
+        var properties = DirectChildRange(xml, elementRange, owner, propertiesName, operation);
         XmlRange leaf;
         string attribute;
         switch (LeafKind(operation))
@@ -2003,6 +2206,42 @@ internal static partial class PptxEditPlanCodec
                 leaf = DirectChildRange(xml, properties, "spPr", "prstGeom", operation);
                 attribute = "prst";
                 break;
+            case "imageMaskAdjustment":
+                if (owner != "pic") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose an image mask adjustment.", operation.SlidePartPath);
+                var maskGeometry = DirectChildRange(xml, properties, "spPr", "prstGeom", operation);
+                var maskAdjustmentList = DirectChildRange(xml, maskGeometry, "prstGeom", "avLst", operation);
+                var maskAdjustmentGuides = DirectChildRanges(xml, maskAdjustmentList)
+                    .Where(entry => entry.LocalName == "gd")
+                    .ToArray();
+                if (operation.NativeLeafIndex >= (uint)maskAdjustmentGuides.Length)
+                    throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} image mask adjustment index is out of range.", operation.SlidePartPath);
+                leaf = maskAdjustmentGuides[(int)operation.NativeLeafIndex];
+                attribute = "fmla";
+                break;
+            case "customGeometryAdjustment":
+                if (owner != "sp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose a custom-geometry adjustment.", operation.SlidePartPath);
+                var customGeometry = DirectChildRange(xml, properties, "spPr", "custGeom", operation);
+                var adjustmentList = DirectChildRange(xml, customGeometry, "custGeom", "avLst", operation);
+                var adjustmentGuides = DirectChildRanges(xml, adjustmentList)
+                    .Where(entry => entry.LocalName == "gd")
+                    .ToArray();
+                if (operation.NativeLeafIndex >= (uint)adjustmentGuides.Length)
+                    throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} custom-geometry adjustment index is out of range.", operation.SlidePartPath);
+                leaf = adjustmentGuides[(int)operation.NativeLeafIndex];
+                attribute = "fmla";
+                break;
+            case "presetGeometryAdjustment":
+                if (owner != "sp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose a preset-geometry adjustment.", operation.SlidePartPath);
+                var presetGeometry = DirectChildRange(xml, properties, "spPr", "prstGeom", operation);
+                var presetAdjustmentList = DirectChildRange(xml, presetGeometry, "prstGeom", "avLst", operation);
+                var presetAdjustmentGuides = DirectChildRanges(xml, presetAdjustmentList)
+                    .Where(entry => entry.LocalName == "gd")
+                    .ToArray();
+                if (operation.NativeLeafIndex >= (uint)presetAdjustmentGuides.Length)
+                    throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} preset-geometry adjustment index is out of range.", operation.SlidePartPath);
+                leaf = presetAdjustmentGuides[(int)operation.NativeLeafIndex];
+                attribute = "fmla";
+                break;
             case "fillScheme":
                 if (owner != "sp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose fillScheme.", operation.SlidePartPath);
                 leaf = DirectChildRange(xml, DirectChildRange(xml, properties, "spPr", "solidFill", operation), "solidFill", "schemeClr", operation);
@@ -2054,23 +2293,35 @@ internal static partial class PptxEditPlanCodec
                 break;
             case "leftEmu":
             case "topEmu":
-                leaf = DirectChildRange(xml, DirectChildRange(xml, properties, "spPr", "xfrm", operation), "xfrm", "off", operation);
+                leaf = DirectChildRange(xml, DirectChildRange(xml, properties, propertiesName, "xfrm", operation), "xfrm", "off", operation);
                 attribute = LeafKind(operation) == "leftEmu" ? "x" : "y";
                 break;
             case "widthEmu":
             case "heightEmu":
-                leaf = DirectChildRange(xml, DirectChildRange(xml, properties, "spPr", "xfrm", operation), "xfrm", "ext", operation);
+                leaf = DirectChildRange(xml, DirectChildRange(xml, properties, propertiesName, "xfrm", operation), "xfrm", "ext", operation);
                 attribute = LeafKind(operation) == "widthEmu" ? "cx" : "cy";
                 break;
+            case "childLeftEmu":
+            case "childTopEmu":
+                if (owner != "grpSp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose {LeafKind(operation)}.", operation.SlidePartPath);
+                leaf = DirectChildRange(xml, DirectChildRange(xml, properties, propertiesName, "xfrm", operation), "xfrm", "chOff", operation);
+                attribute = LeafKind(operation) == "childLeftEmu" ? "x" : "y";
+                break;
+            case "childWidthEmu":
+            case "childHeightEmu":
+                if (owner != "grpSp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose {LeafKind(operation)}.", operation.SlidePartPath);
+                leaf = DirectChildRange(xml, DirectChildRange(xml, properties, propertiesName, "xfrm", operation), "xfrm", "chExt", operation);
+                attribute = LeafKind(operation) == "childWidthEmu" ? "cx" : "cy";
+                break;
             case "rotationDegrees":
-                if (owner is not ("sp" or "pic")) throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose rotationDegrees.", operation.SlidePartPath);
-                leaf = DirectChildRange(xml, properties, "spPr", "xfrm", operation);
+                if (owner is not ("sp" or "pic" or "grpSp")) throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose rotationDegrees.", operation.SlidePartPath);
+                leaf = DirectChildRange(xml, properties, propertiesName, "xfrm", operation);
                 attribute = "rot";
                 break;
             case "flipHorizontal":
             case "flipVertical":
-                if (owner is not ("sp" or "pic")) throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose {LeafKind(operation)}.", operation.SlidePartPath);
-                leaf = DirectChildRange(xml, properties, "spPr", "xfrm", operation);
+                if (owner is not ("sp" or "pic" or "grpSp")) throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose {LeafKind(operation)}.", operation.SlidePartPath);
+                leaf = DirectChildRange(xml, properties, propertiesName, "xfrm", operation);
                 attribute = LeafKind(operation) == "flipHorizontal" ? "flipH" : "flipV";
                 break;
             default:
@@ -2091,6 +2342,9 @@ internal static partial class PptxEditPlanCodec
             "lineStyle" => PptxLineStyleCodec.TryPresetDashToken(operation.ExpectedValue, out var expectedStyleToken) ? expectedStyleToken : string.Empty,
             "lineCap" => PptxLineStyleCodec.TryCapToken(operation.ExpectedValue, out var expectedCapToken) ? expectedCapToken : string.Empty,
             "imageMaskPreset" => PptxCustomGeometryCodec.TryPreset(operation.ExpectedValue, out _) ? operation.ExpectedValue : string.Empty,
+            "imageMaskAdjustment" => $"val {operation.ExpectedValue}",
+            "customGeometryAdjustment" => $"val {operation.ExpectedValue}",
+            "presetGeometryAdjustment" => $"val {operation.ExpectedValue}",
             _ => operation.ExpectedValue,
         };
         var replacement = LeafKind(operation) switch
@@ -2098,6 +2352,9 @@ internal static partial class PptxEditPlanCodec
             "lineStyle" => PptxLineStyleCodec.TryPresetDashToken(operation.Value, out var requestedStyleToken) ? requestedStyleToken : string.Empty,
             "lineCap" => PptxLineStyleCodec.TryCapToken(operation.Value, out var requestedCapToken) ? requestedCapToken : string.Empty,
             "imageMaskPreset" => PptxCustomGeometryCodec.TryPreset(operation.Value, out _) ? operation.Value : string.Empty,
+            "imageMaskAdjustment" => $"val {operation.Value}",
+            "customGeometryAdjustment" => $"val {operation.Value}",
+            "presetGeometryAdjustment" => $"val {operation.Value}",
             _ => operation.Value,
         };
         var matches = LeafKind(operation) is "flipHorizontal" or "flipVertical"
@@ -2617,6 +2874,48 @@ internal static partial class PptxEditPlanCodec
         return new PptxXmlPatch(operation, start, start + choice.LocalName.Length, replacement, proof.SourceElementSha256, proof.MutationPartPath);
     }
 
+    private static PptxXmlPatch CompileTextBodyNormalAutoFitXmlPatch(
+        string xml,
+        XmlRange elementRange,
+        PptxEditPlanProof proof)
+    {
+        var operation = proof.Operation;
+        var elementXml = xml[elementRange.Start..elementRange.End];
+        var shapeRange = new XmlRange(0, elementXml.Length, "sp");
+        var txBody = DirectChildRange(elementXml, shapeRange, "sp", "txBody", operation);
+        var bodyPr = DirectChildRange(elementXml, txBody, "txBody", "bodyPr", operation);
+        var choices = DirectChildRanges(elementXml, bodyPr)
+            .Where(child => child.LocalName == "normAutofit")
+            .ToArray();
+        if (choices.Length != 1)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} requires one direct canonical normAutofit child.", operation.SlidePartPath);
+        var choice = choices[0];
+        var choiceXml = elementXml[choice.Start..choice.End];
+        var startTag = XmlTokenPattern().Matches(choiceXml).Cast<Match>()
+            .FirstOrDefault(match => !match.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(match.Value) == "normAutofit")
+            ?? throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} normAutofit child tag was not found.", operation.SlidePartPath);
+        if (!startTag.Value.TrimEnd().EndsWith("/>", StringComparison.Ordinal) ||
+            DirectChildRanges(choiceXml, new XmlRange(0, choiceXml.Length, choice.LocalName)).Count != 0)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} requires a bare self-closing normAutofit child.", operation.SlidePartPath);
+        var attributeName = LeafKind(operation) == "textBodyNormalAutoFitFontScale" ? "fontScale" : "lnSpcReduction";
+        var attributes = XmlAttributePattern().Matches(startTag.Value).Cast<Match>().ToArray();
+        if (attributes.Any(attribute => attribute.Groups["name"].Value.Contains(':') ||
+                                        LocalAttributeName(attribute.Groups["name"].Value) is not ("fontScale" or "lnSpcReduction")))
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} normAutofit child has unsupported attributes.", operation.SlidePartPath);
+        var selected = attributes
+            .Where(attribute => LocalAttributeName(attribute.Groups["name"].Value) == attributeName)
+            .ToArray();
+        if (selected.Length != 1)
+            throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} normAutofit {attributeName} attribute is missing or ambiguous.", operation.SlidePartPath);
+        var valueGroup = selected[0].Groups["value"];
+        var actual = ParseTextBodyNormalAutoFitToken(System.Net.WebUtility.HtmlDecode(valueGroup.Value), LeafKind(operation), operation);
+        if (!actual.Equals(operation.ExpectedValue, StringComparison.Ordinal))
+            throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} raw normal AutoFit percentage does not match the expected value.", operation.SlidePartPath);
+        var replacement = ParseTextBodyNormalAutoFitToken(operation.Value, LeafKind(operation), operation);
+        var start = elementRange.Start + choice.Start + startTag.Index + valueGroup.Index;
+        return new PptxXmlPatch(operation, start, start + valueGroup.Length, replacement, proof.SourceElementSha256, proof.MutationPartPath);
+    }
+
     private static PptxXmlPatch CompileTextBodyColumnDirectionXmlPatch(
         string xml,
         XmlRange elementRange,
@@ -2756,6 +3055,17 @@ internal static partial class PptxEditPlanCodec
     {
         if (value is not ("none" or "shrinkText" or "resizeShape"))
             throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} text-body AutoFit mode must be none, shrinkText, or resizeShape.", operation.SlidePartPath);
+        return value;
+    }
+
+    private static string ParseTextBodyNormalAutoFitToken(string value, string leafKind, PresentationEditOperation operation)
+    {
+        var maximum = leafKind == "textBodyNormalAutoFitFontScale" ? 100_000 : 13_200_000;
+        var minimum = leafKind == "textBodyNormalAutoFitFontScale" ? 1_000 : 0;
+        if (!int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed) ||
+            parsed < minimum || parsed > maximum ||
+            parsed.ToString(CultureInfo.InvariantCulture) != value)
+            throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} {leafKind} must use a canonical thousandth-of-a-percent token.", operation.SlidePartPath);
         return value;
     }
 
@@ -3283,7 +3593,12 @@ internal static partial class PptxEditPlanCodec
         PresentationEditOperation operation)
     {
         var fragment = xml[parent.Start..parent.End];
-        var children = ShapeElementRanges(fragment, parentLocalName).Where(child => child.LocalName == childLocalName).ToArray();
+        var children = ShapeElementRanges(
+                fragment,
+                parentLocalName,
+                includeGroupProperties: parentLocalName == "grpSp" && childLocalName == "grpSpPr")
+            .Where(child => child.LocalName == childLocalName)
+            .ToArray();
         if (children.Length != 1)
             throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} requires one direct {childLocalName} child under {parentLocalName}.", operation.SlidePartPath);
         var child = children[0];
@@ -3575,7 +3890,7 @@ internal static partial class PptxEditPlanCodec
                 resultById[operation.OperationId].OutputElementSha256 = HashElement(element);
                 continue;
             }
-            if (LeafKind(operation) is "chartTitleText" or "chartDataValue")
+            if (LeafKind(operation) is "chartTitleText" || IsChartDataLeafKind(LeafKind(operation)))
             {
                 if (!PptxNativeChartLeafCodec.TryResolve(element, slidePart, limits, out var chart) ||
                     !chart.Binding.PartPath.Equals(operation.TargetPartPath, StringComparison.OrdinalIgnoreCase) ||
@@ -3589,12 +3904,26 @@ internal static partial class PptxEditPlanCodec
                 else
                 {
                     var point = chart.Data?.Points.SingleOrDefault(candidate =>
-                        candidate.Binding.SeriesIndex == operation.ChartSeriesIndex && candidate.Binding.PointIndex == operation.ChartPointIndex);
-                    if (point is null || point.Binding.Value != operation.Value || point.Binding.Formula != operation.ChartFormula ||
-                        !chart.Binding.EmbeddedPackagePartPath.Equals(operation.EmbeddedPackagePartPath, StringComparison.OrdinalIgnoreCase) ||
-                        chart.Binding.EmbeddedPackageRelationshipId != operation.EmbeddedPackageRelationshipId ||
-                        !point.Binding.WorksheetPartPath.Equals(operation.EmbeddedWorksheetPartPath, StringComparison.OrdinalIgnoreCase) ||
-                        !point.Binding.CellReference.Equals(operation.EmbeddedCellReference, StringComparison.OrdinalIgnoreCase))
+                        candidate.Binding.SeriesIndex == operation.ChartSeriesIndex &&
+                        candidate.Binding.PointIndex == operation.ChartPointIndex &&
+                        ChartDataChannel(LeafKind(operation)) == NativeChartDataChannel(candidate.Binding));
+                    if (point is null || point.Binding.Value != operation.Value || point.Binding.Formula != operation.ChartFormula)
+                        throw new CodecException("presentation_edit_verification_failed", $"PPTX chart data operation {operation.OperationId} did not survive package reopen in the ChartPart cache.", operation.TargetPartPath);
+                    if (string.IsNullOrEmpty(operation.EmbeddedPackagePartPath))
+                    {
+                        if (chart.Binding.EmbeddedPackagePartPath.Length != 0 ||
+                            chart.Binding.EmbeddedPackageSourceSha256.Length != 0 ||
+                            chart.Binding.EmbeddedPackageRelationshipId.Length != 0 ||
+                            point.Binding.WorksheetPartPath.Length != 0 ||
+                            point.Binding.WorksheetSourceSha256.Length != 0 ||
+                            point.Binding.WorksheetName.Length != 0 ||
+                            point.Binding.CellReference.Length != 0)
+                            throw new CodecException("presentation_edit_verification_failed", $"PPTX literal chart data operation {operation.OperationId} unexpectedly acquired an embedded-workbook binding.", operation.TargetPartPath);
+                    }
+                    else if (!chart.Binding.EmbeddedPackagePartPath.Equals(operation.EmbeddedPackagePartPath, StringComparison.OrdinalIgnoreCase) ||
+                             chart.Binding.EmbeddedPackageRelationshipId != operation.EmbeddedPackageRelationshipId ||
+                             !point.Binding.WorksheetPartPath.Equals(operation.EmbeddedWorksheetPartPath, StringComparison.OrdinalIgnoreCase) ||
+                             !point.Binding.CellReference.Equals(operation.EmbeddedCellReference, StringComparison.OrdinalIgnoreCase))
                         throw new CodecException("presentation_edit_verification_failed", $"PPTX chart data operation {operation.OperationId} did not survive package reopen in both cache and workbook.", operation.EmbeddedPackagePartPath);
                 }
                 resultById[operation.OperationId].OutputElementSha256 = HashElement(element);
@@ -3857,7 +4186,10 @@ internal static partial class PptxEditPlanCodec
 
     private sealed record XmlRange(int Start, int End, string LocalName);
 
-    private static IReadOnlyList<XmlRange> ShapeElementRanges(string xml, string parentLocalName)
+    private static IReadOnlyList<XmlRange> ShapeElementRanges(
+        string xml,
+        string parentLocalName,
+        bool includeGroupProperties = false)
     {
         var tokens = XmlTokenPattern().Matches(xml).Cast<Match>().ToArray();
         var treeTokenIndex = Array.FindIndex(tokens, token => !token.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(token.Value) == parentLocalName);
@@ -3895,7 +4227,9 @@ internal static partial class PptxEditPlanCodec
                 childStart = -1;
             }
         }
-        return children.Where(child => child.LocalName is not "nvGrpSpPr" and not "grpSpPr").ToArray();
+        return includeGroupProperties
+            ? children
+            : children.Where(child => child.LocalName is not "nvGrpSpPr" and not "grpSpPr").ToArray();
     }
 
     private static string LocalName(string tag)
@@ -3995,10 +4329,23 @@ internal static partial class PptxEditPlanCodec
     }
     private static string LeafKind(PresentationEditOperation operation) =>
         string.IsNullOrEmpty(operation.LeafKind) ? "text" : operation.LeafKind;
+    private static bool IsChartDataLeafKind(string leafKind) => PpjNativeLeafProjection.IsChartDataLeafKind(leafKind);
+    private static string ChartDataChannel(string leafKind) => leafKind switch
+    {
+        "chartDataCategory" => "category",
+        "chartDataXValue" => "x",
+        "chartDataYValue" => "y",
+        "chartDataBubbleSize" => "size",
+        _ => "value",
+    };
+    private static string NativeChartDataChannel(PresentationNativeChartDataPoint point) =>
+        string.IsNullOrEmpty(point.Channel) ? "value" : point.Channel;
     private static string MutationPartPath(PresentationEditOperation operation) =>
-        LeafKind(operation) is "chartTitleText" or "chartDataValue" or "diagramText" ? operation.TargetPartPath : operation.SlidePartPath;
+        LeafKind(operation) is "chartTitleText" or "diagramText" || IsChartDataLeafKind(LeafKind(operation)) ? operation.TargetPartPath : operation.SlidePartPath;
     private static bool IsGeometryLeaf(string leafKind) =>
         leafKind is "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical";
+    private static bool IsGroupChildGeometryLeaf(string leafKind) =>
+        leafKind is "childLeftEmu" or "childTopEmu" or "childWidthEmu" or "childHeightEmu";
     private static bool LeafValuesEqual(string left, string right, string leafKind) =>
         leafKind is "fillRgb" or "lineRgb"
             ? PptxColor.Normalize(left) == PptxColor.Normalize(right)

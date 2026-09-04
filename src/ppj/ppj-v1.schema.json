@@ -468,6 +468,9 @@
           "minLength": 1,
           "maxLength": 1024
         },
+        "nativeRef": {
+          "$ref": "#/$defs/nativeRef"
+        },
         "background": {
           "$ref": "#/$defs/fill"
         },
@@ -512,6 +515,9 @@
             "obj"
           ]
         },
+        "nativeRef": {
+          "$ref": "#/$defs/nativeRef"
+        },
         "background": {
           "$ref": "#/$defs/fill"
         },
@@ -548,7 +554,15 @@
             "title",
             "body",
             "centered-title",
-            "subtitle"
+            "subtitle",
+            "content",
+            "picture",
+            "chart",
+            "table",
+            "date",
+            "footer",
+            "slide-number",
+            "other"
           ]
         },
         "index": {
@@ -558,6 +572,9 @@
         },
         "frame": {
           "$ref": "#/$defs/frame"
+        },
+        "nativeRef": {
+          "$ref": "#/$defs/nativeRef"
         },
         "text": {
           "$ref": "#/$defs/textContent"
@@ -764,6 +781,13 @@
             "$ref": "#/$defs/namedShapeStyle"
           }
         },
+        "image": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/namedImageStyle"
+          }
+        },
         "chart": {
           "type": "array",
           "maxItems": 128,
@@ -809,6 +833,22 @@
         },
         "style": {
           "$ref": "#/$defs/shapeStyle"
+        }
+      }
+    },
+    "namedImageStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "style"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "style": {
+          "$ref": "#/$defs/imageStyle"
         }
       }
     },
@@ -1353,6 +1393,39 @@
         }
       }
     },
+    "groupChildFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height"
+      ],
+      "properties": {
+        "x": {
+          "type": "number",
+          "minimum": -100000,
+          "maximum": 100000
+        },
+        "y": {
+          "type": "number",
+          "minimum": -100000,
+          "maximum": 100000
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100000
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100000
+        }
+      },
+      "description": "The group's local child coordinate rectangle, mapped by DrawingML chOff/chExt. It has no independent rotation or flip; those belong to the outer frame."
+    },
     "accessibility": {
       "type": "object",
       "additionalProperties": false,
@@ -1489,6 +1562,8 @@
         "operation": {
           "enum": [
             "replaceText",
+            "setTextParagraphStyle",
+            "setTextBodyStyle",
             "setFill",
             "setStroke",
             "setLinePath",
@@ -1514,14 +1589,20 @@
             "setChartData",
             "setChartTextStyle",
             "setChartFill",
+            "setChartSeriesStyle",
+            "setChartSeriesAnalytics",
             "setChartFrame",
             "setChartLabels",
             "setChartAxis",
             "setChartPlot",
             "setAction",
             "setHoverAction",
+            "setAccessibility",
+            "setCommentStatus",
             "setSmartArtText",
             "setSmartArtGraph",
+            "setSmartArtImage",
+            "setSmartArtImagePaint",
             "detachSmartArt",
             "setOlePayload",
             "setName",
@@ -1545,6 +1626,11 @@
           "items": {
             "enum": [
               "text",
+            "text.paragraphs[].style.alignment",
+            "text.paragraphs[].style.tabStops",
+              "text.style",
+              "textStyle",
+              "textStyles",
               "visibleText",
               "fill",
               "stroke",
@@ -1573,6 +1659,7 @@
               "image.crop",
               "image.fit",
               "image.mask.adjustments",
+              "image.mask.preset",
               "image.mask.paths",
               "image.border",
               "image.shadow",
@@ -1585,14 +1672,23 @@
               "chart.data",
               "chart.textStyle",
               "chart.fill",
+              "chart.data.series[].stroke",
+              "chart.data.series[].marker",
+              "chart.data.series[].trendlines",
+              "chart.data.series[].errorBars",
               "chart.frame",
               "chart.labels",
               "chart.axis",
               "chart.plot",
               "action",
               "hoverAction",
+              "accessibility",
+              "status",
+              "resolved",
               "smartArt.text",
               "smartArt.connections",
+              "smartArt.nodes[].asset",
+              "smartArt.nodes[].image",
               "smartArt.detachToShapes",
               "ole.payload",
               "name",
@@ -1625,7 +1721,11 @@
             "text",
             "tableCellText",
             "nativeText",
+            "chartDataCategory",
             "chartDataValue",
+            "chartDataXValue",
+            "chartDataYValue",
+            "chartDataBubbleSize",
             "paragraphAlignment",
             "paragraphLineSpacingPoints",
             "paragraphLineSpacingMultiplier",
@@ -1652,6 +1752,8 @@
             "textBodyWrap",
             "textBodyColumnCount",
             "textBodyAutoFit",
+            "textBodyNormalAutoFitFontScale",
+            "textBodyNormalAutoFitLineSpacingReduction",
             "textBodyColumnDirection",
             "textBodyVerticalText",
             "fontSizePoints",
@@ -1692,11 +1794,18 @@
             "topEmu",
             "widthEmu",
             "heightEmu",
+            "childLeftEmu",
+            "childTopEmu",
+            "childWidthEmu",
+            "childHeightEmu",
             "rotationDegrees",
             "flipHorizontal",
             "flipVertical",
             "imageOpacityThousandthPercent",
-            "imageMaskPreset"
+            "imageMaskPreset",
+            "customGeometryAdjustment",
+            "imageMaskAdjustment",
+            "presetGeometryAdjustment"
           ]
         },
         "expectedHash": {
@@ -1878,20 +1987,27 @@
               "$ref": "#/$defs/id"
             },
             "fit": {
-              "enum": [
-                "cover",
-                "contain",
-                "stretch",
-                "tile"
-              ]
+              "oneOf": [
+                {
+                  "enum": [
+                    "cover",
+                    "contain",
+                    "stretch",
+                    "tile"
+                  ]
+                },
+                {
+                  "$ref": "#/$defs/grammarTokenRef"
+                }
+              ],
+              "description": "Image paint fit may be a literal or a design grammar token of kind string; the resolved value must be cover, contain, stretch, or tile."
             },
             "crop": {
               "$ref": "#/$defs/crop"
             },
             "opacity": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 1
+              "$ref": "#/$defs/numberOrToken",
+              "description": "Image paint opacity; a token reference must declare kind opacity."
             }
           }
         }
@@ -2114,6 +2230,45 @@
         }
       }
     },
+    "imageStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fit": {
+          "oneOf": [
+            {
+              "enum": [
+                "cover",
+                "contain",
+                "stretch",
+                "tile",
+                "none"
+              ]
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ],
+          "description": "Reusable image paint fit. A grammar token must declare kind string and resolve to a supported fit."
+        },
+        "crop": {
+          "$ref": "#/$defs/crop"
+        },
+        "focus": {
+          "$ref": "#/$defs/imageFocus"
+        },
+        "opacity": {
+          "$ref": "#/$defs/numberOrToken",
+          "description": "Reusable image opacity; a grammar token must declare kind opacity."
+        },
+        "border": {
+          "$ref": "#/$defs/stroke"
+        },
+        "shadow": {
+          "$ref": "#/$defs/shadow"
+        }
+      }
+    },
     "textStyle": {
       "type": "object",
       "additionalProperties": false,
@@ -2304,6 +2459,35 @@
           "exclusiveMinimum": 0,
           "maximum": 1000
         },
+        "tabStops": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "position"
+            ],
+            "properties": {
+              "position": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100000
+              },
+              "alignment": {
+                "enum": [
+                  "left",
+                  "center",
+                  "right",
+                  "decimal"
+                ]
+              }
+            }
+          }
+        },
+        "noTabStops": {
+          "const": true
+        },
         "level": {
           "type": "integer",
           "minimum": 0,
@@ -2450,6 +2634,56 @@
               "maximum": 1000
             }
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ],
+          "oneOf": [
+            {
+              "required": [
+                "asset"
+              ]
+            },
+            {
+              "required": [
+                "uri"
+              ]
+            }
+          ],
+          "properties": {
+            "type": {
+              "const": "picture"
+            },
+            "asset": {
+              "$ref": "#/$defs/id"
+            },
+            "uri": {
+              "type": "string",
+              "format": "uri",
+              "maxLength": 4096
+            },
+            "fontFamily": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "color": {
+              "$ref": "#/$defs/color"
+            },
+            "size": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 1000
+            },
+            "sizePercent": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 1000
+            }
+          }
         }
       ]
     },
@@ -2460,6 +2694,10 @@
         "paragraphs"
       ],
       "properties": {
+        "style": {
+          "$ref": "#/$defs/textBoxStyle",
+          "description": "Optional text-body layout for structured rich text. It is kept separate from per-paragraph style and applies only to the text container."
+        },
         "paragraphs": {
           "type": "array",
           "minItems": 1,
@@ -2522,6 +2760,11 @@
           "required": [
             "field"
           ]
+        },
+        {
+          "required": [
+            "break"
+          ]
         }
       ],
       "properties": {
@@ -2537,6 +2780,10 @@
         },
         "field": {
           "$ref": "#/$defs/textField"
+        },
+        "break": {
+          "const": true,
+          "description": "A native DrawingML line break. It is an ordered inline and does not create a new paragraph."
         },
         "style": {
           "$ref": "#/$defs/textStyle"
@@ -2634,6 +2881,26 @@
             "resize-shape"
           ]
         },
+        "normalAutoFit": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "fontScale": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 100,
+              "multipleOf": 0.001
+            },
+            "lineSpacingReduction": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 13200,
+              "multipleOf": 0.001
+            }
+          },
+          "description": "Optional canonical a:normAutofit percentages; requires autoFit shrink-text and retains at most three decimal places."
+        },
         "margins": {
           "$ref": "#/$defs/insets"
         },
@@ -2659,6 +2926,27 @@
             "vertical",
             "vertical270"
           ]
+        },
+        "rotation": {
+          "type": "number",
+          "minimum": -360,
+          "maximum": 360
+        },
+        "verticalOverflow": {
+          "enum": [
+            "overflow",
+            "ellipsis",
+            "clip"
+          ]
+        },
+        "horizontalOverflow": {
+          "enum": [
+            "overflow",
+            "clip"
+          ]
+        },
+        "upright": {
+          "type": "boolean"
         }
       }
     },
@@ -2853,7 +3141,7 @@
             },
             "points": {
               "$ref": "#/$defs/linePoints",
-              "description": "Kimi authored coordinate pairs. The first and last points are on-curve; bounded smooth lowering accepts two through four points."
+              "description": "Kimi authored coordinate pairs. The first and last points are on-curve and middle points are Bezier controls; authored smooth lowering accepts 2 through 128 points, while compact readback is retained only when the bounded native path can be reconstructed safely."
             },
             "curve": {
               "enum": [
@@ -3426,14 +3714,30 @@
               "$ref": "#/$defs/id",
               "description": "Source-bound SVG member of a native raster/SVG fallback pair. Authored images use asset and do not manufacture a paired fallback topology."
             },
+            "styleRef": {
+              "$ref": "#/$defs/id",
+              "description": "Optional reusable image paint style from design.styles.image."
+            },
+            "style": {
+              "$ref": "#/$defs/imageStyle",
+              "description": "Inline image paint style; field-level precedence may select it over the named image style."
+            },
             "fit": {
-              "enum": [
-                "cover",
-                "contain",
-                "stretch",
-                "tile",
-                "none"
-              ]
+              "oneOf": [
+                {
+                  "enum": [
+                    "cover",
+                    "contain",
+                    "stretch",
+                    "tile",
+                    "none"
+                  ]
+                },
+                {
+                  "$ref": "#/$defs/grammarTokenRef"
+                }
+              ],
+              "description": "Image fit may be a literal or a design grammar token of kind string; the resolved value must be cover, contain, stretch, tile, or none."
             },
             "crop": {
               "$ref": "#/$defs/crop"
@@ -3937,6 +4241,16 @@
                 }
               ]
             },
+            "trendlines": {
+              "type": "array",
+              "maxItems": 16,
+              "items": {
+                "$ref": "#/$defs/chartTrendline"
+              }
+            },
+            "errorBars": {
+              "$ref": "#/$defs/chartErrorBars"
+            },
             "dataLabels": {
               "$ref": "#/$defs/chartSeriesDataLabels"
             }
@@ -3999,6 +4313,16 @@
               "$ref": "#/$defs/chartMarker"
             }
           ]
+        },
+        "trendlines": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/chartTrendline"
+          }
+        },
+        "errorBars": {
+          "$ref": "#/$defs/chartErrorBars"
         },
         "dataLabels": {
           "$ref": "#/$defs/chartSeriesDataLabels"
@@ -4295,6 +4619,18 @@
             "secondary"
           ]
         },
+        "xAxisIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Optional bounded combo-axis index emitted by projection; 0 is primary and 1 is secondary."
+        },
+        "yAxisIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Optional bounded combo-axis index emitted by projection; 0 is primary and 1 is secondary."
+        },
         "color": {
           "$ref": "#/$defs/color"
         },
@@ -4363,46 +4699,101 @@
       "additionalProperties": false,
       "properties": {
         "legend": {
-          "enum": [
-            "none",
-            "top",
-            "bottom",
-            "left",
-            "right"
-          ]
+          "oneOf": [
+            {
+              "enum": [
+                "none",
+                "top",
+                "bottom",
+                "left",
+                "right"
+              ]
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ],
+          "description": "Chart legend placement; a string grammar token is resolved and checked against the bounded placements."
         },
         "stacking": {
-          "enum": [
-            "none",
-            "stacked",
-            "percent-stacked",
-            "stream"
-          ]
+          "oneOf": [
+            {
+              "enum": [
+                "none",
+                "stacked",
+                "percent-stacked",
+                "stream"
+              ]
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ],
+          "description": "Chart stacking mode; a string grammar token is resolved and checked against the bounded modes."
         },
         "gapWidth": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 500
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 500
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ],
+          "description": "Column gap width; a size grammar token must resolve to a bounded integer."
         },
         "startAngle": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 360
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 360
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ],
+          "description": "First pie/doughnut slice angle; a size grammar token must resolve to a bounded integer."
         },
         "holeSize": {
-          "type": "integer",
-          "minimum": 10,
-          "maximum": 90
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 10,
+              "maximum": 90
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ],
+          "description": "Doughnut hole size; a size grammar token must resolve to a bounded integer."
         },
         "bubbleScale": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 300
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 300
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ],
+          "description": "Bubble scale; a size grammar token must resolve to a bounded integer."
         },
         "bubbleSizeMode": {
-          "enum": [
-            "area",
-            "width"
+          "oneOf": [
+            {
+              "enum": [
+                "area",
+                "width"
+              ]
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
           ]
         },
         "bubbleSizeScale": {
@@ -4423,24 +4814,31 @@
           }
         },
         "showCategoryAxis": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken"
         },
         "showValueAxis": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken"
         },
         "showGridlines": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken"
         },
         "showDataLabels": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken"
         },
         "dataLabelPosition": {
-          "enum": [
-            "center",
-            "inside-end",
-            "outside-end",
-            "above",
-            "below"
+          "oneOf": [
+            {
+              "enum": [
+                "center",
+                "inside-end",
+                "outside-end",
+                "above",
+                "below"
+              ]
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
           ]
         },
         "dataLabels": {
@@ -4462,10 +4860,10 @@
           "$ref": "#/$defs/chartTextStyle"
         },
         "smooth": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken"
         },
         "varyColors": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken"
         },
         "waterfall": {
           "$ref": "#/$defs/waterfallStyle"
@@ -4876,30 +5274,40 @@
       "additionalProperties": false,
       "properties": {
         "visible": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken",
+          "description": "Axis visibility; a token reference must declare kind boolean."
         },
         "title": {
-          "type": "string",
-          "maxLength": 512
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 512
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ],
+          "description": "Axis title; a token reference must declare kind string."
         },
         "numberFormat": {
-          "type": "string",
-          "maxLength": 255
+          "$ref": "#/$defs/stringOrToken",
+          "description": "Axis number format code; a token reference must declare kind string."
         },
         "tickLabelInterval": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 10000
+          "$ref": "#/$defs/numberOrToken",
+          "description": "Category-axis label interval; literals and size grammar tokens must resolve to an integer from 1 through 10000."
         },
         "min": {
-          "type": "number"
+          "$ref": "#/$defs/numberOrToken",
+          "description": "Value-axis minimum; a token reference must declare kind size."
         },
         "max": {
-          "type": "number"
+          "$ref": "#/$defs/numberOrToken",
+          "description": "Value-axis maximum; a token reference must declare kind size."
         },
         "majorUnit": {
-          "type": "number",
-          "exclusiveMinimum": 0
+          "$ref": "#/$defs/positiveNumberOrToken",
+          "description": "Value-axis major unit; a token reference must declare kind size and resolve above zero."
         },
         "textStyle": {
           "$ref": "#/$defs/chartTextStyle"
@@ -4908,12 +5316,13 @@
           "$ref": "#/$defs/chartTextStyle"
         },
         "reverse": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken",
+          "description": "Axis direction; a token reference must declare kind boolean."
         },
         "axisLine": {
           "oneOf": [
             {
-              "type": "boolean"
+              "$ref": "#/$defs/booleanOrToken"
             },
             {
               "$ref": "#/$defs/stroke"
@@ -4926,7 +5335,7 @@
         "gridLine": {
           "oneOf": [
             {
-              "type": "boolean"
+              "$ref": "#/$defs/booleanOrToken"
             },
             {
               "$ref": "#/$defs/stroke"
@@ -4934,7 +5343,8 @@
           ]
         },
         "tickLabelsVisible": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken",
+          "description": "Tick-label visibility; a token reference must declare kind boolean."
         }
       }
     },
@@ -4943,22 +5353,25 @@
       "additionalProperties": false,
       "properties": {
         "show": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken",
+          "description": "Radar spoke visibility; a token reference must declare kind boolean."
         },
         "min": {
-          "type": "number"
+          "$ref": "#/$defs/numberOrToken",
+          "description": "Radar value-axis minimum; a token reference must declare kind size."
         },
         "max": {
-          "type": "number"
+          "$ref": "#/$defs/numberOrToken",
+          "description": "Radar value-axis maximum; a token reference must declare kind size."
         },
         "majorUnit": {
-          "type": "number",
-          "exclusiveMinimum": 0
+          "$ref": "#/$defs/positiveNumberOrToken",
+          "description": "Radar major unit; a token reference must declare kind size and resolve above zero."
         },
         "label": {
           "oneOf": [
             {
-              "type": "boolean"
+              "$ref": "#/$defs/booleanOrToken"
             },
             {
               "$ref": "#/$defs/radarSpokeLabel"
@@ -4968,7 +5381,7 @@
         "axisLine": {
           "oneOf": [
             {
-              "type": "boolean"
+              "$ref": "#/$defs/booleanOrToken"
             },
             {
               "$ref": "#/$defs/stroke"
@@ -4978,7 +5391,7 @@
         "gridLine": {
           "oneOf": [
             {
-              "type": "boolean"
+              "$ref": "#/$defs/booleanOrToken"
             },
             {
               "$ref": "#/$defs/stroke"
@@ -4993,29 +5406,23 @@
       "minProperties": 1,
       "properties": {
         "numberFormat": {
-          "type": "string",
-          "maxLength": 255
+          "$ref": "#/$defs/stringOrToken",
+          "description": "Radar spoke label number format code; a token reference must declare kind string."
         },
         "fontSize": {
-          "type": "number",
-          "exclusiveMinimum": 0,
-          "maximum": 1000
+          "$ref": "#/$defs/positiveNumberOrToken"
         },
         "fontFamily": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 255
+          "$ref": "#/$defs/stringOrToken"
         },
         "fontFamilyEastAsia": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 255
+          "$ref": "#/$defs/stringOrToken"
         },
         "bold": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken"
         },
         "italic": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken"
         },
         "color": {
           "$ref": "#/$defs/color"
@@ -5058,36 +5465,48 @@
       "additionalProperties": false,
       "properties": {
         "showValue": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken",
+          "description": "Value-label visibility; a token reference must declare kind boolean."
         },
         "showCategory": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken",
+          "description": "Category-label visibility; a token reference must declare kind boolean."
         },
         "showSeries": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken",
+          "description": "Series-label visibility; a token reference must declare kind boolean."
         },
         "showPercent": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken",
+          "description": "Percentage-label visibility; a token reference must declare kind boolean."
         },
         "position": {
-          "enum": [
-            "best-fit",
-            "bottom",
-            "center",
-            "inside-base",
-            "inside-end",
-            "left",
-            "outside-end",
-            "right",
-            "top"
-          ]
+          "oneOf": [
+            {
+              "enum": [
+                "best-fit",
+                "bottom",
+                "center",
+                "inside-base",
+                "inside-end",
+                "left",
+                "outside-end",
+                "right",
+                "top"
+              ]
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ],
+          "description": "Native data-label position; a token reference must declare kind string."
         },
         "textStyle": {
           "$ref": "#/$defs/chartTextStyle"
         },
         "numberFormat": {
-          "type": "string",
-          "maxLength": 255
+          "$ref": "#/$defs/stringOrToken",
+          "description": "Data-label number format code; a token reference must declare kind string."
         }
       }
     },
@@ -5096,36 +5515,48 @@
       "additionalProperties": false,
       "properties": {
         "showValue": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken",
+          "description": "Value-label visibility; a token reference must declare kind boolean."
         },
         "showCategory": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken",
+          "description": "Category-label visibility; a token reference must declare kind boolean."
         },
         "showSeries": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken",
+          "description": "Series-label visibility; a token reference must declare kind boolean."
         },
         "showPercent": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken",
+          "description": "Percentage-label visibility; a token reference must declare kind boolean."
         },
         "position": {
-          "enum": [
-            "best-fit",
-            "bottom",
-            "center",
-            "inside-base",
-            "inside-end",
-            "left",
-            "outside-end",
-            "right",
-            "top"
-          ]
+          "oneOf": [
+            {
+              "enum": [
+                "best-fit",
+                "bottom",
+                "center",
+                "inside-base",
+                "inside-end",
+                "left",
+                "outside-end",
+                "right",
+                "top"
+              ]
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ],
+          "description": "Native series data-label position; a token reference must declare kind string."
         },
         "textStyle": {
           "$ref": "#/$defs/chartTextStyle"
         },
         "numberFormat": {
-          "type": "string",
-          "maxLength": 255
+          "$ref": "#/$defs/stringOrToken",
+          "description": "Series data-label number format code; a token reference must declare kind string."
         },
         "points": {
           "type": "array",
@@ -5160,36 +5591,48 @@
           "maximum": 9999
         },
         "showValue": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken",
+          "description": "Value-label visibility; a token reference must declare kind boolean."
         },
         "showCategory": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken",
+          "description": "Category-label visibility; a token reference must declare kind boolean."
         },
         "showSeries": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken",
+          "description": "Series-label visibility; a token reference must declare kind boolean."
         },
         "showPercent": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken",
+          "description": "Percentage-label visibility; a token reference must declare kind boolean."
         },
         "position": {
-          "enum": [
-            "best-fit",
-            "bottom",
-            "center",
-            "inside-base",
-            "inside-end",
-            "left",
-            "outside-end",
-            "right",
-            "top"
-          ]
+          "oneOf": [
+            {
+              "enum": [
+                "best-fit",
+                "bottom",
+                "center",
+                "inside-base",
+                "inside-end",
+                "left",
+                "outside-end",
+                "right",
+                "top"
+              ]
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ],
+          "description": "Native point data-label position; a token reference must declare kind string."
         },
         "textStyle": {
           "$ref": "#/$defs/chartTextStyle"
         },
         "numberFormat": {
-          "type": "string",
-          "maxLength": 255
+          "$ref": "#/$defs/stringOrToken",
+          "description": "Point data-label number format code; a token reference must declare kind string."
         }
       },
       "anyOf": [
@@ -5496,16 +5939,16 @@
           "$ref": "#/$defs/textBoxStyle"
         },
         "bandedRows": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken"
         },
         "bandedColumns": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken"
         },
         "firstColumnEmphasis": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken"
         },
         "lastColumnEmphasis": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken"
         },
         "defaultCellFill": {
           "$ref": "#/$defs/fill"
@@ -5537,7 +5980,7 @@
           "$ref": "#/$defs/tableCellStyle"
         },
         "rowOverColumn": {
-          "type": "boolean"
+          "$ref": "#/$defs/booleanOrToken"
         }
       }
     },
@@ -5659,6 +6102,18 @@
               "items": {
                 "$ref": "#/$defs/element"
               }
+            },
+            "childFrame": {
+              "$ref": "#/$defs/groupChildFrame"
+            },
+            "readingOrder": {
+              "type": "array",
+              "maxItems": 100000,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/id"
+              },
+              "description": "Explicit reading order for direct group children. In the bounded native profile it is also the physical child z-order; it must be a complete permutation of the group's direct element IDs."
             }
           }
         }
@@ -5866,6 +6321,9 @@
         "asset": {
           "$ref": "#/$defs/id"
         },
+        "image": {
+          "$ref": "#/$defs/smartArtNodeImage"
+        },
         "kind": {
           "enum": [
             "node",
@@ -5875,6 +6333,35 @@
         },
         "nativeRef": {
           "$ref": "#/$defs/nativeRef"
+        }
+      }
+    },
+    "smartArtNodeImage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fit"
+      ],
+      "properties": {
+        "fit": {
+          "oneOf": [
+            {
+              "enum": [
+                "stretch",
+                "tile"
+              ]
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ],
+          "description": "SmartArt cached picture paint fit. The bounded native profile accepts stretch or tile; cover/contain remain authored picture-element semantics outside this cache owner."
+        },
+        "crop": {
+          "$ref": "#/$defs/crop"
+        },
+        "opacity": {
+          "$ref": "#/$defs/opacityOrToken"
         }
       }
     },
@@ -6360,6 +6847,14 @@
         },
         "autoReverse": {
           "type": "boolean"
+        },
+        "trigger": {
+          "enum": [
+            "timeline",
+            "onClick",
+            "afterPrevious",
+            "withPrevious"
+          ]
         }
       }
     },
@@ -7169,6 +7664,12 @@
         "parent": {
           "$ref": "#/$defs/id"
         },
+        "kind": {
+          "enum": [
+            "legacy",
+            "modern"
+          ]
+        },
         "author": {
           "type": "string",
           "minLength": 1,
@@ -7184,6 +7685,16 @@
         },
         "resolved": {
           "type": "boolean"
+        },
+        "status": {
+          "enum": [
+            "active",
+            "resolved",
+            "closed"
+          ]
+        },
+        "anchor": {
+          "$ref": "#/$defs/commentAnchor"
         },
         "position": {
           "type": "object",
@@ -7205,6 +7716,103 @@
           "$ref": "#/$defs/nativeRef"
         }
       }
+    },
+    "commentAnchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "moniker"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "element",
+            "textRange"
+          ]
+        },
+        "moniker": {
+          "enum": [
+            "spMk",
+            "graphicFrameMk",
+            "cxnSpMk",
+            "picMk",
+            "grpSpMk"
+          ]
+        },
+        "textStart": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "textLength": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "contextLength": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "contextHash": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "textRange"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "textStart",
+              "textLength"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "element"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "textStart"
+                  ]
+                },
+                {
+                  "required": [
+                    "textLength"
+                  ]
+                },
+                {
+                  "required": [
+                    "contextLength"
+                  ]
+                },
+                {
+                  "required": [
+                    "contextHash"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
     }
   }
 }

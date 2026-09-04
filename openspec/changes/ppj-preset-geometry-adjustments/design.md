@@ -18,16 +18,18 @@ arrows.
 **Goals:**
 
 - Make the existing ordered PPJ adjustment array executable for every preset
-  already listed by PPJ whose native adjustment topology is canonical.
+  already listed by PPJ whose native adjustment topology is canonical, for
+  both ordinary shapes and recognized picture masks.
 - Preserve omission as "use the Office preset defaults".
-- Restore recognized imported literal adjustments and permit a capability-bound
-  value edit without exposing native names or formulas.
+- Restore recognized imported literal adjustments and permit capability-bound
+  value and preset-identity edits without exposing native names or formulas.
 - Keep unrelated source content byte-stable at the OPC-part boundary.
 
 **Non-Goals:**
 
 - Raw guide names, formulas, handles, XPath, or arbitrary preset names.
-- Formula-valued or partial imported adjustment lists.
+- Formula-valued or partial imported adjustment lists; a picture preset/custom
+  topology transition remains a separate no-adjustment custom-mask profile.
 - Extending the PPJ preset vocabulary in this change.
 - Evaluating or reproducing the complete preset-shape geometry algorithms.
 
@@ -64,10 +66,13 @@ typed array and the compiler maps it to native guides.
 ### Narrow imported capability
 
 Canonical editable preset shapes receive `setGeometry` for exactly
-`geometry.adjustments`. Source-bound compilation keeps the preset identity and
-all other geometry fields equal, proves the source hash, and changes only the
-issued array. Noncanonical native adjustment lists remain modeled for preview
-where possible but do not receive this capability.
+`geometry.adjustments`; recognized picture masks receive one bounded
+`setImageMask` capability covering preset identity, complete adjustments, and
+the separately proven literal custom-path transition. Source-bound compilation
+proves the source hash and changes only the existing geometry owner, replacing
+the complete adjustment list when a preset identity changes. Noncanonical
+native adjustment lists remain modeled for preview where possible but do not
+receive this capability.
 
 ## Risks / Trade-offs
 

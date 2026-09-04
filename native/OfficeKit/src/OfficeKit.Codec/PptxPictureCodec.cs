@@ -217,28 +217,44 @@ internal static class PptxPictureCodec
         if (currentImage.HasOpacityThousandthPercent != requested.Image.HasOpacityThousandthPercent ||
             currentImage.OpacityThousandthPercent != requested.Image.OpacityThousandthPercent)
             ApplyOpacity(blip, requested.Image.HasOpacityThousandthPercent ? requested.Image.OpacityThousandthPercent : null);
-        if (!currentImage.CustomMaskPaths.SequenceEqual(requested.Image.CustomMaskPaths))
+        var customMaskChanged = !currentImage.CustomMaskPaths.SequenceEqual(requested.Image.CustomMaskPaths);
+        var presetMaskChanged = !currentImage.MaskPreset.Equals(requested.Image.MaskPreset, StringComparison.Ordinal) ||
+            !currentImage.MaskPresetAdjustments.SequenceEqual(requested.Image.MaskPresetAdjustments);
+        if (customMaskChanged && requested.Image.CustomMaskPaths.Count > 0)
         {
-            if (currentImage.CustomMaskPaths.Count == 0 || requested.Image.CustomMaskPaths.Count == 0)
-                throw new CodecException(
-                    "unsupported_presentation_edit",
-                    $"Presentation image {requested.Id} cannot switch between preset and custom mask topology.");
             // A literal custom mask is an owner-local picture geometry. Keep
-            // the native picture relationship and replace only its existing
-            // a:custGeom when the requested profile remains fully bounded.
+            // the native picture relationship and replace the existing
+            // preset/custom geometry only when the requested profile remains
+            // fully bounded.  PptxCustomGeometryCodec owns the geometry
+            // replacement, so a preset <-> custom transition does not require
+            // a new picture or any relationship rewrite.
             PptxCustomGeometryCodec.Validate(CustomMaskShape(requested.Image), requested.Id + " image mask");
             PptxCustomGeometryCodec.Apply(properties, CustomMaskShape(requested.Image), requested.Id + " image mask");
         }
-        if (!currentImage.MaskPreset.Equals(requested.Image.MaskPreset, StringComparison.Ordinal) ||
-            !currentImage.MaskPresetAdjustments.SequenceEqual(requested.Image.MaskPresetAdjustments))
+        else if (requested.Image.CustomMaskPaths.Count == 0 && (presetMaskChanged || customMaskChanged))
         {
-            if (geometry is not A.PresetGeometry presetGeometry)
-                throw new CodecException(
-                    "unsupported_presentation_edit",
-                    $"Presentation image {requested.Id} custom mask identity is source-owned and cannot be replaced by a preset mask.");
             var maskPreset = requested.Image.MaskPreset.Length == 0 ? "rect" : requested.Image.MaskPreset;
-            presetGeometry.Preset = MaskPreset(requested.Image.MaskPreset);
-            PptxPresetGeometryAdjustmentCodec.Apply(presetGeometry, maskPreset, requested.Image.MaskPresetAdjustments, requested.Id + " image mask");
+            PptxPresetGeometryAdjustmentCodec.Validate(maskPreset, requested.Image.MaskPresetAdjustments, requested.Id + " image mask");
+            if (geometry is A.PresetGeometry presetGeometry)
+            {
+                presetGeometry.Preset = MaskPreset(requested.Image.MaskPreset);
+                PptxPresetGeometryAdjustmentCodec.Apply(presetGeometry, maskPreset, requested.Image.MaskPresetAdjustments, requested.Id + " image mask");
+            }
+            else
+            {
+                // A custom -> preset transition is still local to the
+                // picture's shape properties.  Build a bounded preset shape
+                // and let the shared geometry codec replace the old node.
+                var presetShape = new PresentationShape { Geometry = maskPreset };
+                presetShape.PresetAdjustments.Add(requested.Image.MaskPresetAdjustments);
+                PptxCustomGeometryCodec.Apply(properties, presetShape, requested.Id + " image mask");
+            }
+        }
+        else if (customMaskChanged || presetMaskChanged)
+        {
+            throw new CodecException(
+                "unsupported_presentation_edit",
+                $"Presentation image {requested.Id} mask topology is outside the bounded preset/custom profile.");
         }
         if (!Equals(currentImage.Border, requested.Image.Border)) ApplyBorder(properties, requested.Image.Border);
         if (!Equals(currentImage.Shadow, requested.Image.Shadow)) PptxShadowCodec.Apply(properties, requested.Image.Shadow);
@@ -280,9 +296,35 @@ internal static class PptxPictureCodec
         {
             if (properties.GetFirstChild<A.PresetGeometry>() is { } geometry)
             {
-                geometry.Preset = A.ShapeTypeValues.Rectangle;
-                geometry.RemoveAllChildren();
-                geometry.Append(new A.AdjustValueList());
+                // Recreate the sentinel instead of mutating the existing
+                // node. Open XML SDK can serialize namespace declarations in
+                // a different attribute order after a geometry type change;
+                // using one fresh sentinel for every preset/custom source
+                // makes the residual hash insensitive to that modeled slot
+                // representation detail.
+                var preset = new A.PresetGeometry(new A.AdjustValueList())
+                {
+                    Preset = A.ShapeTypeValues.Rectangle,
+                };
+                geometry.InsertAfterSelf(preset);
+                geometry.Remove();
+            }
+            else
+            {
+                // Custom geometry is a modeled mask profile.  Normalize it to
+                // the same empty rectangle sentinel used by preset masks so
+                // a bounded preset <-> custom transition does not look like
+                // an unrelated native child insertion/deletion in the
+                // residual hash.
+                if (properties.GetFirstChild<A.CustomGeometry>() is { } custom)
+                {
+                    var preset = new A.PresetGeometry(new A.AdjustValueList())
+                    {
+                        Preset = A.ShapeTypeValues.Rectangle,
+                    };
+                    custom.InsertAfterSelf(preset);
+                    custom.Remove();
+                }
             }
             properties.GetFirstChild<A.Outline>()?.Remove();
             properties.GetFirstChild<A.EffectList>()?.Remove();

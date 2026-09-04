@@ -8,6 +8,9 @@
 - [x] 2.1 Implement one canonical preset profile registry and literal native reader/writer
 - [x] 2.2 Compile source-free PPJ adjustments and project canonical imported values
 - [x] 2.3 Lower capability-issued source adjustment edits while preserving noncanonical graphs
+- [x] 2.4 Permit recognized picture preset identity changes to replace complete
+  adjustment lists, including different canonical guide arities, while keeping
+  the existing picture relationship and SlidePart owner
 
 ## 3. Agent discoverability
 
@@ -16,6 +19,7 @@
 
 ## 4. Lean verification and delivery
 
-- [x] 4.1 Extend one integrated PPJ sample with authored round trip and one source-bound geometry edit
+- [x] 4.1 Extend one integrated PPJ sample with authored round trip, one
+  source-bound geometry edit, and one picture-mask identity/adjustment edit
 - [x] 4.2 Run narrow C#, protobuf, Skill-maintainer, and strict OpenSpec checks
 - [x] 4.3 Record evidence and fast-forward atomic commits into main

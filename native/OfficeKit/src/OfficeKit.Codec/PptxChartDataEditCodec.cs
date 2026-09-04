@@ -35,19 +35,39 @@ internal static partial class PptxEditPlanCodec
             if (operation.ChartSeriesIndex >= (uint)series.Count)
                 throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} chart series index is out of range.", proof.MutationPartPath);
             var seriesRange = series[(int)operation.ChartSeriesIndex];
-            var numberReferences = allRanges.Where(range => range.LocalName == "numRef" && Contains(seriesRange, range)).ToArray();
-            var matchingReferences = numberReferences.Where(reference =>
+            var leafKind = LeafKind(operation);
+            var channelOwner = ChartDataOwnerName(leafKind);
+            var owners = allRanges.Where(range => range.LocalName == channelOwner && Contains(seriesRange, range)).ToArray();
+            if (owners.Length != 1)
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} chart data channel is missing or ambiguous.", proof.MutationPartPath);
+            var referenceName = leafKind == "chartDataCategory" ? "strRef" : "numRef";
+            var cacheName = leafKind == "chartDataCategory" ? "strCache" : "numCache";
+            var literalName = leafKind == "chartDataCategory" ? "strLit" : "numLit";
+            XmlRange cache;
+            if (string.IsNullOrEmpty(operation.ChartFormula))
             {
-                var formulas = allRanges.Where(range => range.LocalName == "f" && Contains(reference, range)).ToArray();
-                return formulas.Length == 1 && ElementText(xml, formulas[0]) == EscapeText(operation.ChartFormula);
-            }).ToArray();
-            if (matchingReferences.Length != 1)
-                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} chart formula is missing or ambiguous.", proof.MutationPartPath);
-            var numberReference = matchingReferences[0];
-            var caches = allRanges.Where(range => range.LocalName == "numCache" && Contains(numberReference, range)).ToArray();
-            if (caches.Length != 1)
-                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} requires one numeric cache.", proof.MutationPartPath);
-            var points = allRanges.Where(range => range.LocalName == "pt" && Contains(caches[0], range) &&
+                var literals = allRanges.Where(range => range.LocalName == literalName && Contains(owners[0], range)).ToArray();
+                if (literals.Length != 1)
+                    throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} literal chart data cache is missing or ambiguous.", proof.MutationPartPath);
+                cache = literals[0];
+            }
+            else
+            {
+                var numberReferences = allRanges.Where(range => range.LocalName == referenceName && Contains(owners[0], range)).ToArray();
+                var matchingReferences = numberReferences.Where(reference =>
+                {
+                    var formulas = allRanges.Where(range => range.LocalName == "f" && Contains(reference, range)).ToArray();
+                    return formulas.Length == 1 && ElementText(xml, formulas[0]) == EscapeText(operation.ChartFormula);
+                }).ToArray();
+                if (matchingReferences.Length != 1)
+                    throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} chart formula is missing or ambiguous.", proof.MutationPartPath);
+                var numberReference = matchingReferences[0];
+                var caches = allRanges.Where(range => range.LocalName == cacheName && Contains(numberReference, range)).ToArray();
+                if (caches.Length != 1)
+                    throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} requires one chart data cache.", proof.MutationPartPath);
+                cache = caches[0];
+            }
+            var points = allRanges.Where(range => range.LocalName == "pt" && Contains(cache, range) &&
                 AttributeValue(xml, range, "idx") == operation.ChartPointIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToArray();
             if (points.Length != 1)
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} chart cache point is missing or ambiguous.", proof.MutationPartPath);
@@ -68,7 +88,8 @@ internal static partial class PptxEditPlanCodec
         IDictionary<string, byte[]> patchedParts,
         IReadOnlyList<PresentationEditOperationResult> results)
     {
-        var dataProofs = proofs.Where(proof => LeafKind(proof.Operation) == "chartDataValue").ToArray();
+        var dataProofs = proofs.Where(proof => IsChartDataLeafKind(LeafKind(proof.Operation)) &&
+            !string.IsNullOrEmpty(proof.Operation.EmbeddedPackagePartPath)).ToArray();
         foreach (var packageGroup in dataProofs.GroupBy(proof => proof.Operation.EmbeddedPackagePartPath, StringComparer.OrdinalIgnoreCase))
         {
             var packagePath = packageGroup.Key;
@@ -127,10 +148,13 @@ internal static partial class PptxEditPlanCodec
         foreach (var proof in proofs)
         {
             var operation = proof.Operation;
+            var leafKind = LeafKind(operation);
             var matchingCells = cells.Where(range => string.Equals(AttributeValue(xml, range, "r"), operation.EmbeddedCellReference, StringComparison.OrdinalIgnoreCase)).ToArray();
             if (matchingCells.Length != 1)
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} embedded cell is missing or ambiguous.", operation.EmbeddedWorksheetPartPath);
-            var values = allRanges.Where(range => range.LocalName == "v" && Contains(matchingCells[0], range)).ToArray();
+            var values = leafKind == "chartDataCategory"
+                ? InlineCellTextRanges(allRanges, matchingCells[0])
+                : allRanges.Where(range => range.LocalName == "v" && Contains(matchingCells[0], range)).ToArray();
             if (values.Length != 1)
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} embedded cell value is missing or ambiguous.", operation.EmbeddedWorksheetPartPath);
             var (start, end) = ElementTextSpan(xml, values[0]);
@@ -139,6 +163,15 @@ internal static partial class PptxEditPlanCodec
             patches.Add(new PptxXmlPatch(operation, start, end, EscapeText(operation.Value), proof.SourceElementSha256, proof.MutationPartPath));
         }
         return OrderedNonOverlapping(patches, proofs[0].MutationPartPath);
+    }
+
+    private static XmlRange[] InlineCellTextRanges(IReadOnlyList<XmlRange> allRanges, XmlRange cell)
+    {
+        var inlineOwners = allRanges.Where(range => range.LocalName == "is" && Contains(cell, range)).ToArray();
+        if (inlineOwners.Length != 1) return [];
+        var inline = inlineOwners[0];
+        if (allRanges.Any(range => range.LocalName == "r" && Contains(inline, range))) return [];
+        return allRanges.Where(range => range.LocalName == "t" && Contains(inline, range)).ToArray();
     }
 
     private static PptxXmlPatch[] OrderedNonOverlapping(IEnumerable<PptxXmlPatch> patches, string partPath)
@@ -241,6 +274,15 @@ internal static partial class PptxEditPlanCodec
         !string.IsNullOrEmpty(operation.EmbeddedCellReference) ||
         !string.IsNullOrEmpty(operation.ChartFormula);
 
+    private static string ChartDataOwnerName(string leafKind) => leafKind switch
+    {
+        "chartDataCategory" => "cat",
+        "chartDataXValue" => "xVal",
+        "chartDataYValue" => "yVal",
+        "chartDataBubbleSize" => "bubbleSize",
+        _ => "val",
+    };
+
     private static bool HasDiagramBinding(PresentationEditOperation operation) =>
         !string.IsNullOrEmpty(operation.DiagramModelId) || operation.DiagramRunIndex != 0;
 
@@ -265,9 +307,9 @@ internal static partial class PptxEditPlanCodec
     private static string LeafIndexKey(PresentationEditOperation operation) =>
         LeafKind(operation) switch
         {
-            "chartDataValue" => $"{operation.ChartSeriesIndex}:{operation.ChartPointIndex}",
+            "chartDataCategory" or "chartDataValue" or "chartDataXValue" or "chartDataYValue" or "chartDataBubbleSize" => $"{LeafKind(operation)}:{operation.ChartSeriesIndex}:{operation.ChartPointIndex}",
             "diagramText" => $"{operation.DiagramModelId}:{operation.DiagramRunIndex}",
-            "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphBulletFontFamily" or "paragraphBulletColorRgb" or "paragraphBulletColorScheme" or "paragraphBulletSizePoints" or "paragraphBulletSizePercent" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "rotationDegrees" or "flipHorizontal" or "flipVertical" or "fillRgb" or "fillOpacityThousandthPercent" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu" => $"native:{operation.NativeLeafIndex}",
+            "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphBulletFontFamily" or "paragraphBulletColorRgb" or "paragraphBulletColorScheme" or "paragraphBulletSizePoints" or "paragraphBulletSizePercent" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyNormalAutoFitFontScale" or "textBodyNormalAutoFitLineSpacingReduction" or "textBodyColumnDirection" or "textBodyVerticalText" or "rotationDegrees" or "flipHorizontal" or "flipVertical" or "fillRgb" or "fillOpacityThousandthPercent" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu" => $"native:{operation.NativeLeafIndex}",
             _ => operation.TextLeafIndex.ToString(System.Globalization.CultureInfo.InvariantCulture),
         };
 

@@ -22,13 +22,20 @@ The PPTX projector SHALL recover a custom image mask only when its native geomet
 - **WHEN** a picture mask contains unmodeled formulas, handles, connection sites, effects, or ambiguous geometry ownership
 - **THEN** OfficeKit preserves it as opaque/source-owned content and does not simplify it into PPJ
 
-### Requirement: Source-bound custom mask topology is immutable
-Imported custom mask paths MUST remain unchanged during unrelated capability-issued picture edits.
+### Requirement: Source-bound custom mask topology is bounded
+Imported custom mask paths MUST remain unchanged during unrelated capability-issued picture edits. A recognized no-adjustment preset MAY transition to or from a canonical literal custom mask only when the projected picture capability explicitly issues both mask fields; richer or ambiguous topology MUST remain source-owned.
 
 #### Scenario: Unrelated picture edit
 - **WHEN** an imported canonical custom-mask picture receives a proven frame, crop, opacity, accessibility, or same-format asset edit without changing its mask graph
 - **THEN** the compiler preserves the custom geometry and applies only the declared mutation
 
-#### Scenario: Path mutation without capability
-- **WHEN** requested PPJ changes any custom-mask path, command, coordinate, order, or presence
+#### Scenario: Unsupported topology mutation without capability
+- **WHEN** requested PPJ changes a custom-mask path, command, coordinate, order,
+  or preset/custom presence outside the issued bounded profile
 - **THEN** the compiler rejects the mutation before altering the source package
+
+#### Scenario: Preset/custom transition
+- **WHEN** a recognized no-adjustment preset picture receives a canonical
+  literal custom mask (or the inverse) and both mask fields are capability-issued
+- **THEN** the compiler replaces only the picture-owned geometry on the existing
+  SlidePart and a second projection recovers the requested mask kind

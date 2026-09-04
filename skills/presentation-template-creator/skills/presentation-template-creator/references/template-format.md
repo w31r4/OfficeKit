@@ -60,6 +60,18 @@ Do not repeat the general Presentations workflow or prescribe fixed coordinates.
     { "path": "/absolute/task/data.png", "role": "data" },
     { "path": "/absolute/task/decision.png", "role": "closing" }
   ],
+  "imageSlots": [
+    {
+      "id": "hero-source",
+      "role": "hero",
+      "examplePath": "/absolute/task/cover.png",
+      "allowedFit": ["cover", "contain"],
+      "allowedMask": ["none", "roundRect"],
+      "minWidthPx": 1200,
+      "minHeightPx": 675,
+      "rights": ["user-provided", "generated"]
+    }
+  ],
   "referenceProgram": {
     "path": "/absolute/task/reference.ppj",
     "license": "AGPL-3.0-or-later",
@@ -85,6 +97,13 @@ Do not repeat the general Presentations workflow or prescribe fixed coordinates.
 Use English for search metadata. Example roles are `cover`, `section`,
 `analysis`, `data`, `process`, `comparison`, `closing`, or `mixed`. Provide four
 to six PNGs and at least three distinct roles.
+
+`imageSlots` is optional. In the packaging spec, each slot's `examplePath` is
+an absolute path to one of the declared example PNGs. The Creator rewrites it
+to the generated `assets/examples/...` path and preserves the role, fit/mask
+allow-list, minimum pixel dimensions, and rights metadata in the schema-v3
+sidecar. Slot IDs are stable lowercase identifiers; the catalog rejects an
+unknown example, duplicate ID, unsupported enum, or out-of-range dimension.
 
 The resulting `artifact-template.json` is schema v3. Its hashes bind the guide,
 preview, every example, and any declared reference. The generated preview is a

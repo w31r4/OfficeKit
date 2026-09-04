@@ -72,7 +72,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         var namedStyle = catalog.ChartStyle(element.StyleRef);
         var inlineStyle = Property(raw, "style");
         if (isWaterfall) ValidateWaterfallCompileProfile(element, raw, namedStyle, inlineStyle);
-        ApplyChartStyle(chart, namedStyle, inlineStyle, catalog, element.Id);
+        ApplyChartStyle(chart, namedStyle, inlineStyle, catalog, element.Id, element.Frame.Width, element.Frame.Height, raw);
         if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
         {
             chart.TitleBody = BuildTextBody(title, null, null, catalog);
@@ -143,7 +143,7 @@ internal static partial class PpjAuthoredPresentationCompiler
                 chart.ComboSeries.Add(new PresentationComboSeriesArtifact
                 {
                     Type = ChartType(source.ChartType!),
-                    AxisGroup = source.Axis == "secondary"
+                    AxisGroup = source.Axis == "secondary" || source.XAxisIndex == 1 || source.YAxisIndex == 1
                         ? PresentationChartAxisGroup.Secondary
                         : PresentationChartAxisGroup.Primary,
                     Series = series,
@@ -428,6 +428,9 @@ internal static partial class PpjAuthoredPresentationCompiler
         foreach (var property in value.EnumerateObject())
             if (property.Name is not ("visible" or "title" or "numberFormat" or "min" or "max" or "majorUnit" or "textStyle" or "titleTextStyle" or "reverse" or "axisLine" or "gridLine"))
                 throw Unsupported(elementId, $"generated numeric {name} axis does not support {property.Name}");
+        foreach (var property in value.EnumerateObject())
+            if (IsTokenReference(property.Value))
+                throw Unsupported(elementId, $"generated numeric {name} axis cannot resolve tokenized {property.Name}; use a native ChartPart chart for typed axis tokens");
         if (OptionalString(value, "numberFormat") is { } numberFormat && !VectorChartNumberFormats.Contains(numberFormat, StringComparer.Ordinal))
             throw Unsupported(elementId, $"generated numeric {name} axis numberFormat {numberFormat} is outside the bounded profile");
     }
@@ -2531,6 +2534,8 @@ internal static partial class PpjAuthoredPresentationCompiler
         foreach (var property in new[] { "secondaryXAxis", "secondaryYAxis" })
             if (raw.TryGetProperty(property, out _))
                 throw Unsupported(element.Id, "candlestick charts do not support secondary axes");
+        RejectTokenizedVectorAxis(Property(raw, "xAxis"), element.Id, "X");
+        RejectTokenizedVectorAxis(Property(raw, "yAxis"), element.Id, "Y");
         foreach (var property in new[] { "legend", "stacking", "gapWidth", "startAngle", "holeSize", "bubbleScale", "bubbleSizeMode", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap" })
             if (FirstProperty(inlineStyle, namedStyle, property) is not null)
                 throw Unsupported(element.Id, $"candlestick charts do not support chart style field {property}");
@@ -3910,6 +3915,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         chart.HasLegend = false;
         chart.LegendPosition = string.Empty;
         chart.DataLabels = null;
+        chart.XAxis ??= new SpreadsheetChartAxisArtifact();
         chart.YAxis ??= new SpreadsheetChartAxisArtifact();
         if (!chart.YAxis.HasMinimum) chart.YAxis.Minimum = 0;
 
@@ -4051,12 +4057,19 @@ internal static partial class PpjAuthoredPresentationCompiler
     private static SpreadsheetChartDataLabelOverrideArtifact BuildChartLabelOverride(JsonElement source, Catalog catalog)
     {
         var output = new SpreadsheetChartDataLabelOverrideArtifact();
-        if (source.TryGetProperty("showValue", out var showValue)) output.ShowValue = showValue.GetBoolean();
-        if (source.TryGetProperty("showCategory", out var showCategory)) output.ShowCategoryName = showCategory.GetBoolean();
-        if (source.TryGetProperty("showSeries", out var showSeries)) output.ShowSeriesName = showSeries.GetBoolean();
-        if (source.TryGetProperty("showPercent", out var showPercent)) output.ShowPercent = showPercent.GetBoolean();
-        if (source.TryGetProperty("position", out var position)) output.Position = LabelPosition(position.GetString()!);
-        if (source.TryGetProperty("numberFormat", out var numberFormat)) output.NumberFormatCode = numberFormat.GetString()!;
+        if (source.TryGetProperty("showValue", out var showValue))
+            output.ShowValue = catalog.BooleanToken(showValue, "boolean", "chart data-label showValue");
+        if (source.TryGetProperty("showCategory", out var showCategory))
+            output.ShowCategoryName = catalog.BooleanToken(showCategory, "boolean", "chart data-label showCategory");
+        if (source.TryGetProperty("showSeries", out var showSeries))
+            output.ShowSeriesName = catalog.BooleanToken(showSeries, "boolean", "chart data-label showSeries");
+        if (source.TryGetProperty("showPercent", out var showPercent))
+            output.ShowPercent = catalog.BooleanToken(showPercent, "boolean", "chart data-label showPercent");
+        if (source.TryGetProperty("position", out var position))
+            output.Position = LabelPosition(ChartEnumToken(position, catalog, "chart data-label position",
+                "best-fit", "bottom", "center", "inside-base", "inside-end", "left", "outside-end", "right", "top"));
+        if (source.TryGetProperty("numberFormat", out var numberFormat))
+            output.NumberFormatCode = catalog.StringToken(numberFormat, "string", "chart data-label numberFormat");
         if (source.TryGetProperty("textStyle", out var textStyle)) output.TextStyle = BuildChartTextStyle(textStyle, catalog);
         return output;
     }
@@ -4071,22 +4084,31 @@ internal static partial class PpjAuthoredPresentationCompiler
     {
         var axis = new SpreadsheetChartAxisArtifact
         {
-            Title = OptionalString(source, "title") ?? string.Empty,
-            NumberFormatCode = OptionalString(source, "numberFormat") ?? string.Empty,
+            Title = source.TryGetProperty("title", out var title)
+                ? catalog.StringToken(title, "string", "chart axis title")
+                : string.Empty,
+            NumberFormatCode = source.TryGetProperty("numberFormat", out var numberFormat)
+                ? catalog.StringToken(numberFormat, "string", "chart axis numberFormat")
+                : string.Empty,
         };
         if (source.TryGetProperty("tickLabelInterval", out var tickLabelInterval))
-            axis.TickLabelInterval = checked((uint)tickLabelInterval.GetInt32());
-        if (source.TryGetProperty("min", out var minimum)) axis.Minimum = minimum.GetDouble();
-        if (source.TryGetProperty("max", out var maximum)) axis.Maximum = maximum.GetDouble();
-        if (source.TryGetProperty("majorUnit", out var majorUnit)) axis.MajorUnit = majorUnit.GetDouble();
-        if (source.TryGetProperty("visible", out var visible)) axis.Visible = visible.GetBoolean();
+            axis.TickLabelInterval = AxisInteger(tickLabelInterval, catalog, "chart axis tickLabelInterval", 1, 10_000);
+        if (source.TryGetProperty("min", out var minimum))
+            axis.Minimum = catalog.NumberToken(minimum, "size", "chart axis min");
+        if (source.TryGetProperty("max", out var maximum))
+            axis.Maximum = catalog.NumberToken(maximum, "size", "chart axis max");
+        if (source.TryGetProperty("majorUnit", out var majorUnit))
+            axis.MajorUnit = catalog.PositiveNumberToken(majorUnit, "size", "chart axis majorUnit");
+        if (source.TryGetProperty("visible", out var visible))
+            axis.Visible = catalog.BooleanToken(visible, "boolean", "chart axis visible");
         if (source.TryGetProperty("tickLabelsVisible", out var tickLabelsVisible))
-            axis.TickLabelsVisible = tickLabelsVisible.GetBoolean();
-        if (source.TryGetProperty("reverse", out var reverse)) axis.Reverse = reverse.GetBoolean();
+            axis.TickLabelsVisible = catalog.BooleanToken(tickLabelsVisible, "boolean", "chart axis tickLabelsVisible");
+        if (source.TryGetProperty("reverse", out var reverse))
+            axis.Reverse = catalog.BooleanToken(reverse, "boolean", "chart axis reverse");
         if (source.TryGetProperty("axisLine", out var axisLine))
         {
-            if (axisLine.ValueKind is JsonValueKind.True or JsonValueKind.False)
-                axis.AxisLineVisible = axisLine.GetBoolean();
+            if (axisLine.ValueKind is JsonValueKind.True or JsonValueKind.False || IsTokenReference(axisLine))
+                axis.AxisLineVisible = catalog.BooleanToken(axisLine, "boolean", "chart axis axisLine");
             else
             {
                 axis.AxisLineVisible = true;
@@ -4103,15 +4125,15 @@ internal static partial class PpjAuthoredPresentationCompiler
         }
         if (source.TryGetProperty("gridLine", out var gridLine))
         {
-            if (gridLine.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            if (gridLine.ValueKind is JsonValueKind.True or JsonValueKind.False || IsTokenReference(gridLine))
             {
                 axis.ShowMajorGridlines = true;
-                axis.MajorGridlineVisible = gridLine.GetBoolean();
+                if (!catalog.BooleanToken(gridLine, "boolean", "chart axis gridLine"))
+                    axis.MajorGridlineVisible = false;
             }
             else
             {
                 axis.ShowMajorGridlines = true;
-                axis.MajorGridlineVisible = true;
                 axis.MajorGridlineStyle = BuildChartLine(gridLine, catalog);
             }
         }
@@ -4137,13 +4159,17 @@ internal static partial class PpjAuthoredPresentationCompiler
     {
         var xAxis = new SpreadsheetChartAxisArtifact();
         var yAxis = new SpreadsheetChartAxisArtifact();
-        var show = !source.TryGetProperty("show", out var showValue) || showValue.GetBoolean();
+        var show = !source.TryGetProperty("show", out var showValue) ||
+            catalog.BooleanToken(showValue, "boolean", "radar spokeAxis show");
         xAxis.Visible = show;
         yAxis.Visible = show;
 
-        if (source.TryGetProperty("min", out var minimum)) yAxis.Minimum = minimum.GetDouble();
-        if (source.TryGetProperty("max", out var maximum)) yAxis.Maximum = maximum.GetDouble();
-        if (source.TryGetProperty("majorUnit", out var majorUnit)) yAxis.MajorUnit = majorUnit.GetDouble();
+        if (source.TryGetProperty("min", out var minimum))
+            yAxis.Minimum = catalog.NumberToken(minimum, "size", "radar spokeAxis min");
+        if (source.TryGetProperty("max", out var maximum))
+            yAxis.Maximum = catalog.NumberToken(maximum, "size", "radar spokeAxis max");
+        if (source.TryGetProperty("majorUnit", out var majorUnit))
+            yAxis.MajorUnit = catalog.PositiveNumberToken(majorUnit, "size", "radar spokeAxis majorUnit");
 
         if (!show)
         {
@@ -4153,12 +4179,13 @@ internal static partial class PpjAuthoredPresentationCompiler
 
         if (!source.TryGetProperty("label", out var label))
             yAxis.TickLabelsVisible = true;
-        else if (label.ValueKind is JsonValueKind.True or JsonValueKind.False)
-            yAxis.TickLabelsVisible = label.GetBoolean();
+        else if (label.ValueKind is JsonValueKind.True or JsonValueKind.False || IsTokenReference(label))
+            yAxis.TickLabelsVisible = catalog.BooleanToken(label, "boolean", "radar spokeAxis label");
         else
         {
             yAxis.TickLabelsVisible = true;
-            yAxis.NumberFormatCode = OptionalString(label, "numberFormat") ?? string.Empty;
+            if (label.TryGetProperty("numberFormat", out var numberFormat))
+                yAxis.NumberFormatCode = catalog.StringToken(numberFormat, "string", "radar spoke label numberFormat");
             yAxis.TextStyle = BuildChartTextStyle(label, catalog);
         }
 
@@ -4175,13 +4202,33 @@ internal static partial class PpjAuthoredPresentationCompiler
     {
         axis.ShowMajorGridlines = true;
         if (!source.TryGetProperty(propertyName, out var line)) return;
-        if (line.ValueKind is JsonValueKind.True or JsonValueKind.False)
+        if (line.ValueKind is JsonValueKind.True or JsonValueKind.False || IsTokenReference(line))
         {
-            axis.MajorGridlineVisible = line.GetBoolean();
+            if (!catalog.BooleanToken(line, "boolean", $"radar spokeAxis {propertyName}"))
+                axis.MajorGridlineVisible = false;
             return;
         }
-        axis.MajorGridlineVisible = true;
         axis.MajorGridlineStyle = BuildChartLine(line, catalog);
+    }
+
+    private static uint AxisInteger(JsonElement value, Catalog catalog, string owner, uint minimum, uint maximum)
+    {
+        var number = catalog.NumberToken(value, "size", owner);
+        if (!double.IsFinite(number) || number < minimum || number > maximum || Math.Truncate(number) != number)
+            throw Unsupported(owner, $"must resolve to an integer between {minimum} and {maximum}");
+        return checked((uint)number);
+    }
+
+    private static bool IsTokenReference(JsonElement value) =>
+        value.ValueKind == JsonValueKind.Object && value.TryGetProperty("token", out var token) &&
+        token.ValueKind == JsonValueKind.String;
+
+    private static void RejectTokenizedVectorAxis(JsonElement? axis, string elementId, string name)
+    {
+        if (axis is not { ValueKind: JsonValueKind.Object } value) return;
+        foreach (var property in value.EnumerateObject())
+            if (IsTokenReference(property.Value))
+                throw Unsupported(elementId, $"generated {name} axis cannot resolve tokenized {property.Name}; use a native ChartPart chart for typed axis tokens");
     }
 
     private static SpreadsheetChartMarkerArtifact BuildChartMarker(JsonElement source, Catalog catalog)
@@ -4235,7 +4282,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         return errorBars;
     }
 
-    private static SpreadsheetChartLineStyleArtifact BuildChartLine(JsonElement source, Catalog catalog)
+    internal static SpreadsheetChartLineStyleArtifact BuildChartLine(JsonElement source, Catalog catalog)
     {
         var color = catalog.Color(source.GetProperty("color"));
         var line = new SpreadsheetChartLineStyleArtifact
@@ -4245,8 +4292,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             Cap = OptionalString(source, "cap") ?? string.Empty,
             Join = OptionalString(source, "join") ?? string.Empty,
         };
-        if (source.TryGetProperty("width", out var width)) line.WidthPoints = width.GetDouble();
-        var opacity = OptionalDouble(source, "opacity") ?? color.Alpha;
+        if (source.TryGetProperty("width", out _)) line.WidthPoints = StrokeWidth(source, catalog, "chart line width");
+        var opacity = OptionalOpacity(source, "opacity", catalog, "chart line opacity") ?? color.Alpha;
         if (opacity < 1) line.OpacityThousandthPercent = Opacity(opacity);
         return line;
     }

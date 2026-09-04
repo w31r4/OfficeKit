@@ -22,7 +22,8 @@ An omitted or empty array SHALL use the native preset defaults.
 
 The PPTX projector SHALL restore canonical literal preset adjustment guides as
 ordered PPJ values and SHALL issue `setGeometry` only for
-`geometry.adjustments` when the source object is otherwise safely editable.
+`geometry.adjustments` on shapes, or the bounded `setImageMask` fields on
+recognized picture masks, when the source object is otherwise safely editable.
 
 #### Scenario: Capability-issued arrow edit
 
@@ -30,6 +31,15 @@ ordered PPJ values and SHALL issue `setGeometry` only for
   guides and the PPJ changes only those values
 - **THEN** source-bound build updates the target guide values and preserves
   non-target OPC parts and source topology
+
+#### Scenario: Picture preset identity replaces adjustment arity
+
+- **WHEN** an imported editable picture has a canonical `roundRect` mask with
+  one literal adjustment and the PPJ changes it to a supported `snipRoundRect`
+  mask with its two literal adjustments through `setImageMask`
+- **THEN** source-bound build replaces only the picture-owned `a:prstGeom`
+  slot on the existing SlidePart, preserves the picture relationship, and a
+  second projection restores the requested preset and ordered values
 
 #### Scenario: Noncanonical formula remains source-owned
 

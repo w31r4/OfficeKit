@@ -15,10 +15,17 @@ internal static class PpjImagePaintLowering
         Func<string, string> resolveAsset,
         Func<string, (double Width, double Height)?> assetDimensions,
         string path,
-        Func<JsonElement, double>? resolveOpacity = null)
+        Func<JsonElement, double>? resolveOpacity = null,
+        Func<JsonElement, string>? resolveFit = null)
     {
         var assetId = source.GetProperty("asset").GetString()!;
-        var fit = source.TryGetProperty("fit", out var fitValue) ? fitValue.GetString()! : "stretch";
+        var fit = source.TryGetProperty("fit", out var fitValue)
+            ? fitValue.ValueKind == JsonValueKind.String
+                ? fitValue.GetString()!
+                : resolveFit is null
+                    ? throw Unsupported(path, "image fit must be a literal string in this lowering path")
+                    : resolveFit(fitValue)
+            : "stretch";
         var output = new PresentationImagePaint
         {
             AssetId = resolveAsset(assetId),

@@ -41,10 +41,10 @@ internal static class PptxTextCodec
         return body;
     }
 
-    internal static PresentationTextBody ReadDrawingTextBody(A.TextBody source)
+    internal static PresentationTextBody ReadDrawingTextBody(A.TextBody source, PptxPartContext? slideContext = null)
     {
         var presentationBody = new P.TextBody { InnerXml = source.InnerXml };
-        return Read(presentationBody);
+        return Read(presentationBody, slideContext);
     }
 
     internal static string Flatten(PresentationTextBody? body) =>

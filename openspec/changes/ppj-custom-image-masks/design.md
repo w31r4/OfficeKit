@@ -9,12 +9,15 @@ PPJ `image.mask` references the shared `geometry` schema. Preset geometry is ful
 - Reuse the existing PPJ path vocabulary and native custom-geometry compiler for image masks.
 - Emit a real editable `a:custGeom` on `p:pic`, not a rasterized or SVG-clipped substitute.
 - Reproject only the canonical literal path subset that maps exactly back to PPJ.
-- Keep imported custom-mask topology read-only while allowing unrelated proven picture edits to preserve it.
+- Keep imported custom-mask topology source-owned by default, while allowing a
+  capability-issued transition between a recognized no-adjustment preset and
+  a bounded literal custom geometry on the same picture owner.
 
 **Non-Goals:**
 
 - Arbitrary SVG paths, raw DrawingML formulas, guides, handles, connection sites, text rectangles, or 3D geometry.
-- Source-bound custom-mask path editing.
+- Source-bound custom-mask transitions or path edits outside the bounded
+  literal, owner-local profile.
 - Boolean path operations or automatic vectorization of raster images.
 
 ## Decisions
@@ -23,7 +26,10 @@ PPJ `image.mask` references the shared `geometry` schema. Preset geometry is ful
 2. **Use a temporary `PresentationShape` adapter inside the picture codec.** `PptxCustomGeometryCodec` remains the only DrawingML custom-geometry reader/writer; the adapter transfers only canonical paths and rejects guides, handles, sites, and text rectangles.
 3. **Allow exactly one geometry owner in picture shape properties.** Import accepts one supported preset or one supported custom geometry alongside the existing transform/border/shadow shell.
 4. **Project only literal, common-viewBox custom masks.** The existing shape projection gate and JSON conversion are reused so ordinary import never invents a PPJ path from an irregular native graph.
-5. **Keep source-bound topology immutable.** A custom mask can coexist with frame, crop, opacity, accessibility, or same-format image replacement, but any path difference fails closed.
+5. **Bound source-bound topology changes.** A canonical literal custom mask
+   can be edited through its issued path capability, and a recognized
+   no-adjustment preset can transition to or from that custom geometry. All
+   other path/topology changes remain source-owned and fail closed.
 6. **Extend one existing comprehensive test.** One authored custom mask proves native XML, import, PPJ projection, exact embedded recovery, and topology rejection; no path-command matrix is added.
 
 ## Risks / Trade-offs

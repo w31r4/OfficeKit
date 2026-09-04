@@ -60,8 +60,7 @@ internal static class PptxTimingCodec
             {
                 var target = behavior.Descendants(XName.Get("spTgt", PNamespace)).FirstOrDefault();
                 if (!uint.TryParse(target?.Attribute("spid")?.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var nativeId) ||
-                    !elementIdsByNativeId.TryGetValue(nativeId, out var targetId))
-                    return Opaque(root);
+                    !elementIdsByNativeId.TryGetValue(nativeId, out var targetId)) return Opaque(root);
                 var filter = behavior.Attribute("filter")?.Value ?? "fade";
                 var (effect, direction) = ParseFilter(filter);
                 var phase = behavior.Attribute("transition")?.Value switch
@@ -571,13 +570,21 @@ internal static class PptxTimingCodec
         if (accel == uint.MaxValue || decel == uint.MaxValue) return false;
         animation.Easing = (accel, decel) switch
         {
-            (null, null) or (0, 0) => "linear",
+            // An omitted accel/decel pair is the canonical default and must
+            // remain omitted in the PPJ semantic hash. Treating it as an
+            // explicit "linear" value would make a newly authored animation
+            // fail the source-bound post-write oracle even though the package
+            // correctly round-trips the same timing graph.
+            (null, null) => string.Empty,
+            (0, 0) => "linear",
             (50000, 0) => "ease-in",
+            (50000, null) => "ease-in",
             (0, 50000) => "ease-out",
+            (null, 50000) => "ease-out",
             (50000, 50000) => "ease-in-out",
             _ => string.Empty,
         };
-        return animation.Easing.Length > 0;
+        return (accel, decel) == (null, null) || animation.Easing.Length > 0;
     }
 
     private static uint? ParsePercent(string? value) =>

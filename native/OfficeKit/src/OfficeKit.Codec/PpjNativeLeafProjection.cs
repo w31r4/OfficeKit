@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Xml.Linq;
 using Google.Protobuf;
 using OfficeKit.Artifact.Wire.V1;
 
@@ -29,7 +30,8 @@ internal sealed record PpjNativeChartDataBinding(
     string EmbeddedCellReference,
     uint ChartSeriesIndex,
     uint ChartPointIndex,
-    string ChartFormula);
+    string ChartFormula,
+    string ChartChannel);
 
 /// <summary>
 /// Issues the finite scalar leaves that the native token-splice writer can
@@ -39,6 +41,7 @@ internal sealed record PpjNativeChartDataBinding(
 internal static class PpjNativeLeafProjection
 {
     private const int MaxIssuedLeavesPerElement = 256;
+    private const int MaxChartCategoryLength = 32_767;
 
     private static readonly HashSet<string> StringKinds = new(StringComparer.Ordinal)
     {
@@ -48,7 +51,7 @@ internal static class PpjNativeLeafProjection
         "textBodyWrap", "textBodyAutoFit", "textBodyVerticalText", "fontFamily",
         "fontFamilyEastAsia", "fontLanguage", "fontUnderline", "fontStrike", "fontColorScheme",
         "fontCaps", "fontHighlightScheme", "fillScheme", "shadowAlignment", "shadowColorScheme", "lineScheme", "lineStyle", "lineCap", "lineJoin",
-        "lineStartArrow", "lineEndArrow", "imageMaskPreset",
+        "lineStartArrow", "lineEndArrow", "imageMaskPreset", "chartDataCategory",
     };
 
     private static readonly HashSet<string> RgbKinds = new(StringComparer.Ordinal)
@@ -68,7 +71,11 @@ internal static class PpjNativeLeafProjection
         "textBodyInsetRightEmu", "textBodyInsetBottomEmu", "textBodyColumnCount",
         "fillOpacityThousandthPercent", "shadowOpacityThousandthPercent", "shadowBlurRadiusEmu", "shadowDistanceEmu",
         "imageOpacityThousandthPercent", "lineWidthEmu", "leftEmu", "topEmu",
-        "widthEmu", "heightEmu",
+        "widthEmu", "heightEmu", "childLeftEmu", "childTopEmu",
+        "childWidthEmu", "childHeightEmu",
+        "customGeometryAdjustment",
+        "presetGeometryAdjustment",
+        "imageMaskAdjustment",
     };
 
     private static readonly IReadOnlyDictionary<string, int> ScaledNumberKinds =
@@ -86,6 +93,8 @@ internal static class PpjNativeLeafProjection
             ["fontKerningPoints"] = 100,
             ["fontBaselinePercent"] = 1_000,
             ["fontSpacingPoints"] = 100,
+            ["textBodyNormalAutoFitFontScale"] = 1_000,
+            ["textBodyNormalAutoFitLineSpacingReduction"] = 1_000,
             ["rotationDegrees"] = 60_000,
             ["shadowDirectionDegrees"] = 60_000,
         };
@@ -121,9 +130,9 @@ internal static class PpjNativeLeafProjection
             var id = $"nl_{Hash(seed)[..32]}";
             output.Add(new JsonObject
             {
-                ["id"] = id,
-                ["kind"] = kind,
-                ["expectedHash"] = expectedHash,
+                ["id"] = StringNode(id),
+                ["kind"] = StringNode(kind),
+                ["expectedHash"] = StringNode(expectedHash),
                 ["value"] = value,
             });
             record(new(id, pageId, elementId, kind, nativeIndex, textIndex, expectedValue, chartData));
@@ -147,17 +156,24 @@ internal static class PpjNativeLeafProjection
                 DescribeTable(element.Table, source, (kind, expected, value, nativeIndex, textIndex) =>
                     Add(kind, expected, value, nativeIndex, textIndex));
                 break;
+            case PresentationElement.ContentOneofCase.Group:
+                DescribeGroup(element.Group, source, (kind, expected, value, nativeIndex, textIndex) =>
+                    Add(kind, expected, value, nativeIndex, textIndex));
+                break;
             case PresentationElement.ContentOneofCase.Opaque:
                 if (PpjNativeTextProjection.TryRead(element.Opaque.RawXml, out var leaves))
                     for (var index = 0; index < leaves.Count; index++)
                         Add("nativeText", leaves[index], JsonValue.Create(leaves[index]), textIndex: checked((uint)index));
+                if (string.Equals(element.Opaque.NativeKind, "picture", StringComparison.Ordinal))
+                    DescribeOpaquePictureMask(element.Opaque.RawXml, (kind, expected, value, nativeIndex, textIndex) =>
+                        Add(kind, expected, value, nativeIndex, textIndex));
                 if (element.Opaque.NativeChart is { DataPoints.Count: > 0 } chart)
                 {
                     foreach (var point in chart.DataPoints)
                     {
-                        if (!ValidNumericToken(point.Value)) continue;
+                        if (ChartChannel(point) == "category" ? !ValidTextToken(point.Value) : !ValidNumericToken(point.Value)) continue;
                         Add(
-                            "chartDataValue",
+                            ChartDataLeafKind(point),
                             point.Value,
                             JsonValue.Create(point.Value),
                             nativeIndex: point.SeriesIndex,
@@ -174,7 +190,8 @@ internal static class PpjNativeLeafProjection
                                 point.CellReference,
                                 point.SeriesIndex,
                                 point.PointIndex,
-                                point.Formula));
+                                point.Formula,
+                                ChartChannel(point)));
                     }
                 }
                 break;
@@ -191,7 +208,14 @@ internal static class PpjNativeLeafProjection
     /// </summary>
     internal static string NormalizeValue(string kind, JsonElement value, string path)
     {
-        if (kind == "chartDataValue")
+        if (kind == "chartDataCategory")
+        {
+            var token = RequireString(value, kind, path);
+            if (!ValidTextToken(token))
+                throw InvalidValue(kind, path, "a bounded chart category label");
+            return token;
+        }
+        if (IsChartDataLeafKind(kind))
         {
             var token = value.ValueKind switch
             {
@@ -215,6 +239,14 @@ internal static class PpjNativeLeafProjection
             if (value.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
                 throw InvalidValue(kind, path, "a boolean");
             return value.GetBoolean() ? "1" : "0";
+        }
+        if (kind is "customGeometryAdjustment" or "presetGeometryAdjustment" or "imageMaskAdjustment")
+        {
+            if (!value.TryGetInt64(out var adjustment) || adjustment is < int.MinValue or > int.MaxValue ||
+                kind is "presetGeometryAdjustment" or "imageMaskAdjustment" &&
+                (adjustment < PptxPresetGeometryAdjustmentCodec.MinimumValue || adjustment > PptxPresetGeometryAdjustmentCodec.MaximumValue))
+                throw InvalidValue(kind, path, "a bounded DrawingML signed integer");
+            return adjustment.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
         if (IntegerKinds.Contains(kind))
         {
@@ -255,12 +287,43 @@ internal static class PpjNativeLeafProjection
         $"Native leaf {kind} requires {expected}.",
         path);
 
+    // JsonNode's implicit primitive conversions use reflection metadata that
+    // is intentionally unavailable in the NativeAOT PPJ host.  Build string
+    // leaves through Utf8JsonWriter so imported source-bound projection stays
+    // AOT-safe while preserving the exact JSON primitive value.
+    private static JsonNode StringNode(string value)
+    {
+        var buffer = new System.Buffers.ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer)) writer.WriteStringValue(value);
+        return JsonNode.Parse(buffer.WrittenSpan) ?? throw new InvalidOperationException("String JSON primitive could not be created.");
+    }
+
     private static bool ValidNumericToken(string token) =>
         token.Length is > 0 and <= 128 &&
         token == token.Trim() &&
         !token.Any(char.IsControl) &&
         double.TryParse(token, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var number) &&
         double.IsFinite(number);
+
+    internal static bool ValidTextToken(string token) =>
+        token.Length <= MaxChartCategoryLength &&
+        !token.Any(character => character is >= '\u0000' and <= '\u0008' or '\u000B' or '\u000C' or >= '\u000E' and <= '\u001F');
+
+    internal static bool IsChartDataLeafKind(string kind) => kind is
+        "chartDataCategory" or "chartDataValue" or "chartDataXValue" or "chartDataYValue" or "chartDataBubbleSize";
+
+    private static string ChartChannel(PresentationNativeChartDataPoint point) =>
+        string.IsNullOrEmpty(point.Channel) ? "value" : point.Channel;
+
+    private static string ChartDataLeafKind(PresentationNativeChartDataPoint point) =>
+        ChartChannel(point) switch
+        {
+            "x" => "chartDataXValue",
+            "y" => "chartDataYValue",
+            "size" => "chartDataBubbleSize",
+            "category" => "chartDataCategory",
+            _ => "chartDataValue",
+        };
 
     private static void DescribeShape(
         PresentationShape shape,
@@ -323,6 +386,43 @@ internal static class PpjNativeLeafProjection
         if (!string.IsNullOrEmpty(shape.EndArrow))
             add("lineEndArrow", shape.EndArrow, JsonValue.Create(shape.EndArrow), 0, 0);
 
+        // A custom geometry may be fully recognized even when its path
+        // coordinates are driven by DrawingML guide formulas.  Keep the
+        // formula graph source-owned, but expose the safest adjustment leaf:
+        // an existing ordered `a:avLst/a:gd fmla="val N"` can be changed by
+        // token splice without changing guide names, path references, or
+        // handle/connection topology.  Formula-valued adjustments and all
+        // calculated guides remain undisclosed here and therefore fail closed.
+        if (source.Editable && shape.Geometry == "custom")
+        {
+            for (var index = 0; index < shape.CustomAdjustments.Count; index++)
+            {
+                var formula = shape.CustomAdjustments[index].Formula;
+                if (TryLiteralAdjustment(formula, out var value))
+                    add("customGeometryAdjustment", value.ToString(System.Globalization.CultureInfo.InvariantCulture), JsonValue.Create(value), checked((uint)index), 0);
+            }
+        }
+        // Preset geometry adjustments use the fixed guide names and ordered
+        // slots from the native preset profile.  A complete profile whose
+        // target formula is exactly `val N` is safe to edit by token splice;
+        // the preset token, guide order, and all other shape topology remain
+        // source-owned.  Partial or calculated guide graphs are not issued.
+        if (shape.Geometry != "custom" &&
+            shape.PresetAdjustments.Count > 0 &&
+            PptxPresetGeometryAdjustmentCodec.TryExpectedCount(shape.Geometry, out var expectedCount) &&
+            shape.PresetAdjustments.Count == expectedCount &&
+            (source.Editable || shape.PresetAdjustments.Any(PptxPresetGeometryAdjustmentCodec.IsMissingValue)))
+        {
+            for (var index = 0; index < shape.PresetAdjustments.Count; index++)
+            {
+                var value = shape.PresetAdjustments[index];
+                if (!PptxPresetGeometryAdjustmentCodec.IsMissingValue(value) &&
+                    value >= PptxPresetGeometryAdjustmentCodec.MinimumValue && value <= PptxPresetGeometryAdjustmentCodec.MaximumValue)
+                    add("presetGeometryAdjustment", value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        JsonValue.Create(value), checked((uint)index), 0);
+            }
+        }
+
         // The importer only issues TextEditable after checking the bounded
         // source shape profile. The edit-plan codec repeats that proof against
         // the exact SlidePart during compilation.
@@ -348,8 +448,90 @@ internal static class PpjNativeLeafProjection
             AddBoolean(add, "flipVertical", image.Transform.FlipVertical);
         if (image.HasOpacityThousandthPercent)
             AddInteger(add, "imageOpacityThousandthPercent", image.OpacityThousandthPercent);
-        if (!string.IsNullOrEmpty(image.MaskPreset) && image.MaskPresetAdjustments.Count == 0)
-            add("imageMaskPreset", image.MaskPreset, JsonValue.Create(image.MaskPreset), 0, 0);
+        // A missing PPJ mask is the native rectangle default.  Issue the
+        // canonical `rect` leaf as well, so a source-bound continuation can
+        // change an otherwise unmasked picture to a supported preset without
+        // manufacturing a new relationship or flattening the image.
+        if (image.CustomMaskPaths.Count == 0 && image.MaskPresetAdjustments.Count == 0)
+        {
+            var preset = string.IsNullOrEmpty(image.MaskPreset) ? "rect" : image.MaskPreset;
+            add("imageMaskPreset", preset, JsonValue.Create(preset), 0, 0);
+        }
+        // A complete preset mask already has a typed PPJ representation, but
+        // each literal adjustment is also an independently safe source leaf:
+        // token-splice the `val N` formula without rebuilding the preset,
+        // guide names, or picture relationships.  A partial/formula-valued
+        // mask remains opaque as a semantic image; the opaque-picture path
+        // below may still expose any independently proven literal sibling.
+        if (image.MaskPresetAdjustments.Count > 0 && image.MaskPreset.Length > 0)
+        {
+            for (var index = 0; index < image.MaskPresetAdjustments.Count; index++)
+            {
+                var value = image.MaskPresetAdjustments[index];
+                add("imageMaskAdjustment", value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    JsonValue.Create(value), checked((uint)index), 0);
+            }
+        }
+    }
+
+    private static void DescribeOpaquePictureMask(
+        string rawXml,
+        Action<string, string, JsonNode?, uint, uint> add)
+    {
+        // An unsupported mask makes the picture opaque as a whole, but a
+        // direct literal `val N` slot is still independently token-spliceable.
+        // Parse only the small owner-local geometry envelope; any namespace,
+        // child, or attribute ambiguity suppresses the leaf rather than
+        // guessing at a partial mask graph.
+        if (rawXml.Length is 0 or > 1_000_000) return;
+        try
+        {
+            const string presentationNamespace = "http://schemas.openxmlformats.org/presentationml/2006/main";
+            const string drawingNamespace = "http://schemas.openxmlformats.org/drawingml/2006/main";
+            XNamespace p = presentationNamespace;
+            XNamespace a = drawingNamespace;
+            // Open XML's OuterXml commonly declares `p` on an ancestor and
+            // only repeats `a` on local children.  Re-home the fragment under
+            // a synthetic namespace envelope before parsing so a detached
+            // opaque `p:pic` remains inspectable without relying on prefixes.
+            var envelope = XElement.Parse(
+                $"<root xmlns:p=\"{presentationNamespace}\" xmlns:a=\"{drawingNamespace}\">{rawXml}</root>",
+                LoadOptions.PreserveWhitespace);
+            var root = envelope.Elements(p + "pic").SingleOrDefault();
+            if (root is null) return;
+            var properties = root.Elements(p + "spPr").SingleOrDefault();
+            var geometry = properties?.Elements(a + "prstGeom").SingleOrDefault();
+            var preset = geometry?.Attribute("prst");
+            if (properties is null || geometry is null || preset is null ||
+                geometry.Elements().Count() != 1 ||
+                geometry.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration &&
+                    (attribute.Name.Namespace != XNamespace.None || attribute.Name.LocalName != "prst")) ||
+                !PptxCustomGeometryCodec.TryPresetName(new DocumentFormat.OpenXml.Drawing.ShapeTypeValues(preset.Value), out _))
+                return;
+            var adjustmentList = geometry.Element(a + "avLst");
+            if (adjustmentList is null || adjustmentList.Attributes().Any() ||
+                adjustmentList.Elements().Count() != adjustmentList.Elements(a + "gd").Count())
+                return;
+            var guides = adjustmentList.Elements(a + "gd").ToArray();
+            for (var index = 0; index < guides.Length; index++)
+            {
+                var guide = guides[index];
+                var name = guide.Attribute("name");
+                var formula = guide.Attribute("fmla")?.Value;
+                if (guide.Elements().Any() || name is null || formula is null ||
+                    guide.Attributes().Any(attribute => attribute.Name.Namespace != XNamespace.None || attribute.Name.LocalName is not ("name" or "fmla")) ||
+                    name.Value.Length == 0 || !TryLiteralAdjustment(formula, out var value))
+                    continue;
+                add("imageMaskAdjustment", value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    JsonValue.Create(value), checked((uint)index), 0);
+            }
+        }
+        catch (Exception)
+        {
+            // Opaque source XML is intentionally best-effort here. The
+            // source-bound compiler repeats the structural proof against the
+            // Open XML tree before accepting any issued leaf.
+        }
     }
 
     private static void DescribeConnector(
@@ -384,6 +566,33 @@ internal static class PpjNativeLeafProjection
         }
     }
 
+    private static void DescribeGroup(
+        PresentationGroup group,
+        PresentationElementSourceBinding source,
+        Action<string, string, JsonNode?, uint, uint> add)
+    {
+        // A group has two coordinate spaces (outer off/ext and child
+        // chOff/chExt).  Child-space coordinates are exposed separately from
+        // the outer frame.  They remain a group-owned transaction surface: a
+        // child-space edit is never confused with a child element placement.
+        if (!source.Editable) return;
+        AddInteger(add, "leftEmu", group.LeftEmu);
+        AddInteger(add, "topEmu", group.TopEmu);
+        AddInteger(add, "widthEmu", group.WidthEmu);
+        AddInteger(add, "heightEmu", group.HeightEmu);
+        AddInteger(add, "childLeftEmu", group.ChildLeftEmu);
+        AddInteger(add, "childTopEmu", group.ChildTopEmu);
+        AddInteger(add, "childWidthEmu", group.ChildWidthEmu);
+        AddInteger(add, "childHeightEmu", group.ChildHeightEmu);
+        if (group.FrameTransform?.HasRotationAngle60000 == true)
+            add("rotationDegrees", group.FrameTransform.RotationAngle60000.ToStringInvariant(),
+                JsonValue.Create(group.FrameTransform.RotationAngle60000 / 60_000d), 0, 0);
+        if (group.FrameTransform?.HasFlipHorizontal == true)
+            AddBoolean(add, "flipHorizontal", group.FrameTransform.FlipHorizontal);
+        if (group.FrameTransform?.HasFlipVertical == true)
+            AddBoolean(add, "flipVertical", group.FrameTransform.FlipVertical);
+    }
+
     private static void DescribeBody(
         PresentationTextBody body,
         Action<string, string, JsonNode?, uint, uint> add)
@@ -403,6 +612,14 @@ internal static class PpjNativeLeafProjection
                 add("textBodyColumnCount", properties.Columns.ToStringInvariant(), JsonValue.Create(properties.Columns), 0, 0);
             if (properties.AutoFitCase == PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode && properties.NormalAutoFit is null)
                 add("textBodyAutoFit", properties.AutoFitMode, JsonValue.Create(properties.AutoFitMode), 0, 0);
+            if (properties.AutoFitCase == PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode &&
+                properties.AutoFitMode == "shrinkText" && properties.NormalAutoFit is { } normalAutoFit)
+            {
+                if (normalAutoFit.FontScaleCase == PresentationNormalAutoFit.FontScaleOneofCase.FontScale1000)
+                    AddScaled(add, "textBodyNormalAutoFitFontScale", normalAutoFit.FontScale1000 / 1_000d, 1_000, 0);
+                if (normalAutoFit.LineSpacingReductionCase == PresentationNormalAutoFit.LineSpacingReductionOneofCase.LineSpacingReduction1000)
+                    AddScaled(add, "textBodyNormalAutoFitLineSpacingReduction", normalAutoFit.LineSpacingReduction1000 / 1_000d, 1_000, 0);
+            }
             if (properties.ColumnDirectionCase == PresentationTextBodyProperties.ColumnDirectionOneofCase.RightToLeftColumns)
                 add("textBodyColumnDirection", properties.RightToLeftColumns ? "1" : "0", JsonValue.Create(properties.RightToLeftColumns), 0, 0);
             if (properties.VerticalTextCase == PresentationTextBodyProperties.VerticalTextOneofCase.VerticalTextMode)
@@ -509,6 +726,20 @@ internal static class PpjNativeLeafProjection
 
     private static void AddBoolean(Action<string, string, JsonNode?, uint, uint> add, string kind, bool value, uint nativeIndex = 0) =>
         add(kind, value ? "1" : "0", JsonValue.Create(value), nativeIndex, 0);
+
+    private static bool TryLiteralAdjustment(string? formula, out long value)
+    {
+        value = 0;
+        if (string.IsNullOrWhiteSpace(formula)) return false;
+        var tokens = formula.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (tokens.Length != 2 || tokens[0] != "val" ||
+            !long.TryParse(tokens[1], System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out var parsed) ||
+            parsed is < int.MinValue or > int.MaxValue)
+            return false;
+        value = parsed;
+        return true;
+    }
 
     private static string Hash(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
 

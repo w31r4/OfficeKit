@@ -357,6 +357,28 @@ try {
       path: entry,
       role: ["cover", "analysis", "data", "closing"][index],
     })),
+    imageSlots: [
+      {
+        id: "hero-source",
+        role: "hero",
+        examplePath: examplePaths[0],
+        allowedFit: ["cover", "contain"],
+        allowedMask: ["none", "roundRect"],
+        minWidthPx: 1200,
+        minHeightPx: 675,
+        rights: ["user-provided", "generated"],
+      },
+      {
+        id: "chart-source",
+        role: "chart-source",
+        examplePath: examplePaths[2],
+        allowedFit: ["contain"],
+        allowedMask: ["none"],
+        minWidthPx: 900,
+        minHeightPx: 500,
+        rights: ["generated", "internal"],
+      },
+    ],
     referenceProgram: {
       path: referenceProgramPath,
       license: "AGPL-3.0-or-later",
@@ -389,6 +411,28 @@ try {
   assert.equal(Object.hasOwn(presentationMetadata, "editProfile"), false);
   assert.equal(presentationMetadata.referenceProgram.path, "assets/references/reference.ppj");
   assert.equal(presentationMetadata.referencePptx.path, "assets/references/reference.pptx");
+  assert.deepEqual(presentationMetadata.imageSlots, [
+    {
+      id: "hero-source",
+      role: "hero",
+      examplePath: "assets/examples/01-cover.png",
+      allowedFit: ["cover", "contain"],
+      allowedMask: ["none", "roundRect"],
+      minWidthPx: 1200,
+      minHeightPx: 675,
+      rights: ["user-provided", "generated"],
+    },
+    {
+      id: "chart-source",
+      role: "chart-source",
+      examplePath: "assets/examples/03-data.png",
+      allowedFit: ["contain"],
+      allowedMask: ["none"],
+      minWidthPx: 900,
+      minHeightPx: 500,
+      rights: ["generated", "internal"],
+    },
+  ]);
   assert.equal(presentationMetadata.referenceProgram.sha256, sha256(await fs.readFile(referenceProgramPath)));
   assert.equal(presentationMetadata.referencePptx.sha256, sha256(await fs.readFile(pptxPath)));
   assert.equal(presentationTemplate.referenceProgramPath, path.join(presentationTemplate.skillPath, "assets", "references", "reference.ppj"));

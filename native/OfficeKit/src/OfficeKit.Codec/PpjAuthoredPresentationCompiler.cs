@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Google.Protobuf;
 using OfficeKit.Artifact.Wire.V1;
 
@@ -108,6 +109,169 @@ internal static partial class PpjAuthoredPresentationCompiler
         return output;
     }
 
+    // Source-bound table cells use the same concrete text grammar as
+    // source-free PPJ, but deliberately call this helper without style
+    // overlays. The caller has already proved that the imported body is a
+    // fixed-topology, direct plain-text profile; this keeps per-run styles
+    // editable without making source-bound compilation infer unsupported
+    // paragraph/list/layout semantics.
+    internal static PresentationTextBody BuildSourceBoundTextBody(JsonElement text, JsonElement programRoot)
+    {
+        var catalog = new Catalog(programRoot);
+        var body = BuildTextBody(text, null, null, null, catalog);
+        // BuildTextBody allocates a body-properties shell while resolving
+        // authored styles. Source projection omits an empty shell, so clear
+        // it here to keep source-bound semantic hashes stable.
+        if (!PptxBodyPropertiesCodec.HasModeledProperties(body.BodyProperties)) body.BodyProperties = null;
+        return body;
+    }
+
+    internal static PresentationTextBodyProperties BuildSourceBoundTextBodyStyle(
+        JsonElement style,
+        string path)
+    {
+        if (style.ValueKind != JsonValueKind.Object)
+            throw Unsupported(path, "source-bound text body style must be an object");
+        foreach (var property in style.EnumerateObject())
+        {
+            if (property.Name is not ("verticalAlignment" or "wrap" or "autoFit" or "normalAutoFit" or "margins" or "columns" or "columnGap" or "columnDirection" or "verticalText" or "rotation" or "verticalOverflow" or "horizontalOverflow" or "upright"))
+                throw Unsupported(path + "." + property.Name, "source-bound text body style field is outside the direct bodyPr profile");
+        }
+        var target = new PresentationTextBodyProperties();
+        ApplyBodyProperties(target, null, null, style);
+        if (!PptxBodyPropertiesCodec.SupportsBoundedDirectLayout(target))
+            throw Unsupported(path, "source-bound text body style is outside the bounded direct bodyPr profile");
+        return target;
+    }
+
+    internal static void MergeSourceBoundTextBodyStyle(
+        PresentationTextBody target,
+        JsonElement style,
+        string path)
+    {
+        if (target is null || target.Paragraphs.Count == 0)
+            throw Unsupported(path, "source-bound text body style requires an existing text body");
+        var requested = BuildSourceBoundTextBodyStyle(style, path);
+        if (!PptxBodyPropertiesCodec.SupportsBoundedDirectLayout(target.BodyProperties))
+            throw Unsupported(path, "the imported text body has unmodeled bodyPr properties");
+        var current = target.BodyProperties ?? new PresentationTextBodyProperties();
+        if (style.TryGetProperty("verticalAlignment", out _))
+        {
+            current.ClearAnchor();
+            if (requested.AnchorCase == PresentationTextBodyProperties.AnchorOneofCase.VerticalAnchor)
+                current.VerticalAnchor = requested.VerticalAnchor;
+        }
+        if (style.TryGetProperty("wrap", out _))
+        {
+            current.ClearWrapping();
+            if (requested.WrappingCase == PresentationTextBodyProperties.WrappingOneofCase.Wrap)
+                current.Wrap = requested.Wrap;
+        }
+        if (style.TryGetProperty("autoFit", out _))
+        {
+            current.ClearAutoFit();
+            if (requested.AutoFitCase == PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode)
+                current.AutoFitMode = requested.AutoFitMode;
+            if (current.AutoFitMode != "shrinkText") current.NormalAutoFit = null;
+        }
+        if (style.TryGetProperty("normalAutoFit", out var normalAutoFit))
+        {
+            if (current.AutoFitCase != PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode || current.AutoFitMode != "shrinkText" ||
+                requested.NormalAutoFit is not { } requestedNormal)
+                throw Unsupported(path + ".normalAutoFit", "normalAutoFit percentages require autoFit shrink-text");
+            var mergedNormal = current.NormalAutoFit?.Clone() ?? new PresentationNormalAutoFit();
+            if (normalAutoFit.TryGetProperty("fontScale", out _))
+            {
+                mergedNormal.ClearFontScale();
+                if (requestedNormal.FontScaleCase == PresentationNormalAutoFit.FontScaleOneofCase.FontScale1000)
+                    mergedNormal.FontScale1000 = requestedNormal.FontScale1000;
+            }
+            if (normalAutoFit.TryGetProperty("lineSpacingReduction", out _))
+            {
+                mergedNormal.ClearLineSpacingReduction();
+                if (requestedNormal.LineSpacingReductionCase == PresentationNormalAutoFit.LineSpacingReductionOneofCase.LineSpacingReduction1000)
+                    mergedNormal.LineSpacingReduction1000 = requestedNormal.LineSpacingReduction1000;
+            }
+            current.NormalAutoFit = mergedNormal;
+        }
+        if (style.TryGetProperty("margins", out var margins))
+        {
+            if (margins.TryGetProperty("left", out _))
+            {
+                current.ClearLeftInset();
+                if (requested.LeftInsetCase == PresentationTextBodyProperties.LeftInsetOneofCase.LeftInsetEmu)
+                    current.LeftInsetEmu = requested.LeftInsetEmu;
+            }
+            if (margins.TryGetProperty("top", out _))
+            {
+                current.ClearTopInset();
+                if (requested.TopInsetCase == PresentationTextBodyProperties.TopInsetOneofCase.TopInsetEmu)
+                    current.TopInsetEmu = requested.TopInsetEmu;
+            }
+            if (margins.TryGetProperty("right", out _))
+            {
+                current.ClearRightInset();
+                if (requested.RightInsetCase == PresentationTextBodyProperties.RightInsetOneofCase.RightInsetEmu)
+                    current.RightInsetEmu = requested.RightInsetEmu;
+            }
+            if (margins.TryGetProperty("bottom", out _))
+            {
+                current.ClearBottomInset();
+                if (requested.BottomInsetCase == PresentationTextBodyProperties.BottomInsetOneofCase.BottomInsetEmu)
+                    current.BottomInsetEmu = requested.BottomInsetEmu;
+            }
+        }
+        if (style.TryGetProperty("columns", out _))
+        {
+            current.ClearColumnCount();
+            if (requested.ColumnCountCase == PresentationTextBodyProperties.ColumnCountOneofCase.Columns)
+                current.Columns = requested.Columns;
+        }
+        if (style.TryGetProperty("columnGap", out _))
+        {
+            current.ClearColumnSpacing();
+            if (requested.ColumnSpacingCase == PresentationTextBodyProperties.ColumnSpacingOneofCase.ColumnSpacingEmu)
+                current.ColumnSpacingEmu = requested.ColumnSpacingEmu;
+        }
+        if (style.TryGetProperty("columnDirection", out _))
+        {
+            current.ClearColumnDirection();
+            if (requested.ColumnDirectionCase == PresentationTextBodyProperties.ColumnDirectionOneofCase.RightToLeftColumns)
+                current.RightToLeftColumns = requested.RightToLeftColumns;
+        }
+        if (style.TryGetProperty("verticalText", out _))
+        {
+            current.ClearVerticalText();
+            if (requested.VerticalTextCase == PresentationTextBodyProperties.VerticalTextOneofCase.VerticalTextMode)
+                current.VerticalTextMode = requested.VerticalTextMode;
+        }
+        if (style.TryGetProperty("rotation", out _))
+        {
+            current.ClearRotation();
+            if (requested.RotationCase == PresentationTextBodyProperties.RotationOneofCase.RotationAngle60000)
+                current.RotationAngle60000 = requested.RotationAngle60000;
+        }
+        if (style.TryGetProperty("verticalOverflow", out _))
+        {
+            current.ClearVerticalOverflow();
+            if (requested.VerticalOverflowCase == PresentationTextBodyProperties.VerticalOverflowOneofCase.VerticalOverflowMode)
+                current.VerticalOverflowMode = requested.VerticalOverflowMode;
+        }
+        if (style.TryGetProperty("horizontalOverflow", out _))
+        {
+            current.ClearHorizontalOverflow();
+            if (requested.HorizontalOverflowCase == PresentationTextBodyProperties.HorizontalOverflowOneofCase.HorizontalOverflowMode)
+                current.HorizontalOverflowMode = requested.HorizontalOverflowMode;
+        }
+        if (style.TryGetProperty("upright", out _))
+        {
+            current.ClearUprightText();
+            if (requested.UprightTextCase == PresentationTextBodyProperties.UprightTextOneofCase.Upright)
+                current.Upright = requested.Upright;
+        }
+        target.BodyProperties = PptxBodyPropertiesCodec.HasModeledProperties(current) ? current : null;
+    }
+
     private sealed class AuthoredSourceFreeBuildPlan : IPptxSourceFreeBuildPlan
     {
         private readonly PpjProgramModel _program;
@@ -152,7 +316,7 @@ internal static partial class PpjAuthoredPresentationCompiler
 
             AddSections(Presentation, program);
             AddCustomShows(Presentation, program);
-            AddComments(Presentation, program);
+            AddComments(Presentation, program, _expandedByPage);
         }
 
         public PresentationArtifact Presentation { get; }
@@ -244,7 +408,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         }
     }
 
-    private static PresentationTextParagraph BuildMasterTextLevel(JsonElement source, Catalog catalog)
+    internal static PresentationTextParagraph BuildMasterTextLevel(JsonElement source, Catalog catalog)
     {
         var level = new PresentationTextParagraph();
         ApplyParagraphStyle(level, null, null, source, catalog);
@@ -332,7 +496,72 @@ internal static partial class PpjAuthoredPresentationCompiler
             default:
                 throw Unsupported(element.Id, $"expanded element type {element.Type} cannot be authored");
         }
+        if (raw.TryGetProperty("action", out var action))
+        {
+            if (output.ContentCase != PresentationElement.ContentOneofCase.Shape)
+                throw Unsupported(element.Id, "shape-level action is currently authored only for shape/text elements");
+            output.Shape.Action = BuildAction(action, element.Id);
+        }
+        if (raw.TryGetProperty("hoverAction", out var hoverAction))
+        {
+            if (output.ContentCase != PresentationElement.ContentOneofCase.Shape)
+                throw Unsupported(element.Id, "shape-level hoverAction is currently authored only for shape/text elements");
+            output.Shape.HoverAction = BuildAction(hoverAction, element.Id);
+        }
+        ApplyAuthoredCompositing(output, raw, element.Id, catalog);
         return output;
+    }
+
+    internal static PresentationRunHyperlink BuildAction(JsonElement source, string elementId)
+    {
+        var action = new PresentationRunHyperlink();
+        if (source.TryGetProperty("uri", out var uri)) action.Uri = uri.GetString()!;
+        else if (source.TryGetProperty("slide", out var slide)) action.SlideId = slide.GetString()!;
+        else if (source.TryGetProperty("customShow", out var customShow)) action.CustomShowId = customShow.GetString()!;
+        else if (source.TryGetProperty("verb", out var verb)) action.Action = verb.GetString()!;
+        else throw Unsupported(elementId, "action requires uri, slide, customShow, or verb");
+        if (source.TryGetProperty("tooltip", out var tooltip)) action.Tooltip = tooltip.GetString()!;
+        if (source.TryGetProperty("targetFrame", out var targetFrame)) action.TargetFrame = targetFrame.GetString()!;
+        if (source.TryGetProperty("history", out var history)) action.History = history.GetBoolean();
+        if (source.TryGetProperty("highlightClick", out var highlightClick)) action.HighlightClick = highlightClick.GetBoolean();
+        if (source.TryGetProperty("returnToSlide", out var returnToSlide)) action.ReturnToSlide = returnToSlide.GetBoolean();
+        try
+        {
+            PptxHyperlinkCodec.Validate(action);
+        }
+        catch (CodecException error)
+        {
+            throw new CodecException(error.Code, $"PPJ {elementId} action: {error.Message}");
+        }
+        return action;
+    }
+
+    private static void ApplyAuthoredCompositing(
+        PresentationElement output,
+        JsonElement raw,
+        string elementId,
+        Catalog catalog)
+    {
+        if (!raw.TryGetProperty("compositing", out var compositing)) return;
+        if (compositing.TryGetProperty("blendMode", out var blendMode) && blendMode.GetString() is not (null or "normal"))
+            throw Unsupported(elementId, "non-normal compositing blend modes are not representable by native DrawingML");
+        if (compositing.TryGetProperty("isolation", out var isolation) && isolation.GetBoolean())
+            throw Unsupported(elementId, "compositing isolation has no bounded native owner");
+        if (compositing.TryGetProperty("clipStack", out var clipStack) && clipStack.GetArrayLength() > 0)
+            throw Unsupported(elementId, "compositing clip stacks require a native clip closure and are not flattened");
+        if (!compositing.TryGetProperty("opacity", out var opacity)) return;
+        var value = catalog.NumberToken(opacity, "opacity", $"{elementId} compositing.opacity");
+        switch (output.ContentCase)
+        {
+            case PresentationElement.ContentOneofCase.Shape:
+                ApplyCompoundShapeOpacity(output.Shape, value, elementId);
+                break;
+            case PresentationElement.ContentOneofCase.Image:
+                output.Image.OpacityThousandthPercent = Opacity(value);
+                break;
+            default:
+                throw Unsupported(elementId, $"compositing.opacity is not supported for {output.ContentCase}");
+        }
     }
 
     internal static PresentationTextBody BuildChartTitleBody(
@@ -362,24 +591,62 @@ internal static partial class PpjAuthoredPresentationCompiler
 
     private static PresentationShape BuildShape(PpjShapeElementModel element, JsonElement raw, Catalog catalog)
     {
+        if (element.Type == "line") return BuildLine(element, raw, catalog);
         var geometry = element.GeometryKind == "custom" ? "custom" : element.GeometryPreset ?? "rect";
         var shape = ShapeFrame(element.Frame, geometry);
         var namedStyle = catalog.ShapeStyle(element.StyleRef);
         var inlineStyle = Property(raw, "style");
-        ApplyShapeStyle(shape, namedStyle, inlineStyle, catalog, element.Id);
+        ApplyShapeStyle(shape, namedStyle, inlineStyle, catalog, element.Id, raw);
         if (raw.TryGetProperty("text", out var text))
         {
             shape.TextBody = BuildTextBody(text, null, Property(raw, "textStyle"), catalog);
             shape.Text = Flatten(shape.TextBody);
         }
-        if (FirstProperty(inlineStyle, namedStyle, "opacity") is { } opacity)
-            ApplyCompoundShapeOpacity(shape, opacity.GetDouble(), element.Id);
+        var opacity = catalog.PropertyByPrecedence("shape.opacity", raw, inlineStyle, namedStyle);
+        if (opacity is null && raw.TryGetProperty("opacity", out var directOpacity)) opacity = directOpacity;
+        if (opacity is { } opacityValue)
+            ApplyCompoundShapeOpacity(shape, catalog.NumberToken(opacityValue, "opacity", $"{element.Id} opacity"), element.Id);
         if (geometry == "custom") ApplyCustomGeometry(shape, raw.GetProperty("geometry"), element.Id);
         else shape.PresetAdjustments.Add(element.GeometryAdjustments);
         ApplyTransform(shape, element.Frame);
         ApplyAccessibility(shape, element.Accessibility);
         return shape;
     }
+
+    private static PresentationShape BuildLine(PpjShapeElementModel element, JsonElement raw, Catalog catalog)
+    {
+        var shape = ShapeFrame(element.Frame, "custom");
+        var namedStyle = catalog.ShapeStyle(element.StyleRef);
+        var inlineStyle = Property(raw, "style");
+        ApplyShapeStyle(shape, namedStyle, inlineStyle, catalog, element.Id, raw);
+        var stroke = catalog.PropertyByPrecedence("shape.stroke", raw, inlineStyle, namedStyle);
+        if (stroke is null && raw.TryGetProperty("stroke", out var directStroke)) stroke = directStroke;
+        if (stroke is { } strokeValue) ApplyLine(shape, strokeValue, catalog);
+        else if (shape.LineStyle.Length == 0) shape.LineStyle = "none";
+        var curve = OptionalString(raw, "curve") ?? "round";
+        if (!HasStrokeJoin(stroke))
+        {
+            if (curve == "round") shape.LineJoin = "round";
+            else if (curve == "sharp") shape.LineJoin = "miter";
+        }
+        shape.StartArrow = Arrow(OptionalString(raw, "startArrow"));
+        shape.EndArrow = Arrow(OptionalString(raw, "endArrow"));
+        if (raw.TryGetProperty("shadow", out var shadow)) shape.Shadow = BuildShadow(shadow, catalog);
+        var opacity = catalog.PropertyByPrecedence("shape.opacity", raw, inlineStyle, namedStyle);
+        if (opacity is null && raw.TryGetProperty("opacity", out var directOpacity)) opacity = directOpacity;
+        if (opacity is { } opacityValue)
+            ApplyCompoundShapeOpacity(shape, catalog.NumberToken(opacityValue, "opacity", $"{element.Id} opacity"), element.Id);
+        var path = raw.TryGetProperty("path", out var explicitPath)
+            ? explicitPath
+            : PpjLinePathCodec.KimiPath(raw, element.Frame.Width, element.Frame.Height, element.Id);
+        PpjLinePathCodec.Apply(shape, path, element.Id);
+        ApplyTransform(shape, element.Frame);
+        ApplyAccessibility(shape, element.Accessibility);
+        return shape;
+    }
+
+    private static bool HasStrokeJoin(JsonElement? stroke) =>
+        stroke is { ValueKind: JsonValueKind.Object } value && value.TryGetProperty("join", out _);
 
     private static PresentationShape BuildIcon(PpjIconElementModel element, JsonElement raw, Catalog catalog)
     {
@@ -388,10 +655,10 @@ internal static partial class PpjAuthoredPresentationCompiler
         shape.CatalogIconName = element.IconName;
         var namedStyle = catalog.ShapeStyle(element.StyleRef);
         var inlineStyle = Property(raw, "style");
-        if (FirstProperty(inlineStyle, namedStyle, "fill") is null) shape.FillRgb = "000000";
-        ApplyShapeStyle(shape, namedStyle, inlineStyle, catalog, element.Id);
-        if (FirstProperty(inlineStyle, namedStyle, "opacity") is { } opacity)
-            ApplyCompoundShapeOpacity(shape, opacity.GetDouble(), element.Id);
+        if (catalog.PropertyByPrecedence("shape.fill", raw, inlineStyle, namedStyle) is null) shape.FillRgb = "000000";
+        ApplyShapeStyle(shape, namedStyle, inlineStyle, catalog, element.Id, raw);
+        if (catalog.PropertyByPrecedence("shape.opacity", raw, inlineStyle, namedStyle) is { } opacity)
+            ApplyCompoundShapeOpacity(shape, catalog.NumberToken(opacity, "opacity", $"{element.Id} opacity"), element.Id);
         ApplyIconGeometry(shape, definition, element.Frame, element.Id);
         ApplyTransform(shape, element.Frame);
         ApplyAccessibility(shape, element.Accessibility);
@@ -460,9 +727,9 @@ internal static partial class PpjAuthoredPresentationCompiler
             WidthEmu = Emu(element.Frame.Width),
             HeightEmu = Emu(element.Frame.Height),
         };
-        ApplyImageCrop(image, element, raw, catalog);
-        if (raw.TryGetProperty("opacity", out var opacity))
-            image.OpacityThousandthPercent = Opacity(opacity.GetDouble());
+        var namedStyle = catalog.ImageStyle(element.StyleRef);
+        var inlineStyle = Property(raw, "style");
+        ApplyImageCrop(image, element, raw, namedStyle, inlineStyle, catalog);
         if (raw.TryGetProperty("mask", out var mask))
         {
             if (mask.GetProperty("kind").GetString() == "preset")
@@ -477,21 +744,21 @@ internal static partial class PpjAuthoredPresentationCompiler
                 image.CustomMaskPaths.Add(customMask.CustomPaths);
             }
         }
-        if (raw.TryGetProperty("border", out var border))
+        if (catalog.PropertyByPrecedence("image.border", raw, inlineStyle, namedStyle, includeElementWhenUndeclared: true) is { } border)
         {
             var color = catalog.Color(border.GetProperty("color"));
             image.Border = new PresentationImageBorder
             {
                 ColorRgb = color.Rgb,
-                WidthEmu = Emu(border.GetProperty("width").GetDouble()),
+                WidthEmu = Emu(StrokeWidth(border, catalog, $"{element.Id} image border width")),
                 Style = LineStyle(OptionalString(border, "dash")),
                 Cap = OptionalString(border, "cap") ?? string.Empty,
                 Join = OptionalString(border, "join") ?? string.Empty,
             };
-            var borderOpacity = OptionalDouble(border, "opacity") ?? color.Alpha;
+            var borderOpacity = OptionalOpacity(border, "opacity", catalog, $"{element.Id} image border opacity") ?? color.Alpha;
             if (borderOpacity < 1) image.Border.OpacityThousandthPercent = Opacity(borderOpacity);
         }
-        if (raw.TryGetProperty("shadow", out var shadow))
+        if (catalog.PropertyByPrecedence("image.shadow", raw, inlineStyle, namedStyle, includeElementWhenUndeclared: true) is { } shadow)
             image.Shadow = BuildShadow(shadow, catalog);
         if (element.Frame.Rotation != 0 || element.Frame.FlipH || element.Frame.FlipV)
         {
@@ -543,18 +810,21 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (BuildFrameTransform(element.Frame) is { } frameTransform) table.FrameTransform = frameTransform;
         var namedStyle = catalog.TableStyle(element.StyleRef);
         var inlineStyle = Property(raw, "style");
-        var defaultTextStyle = FirstProperty(inlineStyle, namedStyle, "defaultTextStyle");
-        var defaultCellFill = FirstProperty(inlineStyle, namedStyle, "defaultCellFill");
-        var headerTextStyle = FirstProperty(inlineStyle, namedStyle, "headerTextStyle");
-        var headerCellFill = FirstProperty(inlineStyle, namedStyle, "headerCellFill");
-        var cellStyle = FirstProperty(inlineStyle, namedStyle, "cellStyle");
-        var bodyStyles = FirstProperty(inlineStyle, namedStyle, "bodyStyles");
-        var firstRowStyle = FirstProperty(inlineStyle, namedStyle, "firstRowStyle");
-        var lastRowStyle = FirstProperty(inlineStyle, namedStyle, "lastRowStyle");
-        var firstColumnStyle = FirstProperty(inlineStyle, namedStyle, "firstColumnStyle");
-        var lastColumnStyle = FirstProperty(inlineStyle, namedStyle, "lastColumnStyle");
-        var rowOverColumn = FirstProperty(inlineStyle, namedStyle, "rowOverColumn")?.GetBoolean() ?? true;
-        var declaredHeaderRows = FirstProperty(inlineStyle, namedStyle, "headerRows");
+        var defaultTextStyle = catalog.PropertyByPrecedence("table.defaultTextStyle", raw, inlineStyle, namedStyle);
+        var defaultCellFill = catalog.PropertyByPrecedence("table.defaultCellFill", raw, inlineStyle, namedStyle);
+        var headerTextStyle = catalog.PropertyByPrecedence("table.headerTextStyle", raw, inlineStyle, namedStyle);
+        var headerCellFill = catalog.PropertyByPrecedence("table.headerCellFill", raw, inlineStyle, namedStyle);
+        var cellStyle = catalog.PropertyByPrecedence("table.cellStyle", raw, inlineStyle, namedStyle);
+        var bodyStyles = catalog.PropertyByPrecedence("table.bodyStyles", raw, inlineStyle, namedStyle);
+        var firstRowStyle = catalog.PropertyByPrecedence("table.firstRowStyle", raw, inlineStyle, namedStyle);
+        var lastRowStyle = catalog.PropertyByPrecedence("table.lastRowStyle", raw, inlineStyle, namedStyle);
+        var firstColumnStyle = catalog.PropertyByPrecedence("table.firstColumnStyle", raw, inlineStyle, namedStyle);
+        var lastColumnStyle = catalog.PropertyByPrecedence("table.lastColumnStyle", raw, inlineStyle, namedStyle);
+        var rowOverColumnValue = catalog.PropertyByPrecedence("table.rowOverColumn", raw, inlineStyle, namedStyle);
+        var rowOverColumn = rowOverColumnValue is null
+            ? true
+            : catalog.BooleanToken(rowOverColumnValue.Value, "boolean", $"table {element.Id} rowOverColumn");
+        var declaredHeaderRows = catalog.PropertyByPrecedence("table.headerRows", raw, inlineStyle, namedStyle);
         var headerRowCount = declaredHeaderRows?.GetInt32() ?? 0;
         if (headerRowCount > element.Rows.Count)
             throw Unsupported(element.Id, $"table headerRows {headerRowCount} exceeds the {element.Rows.Count}-row physical grid");
@@ -658,14 +928,14 @@ internal static partial class PpjAuthoredPresentationCompiler
             table.Rows.Add(row);
         }
         if (declaredHeaderRows is not null) table.FirstRow = headerRowCount > 0;
-        if (FirstProperty(inlineStyle, namedStyle, "bandedRows") is { } bandedRows)
-            table.BandedRows = bandedRows.GetBoolean();
-        if (FirstProperty(inlineStyle, namedStyle, "bandedColumns") is { } bandedColumns)
-            table.BandedColumns = bandedColumns.GetBoolean();
-        if (FirstProperty(inlineStyle, namedStyle, "firstColumnEmphasis") is { } firstColumn)
-            table.FirstColumn = firstColumn.GetBoolean();
-        if (FirstProperty(inlineStyle, namedStyle, "lastColumnEmphasis") is { } lastColumn)
-            table.LastColumn = lastColumn.GetBoolean();
+        if (catalog.PropertyByPrecedence("table.bandedRows", raw, inlineStyle, namedStyle) is { } bandedRows)
+            table.BandedRows = catalog.BooleanToken(bandedRows, "boolean", $"table {element.Id} bandedRows");
+        if (catalog.PropertyByPrecedence("table.bandedColumns", raw, inlineStyle, namedStyle) is { } bandedColumns)
+            table.BandedColumns = catalog.BooleanToken(bandedColumns, "boolean", $"table {element.Id} bandedColumns");
+        if (catalog.PropertyByPrecedence("table.firstColumnEmphasis", raw, inlineStyle, namedStyle) is { } firstColumn)
+            table.FirstColumn = catalog.BooleanToken(firstColumn, "boolean", $"table {element.Id} firstColumnEmphasis");
+        if (catalog.PropertyByPrecedence("table.lastColumnEmphasis", raw, inlineStyle, namedStyle) is { } lastColumn)
+            table.LastColumn = catalog.BooleanToken(lastColumn, "boolean", $"table {element.Id} lastColumnEmphasis");
         if (defaultCellFill is { } fallbackFill)
         {
             var type = fallbackFill.GetProperty("type").GetString();
@@ -714,7 +984,9 @@ internal static partial class PpjAuthoredPresentationCompiler
                     cellHeight,
                     catalog.NativeAssetId,
                     catalog.AssetDimensions,
-                    path),
+                    path,
+                    opacity => catalog.NumberToken(opacity, "opacity", $"{path} opacity"),
+                    fit => catalog.StringToken(fit, "string", $"{path} fit")),
             };
         throw Unsupported(elementId, $"table-cell {type} fills are not compiler-owned");
     }
@@ -735,12 +1007,12 @@ internal static partial class PpjAuthoredPresentationCompiler
         var output = new SpreadsheetChartLineStyleArtifact
         {
             Color = new SpreadsheetColor { Rgb = color.Rgb },
-            WidthPoints = stroke.GetProperty("width").GetDouble(),
+            WidthPoints = StrokeWidth(stroke, catalog, "table cell border width"),
             DashStyle = ChartDash(OptionalString(stroke, "dash")),
             Cap = OptionalString(stroke, "cap") ?? string.Empty,
             Join = OptionalString(stroke, "join") ?? string.Empty,
         };
-        var opacity = OptionalDouble(stroke, "opacity") ?? color.Alpha;
+        var opacity = OptionalOpacity(stroke, "opacity", catalog, "table cell border opacity") ?? color.Alpha;
         if (opacity < 1) output.OpacityThousandthPercent = Opacity(opacity);
         return output;
     }
@@ -836,7 +1108,7 @@ internal static partial class PpjAuthoredPresentationCompiler
                 {
                     Id = DiagramChildId(element.Id, "image", item.Node.Id),
                     Name = $"{item.Node.Id} image",
-                    Image = BuildDiagramNodeImage(item, catalog),
+                    Image = BuildDiagramNodeImage(item, rawNode, catalog),
                 });
                 group.Children.Add(new PresentationElement
                 {
@@ -924,6 +1196,8 @@ internal static partial class PpjAuthoredPresentationCompiler
 
         if (resolvedLayout == "picture" && element.Nodes.Any(node => node.AssetId is null))
             throw Unsupported(element.Id, "every authored picture-diagram node requires an image asset");
+        if (resolvedLayout != "picture" && element.Nodes.Any(node => node.Image is not null))
+            throw Unsupported(element.Id, "diagram node image paint is only valid for the picture layout");
         if (resolvedLayout != "picture" && element.Nodes.Any(node => node.AssetId is not null))
             throw Unsupported(element.Id, "diagram node assets are only valid for the picture layout");
         if ((resolvedLayout == "picture") != (placement == "square-grid-picture"))
@@ -956,6 +1230,8 @@ internal static partial class PpjAuthoredPresentationCompiler
         var shape = ShapeFrame(item.Frame, geometryName);
         var shapeStyle = catalog.ShapeStyle(item.Node.ShapeStyleRef ?? element.ShapeStyleRef);
         ApplyShapeStyle(shape, shapeStyle, null, catalog, item.Node.Id);
+        if (rawNode.TryGetProperty("image", out _))
+            shape.ImageFill = BuildSmartArtNodeImagePaint(item.Node, rawNode, item.Frame, catalog);
         if (geometry is { } value)
         {
             if (geometryKind == "custom") ApplyCustomGeometry(shape, value, item.Node.Id);
@@ -969,7 +1245,7 @@ internal static partial class PpjAuthoredPresentationCompiler
             shape.Text = Flatten(shape.TextBody);
         }
         if (FirstProperty(null, shapeStyle, "opacity") is { } opacity)
-            ApplyCompoundShapeOpacity(shape, opacity.GetDouble(), item.Node.Id);
+            ApplyCompoundShapeOpacity(shape, catalog.NumberToken(opacity, "opacity", $"{item.Node.Id} opacity"), item.Node.Id);
         return shape;
     }
 
@@ -988,7 +1264,10 @@ internal static partial class PpjAuthoredPresentationCompiler
         return shape;
     }
 
-    private static PresentationImage BuildDiagramNodeImage(DiagramLayoutNode item, Catalog catalog)
+    private static PresentationImage BuildDiagramNodeImage(
+        DiagramLayoutNode item,
+        JsonElement rawNode,
+        Catalog catalog)
     {
         var frame = DiagramPictureImageFrame(item.Frame);
         var image = new PresentationImage
@@ -1000,9 +1279,45 @@ internal static partial class PpjAuthoredPresentationCompiler
             WidthEmu = Emu(frame.Width),
             HeightEmu = Emu(frame.Height),
         };
-        if (catalog.AssetDimensions(item.Node.AssetId!) is { } dimensions)
+        if (rawNode.TryGetProperty("image", out _))
+        {
+            var paint = BuildSmartArtNodeImagePaint(item.Node, rawNode, frame, catalog);
+            image.Crop = paint.Crop;
+            image.Tiled = paint.Mode == PresentationImagePaint.Types.Mode.Tile;
+            if (paint.HasOpacityThousandthPercent)
+                image.OpacityThousandthPercent = paint.OpacityThousandthPercent;
+        }
+        else if (catalog.AssetDimensions(item.Node.AssetId!) is { } dimensions)
             image.Crop = DiagramCoverCrop(frame.Width, frame.Height, dimensions.Width, dimensions.Height);
         return image;
+    }
+
+    private static PresentationImagePaint BuildSmartArtNodeImagePaint(
+        PpjSmartArtNodeModel node,
+        JsonElement rawNode,
+        PpjFrameModel frame,
+        Catalog catalog)
+    {
+        if (node.AssetId is null || !rawNode.TryGetProperty("image", out var image) ||
+            image.ValueKind != JsonValueKind.Object)
+            throw Unsupported(node.Id, "SmartArt node image paint requires an image object and asset");
+        var imageObject = JsonNode.Parse(image.GetRawText())?.AsObject() ??
+            throw Unsupported(node.Id, "SmartArt node image paint must be an object");
+        imageObject["type"] = "image";
+        imageObject["asset"] = node.AssetId;
+        using var document = JsonDocument.Parse(imageObject.ToJsonString());
+        var output = PpjImagePaintLowering.Build(
+            document.RootElement,
+            frame.Width,
+            frame.Height,
+            catalog.NativeAssetId,
+            catalog.AssetDimensions,
+            $"{node.Id} image",
+            resolveOpacity: value => catalog.NumberToken(value, "opacity", $"{node.Id} image opacity"),
+            resolveFit: value => catalog.StringToken(value, "string", $"{node.Id} image fit"));
+        if (output.Mode is not (PresentationImagePaint.Types.Mode.Stretch or PresentationImagePaint.Types.Mode.Tile))
+            throw Unsupported(node.Id, "SmartArt node image paint fit is outside the stretch/tile profile");
+        return output;
     }
 
     private static PresentationImageCrop DiagramCoverCrop(
@@ -1314,15 +1629,23 @@ internal static partial class PpjAuthoredPresentationCompiler
             TopEmu = Emu(element.Frame.Y),
             WidthEmu = Emu(element.Frame.Width),
             HeightEmu = Emu(element.Frame.Height),
-            ChildLeftEmu = Emu(element.Frame.X),
-            ChildTopEmu = Emu(element.Frame.Y),
-            ChildWidthEmu = Emu(element.Frame.Width),
-            ChildHeightEmu = Emu(element.Frame.Height),
+            ChildLeftEmu = Emu(element.ChildFrame.X),
+            ChildTopEmu = Emu(element.ChildFrame.Y),
+            ChildWidthEmu = Emu(element.ChildFrame.Width),
+            ChildHeightEmu = Emu(element.ChildFrame.Height),
         };
         if (BuildFrameTransform(element.Frame) is { } frameTransform) group.FrameTransform = frameTransform;
-        var childJson = raw.GetProperty("elements").EnumerateArray().ToArray();
-        for (var index = 0; index < element.Elements.Count; index++)
-            group.Children.Add(BuildElement(element.Elements[index], childJson[index], catalog));
+        var childJsonById = raw.GetProperty("elements").EnumerateArray()
+            .ToDictionary(child => child.GetProperty("id").GetString()!, StringComparer.Ordinal);
+        var orderedElements = element.ReadingOrder.Count == 0
+            ? element.Elements
+            : element.ReadingOrder.Select(id => element.Elements.Single(child => child.Id.Equals(id, StringComparison.Ordinal))).ToArray();
+        foreach (var child in orderedElements)
+        {
+            if (!childJsonById.TryGetValue(child.Id, out var childJson))
+                throw Unsupported(element.Id, $"group readingOrder references missing child {child.Id}");
+            group.Children.Add(BuildElement(child, childJson, catalog));
+        }
         ApplyAccessibility(group, element.Accessibility);
         return group;
     }
@@ -1362,9 +1685,10 @@ internal static partial class PpjAuthoredPresentationCompiler
         JsonElement? named,
         JsonElement? inline,
         Catalog catalog,
-        string elementId)
+        string elementId,
+        JsonElement? element = null)
     {
-        var fill = FirstProperty(inline, named, "fill");
+        var fill = catalog.PropertyByPrecedence("shape.fill", element, inline, named);
         if (fill is { } fillValue)
         {
             var fillType = fillValue.GetProperty("type").GetString();
@@ -1380,7 +1704,9 @@ internal static partial class PpjAuthoredPresentationCompiler
                     target.HeightEmu / EmuPerPoint,
                     catalog.NativeAssetId,
                     catalog.AssetDimensions,
-                    $"element {elementId} fill");
+                    $"element {elementId} fill",
+                    opacity => catalog.NumberToken(opacity, "opacity", $"element {elementId} fill opacity"),
+                    fit => catalog.StringToken(fit, "string", $"element {elementId} fill fit"));
             }
             else
             {
@@ -1393,10 +1719,10 @@ internal static partial class PpjAuthoredPresentationCompiler
                 }
             }
         }
-        var stroke = FirstProperty(inline, named, "stroke");
+        var stroke = catalog.PropertyByPrecedence("shape.stroke", element, inline, named);
         if (stroke is { } strokeValue) ApplyLine(target, strokeValue, catalog);
         else target.LineStyle = "none";
-        var shadow = FirstProperty(inline, named, "shadow");
+        var shadow = catalog.PropertyByPrecedence("shape.shadow", element, inline, named);
         if (shadow is { } shadowValue)
             target.Shadow = BuildShadow(shadowValue, catalog);
     }
@@ -1514,7 +1840,9 @@ internal static partial class PpjAuthoredPresentationCompiler
                 target.HeightEmu / EmuPerPoint,
                 catalog.NativeAssetId,
                 catalog.AssetDimensions,
-                "text fill");
+                "text fill",
+                opacity => catalog.NumberToken(opacity, "opacity", "text fill opacity"),
+                fit => catalog.StringToken(fit, "string", "text fill fit"));
             return;
         }
         var resolved = FillColor(fill, catalog);
@@ -1528,11 +1856,11 @@ internal static partial class PpjAuthoredPresentationCompiler
     {
         var color = catalog.Color(stroke.GetProperty("color"));
         target.LineRgb = color.Rgb;
-        target.LineWidthEmu = Emu(stroke.GetProperty("width").GetDouble());
+        target.LineWidthEmu = Emu(StrokeWidth(stroke, catalog, "shape stroke width"));
         target.LineStyle = LineStyle(OptionalString(stroke, "dash"));
         target.LineCap = OptionalString(stroke, "cap") ?? string.Empty;
         target.LineJoin = OptionalString(stroke, "join") ?? string.Empty;
-        var opacity = OptionalDouble(stroke, "opacity") ?? color.Alpha;
+        var opacity = OptionalOpacity(stroke, "opacity", catalog, "shape stroke opacity") ?? color.Alpha;
         if (opacity < 1) target.LineOpacityThousandthPercent = Opacity(opacity);
     }
 
@@ -1540,11 +1868,11 @@ internal static partial class PpjAuthoredPresentationCompiler
     {
         var color = catalog.Color(stroke.GetProperty("color"));
         target.LineRgb = color.Rgb;
-        target.LineWidthEmu = Emu(stroke.GetProperty("width").GetDouble());
+        target.LineWidthEmu = Emu(StrokeWidth(stroke, catalog, "connector stroke width"));
         target.LineStyle = LineStyle(OptionalString(stroke, "dash"));
         target.LineCap = OptionalString(stroke, "cap") ?? string.Empty;
         target.LineJoin = OptionalString(stroke, "join") ?? string.Empty;
-        var opacity = OptionalDouble(stroke, "opacity") ?? color.Alpha;
+        var opacity = OptionalOpacity(stroke, "opacity", catalog, "connector stroke opacity") ?? color.Alpha;
         if (opacity < 1) target.LineOpacityThousandthPercent = Opacity(opacity);
     }
 
@@ -1562,7 +1890,13 @@ internal static partial class PpjAuthoredPresentationCompiler
         Catalog catalog)
     {
         var body = new PresentationTextBody();
-        ApplyBodyProperties(body.BodyProperties = new PresentationTextBodyProperties(), namedStyle, middleStyle, inlineStyle);
+        // Structured rich text may carry a text-container style of its own.
+        // Keep this separate from paragraph/run styles, but let it override
+        // the surrounding element style for the body properties it declares.
+        var richTextStyle = text.ValueKind == JsonValueKind.Object ? Property(text, "style") : null;
+        var bodyStyle = MergeJsonObjects(inlineStyle, richTextStyle);
+        var paragraphStyle = MergeJsonObjects(Property(inlineStyle, "paragraph"), Property(richTextStyle, "paragraph"));
+        ApplyBodyProperties(body.BodyProperties = new PresentationTextBodyProperties(), namedStyle, middleStyle, bodyStyle);
         if (text.ValueKind == JsonValueKind.String)
         {
             var paragraph = new PresentationTextParagraph();
@@ -1570,7 +1904,7 @@ internal static partial class PpjAuthoredPresentationCompiler
                 paragraph,
                 Property(namedStyle, "paragraph"),
                 Property(middleStyle, "paragraph"),
-                Property(inlineStyle, "paragraph"),
+                paragraphStyle,
                 null,
                 catalog);
             paragraph.Runs.Add(BuildRun(text.GetString()!, namedStyle, middleStyle, inlineStyle, null, null, catalog));
@@ -1584,18 +1918,35 @@ internal static partial class PpjAuthoredPresentationCompiler
                 paragraph,
                 Property(namedStyle, "paragraph"),
                 Property(middleStyle, "paragraph"),
-                Property(inlineStyle, "paragraph"),
+                paragraphStyle,
                 Property(paragraphJson, "style"),
                 catalog);
             foreach (var run in paragraphJson.GetProperty("runs").EnumerateArray())
             {
-                paragraph.Runs.Add(run.TryGetProperty("formula", out var formula)
+                paragraph.Runs.Add(run.TryGetProperty("field", out var field)
+                    ? BuildFieldRun(
+                        field,
+                        namedStyle,
+                        middleStyle,
+                        inlineStyle,
+                        Property(run, "style"),
+                        Property(run, "hyperlink"),
+                        catalog)
+                    : run.TryGetProperty("formula", out var formula)
                     ? BuildFormulaRun(
                         formula.GetProperty("source").GetString()!,
                         namedStyle,
                         middleStyle,
                         inlineStyle,
                         Property(run, "style"),
+                        catalog)
+                    : run.TryGetProperty("break", out var lineBreak) && lineBreak.ValueKind == JsonValueKind.True
+                    ? BuildLineBreakRun(
+                        namedStyle,
+                        middleStyle,
+                        inlineStyle,
+                        Property(run, "style"),
+                        Property(run, "hyperlink"),
                         catalog)
                     : BuildRun(
                         run.GetProperty("text").GetString()!,
@@ -1611,6 +1962,41 @@ internal static partial class PpjAuthoredPresentationCompiler
         return body;
     }
 
+    private static PresentationTextRun BuildFieldRun(
+        JsonElement source,
+        JsonElement? namedBox,
+        JsonElement? middleBox,
+        JsonElement? inlineBox,
+        JsonElement? inlineRun,
+        JsonElement? hyperlink,
+        Catalog catalog)
+    {
+        var type = source.GetProperty("type").GetString()!;
+        var text = source.GetProperty("text").GetString()!;
+        var run = BuildRun(string.Empty, namedBox, middleBox, inlineBox, inlineRun, hyperlink, catalog);
+        var id = OptionalString(source, "id");
+        if (!Guid.TryParseExact(id, "B", out _))
+        {
+            var digest = MD5.HashData(Encoding.UTF8.GetBytes($"officekit-field\0{type}\0{text}"));
+            id = $"{{{new Guid(digest).ToString()}}}";
+        }
+        run.Field = new PresentationTextField { Id = id, Type = type, Text = text };
+        return run;
+    }
+
+    private static PresentationTextRun BuildLineBreakRun(
+        JsonElement? namedBox,
+        JsonElement? middleBox,
+        JsonElement? inlineBox,
+        JsonElement? inlineRun,
+        JsonElement? hyperlink,
+        Catalog catalog)
+    {
+        var run = BuildRun(string.Empty, namedBox, middleBox, inlineBox, inlineRun, hyperlink, catalog);
+        run.LineBreak = true;
+        return run;
+    }
+
     private static PresentationTextRun BuildFormulaRun(
         string source,
         JsonElement? namedBox,
@@ -1624,7 +2010,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         var middleDefault = FirstProperty(middleBox, null, "defaultText");
         var namedDefault = FirstProperty(namedBox, null, "defaultText");
         if (FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "size") is { } size)
-            run.FontSizePoints = size.GetDouble();
+            run.FontSizePoints = catalog.PositiveNumberToken(size, "size", "text size");
         if (FirstTextPaint(inlineRun, inlineDefault, middleDefault, namedDefault) is { Kind: "color" } paint)
         {
             var resolved = catalog.Color(paint.Value);
@@ -1662,14 +2048,14 @@ internal static partial class PpjAuthoredPresentationCompiler
         var inlineDefault = FirstProperty(inlineBox, null, "defaultText");
         var middleDefault = FirstProperty(middleBox, null, "defaultText");
         var namedDefault = FirstProperty(namedBox, null, "defaultText");
-        var bold = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "bold");
-        var italic = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "italic");
-        var size = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "size");
+        var bold = TextPropertyByPrecedence(catalog, "bold", inlineRun, inlineDefault, middleDefault, namedDefault);
+        var italic = TextPropertyByPrecedence(catalog, "italic", inlineRun, inlineDefault, middleDefault, namedDefault);
+        var size = TextPropertyByPrecedence(catalog, "size", inlineRun, inlineDefault, middleDefault, namedDefault);
         var paint = FirstTextPaint(inlineRun, inlineDefault, middleDefault, namedDefault);
         var shadow = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "shadow");
         var highlight = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "highlight");
-        var font = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "font");
-        var family = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "fontFamily");
+        var font = TextPropertyByPrecedence(catalog, "font", inlineRun, inlineDefault, middleDefault, namedDefault);
+        var family = TextPropertyByPrecedence(catalog, "fontFamily", inlineRun, inlineDefault, middleDefault, namedDefault);
         var eastAsia = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "fontFamilyEastAsia");
         var underline = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "underline");
         var strike = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "strike");
@@ -1678,9 +2064,9 @@ internal static partial class PpjAuthoredPresentationCompiler
         var baseline = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "baseline");
         var capitalization = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "capitalization");
         var language = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "language");
-        if (bold is { } boldValue) run.Bold = boldValue.GetBoolean();
-        if (italic is { } italicValue) run.Italic = italicValue.GetBoolean();
-        if (size is { } sizeValue) run.FontSizePoints = sizeValue.GetDouble();
+        if (bold is { } boldValue) run.Bold = catalog.BooleanToken(boldValue, "boolean", "text bold");
+        if (italic is { } italicValue) run.Italic = catalog.BooleanToken(italicValue, "boolean", "text italic");
+        if (size is { } sizeValue) run.FontSizePoints = catalog.PositiveNumberToken(sizeValue, "size", "text size");
         if (paint is { Kind: "color" } colorPaint)
         {
             var resolved = catalog.Color(colorPaint.Value);
@@ -1699,9 +2085,9 @@ internal static partial class PpjAuthoredPresentationCompiler
                 throw Unsupported("text", "highlight alpha is not part of the bounded DrawingML highlight profile");
             run.HighlightRgb = resolved.Rgb;
         }
-        if (family is { } familyValue) run.FontFamily = familyValue.GetString()!;
-        else if (font is { } fontValue) run.FontFamily = catalog.Font(fontValue.GetString()!);
-        if (eastAsia is { } eastAsiaValue) run.FontFamilyEastAsia = eastAsiaValue.GetString()!;
+        if (family is { } familyValue) run.FontFamily = catalog.StringToken(familyValue, "string", "text fontFamily");
+        else if (font is { } fontValue) run.FontFamily = catalog.Font(fontValue);
+        if (eastAsia is { } eastAsiaValue) run.FontFamilyEastAsia = catalog.StringToken(eastAsiaValue, "string", "text fontFamilyEastAsia");
         else if (run.FontFamily.Length > 0) run.FontFamilyEastAsia = run.FontFamily;
         if (underline is { } underlineValue) run.Underline = NativeUnderline(underlineValue.GetString()!);
         if (strike is { } strikeValue) run.Strike = NativeStrike(strikeValue);
@@ -1718,13 +2104,27 @@ internal static partial class PpjAuthoredPresentationCompiler
         return run;
     }
 
+    private static JsonElement? TextPropertyByPrecedence(
+        Catalog catalog,
+        string field,
+        JsonElement? inlineRun,
+        JsonElement? inlineDefault,
+        JsonElement? middleDefault,
+        JsonElement? namedDefault) => catalog.PropertyByPrecedence(
+            $"text.{field}",
+            inlineRun,
+            inlineDefault,
+            namedDefault,
+            middleDefault,
+            includeElementWhenUndeclared: true);
+
     private static PresentationTextStyle BuildTextStyle(JsonElement? style, Catalog catalog)
     {
         var output = new PresentationTextStyle();
         if (style is not { } value) return output;
-        if (value.TryGetProperty("bold", out var bold)) output.Bold = bold.GetBoolean();
-        if (value.TryGetProperty("italic", out var italic)) output.Italic = italic.GetBoolean();
-        if (value.TryGetProperty("size", out var size)) output.FontSizePoints = size.GetDouble();
+        if (value.TryGetProperty("bold", out var bold)) output.Bold = catalog.BooleanToken(bold, "boolean", "text style bold");
+        if (value.TryGetProperty("italic", out var italic)) output.Italic = catalog.BooleanToken(italic, "boolean", "text style italic");
+        if (value.TryGetProperty("size", out var size)) output.FontSizePoints = catalog.PositiveNumberToken(size, "size", "text style size");
         if (value.TryGetProperty("color", out var color))
         {
             var resolved = catalog.Color(color);
@@ -1745,9 +2145,9 @@ internal static partial class PpjAuthoredPresentationCompiler
                 throw Unsupported("text", "highlight alpha is not part of the bounded DrawingML highlight profile");
             output.HighlightRgb = resolved.Rgb;
         }
-        if (value.TryGetProperty("fontFamily", out var family)) output.FontFamily = family.GetString()!;
-        else if (value.TryGetProperty("font", out var font)) output.FontFamily = catalog.Font(font.GetString()!);
-        if (value.TryGetProperty("fontFamilyEastAsia", out var eastAsia)) output.FontFamilyEastAsia = eastAsia.GetString()!;
+        if (value.TryGetProperty("fontFamily", out var family)) output.FontFamily = catalog.StringToken(family, "string", "text style fontFamily");
+        else if (value.TryGetProperty("font", out var font)) output.FontFamily = catalog.Font(font);
+        if (value.TryGetProperty("fontFamilyEastAsia", out var eastAsia)) output.FontFamilyEastAsia = catalog.StringToken(eastAsia, "string", "text style fontFamilyEastAsia");
         else if (output.HasFontFamily) output.FontFamilyEastAsia = output.FontFamily;
         if (value.TryGetProperty("underline", out var underline)) output.Underline = NativeUnderline(underline.GetString()!);
         if (value.TryGetProperty("strike", out var strike)) output.Strike = NativeStrike(strike);
@@ -1799,6 +2199,39 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (columnDirection is { } direction) target.RightToLeftColumns = direction.GetString() == "right-to-left";
         var verticalText = FirstProperty(inline, middle, named, "verticalText");
         if (verticalText is { } textMode) target.VerticalTextMode = textMode.GetString()!;
+        var rotation = FirstProperty(inline, middle, named, "rotation");
+        if (rotation is { } angle) target.RotationAngle60000 = Angle(angle.GetDouble());
+        var verticalOverflow = FirstProperty(inline, middle, named, "verticalOverflow");
+        if (verticalOverflow is { } overflow) target.VerticalOverflowMode = overflow.GetString()!;
+        var horizontalOverflow = FirstProperty(inline, middle, named, "horizontalOverflow");
+        if (horizontalOverflow is { } horizontal) target.HorizontalOverflowMode = horizontal.GetString()!;
+        var upright = FirstProperty(inline, middle, named, "upright");
+        if (upright is { } uprightValue) target.Upright = uprightValue.GetBoolean();
+        var normalAutoFit = FirstProperty(inline, middle, named, "normalAutoFit");
+        if (normalAutoFit is { } normal)
+        {
+            if (normal.ValueKind != JsonValueKind.Object)
+                throw Unsupported("text body normalAutoFit", "normalAutoFit must be an object");
+            var targetNormal = new PresentationNormalAutoFit();
+            if (normal.TryGetProperty("fontScale", out var fontScale))
+                targetNormal.FontScale1000 = NormalAutoFitPercentage(fontScale, "fontScale", 1, 100);
+            if (normal.TryGetProperty("lineSpacingReduction", out var lineSpacingReduction))
+                targetNormal.LineSpacingReduction1000 = NormalAutoFitPercentage(lineSpacingReduction, "lineSpacingReduction", 0, 13_200);
+            if (targetNormal.FontScaleCase != PresentationNormalAutoFit.FontScaleOneofCase.None ||
+                targetNormal.LineSpacingReductionCase != PresentationNormalAutoFit.LineSpacingReductionOneofCase.None)
+                target.NormalAutoFit = targetNormal;
+        }
+    }
+
+    private static int NormalAutoFitPercentage(JsonElement value, string field, double minimum, double maximum)
+    {
+        if (value.ValueKind != JsonValueKind.Number || !value.TryGetDouble(out var number) || !double.IsFinite(number))
+            throw Unsupported("text body normalAutoFit." + field, "percentage must be a finite number");
+        var scaled = number * 1_000d;
+        var rounded = Math.Round(scaled, MidpointRounding.AwayFromZero);
+        if (number < minimum || number > maximum || Math.Abs(scaled - rounded) > 1e-7)
+            throw Unsupported("text body normalAutoFit." + field, $"percentage must be between {minimum} and {maximum} with at most three decimal places");
+        return checked((int)rounded);
     }
 
     private static void ApplyParagraphStyle(
@@ -1836,6 +2269,22 @@ internal static partial class PpjAuthoredPresentationCompiler
             target.LineSpacingPoints = spacing.GetDouble();
         if (FirstProperty(direct, inline, middle, named, "lineSpacingMultiplier") is { } spacingMultiplier)
             target.LineSpacingMultiplier = spacingMultiplier.GetDouble();
+        if (FirstProperty(direct, inline, middle, named, "tabStops") is { } tabStops)
+        {
+            if (tabStops.ValueKind != JsonValueKind.Array)
+                throw Unsupported("text", "paragraph tabStops must be an array");
+            foreach (var tab in tabStops.EnumerateArray())
+            {
+                target.TabStops.Add(new PresentationTabStop
+                {
+                    PositionEmu = Emu(tab.GetProperty("position").GetDouble()),
+                    Alignment = OptionalString(tab, "alignment") ?? "left",
+                });
+            }
+        }
+        if (FirstProperty(direct, inline, middle, named, "noTabStops") is { } noTabStops &&
+            noTabStops.ValueKind == JsonValueKind.True)
+            target.NoTabStops = true;
         if (FirstProperty(direct, inline, middle, named, "defaultText") is { } defaultText && defaultText.EnumerateObject().Any())
             target.DefaultRunProperties = BuildTextStyle(defaultText, catalog);
         if (FirstProperty(direct, inline, middle, named, "bullet") is { } bullet)
@@ -1852,6 +2301,15 @@ internal static partial class PpjAuthoredPresentationCompiler
                         : NumberScheme(bullet.GetProperty("format").GetString()!),
                 };
                 if (bullet.TryGetProperty("startAt", out var startAt)) target.AutoNumber.StartAt = checked((uint)startAt.GetInt32());
+            }
+            else if (kind == "picture")
+            {
+                if (bullet.TryGetProperty("asset", out var asset))
+                    target.PictureBullet = new PresentationPictureBullet { AssetId = catalog.NativeAssetId(asset.GetString()!) };
+                else if (bullet.TryGetProperty("uri", out var uri))
+                    target.PictureBullet = new PresentationPictureBullet { Uri = uri.GetString()! };
+                else
+                    throw Unsupported("text", "picture bullet requires an asset or uri");
             }
             if (bullet.TryGetProperty("fontFamily", out var bulletFont)) target.BulletFontFamily = bulletFont.GetString()!;
             if (bullet.TryGetProperty("color", out var bulletColor))
@@ -1893,7 +2351,7 @@ internal static partial class PpjAuthoredPresentationCompiler
             throw Unsupported(elementId, $"{elementKind} frame rotation and flips are not yet compiler-owned");
     }
 
-    private static PresentationBackground BuildBackground(
+    internal static PresentationBackground BuildBackground(
         JsonElement fill,
         Catalog catalog,
         double canvasWidth,
@@ -1922,7 +2380,9 @@ internal static partial class PpjAuthoredPresentationCompiler
                     canvasHeight,
                     catalog.NativeAssetId,
                     catalog.AssetDimensions,
-                    "background"),
+                    "background",
+                    opacity => catalog.NumberToken(opacity, "opacity", "background opacity"),
+                    fit => catalog.StringToken(fit, "string", "background fit")),
             };
         }
         if (type == "none") return new PresentationBackground();
@@ -1953,6 +2413,9 @@ internal static partial class PpjAuthoredPresentationCompiler
         };
         if (source.DelayMs > 0) animation.DelayMs = checked((uint)source.DelayMs);
         if (source.StaggerMs > 0) animation.StaggerMs = checked((uint)source.StaggerMs);
+        if (source.Repeat is { } repeat) animation.RepeatCount = checked((uint)repeat);
+        if (source.AutoReverse is { } autoReverse) animation.AutoReverse = autoReverse;
+        if (!string.IsNullOrEmpty(source.Easing)) animation.Easing = source.Easing;
         if (source.AnimateChartBackground is { } animateChartBackground)
             animation.AnimateChartBackground = animateChartBackground;
         return animation;
@@ -2024,13 +2487,37 @@ internal static partial class PpjAuthoredPresentationCompiler
         }
     }
 
-    private static void AddComments(PresentationArtifact target, PpjProgramModel program)
+    private static void AddComments(
+        PresentationArtifact target,
+        PpjProgramModel program,
+        IReadOnlyDictionary<string, PpjExpandedPageModel> expandedByPage)
     {
         if (!program.Root.TryGetProperty("comments", out var rawComments)) return;
         var pageById = target.Slides.ToDictionary(page => page.Id, StringComparer.Ordinal);
+        var roots = new Dictionary<(string PageId, string CommentId), PresentationModernCommentThread>();
+        var pendingReplies = new List<(JsonElement Raw, string PageId, string ParentId)>();
         foreach (var raw in rawComments.EnumerateArray())
         {
             var pageId = raw.GetProperty("page").GetString()!;
+            if (!pageById.TryGetValue(pageId, out var page))
+                throw Unsupported("$.comments", $"comment page {pageId} does not exist");
+            var kind = OptionalString(raw, "kind") ?? "legacy";
+            if (kind == "modern")
+            {
+                var parentId = OptionalString(raw, "parent");
+                if (parentId is not null)
+                {
+                    pendingReplies.Add((raw, pageId, parentId));
+                    continue;
+                }
+
+                var thread = BuildSourceFreeModernCommentThread(raw, pageId, program, expandedByPage);
+                page.ModernComments.Add(thread);
+                roots.Add((pageId, raw.GetProperty("id").GetString()!), thread);
+                continue;
+            }
+            if (kind != "legacy")
+                throw Unsupported("$.comments", $"comment kind {kind} is outside the bounded legacy/modern profile");
             var comment = new PresentationLegacyComment
             {
                 Id = raw.GetProperty("id").GetString()!,
@@ -2043,9 +2530,119 @@ internal static partial class PpjAuthoredPresentationCompiler
                 comment.PositionXEmu = Emu(position.GetProperty("x").GetDouble());
                 comment.PositionYEmu = Emu(position.GetProperty("y").GetDouble());
             }
-            pageById[pageId].LegacyComments.Add(comment);
+            page.LegacyComments.Add(comment);
+        }
+
+        foreach (var (raw, pageId, parentId) in pendingReplies)
+        {
+            if (!roots.TryGetValue((pageId, parentId), out var thread))
+                throw Unsupported("$.comments", $"modern reply {raw.GetProperty("id").GetString()} does not resolve to a root on page {pageId}");
+                thread.Replies.Add(BuildSourceFreeModernComment(raw, program.Meta.Id));
         }
     }
+
+    private static PresentationModernCommentThread BuildSourceFreeModernCommentThread(
+        JsonElement raw,
+        string pageId,
+        PpjProgramModel program,
+        IReadOnlyDictionary<string, PpjExpandedPageModel> expandedByPage)
+    {
+        var targetId = raw.GetProperty("target").GetString()!;
+        var lookupId = targetId.EndsWith("/text", StringComparison.Ordinal)
+            ? targetId[..^5]
+            : targetId;
+        if (!expandedByPage.TryGetValue(pageId, out var expanded))
+            throw Unsupported("$.comments", $"comment page {pageId} does not exist");
+        var flattened = Walk(expanded.Elements).ToArray();
+        var targetIndex = Array.FindIndex(flattened, element => element.Id.Equals(lookupId, StringComparison.Ordinal));
+        if (targetIndex < 0)
+            throw Unsupported("$.comments", $"modern comment target {targetId} does not resolve to an authored element");
+
+        var anchor = raw.GetProperty("anchor");
+        var anchorKind = anchor.GetProperty("kind").GetString()!;
+        var expectedMoniker = ModernCommentMoniker(flattened[targetIndex]);
+        if (!anchor.GetProperty("moniker").GetString()!.Equals(expectedMoniker, StringComparison.Ordinal))
+            throw Unsupported("$.comments", $"modern comment target {targetId} requires anchor moniker {expectedMoniker}");
+        var nativeSlideIndex = program.Pages
+            .Select((page, index) => (page.Id, index))
+            .Single(item => item.Id.Equals(pageId, StringComparison.Ordinal)).index;
+        var thread = new PresentationModernCommentThread
+        {
+            Id = ModernCommentGuid(program.Meta.Id, raw.GetProperty("id").GetString()!),
+            TargetId = targetId,
+            PositionXEmu = raw.TryGetProperty("position", out var position) ? Emu(position.GetProperty("x").GetDouble()) : 0,
+            PositionYEmu = raw.TryGetProperty("position", out position) ? Emu(position.GetProperty("y").GetDouble()) : 0,
+            Anchor = new PresentationModernCommentAnchor
+            {
+                Kind = anchorKind == "textRange"
+                    ? PresentationModernCommentAnchor.Types.Kind.TextRange
+                    : PresentationModernCommentAnchor.Types.Kind.Element,
+                NativeSlideId = checked((uint)(256 + nativeSlideIndex)),
+            },
+            Root = BuildSourceFreeModernComment(raw, program.Meta.Id),
+        };
+        thread.Anchor.Monikers.Add(new PresentationModernCommentMoniker
+        {
+            Type = expectedMoniker,
+            NativeId = checked((uint)(targetIndex + 2)),
+        });
+        if (anchorKind == "textRange")
+        {
+            if (flattened[targetIndex] is not PpjTextElementModel and not PpjShapeElementModel and not PpjPlaceholderElementModel)
+                throw Unsupported("$.comments", $"modern text-range target {targetId} is not a text shape");
+            thread.Anchor.TextStart = checked((uint)anchor.GetProperty("textStart").GetInt64());
+            thread.Anchor.TextLength = checked((uint)anchor.GetProperty("textLength").GetInt64());
+            if (anchor.TryGetProperty("contextLength", out var contextLength))
+                thread.Anchor.ContextLength = checked((uint)contextLength.GetInt64());
+            if (anchor.TryGetProperty("contextHash", out var contextHash))
+                thread.Anchor.ContextHash = checked((uint)contextHash.GetInt64());
+        }
+        else if (anchorKind != "element")
+            throw Unsupported("$.comments", $"modern comment anchor kind {anchorKind} is unsupported");
+        return thread;
+    }
+
+    private static PresentationModernComment BuildSourceFreeModernComment(JsonElement raw, string programId)
+    {
+        var id = raw.GetProperty("id").GetString()!;
+        var author = raw.GetProperty("author").GetString()!;
+        var authorId = ModernAuthorGuid(programId, author);
+        return new PresentationModernComment
+        {
+            Id = ModernCommentGuid(programId, id),
+            AuthorId = authorId,
+            Author = author,
+            Initials = ModernAuthorInitials(author),
+            UserId = $"ppj:{authorId}",
+            ProviderId = "OfficeKit",
+            Text = raw.GetProperty("text").GetString()!,
+            CreatedAt = raw.GetProperty("createdAt").GetString()!,
+            Status = raw.GetProperty("status").GetString()!,
+        };
+    }
+
+    private static string ModernCommentGuid(string programId, string id) => DeterministicGuid(programId, $"modern-comment\0{id}");
+
+    private static string ModernAuthorGuid(string programId, string author) => DeterministicGuid(programId, $"modern-author\0{author}");
+
+    private static string ModernAuthorInitials(string author)
+    {
+        var initials = string.Concat(author
+            .Split(new[] { ' ', '\t', '-', '_', '.' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => part[0])
+            .Take(3)
+            .Select(char.ToUpperInvariant));
+        return initials.Length > 0 ? initials : "A";
+    }
+
+    private static string ModernCommentMoniker(PpjElementModel element) => element.Type switch
+    {
+        "image" or "media" => "picMk",
+        "chart" or "table" or "smartArt" => "graphicFrameMk",
+        "connector" => "cxnSpMk",
+        "group" => "grpSpMk",
+        _ => "spMk",
+    };
 
     private static IReadOnlyList<Asset> ValidateAssets(PpjProgramModel program, IEnumerable<Asset> supplied)
     {
@@ -2073,17 +2670,54 @@ internal static partial class PpjAuthoredPresentationCompiler
         return output;
     }
 
-    private static void ApplyImageCrop(PresentationImage target, PpjImageElementModel element, JsonElement raw, Catalog catalog)
+    private static void ApplyImageCrop(
+        PresentationImage target,
+        PpjImageElementModel element,
+        JsonElement raw,
+        JsonElement? namedStyle,
+        JsonElement? inlineStyle,
+        Catalog catalog)
     {
+        var source = EffectiveImagePaintSource(element, raw, namedStyle, inlineStyle, catalog);
         var paint = PpjImagePaintLowering.Build(
-            raw,
+            source,
             element.Frame.Width,
             element.Frame.Height,
             catalog.NativeAssetId,
             catalog.AssetDimensions,
-            $"element {element.Id}");
+            $"element {element.Id}",
+            opacity => catalog.NumberToken(opacity, "opacity", $"element {element.Id} opacity"),
+            fit => catalog.StringToken(fit, "string", $"element {element.Id} fit"));
         target.Crop = paint.Crop;
         target.Tiled = paint.Mode == PresentationImagePaint.Types.Mode.Tile;
+        if (paint.HasOpacityThousandthPercent)
+            target.OpacityThousandthPercent = paint.OpacityThousandthPercent;
+    }
+
+    private static JsonElement EffectiveImagePaintSource(
+        PpjImageElementModel element,
+        JsonElement raw,
+        JsonElement? namedStyle,
+        JsonElement? inlineStyle,
+        Catalog catalog)
+    {
+        var output = new JsonObject
+        {
+            ["asset"] = JsonValue.Create(element.AssetId),
+        };
+        foreach (var field in new[] { "fit", "crop", "focus", "opacity" })
+        {
+            if (catalog.PropertyByPrecedence(
+                    $"image.{field}",
+                    raw,
+                    inlineStyle,
+                    namedStyle,
+                    includeElementWhenUndeclared: true) is not { } value)
+                continue;
+            output[field] = JsonNode.Parse(value.GetRawText());
+        }
+        using var document = JsonDocument.Parse(output.ToJsonString());
+        return document.RootElement.Clone();
     }
 
     private static void ApplyChartStyle(
@@ -2091,126 +2725,194 @@ internal static partial class PpjAuthoredPresentationCompiler
         JsonElement? named,
         JsonElement? inline,
         Catalog catalog,
-        string elementId)
+        string elementId,
+        double frameWidth,
+        double frameHeight,
+        JsonElement? element = null)
     {
-        var legend = FirstProperty(inline, named, "legend")?.GetString();
+        var legendValue = catalog.PropertyByPrecedence("chart.legend", element, inline, named);
+        var legend = legendValue is { } explicitLegend
+            ? ChartEnumToken(explicitLegend, catalog, "chart legend", "none", "top", "bottom", "left", "right")
+            : null;
         chart.HasLegend = legend is not null and not "none";
         if (chart.HasLegend) chart.LegendPosition = legend!;
-        if (FirstProperty(inline, named, "stacking") is { } stacking)
+        if (catalog.PropertyByPrecedence("chart.stacking", element, inline, named) is { } stacking)
         {
             if (chart.Type is not (SpreadsheetChartType.Bar or SpreadsheetChartType.Line or SpreadsheetChartType.Area or SpreadsheetChartType.Combo))
                 throw Unsupported(elementId, "stacking applies only to bar, column, line, area, and combo charts");
-            chart.Grouping = stacking.GetString()!;
+            chart.Grouping = ChartEnumToken(stacking, catalog, "chart stacking", "none", "stacked", "percent-stacked", "stream");
         }
-        if (FirstProperty(inline, named, "gapWidth") is { } gapWidth)
+        if (catalog.PropertyByPrecedence("chart.gapWidth", element, inline, named) is { } gapWidth)
         {
             if (chart.Type is not (SpreadsheetChartType.Bar or SpreadsheetChartType.Combo))
                 throw Unsupported(elementId, "gapWidth applies only to bar, column, and combo charts");
-            chart.GapWidth = checked((uint)gapWidth.GetInt32());
+            chart.GapWidth = ChartIntegerToken(gapWidth, catalog, "chart gapWidth", 0, 500);
         }
-        if (FirstProperty(inline, named, "startAngle") is { } startAngle)
+        if (catalog.PropertyByPrecedence("chart.startAngle", element, inline, named) is { } startAngle)
         {
             if (chart.Type is not (SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut))
                 throw Unsupported(elementId, "startAngle applies only to pie and doughnut charts");
-            chart.FirstSliceAngle = checked((uint)startAngle.GetInt32());
+            chart.FirstSliceAngle = ChartIntegerToken(startAngle, catalog, "chart startAngle", 0, 360);
         }
-        if (FirstProperty(inline, named, "holeSize") is { } holeSize)
+        if (catalog.PropertyByPrecedence("chart.holeSize", element, inline, named) is { } holeSize)
         {
             if (chart.Type != SpreadsheetChartType.Doughnut)
                 throw Unsupported(elementId, "holeSize applies only to doughnut charts");
-            chart.DoughnutHoleSize = checked((uint)holeSize.GetInt32());
+            chart.DoughnutHoleSize = ChartIntegerToken(holeSize, catalog, "chart holeSize", 10, 90);
         }
-        if (FirstProperty(inline, named, "bubbleScale") is { } bubbleScale)
+        if (catalog.PropertyByPrecedence("chart.bubbleScale", element, inline, named) is { } bubbleScale)
         {
             if (chart.Type != SpreadsheetChartType.Bubble)
                 throw Unsupported(elementId, "bubbleScale applies only to bubble charts");
-            chart.BubbleScale = checked((uint)bubbleScale.GetInt32());
+            chart.BubbleScale = ChartIntegerToken(bubbleScale, catalog, "chart bubbleScale", 0, 300);
         }
-        if (FirstProperty(inline, named, "bubbleSizeMode") is { } bubbleSizeMode)
+        if (catalog.PropertyByPrecedence("chart.bubbleSizeMode", element, inline, named) is { } bubbleSizeMode)
         {
             if (chart.Type != SpreadsheetChartType.Bubble)
                 throw Unsupported(elementId, "bubbleSizeMode applies only to bubble charts");
-            chart.BubbleSizeMode = bubbleSizeMode.GetString()!;
+            chart.BubbleSizeMode = ChartEnumToken(bubbleSizeMode, catalog, "chart bubbleSizeMode", "area", "width");
         }
         var axisBearing = chart.Type is not (SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut);
-        if (FirstProperty(inline, named, "showCategoryAxis") is { } showCategoryAxis)
+        if (catalog.PropertyByPrecedence("chart.showCategoryAxis", element, inline, named) is { } showCategoryAxis)
         {
             if (!axisBearing) throw Unsupported(elementId, "circular charts do not have category axes");
-            chart.ShowCategoryAxis = showCategoryAxis.GetBoolean();
+            chart.ShowCategoryAxis = catalog.BooleanToken(showCategoryAxis, "boolean", "chart showCategoryAxis");
         }
-        if (FirstProperty(inline, named, "showValueAxis") is { } showValueAxis)
+        if (catalog.PropertyByPrecedence("chart.showValueAxis", element, inline, named) is { } showValueAxis)
         {
             if (!axisBearing) throw Unsupported(elementId, "circular charts do not have value axes");
-            chart.ShowValueAxis = showValueAxis.GetBoolean();
+            chart.ShowValueAxis = catalog.BooleanToken(showValueAxis, "boolean", "chart showValueAxis");
         }
-        if (FirstProperty(inline, named, "showGridlines") is { } showGridlines)
+        if (catalog.PropertyByPrecedence("chart.showGridlines", element, inline, named) is { } showGridlines)
         {
             if (!axisBearing) throw Unsupported(elementId, "circular charts do not have value-axis gridlines");
             // DrawingML represents "no major gridlines" by omitting the node.
             // Keep false canonical rather than inventing a presence-only wire
             // distinction that the package cannot round-trip.
-            if (showGridlines.GetBoolean()) chart.ShowGridlines = true;
+            if (catalog.BooleanToken(showGridlines, "boolean", "chart showGridlines")) chart.ShowGridlines = true;
         }
-        if (FirstProperty(inline, named, "chartAreaFill") is { } chartAreaFill)
+        if (catalog.PropertyByPrecedence("chart.chartAreaFill", element, inline, named) is { } chartAreaFill)
             chart.ChartAreaFill = BuildChartSurfaceFill(chartAreaFill, catalog, $"{elementId} chart area");
-        if (FirstProperty(inline, named, "plotAreaFill") is { } plotAreaFill)
+        if (catalog.PropertyByPrecedence("chart.plotAreaFill", element, inline, named) is { } plotAreaFill)
             chart.PlotAreaFill = BuildChartSurfaceFill(plotAreaFill, catalog, $"{elementId} plot area");
-        if (FirstProperty(inline, named, "titleTextStyle") is { } titleTextStyle)
+        if (catalog.PropertyByPrecedence("chart.frame", element, inline, named) is { } frame)
+        {
+            chart.Frame = new PresentationChartFrame();
+            if (frame.TryGetProperty("fill", out var frameFill))
+            {
+                if (frameFill.TryGetProperty("type", out var frameFillType) && frameFillType.GetString() == "image")
+                    chart.Frame.ImageFill = PpjImagePaintLowering.Build(
+                        frameFill,
+                        frameWidth,
+                        frameHeight,
+                        catalog.NativeAssetId,
+                        catalog.AssetDimensions,
+                        $"{elementId} chart frame",
+                        opacity => catalog.NumberToken(opacity, "opacity", $"{elementId} chart frame opacity"),
+                        fit => catalog.StringToken(fit, "string", $"{elementId} chart frame fit"));
+                else
+                    chart.Frame.Fill = BuildChartSurfaceFill(frameFill, catalog, $"{elementId} chart frame");
+            }
+            if (frame.TryGetProperty("stroke", out var frameStroke))
+                chart.Frame.Line = ChartCompiler.BuildChartLine(frameStroke, catalog);
+            if (frame.TryGetProperty("shadow", out var frameShadow))
+                chart.Frame.Shadow = BuildShadow(frameShadow, catalog);
+        }
+        if (catalog.PropertyByPrecedence("chart.titleTextStyle", element, inline, named) is { } titleTextStyle)
         {
             if (chart.Title.Length == 0)
                 throw Unsupported(elementId, "titleTextStyle requires a non-empty chart title");
-            chart.TitleTextStyle = BuildChartTextStyle(titleTextStyle, catalog);
+            chart.TitleTextStyle = BuildChartTextStyle(
+                "chart.titleTextStyle", element, inline, named, titleTextStyle, catalog);
         }
-        if (FirstProperty(inline, named, "legendTextStyle") is { } legendTextStyle)
+        if (catalog.PropertyByPrecedence("chart.legendTextStyle", element, inline, named) is { } legendTextStyle)
         {
             if (!chart.HasLegend)
                 throw Unsupported(elementId, "legendTextStyle requires a visible legend");
-            chart.LegendTextStyle = BuildChartTextStyle(legendTextStyle, catalog);
+            chart.LegendTextStyle = BuildChartTextStyle(
+                "chart.legendTextStyle", element, inline, named, legendTextStyle, catalog);
         }
-        var smooth = FirstProperty(inline, named, "smooth");
-        var varyColors = FirstProperty(inline, named, "varyColors");
+        var smooth = catalog.PropertyByPrecedence("chart.smooth", element, inline, named);
+        var varyColors = catalog.PropertyByPrecedence("chart.varyColors", element, inline, named);
         if (smooth is not null || varyColors is not null)
         {
             if (chart.Type != SpreadsheetChartType.Line)
                 throw Unsupported(elementId, "smooth and varyColors apply only to line charts");
-            if (smooth is not null || varyColors?.GetBoolean() == true)
+            var resolvedSmooth = smooth is { } explicitSmooth
+                ? catalog.BooleanToken(explicitSmooth, "boolean", "chart smooth")
+                : (bool?)null;
+            var resolvedVaryColors = varyColors is { } explicitVaryColors
+                && catalog.BooleanToken(explicitVaryColors, "boolean", "chart varyColors");
+            if (resolvedSmooth is not null || resolvedVaryColors)
             {
                 chart.LineOptions = new SpreadsheetChartLineOptionsArtifact();
-                if (smooth is { } explicitSmooth) chart.LineOptions.Smooth = explicitSmooth.GetBoolean();
-                if (varyColors?.GetBoolean() == true) chart.LineOptions.VaryColors = true;
+                if (resolvedSmooth is { } explicitSmoothValue) chart.LineOptions.Smooth = explicitSmoothValue;
+                if (resolvedVaryColors) chart.LineOptions.VaryColors = true;
             }
         }
-        var structuredLabels = FirstProperty(inline, named, "dataLabels");
-        var labels = FirstProperty(inline, named, "showDataLabels");
-        var legacyPosition = FirstProperty(inline, named, "dataLabelPosition");
+        var structuredLabels = catalog.PropertyByPrecedence("chart.dataLabels", element, inline, named);
+        var labels = catalog.PropertyByPrecedence("chart.showDataLabels", element, inline, named);
+        var legacyPosition = catalog.PropertyByPrecedence("chart.dataLabelPosition", element, inline, named);
+        var showLabels = labels is { } explicitLabels
+            ? catalog.BooleanToken(explicitLabels, "boolean", "chart showDataLabels")
+            : (bool?)null;
+        var labelPosition = legacyPosition is { } explicitPosition
+            ? ChartEnumToken(explicitPosition, catalog, "chart dataLabelPosition", "center", "inside-end", "outside-end", "above", "below")
+            : null;
         if (structuredLabels is not null && (labels is not null || legacyPosition is not null))
             throw Unsupported(elementId, "structured dataLabels cannot be combined with legacy data-label fields");
         if (structuredLabels is { } dataLabels)
         {
             chart.DataLabels = new SpreadsheetChartDataLabelsArtifact
             {
-                ShowValue = dataLabels.TryGetProperty("showValue", out var showValue) && showValue.GetBoolean(),
-                ShowCategoryName = dataLabels.TryGetProperty("showCategory", out var showCategory) && showCategory.GetBoolean(),
+                ShowValue = dataLabels.TryGetProperty("showValue", out var showValue) &&
+                    catalog.BooleanToken(showValue, "boolean", "chart dataLabels showValue"),
+                ShowCategoryName = dataLabels.TryGetProperty("showCategory", out var showCategory) &&
+                    catalog.BooleanToken(showCategory, "boolean", "chart dataLabels showCategory"),
             };
-            if (dataLabels.TryGetProperty("showSeries", out var showSeries)) chart.DataLabels.ShowSeriesName = showSeries.GetBoolean();
-            if (dataLabels.TryGetProperty("showPercent", out var showPercent)) chart.DataLabels.ShowPercent = showPercent.GetBoolean();
-            if (dataLabels.TryGetProperty("position", out var position)) chart.DataLabels.Position = LabelPosition(position.GetString()!);
-            if (dataLabels.TryGetProperty("numberFormat", out var numberFormat)) chart.DataLabels.NumberFormatCode = numberFormat.GetString()!;
+            if (dataLabels.TryGetProperty("showSeries", out var showSeries))
+                chart.DataLabels.ShowSeriesName = catalog.BooleanToken(showSeries, "boolean", "chart dataLabels showSeries");
+            if (dataLabels.TryGetProperty("showPercent", out var showPercent))
+                chart.DataLabels.ShowPercent = catalog.BooleanToken(showPercent, "boolean", "chart dataLabels showPercent");
+            if (dataLabels.TryGetProperty("position", out var position))
+                chart.DataLabels.Position = LabelPosition(ChartEnumToken(position, catalog, "chart dataLabels position",
+                    "best-fit", "bottom", "center", "inside-base", "inside-end", "left", "outside-end", "right", "top"));
+            if (dataLabels.TryGetProperty("numberFormat", out var numberFormat))
+                chart.DataLabels.NumberFormatCode = catalog.StringToken(
+                    numberFormat,
+                    "string",
+                    "chart dataLabels numberFormat");
             if (dataLabels.TryGetProperty("textStyle", out var textStyle))
-                chart.DataLabels.TextStyle = BuildChartTextStyle(textStyle, catalog);
+                chart.DataLabels.TextStyle = BuildChartTextStyle(
+                    "chart.dataLabels.textStyle", element, inline, named, textStyle, catalog);
         }
-        else if (labels is { } showLabels && showLabels.GetBoolean())
+        else if (showLabels == true)
         {
             chart.DataLabels = new SpreadsheetChartDataLabelsArtifact
             {
                 ShowValue = true,
                 ShowSeriesName = false,
             };
-            var position = legacyPosition?.GetString();
-            if (position is not null) chart.DataLabels.Position = LabelPosition(position);
+            if (labelPosition is not null) chart.DataLabels.Position = LabelPosition(labelPosition);
         }
         else if (legacyPosition is not null)
             throw Unsupported("chart", "dataLabelPosition requires showDataLabels: true");
+    }
+
+    private static string ChartEnumToken(JsonElement value, Catalog catalog, string owner, params string[] allowed)
+    {
+        var resolved = catalog.StringToken(value, "string", owner);
+        if (!allowed.Contains(resolved, StringComparer.Ordinal))
+            throw Unsupported(owner, $"value {resolved} is outside the bounded chart vocabulary");
+        return resolved;
+    }
+
+    private static uint ChartIntegerToken(JsonElement value, Catalog catalog, string owner, int minimum, int maximum)
+    {
+        var resolved = catalog.NumberToken(value, "size", owner);
+        if (!double.IsFinite(resolved) || resolved != Math.Truncate(resolved) || resolved < minimum || resolved > maximum)
+            throw Unsupported(owner, $"value must resolve to an integer from {minimum} through {maximum}");
+        return checked((uint)resolved);
     }
 
     private static SpreadsheetChartSurfaceFill BuildChartSurfaceFill(JsonElement fill, Catalog catalog, string subject)
@@ -2234,11 +2936,11 @@ internal static partial class PpjAuthoredPresentationCompiler
     private static SpreadsheetChartTextStyleArtifact BuildChartTextStyle(JsonElement source, Catalog catalog)
     {
         var output = new SpreadsheetChartTextStyleArtifact();
-        if (source.TryGetProperty("fontSize", out var fontSize)) output.FontSizePoints = fontSize.GetDouble();
-        if (source.TryGetProperty("fontFamily", out var fontFamily)) output.FontFamily = fontFamily.GetString()!;
-        if (source.TryGetProperty("fontFamilyEastAsia", out var eastAsia)) output.FontFamilyEastAsia = eastAsia.GetString()!;
-        if (source.TryGetProperty("bold", out var bold)) output.Bold = bold.GetBoolean();
-        if (source.TryGetProperty("italic", out var italic)) output.Italic = italic.GetBoolean();
+        if (source.TryGetProperty("fontSize", out var fontSize)) output.FontSizePoints = catalog.PositiveNumberToken(fontSize, "size", "chart text fontSize");
+        if (source.TryGetProperty("fontFamily", out var fontFamily)) output.FontFamily = catalog.StringToken(fontFamily, "string", "chart text fontFamily");
+        if (source.TryGetProperty("fontFamilyEastAsia", out var eastAsia)) output.FontFamilyEastAsia = catalog.StringToken(eastAsia, "string", "chart text fontFamilyEastAsia");
+        if (source.TryGetProperty("bold", out var bold)) output.Bold = catalog.BooleanToken(bold, "boolean", "chart text bold");
+        if (source.TryGetProperty("italic", out var italic)) output.Italic = catalog.BooleanToken(italic, "boolean", "chart text italic");
         if (source.TryGetProperty("color", out var color))
         {
             var resolved = catalog.Color(color);
@@ -2248,7 +2950,69 @@ internal static partial class PpjAuthoredPresentationCompiler
         return output;
     }
 
-    private static void ApplyCustomGeometry(PresentationShape target, JsonElement geometry, string elementId)
+    private static SpreadsheetChartTextStyleArtifact BuildChartTextStyle(
+        string target,
+        JsonElement? element,
+        JsonElement? inline,
+        JsonElement? named,
+        JsonElement fallback,
+        Catalog catalog)
+    {
+        // Preserve the historical whole-object precedence unless the grammar
+        // explicitly declares a nested field rule. This keeps an existing
+        // `chart.legendTextStyle` declaration source-stable while allowing a
+        // bounded Kimi-style shallow merge such as
+        // `chart.legendTextStyle.fontFamily` from inline and
+        // `chart.legendTextStyle.fontSize` from styleRef.
+        var output = BuildChartTextStyle(fallback, catalog);
+        foreach (var field in ChartTextStyleFields)
+        {
+            var nestedTarget = $"{target}.{field}";
+            if (!catalog.HasStylePrecedence(nestedTarget)) continue;
+            if (catalog.PropertyByPrecedence(nestedTarget, element, inline, named) is { } value)
+                ApplyChartTextStyleProperty(output, field, value, catalog);
+        }
+        return output;
+    }
+
+    private static readonly string[] ChartTextStyleFields =
+    ["fontSize", "fontFamily", "fontFamilyEastAsia", "bold", "italic", "color"];
+
+    private static void ApplyChartTextStyleProperty(
+        SpreadsheetChartTextStyleArtifact output,
+        string field,
+        JsonElement value,
+        Catalog catalog)
+    {
+        switch (field)
+        {
+            case "fontSize":
+                output.FontSizePoints = catalog.PositiveNumberToken(value, "size", "chart text fontSize");
+                break;
+            case "fontFamily":
+                output.FontFamily = catalog.StringToken(value, "string", "chart text fontFamily");
+                break;
+            case "fontFamilyEastAsia":
+                output.FontFamilyEastAsia = catalog.StringToken(value, "string", "chart text fontFamilyEastAsia");
+                break;
+            case "bold":
+                output.Bold = catalog.BooleanToken(value, "boolean", "chart text bold");
+                break;
+            case "italic":
+                output.Italic = catalog.BooleanToken(value, "boolean", "chart text italic");
+                break;
+            case "color":
+                var resolved = catalog.Color(value);
+                output.ColorRgb = resolved.Rgb;
+                if (resolved.Alpha == 1) output.ClearOpacityThousandthPercent();
+                else output.OpacityThousandthPercent = Opacity(resolved.Alpha);
+                break;
+            default:
+                throw new InvalidOperationException($"Unknown chart text style field {field}.");
+        }
+    }
+
+    internal static void ApplyCustomGeometry(PresentationShape target, JsonElement geometry, string elementId)
     {
         if (!geometry.TryGetProperty("viewBox", out var viewBox) ||
             !geometry.TryGetProperty("paths", out var paths))
@@ -2579,7 +3343,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         string.Join('\n', body.Paragraphs.Select(paragraph => string.Concat(paragraph.Runs.Select(PresentationRunText))));
 
     private static string PpjRunText(PpjRunModel run) => run.Text ??
-        (run.Formula is null ? string.Empty : PpjLatexCompiler.Compile(run.Formula.Source).PlainText);
+        (run.Field?.Text ?? (run.Formula is null ? (run.LineBreak ? "\n" : string.Empty) : PpjLatexCompiler.Compile(run.Formula.Source).PlainText));
 
     private static string PresentationRunText(PresentationTextRun run) => run.ContentCase switch
     {
@@ -2622,6 +3386,23 @@ internal static partial class PpjAuthoredPresentationCompiler
 
     private static double? OptionalDouble(JsonElement value, string name) =>
         value.TryGetProperty(name, out var property) ? property.GetDouble() : null;
+
+    private static double? OptionalOpacity(JsonElement value, string name, Catalog catalog, string owner)
+    {
+        if (!value.TryGetProperty(name, out var property)) return null;
+        var opacity = catalog.NumberToken(property, "opacity", owner);
+        if (opacity is < 0 or > 1)
+            throw new CodecException("ppj.opacity", $"PPJ {owner} must be between 0 and 1.");
+        return opacity;
+    }
+
+    private static double StrokeWidth(JsonElement stroke, Catalog catalog, string owner)
+    {
+        var width = catalog.NumberToken(stroke.GetProperty("width"), "size", owner);
+        if (width is < 0 or > 1000)
+            throw new CodecException("ppj.stroke.width", $"PPJ {owner} must be between 0 and 1000 points.");
+        return width;
+    }
 
     private static bool? OptionalBoolean(JsonElement value, string name) =>
         value.TryGetProperty(name, out var property) ? property.GetBoolean() : null;
@@ -2678,17 +3459,22 @@ internal static partial class PpjAuthoredPresentationCompiler
     private static CodecException Unsupported(string owner, string message) =>
         new("unsupported_ppj_compile_feature", $"PPJ {owner}: {message}.");
 
-    private sealed class Catalog
+    internal sealed class Catalog
     {
         private readonly Dictionary<string, (string Rgb, double Alpha)> _colors;
         private readonly Dictionary<string, string> _fonts;
         private readonly Dictionary<string, JsonElement> _textStyles;
         private readonly Dictionary<string, JsonElement> _shapeStyles;
+        private readonly Dictionary<string, JsonElement> _imageStyles;
         private readonly Dictionary<string, JsonElement> _chartStyles;
         private readonly Dictionary<string, JsonElement> _tableStyles;
         private readonly Dictionary<string, (double Width, double Height)> _assetDimensions;
         private readonly Dictionary<string, string> _nativeAssetIds;
         private readonly Dictionary<string, PpjSmartArtDefinition> _smartArtDefinitions;
+        private readonly Dictionary<string, (string Rgb, double Alpha)> _grammarColors;
+        private readonly Dictionary<string, (string Kind, JsonElement Value)> _grammarTokens;
+        private readonly Dictionary<string, string[]> _stylePrecedence;
+        private readonly JsonElement _theme;
 
         internal PresentationThemeArtifact Theme { get; }
 
@@ -2708,8 +3494,33 @@ internal static partial class PpjAuthoredPresentationCompiler
             var styles = design.GetProperty("styles");
             _textStyles = Styles(styles, "text");
             _shapeStyles = Styles(styles, "shape");
+            _imageStyles = Styles(styles, "image");
             _chartStyles = Styles(styles, "chart");
             _tableStyles = Styles(styles, "table");
+            _theme = design.GetProperty("theme").Clone();
+            _stylePrecedence = ParseStylePrecedence(design);
+            _grammarTokens = new Dictionary<string, (string Kind, JsonElement Value)>(StringComparer.Ordinal);
+            _grammarColors = new Dictionary<string, (string Rgb, double Alpha)>(StringComparer.Ordinal);
+            if (design.TryGetProperty("grammar", out var grammar) &&
+                grammar.ValueKind == JsonValueKind.Object &&
+                grammar.TryGetProperty("tokens", out var grammarTokens) &&
+                grammarTokens.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var token in grammarTokens.EnumerateObject())
+                {
+                    if (token.Value.ValueKind != JsonValueKind.Object ||
+                        !token.Value.TryGetProperty("kind", out var kind) ||
+                        !token.Value.TryGetProperty("value", out var value)) continue;
+                    var kindName = kind.GetString();
+                    if (kindName is null) continue;
+                    _grammarTokens[token.Name] = (kindName, value.Clone());
+                    if (!string.Equals(kindName, "color", StringComparison.Ordinal) || value.ValueKind != JsonValueKind.String) continue;
+                    var raw = value.GetString();
+                    if (raw is null) continue;
+                    try { _grammarColors[token.Name] = ParseHexColor(raw); }
+                    catch (FormatException) { }
+                }
+            }
             _assetDimensions = root.TryGetProperty("assets", out var assets)
                 ? assets.EnumerateArray()
                     .Where(asset => asset.TryGetProperty("widthPx", out _) && asset.TryGetProperty("heightPx", out _))
@@ -2773,18 +3584,77 @@ internal static partial class PpjAuthoredPresentationCompiler
             if (color.ValueKind == JsonValueKind.String) return ParseHexColor(color.GetString()!);
             var token = color.GetProperty("token").GetString()!;
             if (!_colors.TryGetValue(token, out var value))
-                throw new CodecException("ppj.color.unknown", $"PPJ color token {token} is not declared.");
-            return (value.Rgb, color.TryGetProperty("alpha", out var alpha) ? alpha.GetDouble() : value.Alpha);
+            {
+                if (!_grammarTokens.TryGetValue(token, out var declared))
+                    throw new CodecException("ppj.color.unknown", $"PPJ color token {token} is not declared.");
+                if (!string.Equals(declared.Kind, "color", StringComparison.Ordinal))
+                    throw new CodecException("ppj.grammar.tokenKind", $"PPJ color token {token} declares kind {declared.Kind}, expected color.");
+                if (!_grammarColors.TryGetValue(token, out value))
+                    throw new CodecException("ppj.grammar.tokenValue", $"PPJ color token {token} must resolve to a valid color.");
+            }
+            var rgb = value.Rgb;
+            if (color.TryGetProperty("tint", out var tint)) rgb = MixRgb(rgb, "FFFFFF", tint.GetDouble());
+            if (color.TryGetProperty("shade", out var shade)) rgb = MixRgb(rgb, "000000", shade.GetDouble());
+            return (rgb, color.TryGetProperty("alpha", out var alpha) ? alpha.GetDouble() : value.Alpha);
         }
 
         internal string Font(string id) => _fonts.TryGetValue(id, out var value)
             ? value
             : throw new CodecException("ppj.font.unknown", $"PPJ font token {id} is not declared.");
 
+        internal string Font(JsonElement value) => value.ValueKind == JsonValueKind.String
+            ? Font(value.GetString()!)
+            : StringToken(value, "font", "font");
+
+        internal double NumberToken(JsonElement value, string expectedKind, string owner)
+        {
+            var resolved = ResolveToken(value, expectedKind, owner);
+            if (resolved.ValueKind != JsonValueKind.Number || !resolved.TryGetDouble(out var number) || !double.IsFinite(number))
+                throw new CodecException("ppj.grammar.tokenValue", $"PPJ grammar token for {owner} must resolve to a finite number.");
+            return number;
+        }
+
+        internal double PositiveNumberToken(JsonElement value, string expectedKind, string owner)
+        {
+            var number = NumberToken(value, expectedKind, owner);
+            if (number <= 0)
+                throw new CodecException("ppj.grammar.tokenValue", $"PPJ grammar token for {owner} must resolve to a positive number.");
+            return number;
+        }
+
+        internal bool BooleanToken(JsonElement value, string expectedKind, string owner)
+        {
+            var resolved = ResolveToken(value, expectedKind, owner);
+            if (resolved.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                throw new CodecException("ppj.grammar.tokenValue", $"PPJ grammar token for {owner} must resolve to a boolean.");
+            return resolved.GetBoolean();
+        }
+
+        internal string StringToken(JsonElement value, string expectedKind, string owner)
+        {
+            var resolved = ResolveToken(value, expectedKind, owner);
+            if (resolved.ValueKind != JsonValueKind.String || string.IsNullOrEmpty(resolved.GetString()))
+                throw new CodecException("ppj.grammar.tokenValue", $"PPJ grammar token for {owner} must resolve to a non-empty string.");
+            return resolved.GetString()!;
+        }
+
+        private JsonElement ResolveToken(JsonElement value, string expectedKind, string owner)
+        {
+            if (value.ValueKind != JsonValueKind.Object || !value.TryGetProperty("token", out var tokenValue)) return value;
+            var token = tokenValue.GetString();
+            if (token is null || !_grammarTokens.TryGetValue(token, out var definition))
+                throw new CodecException("ppj.grammar.tokenUnknown", $"PPJ grammar token {token ?? "(missing)"} for {owner} is not declared.");
+            if (!string.Equals(definition.Kind, expectedKind, StringComparison.Ordinal))
+                throw new CodecException("ppj.grammar.tokenKind", $"PPJ grammar token {token} has kind {definition.Kind}, but {owner} requires {expectedKind}.");
+            return definition.Value;
+        }
+
         internal JsonElement? TextStyle(string? id) => Style(_textStyles, id);
         internal JsonElement? ShapeStyle(string? id) => Style(_shapeStyles, id);
+        internal JsonElement? ImageStyle(string? id) => Style(_imageStyles, id);
         internal JsonElement? ChartStyle(string? id) => Style(_chartStyles, id);
         internal JsonElement? TableStyle(string? id) => Style(_tableStyles, id);
+        internal bool HasStylePrecedence(string target) => _stylePrecedence.ContainsKey(target);
         internal (double Width, double Height)? AssetDimensions(string id) =>
             _assetDimensions.TryGetValue(id, out var dimensions) ? dimensions : null;
         internal string NativeAssetId(string id) => _nativeAssetIds.TryGetValue(id, out var nativeId)
@@ -2796,6 +3666,104 @@ internal static partial class PpjAuthoredPresentationCompiler
                 : throw new CodecException(
                     "ppj.smartArt.definitionUnavailable",
                     $"PPJ SmartArt definition asset {definitionAssetId} is not available to the authored compiler.");
+
+        /// <summary>
+        /// Resolve a bounded authored property using the declared grammar
+        /// source order. If no rule targets the property, preserve the
+        /// historical inline-style then named-style behavior. For a declared
+        /// rule, the inline source checks the element before its style object,
+        /// matching the read-only grammar evaluator.
+        /// </summary>
+        internal JsonElement? PropertyByPrecedence(
+            string target,
+            JsonElement? element,
+            JsonElement? inlineStyle,
+            JsonElement? styleRef,
+            JsonElement? master = null,
+            JsonElement? defaultValue = null,
+            bool includeElementWhenUndeclared = false)
+        {
+            var field = target;
+            var separator = field.IndexOf('.');
+            if (separator >= 0) field = field[(separator + 1)..];
+
+            if (!_stylePrecedence.TryGetValue(target, out var sources))
+                return (includeElementWhenUndeclared ? PathProperty(element, field) : null) ??
+                    PathProperty(inlineStyle, field) ??
+                    PathProperty(master, field) ??
+                    PathProperty(styleRef, field) ??
+                    defaultValue;
+
+            foreach (var source in sources)
+            {
+                var value = source switch
+                {
+                    "inline" => PathProperty(element, field) ?? PathProperty(inlineStyle, field),
+                    "styleRef" => PathProperty(styleRef, field),
+                    "theme" => ThemeProperty(field),
+                    "master" => PathProperty(master, field),
+                    "default" => defaultValue ?? GrammarDefault(target, field),
+                    _ => null,
+                };
+                if (value is not null) return value;
+            }
+            return null;
+        }
+
+        private JsonElement? ThemeProperty(string field)
+        {
+            var value = PathProperty(_theme, field);
+            if (value is not null) return value;
+            var leaf = field.Split('.').LastOrDefault();
+            if (leaf is null || !_theme.TryGetProperty("colors", out var colors) || colors.ValueKind != JsonValueKind.Array)
+                return null;
+            foreach (var color in colors.EnumerateArray())
+            {
+                if (color.TryGetProperty("id", out var id) && id.GetString() == leaf && color.TryGetProperty("value", out var colorValue))
+                    return colorValue.Clone();
+            }
+            return null;
+        }
+
+        private JsonElement? GrammarDefault(string target, string field)
+        {
+            if (_grammarTokens.TryGetValue(target, out var exact)) return exact.Value.Clone();
+            var leaf = field.Split('.').LastOrDefault();
+            return leaf is not null && _grammarTokens.TryGetValue(leaf, out var fallback)
+                ? fallback.Value.Clone()
+                : null;
+        }
+
+        private static JsonElement? PathProperty(JsonElement? value, string path)
+        {
+            var cursor = value;
+            foreach (var part in path.Split('.', StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (cursor is not { ValueKind: JsonValueKind.Object } objectValue ||
+                    !objectValue.TryGetProperty(part, out var next)) return null;
+                cursor = next;
+            }
+            return cursor?.Clone();
+        }
+
+        private static Dictionary<string, string[]> ParseStylePrecedence(JsonElement design)
+        {
+            var output = new Dictionary<string, string[]>(StringComparer.Ordinal);
+            if (!design.TryGetProperty("grammar", out var grammar) || grammar.ValueKind != JsonValueKind.Object ||
+                !grammar.TryGetProperty("stylePrecedence", out var precedence) || precedence.ValueKind != JsonValueKind.Array)
+                return output;
+            foreach (var rule in precedence.EnumerateArray())
+            {
+                if (!rule.TryGetProperty("target", out var target) || target.GetString() is not { } targetName ||
+                    !rule.TryGetProperty("sources", out var sources) || sources.ValueKind != JsonValueKind.Array) continue;
+                output[targetName] = sources.EnumerateArray()
+                    .Select(source => source.GetString())
+                    .Where(source => source is not null)
+                    .Select(source => source!)
+                    .ToArray();
+            }
+            return output;
+        }
 
         private static Dictionary<string, JsonElement> Styles(JsonElement root, string kind) =>
             root.TryGetProperty(kind, out var styles)
@@ -2815,7 +3783,9 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (type == "none") return null;
         if (type != "solid") throw Unsupported("fill", $"{type} fills require the extended native fill compiler");
         var color = catalog.Color(fill.GetProperty("color"));
-        var opacity = OptionalDouble(fill, "opacity") ?? color.Alpha;
+        var opacity = fill.TryGetProperty("opacity", out var opacityValue)
+            ? catalog.NumberToken(opacityValue, "opacity", "fill opacity")
+            : color.Alpha;
         return (color.Rgb, opacity);
     }
 
@@ -2877,7 +3847,9 @@ internal static partial class PpjAuthoredPresentationCompiler
             BlurRadiusEmu = Emu(value.GetProperty("blur").GetDouble()),
             DistanceEmu = Emu(value.GetProperty("distance").GetDouble()),
             DirectionAngle60000 = Angle(normalized),
-            OpacityThousandthPercent = Opacity(OptionalDouble(value, "opacity") ?? color.Alpha),
+            OpacityThousandthPercent = Opacity(value.TryGetProperty("opacity", out var opacity)
+                ? catalog.NumberToken(opacity, "opacity", "shadow opacity")
+                : color.Alpha),
         };
         if (schemeToken is not null)
             output.ColorScheme = schemeToken;
@@ -2907,6 +3879,22 @@ internal static partial class PpjAuthoredPresentationCompiler
         return normalized.Length == 8
             ? (normalized[..6], Convert.ToByte(normalized[6..], 16) / 255d)
             : (normalized, 1d);
+    }
+
+    private static string MixRgb(string source, string target, double amount)
+    {
+        var t = Math.Clamp(amount, 0, 1);
+        var r = MixChannel(source[..2], target[..2], t);
+        var g = MixChannel(source[2..4], target[2..4], t);
+        var b = MixChannel(source[4..6], target[4..6], t);
+        return $"{r:X2}{g:X2}{b:X2}";
+    }
+
+    private static byte MixChannel(string source, string target, double amount)
+    {
+        var from = byte.Parse(source, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        var to = byte.Parse(target, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        return checked((byte)Math.Round(from + (to - from) * amount, MidpointRounding.AwayFromZero));
     }
 
     private static string NativeAssetId(string mimeType, string sha256) =>

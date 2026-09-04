@@ -5,15 +5,17 @@ using A = DocumentFormat.OpenXml.Drawing;
 
 namespace OfficeKit.Codec;
 
-// Owns relationships whose source is one PresentationML part. Asset identity
-// belongs to the shared catalog; relationship IDs remain local to the slide,
-// master, or layout owner part.
+// Tracks relationships rooted at one PresentationML owner. Asset identity
+// belongs to the shared catalog; relationship IDs remain local to their actual
+// source part (including a nested SmartArt cached drawing).
 internal sealed class PptxPartContext
 {
     private const string ImageRelationshipType = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image";
     private readonly HashSet<string> _addedRelationshipIds = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _addedRelationshipKeys = new(StringComparer.Ordinal);
     private readonly HashSet<string> _addedPartPaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _removedRelationshipIds = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _removedRelationshipKeys = new(StringComparer.Ordinal);
     private readonly HashSet<string> _removedPartPaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly Func<PartTypeInfo, string, ImagePart> _addImagePart;
 
@@ -30,6 +32,7 @@ internal sealed class PptxPartContext
                 SlideMasterPart master => (type, relationshipId) => master.AddImagePart(type, relationshipId),
                 SlideLayoutPart layout => (type, relationshipId) => layout.AddImagePart(type, relationshipId),
                 ChartPart chart => (type, relationshipId) => chart.AddImagePart(type, relationshipId),
+                DiagramPersistLayoutPart drawing => (type, relationshipId) => drawing.AddImagePart(type, relationshipId),
                 // NotesSlide rich text deliberately has no relationship-writing
                 // surface. The context exists so the shared text codec can
                 // preserve its fixed paragraph/run topology; a picture bullet
@@ -67,15 +70,27 @@ internal sealed class PptxPartContext
     internal IReadOnlyDictionary<string, SlidePart> SlidePartById { get; }
     internal PptxAssetCatalog? Assets { get; }
     internal PptxCustomShowCatalog CustomShows { get; }
-    internal bool RelationshipsChanged => _addedRelationshipIds.Count > 0 || _removedRelationshipIds.Count > 0;
+    internal bool RelationshipsChanged => _addedRelationshipKeys.Count > 0 || _removedRelationshipKeys.Count > 0;
     internal IReadOnlyCollection<string> AddedRelationshipIds => _addedRelationshipIds;
+    internal IReadOnlyCollection<string> AddedRelationshipKeys => _addedRelationshipKeys;
     internal IReadOnlyCollection<string> AddedPartPaths => _addedPartPaths;
     internal IReadOnlyCollection<string> RemovedRelationshipIds => _removedRelationshipIds;
+    internal IReadOnlyCollection<string> RemovedRelationshipKeys => _removedRelationshipKeys;
     internal IReadOnlyCollection<string> RemovedPartPaths => _removedPartPaths;
 
     internal void TrackAddedPart(OpenXmlPart part)
     {
-        _addedRelationshipIds.Add(Owner.GetIdOfPart(part));
+        TrackAddedPart(Owner, part);
+    }
+
+    // A SmartArt cached drawing owns its image relationships. Keep the
+    // relationship source path with the slide context so source-preserving
+    // export can authorize the nested .rels part without flattening it onto
+    // the slide relationship set.
+    internal void TrackAddedPart(OpenXmlPart relationshipOwner, OpenXmlPart part)
+    {
+        var relationshipId = relationshipOwner.GetIdOfPart(part);
+        TrackAddedRelationship(relationshipOwner, relationshipId);
         _addedPartPaths.Add(part.Uri.OriginalString.TrimStart('/'));
     }
 
@@ -148,6 +163,20 @@ internal sealed class PptxPartContext
             picture = new PresentationPictureBullet();
             return false;
         }
+    }
+
+    internal bool IsPictureRelationship(A.PictureBullet source)
+    {
+        if (source.ChildElements.Count != 1 || source.GetFirstChild<A.Blip>() is not { } blip ||
+            blip.ChildElements.Count > 0 || blip.CompressionState is not null)
+            return false;
+        var embed = blip.Embed?.Value ?? string.Empty;
+        var link = blip.Link?.Value ?? string.Empty;
+        if ((embed.Length == 0) == (link.Length == 0)) return false;
+        return embed.Length > 0
+            ? Owner.GetPartById(embed) is ImagePart
+            : Owner.ExternalRelationships.Any(relationship =>
+                relationship.Id == link && relationship.RelationshipType.EndsWith("/image", StringComparison.Ordinal));
     }
 
     internal A.PictureBullet BuildPicture(PresentationPictureBullet picture)
@@ -242,6 +271,7 @@ internal sealed class PptxPartContext
         if (Owner.DeletePart(part))
         {
             _removedRelationshipIds.Add(relationshipId);
+            _removedRelationshipKeys.Add(RelationshipKey(Owner, relationshipId));
             _removedPartPaths.Add(partPath);
         }
     }
@@ -263,6 +293,7 @@ internal sealed class PptxPartContext
         {
             Owner.DeleteReferenceRelationship(relationshipId);
             _removedRelationshipIds.Add(relationshipId);
+            _removedRelationshipKeys.Add(RelationshipKey(Owner, relationshipId));
             return;
         }
 
@@ -271,6 +302,7 @@ internal sealed class PptxPartContext
         {
             Owner.DeleteReferenceRelationship(relationshipId);
             _removedRelationshipIds.Add(relationshipId);
+            _removedRelationshipKeys.Add(RelationshipKey(Owner, relationshipId));
         }
     }
 
@@ -294,9 +326,19 @@ internal sealed class PptxPartContext
 
     private string Track(string relationshipId)
     {
-        _addedRelationshipIds.Add(relationshipId);
+        TrackAddedRelationship(Owner, relationshipId);
         return relationshipId;
     }
+
+    private void TrackAddedRelationship(OpenXmlPart relationshipOwner, string relationshipId)
+    {
+        if (ReferenceEquals(relationshipOwner, Owner))
+            _addedRelationshipIds.Add(relationshipId);
+        _addedRelationshipKeys.Add(RelationshipKey(relationshipOwner, relationshipId));
+    }
+
+    private static string RelationshipKey(OpenXmlPart relationshipOwner, string relationshipId) =>
+        $"{relationshipOwner.Uri.OriginalString.TrimStart('/')}\0{relationshipId}";
 
     private string NextRelationshipId(Asset asset)
     {

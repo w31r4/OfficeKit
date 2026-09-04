@@ -15,6 +15,15 @@ const VALID_COMMITMENTS = new Set(["neutral", "opinionated"]);
 const VALID_ROLES = new Set([
   "cover", "section", "analysis", "data", "process", "comparison", "closing", "mixed",
 ]);
+const VALID_IMAGE_SLOT_ROLES = new Set([
+  "hero", "thumbnail", "avatar", "background", "logo", "diagram", "screenshot", "photo", "icon", "chart-source", "any",
+]);
+const VALID_IMAGE_SLOT_FITS = new Set(["contain", "cover", "stretch"]);
+const VALID_IMAGE_SLOT_MASKS = new Set(["none", "rect", "roundRect", "ellipse", "custom"]);
+const VALID_IMAGE_SLOT_RIGHTS = new Set([
+  "user-provided", "generated", "permission", "public-domain", "cc0", "cc-by", "official-press-kit", "internal", "other",
+]);
+const IMAGE_SLOT_ID_PATTERN = /^[a-z][a-z0-9-]{0,63}$/u;
 const MAX_SPEC_BYTES = 256 * 1024;
 const MAX_GUIDE_BYTES = 256 * 1024;
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
@@ -136,6 +145,11 @@ async function packageTemplate({ specPath, outputRoot, expectedSha256 }) {
         sha256: sha256(example.bytes),
       });
     }
+    const packagedImageSlots = spec.imageSlots == null ? null : spec.imageSlots.map((slot) => ({
+      ...slot,
+      examplePath: stagedExamples[examples.findIndex((example) =>
+        path.resolve(example.path) === path.resolve(slot.examplePath))].path,
+    }));
     const previewBytes = encodePngRgba(createMontage(examples.map((example) => example.decoded)));
     const agentText = [
       "interface:",
@@ -175,6 +189,7 @@ async function packageTemplate({ specPath, outputRoot, expectedSha256 }) {
       contentShapes: spec.contentShapes,
       visualTraits: spec.visualTraits,
       visualCommitment: spec.visualCommitment,
+      ...(packagedImageSlots == null ? {} : { imageSlots: packagedImageSlots }),
       ...(referenceProgram == null ? {} : {
         referenceProgram: referenceMetadata(referenceProgram, "assets/references/reference.ppj"),
       }),
@@ -212,11 +227,11 @@ async function packageTemplate({ specPath, outputRoot, expectedSha256 }) {
 
 function validateSpec(spec) {
   if (spec == null || typeof spec !== "object" || Array.isArray(spec)) throw new Error("spec must be an object");
-  assertKeys(spec, "spec", [
+  assertKeysWithOptional(spec, "spec", [
     "id", "displayName", "description", "guidePath", "useWhen", "avoidWhen",
     "audiences", "contentShapes", "visualTraits", "visualCommitment", "examples",
     "referenceProgram", "referencePptx", "provenance",
-  ]);
+  ], ["imageSlots"]);
   if (!TEMPLATE_ID.test(spec.id ?? "")) throw new Error("id must be an artifact-template-* identifier");
   assertLine(spec.displayName, "displayName", 80);
   assertLine(spec.description, "description", 320);
@@ -251,6 +266,7 @@ function validateSpec(spec) {
     roles.add(example.role);
   }
   if (roles.size < 3) throw new Error("examples must cover at least 3 distinct roles");
+  validatePresentationImageSlots(spec.imageSlots, spec.examples);
   validateReferenceSpec(spec.referenceProgram, "referenceProgram", ".ppj");
   validateReferenceSpec(spec.referencePptx, "referencePptx", ".pptx");
   if (spec.provenance == null || typeof spec.provenance !== "object" || Array.isArray(spec.provenance)) {
@@ -259,6 +275,58 @@ function validateSpec(spec) {
   assertKeys(spec.provenance, "provenance", ["license", "source"]);
   assertLine(spec.provenance.license, "provenance.license", 120);
   assertLine(spec.provenance.source, "provenance.source", 500);
+}
+
+function validatePresentationImageSlots(value, examples) {
+  if (value == null) return;
+  if (!Array.isArray(value) || value.length > 64) {
+    throw new Error("imageSlots must contain 0-64 entries");
+  }
+  const examplePaths = new Set(examples.map((example) => path.resolve(example.path)));
+  const ids = new Set();
+  for (const [index, slot] of value.entries()) {
+    if (slot == null || typeof slot !== "object" || Array.isArray(slot)) {
+      throw new Error(`imageSlots[${index}] must be an object`);
+    }
+    assertOptionalKeys(slot, `imageSlots[${index}]`, [
+      "id", "role", "examplePath", "allowedFit", "allowedMask", "minWidthPx", "minHeightPx", "rights",
+    ]);
+    if (typeof slot.id !== "string" || !IMAGE_SLOT_ID_PATTERN.test(slot.id)) {
+      throw new Error(`imageSlots[${index}].id must be a lowercase identifier`);
+    }
+    if (ids.has(slot.id)) throw new Error(`imageSlots must use unique ids: ${slot.id}`);
+    ids.add(slot.id);
+    assertEnum(slot.role, `imageSlots[${index}].role`, VALID_IMAGE_SLOT_ROLES);
+    assertAbsolutePath(slot.examplePath, `imageSlots[${index}].examplePath`);
+    if (!examplePaths.has(path.resolve(slot.examplePath))) {
+      throw new Error(`imageSlots[${index}].examplePath must reference a declared example`);
+    }
+    validateBoundedEnumArray(slot.allowedFit, `imageSlots[${index}].allowedFit`, VALID_IMAGE_SLOT_FITS, 3);
+    validateBoundedEnumArray(slot.allowedMask, `imageSlots[${index}].allowedMask`, VALID_IMAGE_SLOT_MASKS, 16);
+    validateBoundedEnumArray(slot.rights, `imageSlots[${index}].rights`, VALID_IMAGE_SLOT_RIGHTS, 16);
+    validateOptionalPixelDimension(slot.minWidthPx, `imageSlots[${index}].minWidthPx`);
+    validateOptionalPixelDimension(slot.minHeightPx, `imageSlots[${index}].minHeightPx`);
+  }
+}
+
+function validateBoundedEnumArray(value, label, allowed, max) {
+  if (value == null) return;
+  if (!Array.isArray(value) || value.length < 1 || value.length > max) {
+    throw new Error(`${label} must contain 1-${max} values`);
+  }
+  const seen = new Set();
+  for (const item of value) {
+    assertEnum(item, label, allowed);
+    if (seen.has(item)) throw new Error(`${label} must not contain duplicates`);
+    seen.add(item);
+  }
+}
+
+function validateOptionalPixelDimension(value, label) {
+  if (value == null) return;
+  if (!Number.isSafeInteger(value) || value < 1 || value > 16_384) {
+    throw new Error(`${label} must be an integer from 1 to 16384`);
+  }
 }
 
 async function validateStagedSurface(root, sidecar, referenceProgramAssets = []) {
@@ -495,18 +563,22 @@ function usage() {
 }
 
 function assertKeys(value, label, allowedKeys) {
-  const allowed = new Set(allowedKeys);
+  assertKeysWithOptional(value, label, allowedKeys, []);
+}
+
+function assertKeysWithOptional(value, label, requiredKeys, optionalKeys) {
+  const allowed = new Set([...requiredKeys, ...optionalKeys]);
   const extras = Object.keys(value).filter((key) => !allowed.has(key));
   if (extras.length > 0) throw new Error(`${label} contains unsupported fields: ${extras.join(", ")}`);
-  for (const key of allowedKeys) {
+  for (const key of requiredKeys) {
     if (!(key in value)) throw new Error(`${label} is missing ${key}`);
   }
 }
 
 function assertOptionalKeys(value, label, allowedKeys) {
   const allowed = new Set(allowedKeys);
-  const extra = Object.keys(value).filter((key) => !allowed.has(key));
-  if (extra.length > 0) throw new Error(`${label} contains unsupported fields: ${extra.join(", ")}`);
+  const extras = Object.keys(value).filter((key) => !allowed.has(key));
+  if (extras.length > 0) throw new Error(`${label} contains unsupported fields: ${extras.join(", ")}`);
 }
 
 function assertLine(value, label, max) {

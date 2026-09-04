@@ -559,7 +559,8 @@ checks.
 
 ## Current 0.6.0 milestone (2026-08-15): Lossless native chart-data leaf
 
-Imported bar charts can now issue a bounded `chartDataValue` leaf when one
+Imported native charts can now issue bounded `chartDataValue`,
+`chartDataXValue`, `chartDataYValue`, or `chartDataBubbleSize` leaves when a
 numeric cache point resolves through the chart's `externalData` relationship to
 one direct numeric cell in a uniquely bound embedded XLSX. The Edit Plan binds
 the source package, graphicFrame, ChartPart, relationship, embedded package,

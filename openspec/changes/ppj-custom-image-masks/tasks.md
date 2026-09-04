@@ -7,7 +7,9 @@
 ## 2. PPJ Compiler and Projection
 
 - [x] 2.1 Lower PPJ custom image masks into the shared wire path graph.
-- [x] 2.2 Project canonical custom image masks back into PPJ and reject source-bound topology mutation.
+- [x] 2.2 Project canonical custom image masks back into PPJ; allow only the
+  capability-issued literal path profile and no-adjustment preset/custom
+  transition, rejecting richer topology mutation.
 
 ## 3. Evidence and Agent Surface
 

@@ -2928,6 +2928,239 @@ public sealed partial class PptxCodecTests
     }
 
     [Fact]
+    public void SourceBoundImageBackgroundCropAndOpacityEditOnlySlideAndReprojects()
+    {
+        var request = ExportRequest();
+        var imageBytes = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
+        var assetId = AddPictureAsset(request.Artifact, imageBytes, "image/png");
+        request.Artifact.Presentation.Slides[0].Background = new PresentationBackground
+        {
+            ImagePaint = new PresentationImagePaint
+            {
+                AssetId = assetId,
+                Mode = PresentationImagePaint.Types.Mode.Stretch,
+                Crop = new PresentationImageCrop
+                {
+                    LeftThousandthPercent = 5_000,
+                    TopThousandthPercent = 10_000,
+                    RightThousandthPercent = 15_000,
+                    BottomThousandthPercent = 20_000,
+                },
+                OpacityThousandthPercent = 82_000,
+            },
+        };
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "background-image/source.pptx",
+                AssetRootUri = "background-image/assets",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var background = program["pages"]![0]!["background"]!.AsObject();
+        Assert.Equal("image", background["type"]!.GetValue<string>());
+        Assert.Equal("stretch", background["fit"]!.GetValue<string>());
+        Assert.Equal(0.82, background["opacity"]!.GetValue<double>(), precision: 6);
+        Assert.Equal(0.05, background["crop"]!["left"]!.GetValue<double>(), precision: 6);
+        Assert.Equal(0.2, background["crop"]!["bottom"]!.GetValue<double>(), precision: 6);
+
+        background["crop"]!["left"] = 0.08;
+        background["crop"]!["bottom"] = 0.04;
+        program["design"]!["grammar"]!["tokens"] = new JsonObject
+        {
+            ["backgroundFit"] = new JsonObject { ["kind"] = "string", ["value"] = "tile" },
+            ["backgroundOpacity"] = new JsonObject { ["kind"] = "opacity", ["value"] = 0.63 },
+        };
+        background["fit"] = new JsonObject { ["token"] = "backgroundFit" };
+        background["opacity"] = new JsonObject { ["token"] = "backgroundOpacity" };
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var native = Assert.Single(package.PresentationPart!.SlideParts).Slide!.CommonSlideData!
+                .Background!.BackgroundProperties!.GetFirstChild<A.BlipFill>()!;
+            var crop = native.GetFirstChild<A.SourceRectangle>()!;
+            Assert.Equal(8_000, crop.Left!.Value);
+            Assert.Equal(4_000, crop.Bottom!.Value);
+            Assert.NotNull(native.GetFirstChild<A.Tile>());
+            Assert.Null(native.GetFirstChild<A.Stretch>());
+            Assert.Equal(63_000, native.GetFirstChild<A.Blip>()!.GetFirstChild<A.AlphaModulationFixed>()!.Amount!.Value);
+        }
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "background-image/edited.pptx",
+                AssetRootUri = "background-image/assets",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var output = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var outputBackground = output["pages"]![0]!["background"]!.AsObject();
+        Assert.Equal("tile", outputBackground["fit"]!.GetValue<string>());
+        Assert.Equal(0.08, outputBackground["crop"]!["left"]!.GetValue<double>(), precision: 6);
+        Assert.Equal(0.04, outputBackground["crop"]!["bottom"]!.GetValue<double>(), precision: 6);
+        Assert.Equal(0.63, outputBackground["opacity"]!.GetValue<double>(), precision: 6);
+    }
+
+    [Fact]
+    public void SourceBoundImageBackgroundReplacementClosesRelationshipsAndReprojects()
+    {
+        var request = ExportRequest();
+        var sourceBytes = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
+        var replacementBytes = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nGQAAAAASUVORK5CYII=");
+        var sourceAssetId = AddPictureAsset(request.Artifact, sourceBytes, "image/png");
+        request.Artifact.Presentation.Slides[0].Background = new PresentationBackground
+        {
+            ImagePaint = new PresentationImagePaint
+            {
+                AssetId = sourceAssetId,
+                Mode = PresentationImagePaint.Types.Mode.Stretch,
+                OpacityThousandthPercent = 91_000,
+            },
+        };
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        string sourceRelationshipId;
+        string sourceImagePartPath;
+        using (var stream = new MemoryStream(source, writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var slide = Assert.Single(package.PresentationPart!.SlideParts);
+            var blip = slide.Slide!.CommonSlideData!.Background!.BackgroundProperties!
+                .GetFirstChild<A.BlipFill>()!.GetFirstChild<A.Blip>()!;
+            sourceRelationshipId = blip.Embed!.Value!;
+            sourceImagePartPath = slide.GetPartById(sourceRelationshipId).Uri.OriginalString.TrimStart('/');
+        }
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "background-image-replacement/source.pptx",
+                AssetRootUri = "background-image-replacement/assets",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var background = program["pages"]![0]!["background"]!.AsObject();
+        var projectedSourceAssetId = background["asset"]!.GetValue<string>();
+        var replacementDeclaration = program["assets"]!.AsArray()
+            .Select(asset => asset?.AsObject() ?? throw new InvalidOperationException("Projected asset declaration is null."))
+            .Single(asset => asset["id"]!.GetValue<string>() == projectedSourceAssetId)
+            .DeepClone()
+            .AsObject();
+        var replacementAssetId = "background-replacement";
+        var replacementHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(replacementBytes)).ToLowerInvariant();
+        replacementDeclaration["id"] = replacementAssetId;
+        replacementDeclaration["uri"] = "background-image-replacement/assets/replacement.png";
+        replacementDeclaration["sha256"] = replacementHash;
+        program["assets"]!.AsArray().Add(replacementDeclaration);
+        background["asset"] = replacementAssetId;
+        background["opacity"] = 0.44;
+
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+                Assets =
+                {
+                    new Asset
+                    {
+                        Id = replacementAssetId,
+                        FileName = "replacement.png",
+                        ContentType = "image/png",
+                        Data = ByteString.CopyFrom(replacementBytes),
+                        Sha256 = replacementDeclaration["sha256"]!.GetValue<string>(),
+                    },
+                },
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Contains("ppt/slides/slide1.xml", edited.PresentationProgram.ChangedParts);
+        Assert.Contains("ppt/slides/_rels/slide1.xml.rels", edited.PresentationProgram.ChangedParts);
+        Assert.Contains(edited.PresentationProgram.ChangedParts, path => path.StartsWith("ppt/media/", StringComparison.Ordinal));
+        Assert.DoesNotContain(sourceImagePartPath, ZipPartPaths(edited.File.ToByteArray()), StringComparer.OrdinalIgnoreCase);
+
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var slide = Assert.Single(package.PresentationPart!.SlideParts);
+            var blip = slide.Slide!.CommonSlideData!.Background!.BackgroundProperties!
+                .GetFirstChild<A.BlipFill>()!.GetFirstChild<A.Blip>()!;
+            var outputRelationshipId = blip.Embed?.Value ?? throw new InvalidOperationException("Replaced background image relationship is missing.");
+            Assert.NotEqual(sourceRelationshipId, outputRelationshipId);
+            var replacementPart = Assert.IsType<ImagePart>(slide.GetPartById(outputRelationshipId));
+            using var replacementStream = replacementPart.GetStream(FileMode.Open, FileAccess.Read);
+            using var replacementMemory = new MemoryStream();
+            replacementStream.CopyTo(replacementMemory);
+            Assert.Equal(replacementBytes, replacementMemory.ToArray());
+            Assert.Equal(44_000, blip.GetFirstChild<A.AlphaModulationFixed>()!.Amount!.Value);
+        }
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "background-image-replacement/edited.pptx",
+                AssetRootUri = "background-image-replacement/assets",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var output = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var outputBackground = output["pages"]![0]!["background"]!.AsObject();
+        Assert.Equal("image", outputBackground["type"]!.GetValue<string>());
+        var outputAsset = output["assets"]!.AsArray()
+            .Select(asset => asset?.AsObject() ?? throw new InvalidOperationException("Reprojected asset declaration is null."))
+            .Single(asset => asset["id"]!.GetValue<string>() == outputBackground["asset"]!.GetValue<string>());
+        Assert.Equal(replacementHash, outputAsset["sha256"]!.GetValue<string>());
+        Assert.Equal(0.44, outputBackground["opacity"]!.GetValue<double>(), precision: 6);
+    }
+
+    [Fact]
     public void LiteralCustomGeometryAuthorsImportsEditsAndValidates()
     {
         var request = ExportRequest();
@@ -5284,6 +5517,162 @@ public sealed partial class PptxCodecTests
     }
 
     [Fact]
+    public void PpjInheritedLayoutPlaceholderProjectsEffectiveMasterFrameAndEditsOwnerLocally()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(AddMatchingInheritedLayoutPlaceholder(authored.File.ToByteArray()));
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/inherited-layout-placeholder.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var masterTitle = program["design"]!["masters"]!.AsArray().Single()!["placeholders"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["placeholderType"]!.GetValue<string>() == "title");
+        var layoutTitle = program["design"]!["layouts"]!.AsArray().Single()!["placeholders"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["placeholderType"]!.GetValue<string>() == "title");
+        Assert.Equal(masterTitle["frame"]!.ToJsonString(), layoutTitle["frame"]!.ToJsonString());
+        Assert.Contains(layoutTitle["nativeRef"]!["capabilities"]!.AsArray(), capability =>
+            capability!["operation"]!.GetValue<string>() == "setFrame");
+
+        layoutTitle["frame"]!["x"] = layoutTitle["frame"]!["x"]!.GetValue<double>() + 20;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Contains("ppt/slideLayouts/slideLayout1.xml", edited.PresentationProgram.ChangedParts);
+        Assert.DoesNotContain("ppt/slideMasters/slideMaster1.xml", edited.PresentationProgram.ChangedParts);
+        Assert.DoesNotContain("ppt/slides/slide1.xml", edited.PresentationProgram.ChangedParts);
+
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var masterTitleShape = package.PresentationPart!.SlideMasterParts.Single().SlideMaster!
+                .Descendants<P.Shape>().Single(shape => shape.NonVisualShapeProperties!
+                    .ApplicationNonVisualDrawingProperties!.GetFirstChild<P.PlaceholderShape>()!.Type!.InnerText == "title");
+            var layoutTitleShape = package.PresentationPart.SlideMasterParts.Single().SlideLayoutParts.Single().SlideLayout!
+                .Descendants<P.Shape>().Single(shape => shape.NonVisualShapeProperties!
+                    .ApplicationNonVisualDrawingProperties!.GetFirstChild<P.PlaceholderShape>()!.Type!.InnerText == "title");
+            Assert.Equal(762_000L, masterTitleShape.ShapeProperties!.Transform2D!.Offset!.X!.Value);
+            Assert.Equal(1_016_000L, layoutTitleShape.ShapeProperties!.Transform2D!.Offset!.X!.Value);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        }
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/inherited-layout-placeholder-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var roundTrip = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var roundTripLayoutTitle = roundTrip["design"]!["layouts"]!.AsArray().Single()!["placeholders"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["placeholderType"]!.GetValue<string>() == "title");
+        Assert.Equal(80, roundTripLayoutTitle["frame"]!["x"]!.GetValue<double>());
+    }
+
+    [Fact]
+    public void PpjImportedNonTextLayoutPlaceholderProjectsBoundedFrameEdit()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(AddNonTextLayoutPlaceholder(authored.File.ToByteArray()));
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/non-text-layout-placeholder.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var picture = program["design"]!["layouts"]!.AsArray().Single()!["placeholders"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["placeholderType"]!.GetValue<string>() == "picture");
+        Assert.True(picture["nativeRef"]!["capabilities"]!.AsArray().Any(capability =>
+            capability!["operation"]!.GetValue<string>() == "setFrame"), picture.ToJsonString());
+
+        picture["frame"]!["y"] = picture["frame"]!["y"]!.GetValue<double>() + 12;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Contains("ppt/slideLayouts/slideLayout1.xml", edited.PresentationProgram.ChangedParts);
+        Assert.DoesNotContain("ppt/slideMasters/slideMaster1.xml", edited.PresentationProgram.ChangedParts);
+        Assert.DoesNotContain("ppt/slides/slide1.xml", edited.PresentationProgram.ChangedParts);
+
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var layoutPicture = package.PresentationPart!.SlideMasterParts.Single().SlideLayoutParts.Single().SlideLayout!
+                .Descendants<P.Shape>().Single(shape => shape.NonVisualShapeProperties!
+                    .ApplicationNonVisualDrawingProperties!.GetFirstChild<P.PlaceholderShape>()!.Type!.InnerText == "pic");
+            Assert.Equal(723_900L, layoutPicture.ShapeProperties!.Transform2D!.Offset!.Y!.Value);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        }
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/non-text-layout-placeholder-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var roundTrip = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var roundTripPicture = roundTrip["design"]!["layouts"]!.AsArray().Single()!["placeholders"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["placeholderType"]!.GetValue<string>() == "picture");
+        Assert.Equal(57, roundTripPicture["frame"]!["y"]!.GetValue<double>());
+    }
+
+    [Fact]
     public void SlidePlaceholderIdentityDistinguishesInheritedAndDirectGeometry()
     {
         var authored = Invoke(ExportRequest());
@@ -5395,6 +5784,175 @@ public sealed partial class PptxCodecTests
         var unsupportedRejected = Export(unsupported.Artifact);
         Assert.False(unsupportedRejected.Ok);
         Assert.Equal("unsupported_presentation_edit", Assert.Single(unsupportedRejected.Diagnostics).Code);
+    }
+
+    [Fact]
+    public void PpjSourceBoundDirectSlidePlaceholderFrameEditOnlyChangesSlidePart()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(AddSlidePlaceholder(AddTemplatePlaceholders(authored.File.ToByteArray()), removeTransform: false));
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/direct-slide-placeholder.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var placeholder = program["pages"]![0]!["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "placeholder");
+        var frameCapability = placeholder["nativeRef"]!["capabilities"]!.AsArray()
+            .Single(capability => capability!["operation"]!.GetValue<string>() == "setFrame");
+        Assert.Contains("frame.rotation", frameCapability!["fields"]!.AsArray().Select(field => field!.GetValue<string>()));
+        Assert.Contains("frame.flipH", frameCapability["fields"]!.AsArray().Select(field => field!.GetValue<string>()));
+        Assert.Contains("frame.flipV", frameCapability["fields"]!.AsArray().Select(field => field!.GetValue<string>()));
+        Assert.Equal(2, placeholder["frame"]!["rotation"]!.GetValue<double>(), 3);
+        Assert.False(placeholder["frame"]!["flipV"]!.GetValue<bool>());
+
+        placeholder["frame"]!["x"] = placeholder["frame"]!["x"]!.GetValue<double>() + 12;
+        placeholder["frame"]!["rotation"] = 18;
+        placeholder["frame"]!["flipH"] = true;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var native = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<P.Shape>()
+                .Single(shape => shape.NonVisualShapeProperties!.ApplicationNonVisualDrawingProperties!
+                    .GetFirstChild<P.PlaceholderShape>() is not null);
+            Assert.Equal(914_400L, native.ShapeProperties!.Transform2D!.Offset!.X!.Value);
+            Assert.Equal(1_080_000, native.ShapeProperties.Transform2D.Rotation!.Value);
+            Assert.True(native.ShapeProperties.Transform2D.HorizontalFlip!.Value);
+            Assert.True(native.ShapeProperties.Transform2D.VerticalFlip!.Value == false);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        }
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/direct-slide-placeholder-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var roundTrip = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var roundTripPlaceholder = roundTrip["pages"]![0]!["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "placeholder");
+        Assert.Equal(72, roundTripPlaceholder["frame"]!["x"]!.GetValue<double>());
+        Assert.Equal(18, roundTripPlaceholder["frame"]!["rotation"]!.GetValue<double>(), 3);
+        Assert.True(roundTripPlaceholder["frame"]!["flipH"]!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void PpjInheritedSlidePlaceholderProjectsEffectiveFrameAndMaterializesOnSlideEdit()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(AddSlidePlaceholder(
+            AddMatchingInheritedLayoutPlaceholder(authored.File.ToByteArray()),
+            removeTransform: true));
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/inherited-slide-placeholder.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var placeholder = program["pages"]![0]!["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "placeholder");
+        Assert.Equal(60, placeholder["frame"]!["x"]!.GetValue<double>());
+        Assert.Equal(45, placeholder["frame"]!["y"]!.GetValue<double>());
+        Assert.Equal(540, placeholder["frame"]!["width"]!.GetValue<double>());
+        Assert.Equal(90, placeholder["frame"]!["height"]!.GetValue<double>());
+        Assert.Contains(placeholder["nativeRef"]!["capabilities"]!.AsArray(), capability =>
+            capability!["operation"]!.GetValue<string>() == "setFrame");
+
+        placeholder["frame"]!["x"] = 72;
+        placeholder["frame"]!["rotation"] = 10;
+        placeholder["frame"]!["flipV"] = true;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var native = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<P.Shape>()
+                .Single(shape => shape.NonVisualShapeProperties!.ApplicationNonVisualDrawingProperties!
+                    .GetFirstChild<P.PlaceholderShape>() is not null);
+            Assert.Equal(914_400L, native.ShapeProperties!.Transform2D!.Offset!.X!.Value);
+            Assert.Equal(6_858_000L, native.ShapeProperties.Transform2D.Extents!.Cx!.Value);
+            Assert.Equal(600_000, native.ShapeProperties.Transform2D.Rotation!.Value);
+            Assert.True(native.ShapeProperties.Transform2D.VerticalFlip!.Value);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        }
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/inherited-slide-placeholder-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var roundTrip = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var roundTripPlaceholder = roundTrip["pages"]![0]!["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "placeholder");
+        Assert.Equal(72, roundTripPlaceholder["frame"]!["x"]!.GetValue<double>());
+        Assert.Equal(10, roundTripPlaceholder["frame"]!["rotation"]!.GetValue<double>(), 3);
+        Assert.True(roundTripPlaceholder["frame"]!["flipV"]!.GetValue<bool>());
     }
 
     [Fact]
@@ -11681,6 +12239,46 @@ public sealed partial class PptxCodecTests
         return stream.ToArray();
     }
 
+    private static byte[] AddMatchingInheritedLayoutPlaceholder(byte[] bytes)
+    {
+        bytes = AddTemplatePlaceholders(bytes);
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var package = PresentationDocument.Open(stream, true, new OpenSettings { AutoSave = true }))
+        {
+            var layout = package.PresentationPart!.SlideMasterParts.Single().SlideLayoutParts.Single().SlideLayout!;
+            var placeholder = TemplatePlaceholder(
+                3U,
+                "Inherited layout title",
+                P.PlaceholderValues.Title,
+                0U,
+                "Inherited title");
+            placeholder.ShapeProperties!.Transform2D!.Remove();
+            layout.CommonSlideData!.ShapeTree!.Append(placeholder);
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] AddNonTextLayoutPlaceholder(byte[] bytes)
+    {
+        bytes = AddTemplatePlaceholders(bytes);
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var package = PresentationDocument.Open(stream, true, new OpenSettings { AutoSave = true }))
+        {
+            var layout = package.PresentationPart!.SlideMasterParts.Single().SlideLayoutParts.Single().SlideLayout!;
+            layout.CommonSlideData!.ShapeTree!.Append(TemplatePlaceholder(
+                3U,
+                "Picture placeholder",
+                P.PlaceholderValues.Picture,
+                3U,
+                "Picture prompt"));
+        }
+        return stream.ToArray();
+    }
+
     private static byte[] AddUnsupportedSlidePlaceholderRun(byte[] bytes)
     {
         using var stream = new MemoryStream();
@@ -12072,6 +12670,120 @@ public sealed partial class PptxCodecTests
         return stream.ToArray();
     }
 
+    private static byte[] AddEmbeddedCategoryChartDataWorkbook(byte[] bytes, string chartPath, string workbookPath)
+    {
+        var workbook = CreateEmbeddedCategoryChartDataWorkbook();
+        var separator = chartPath.LastIndexOf('/');
+        var chartRelationshipsPath = $"{chartPath[..separator]}/_rels/{chartPath[(separator + 1)..]}.rels";
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Update, leaveOpen: true))
+        {
+            ReplaceZipText(archive, chartPath, xml =>
+                Regex.Replace(
+                        Regex.Replace(
+                            xml,
+                            "<c:strLit>(?<body>.*?)</c:strLit>",
+                            "<c:strRef><c:f>Sheet1!$A$2:$A$3</c:f><c:strCache>${body}</c:strCache></c:strRef>",
+                            RegexOptions.Singleline,
+                            TimeSpan.FromSeconds(1)),
+                        "<c:numLit>(?<body>.*?)</c:numLit>",
+                        "<c:numRef><c:f>Sheet1!$B$2:$B$3</c:f><c:numCache>${body}</c:numCache></c:numRef>",
+                        RegexOptions.Singleline,
+                        TimeSpan.FromSeconds(1))
+                    .Replace("<c:chartSpace", "<c:chartSpace xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"", StringComparison.Ordinal)
+                    .Replace("</c:chartSpace>", "<c:externalData r:id=\"rIdCategoryChartWorkbook\"><c:autoUpdate val=\"0\"/></c:externalData></c:chartSpace>", StringComparison.Ordinal));
+            AddZipText(archive, chartRelationshipsPath,
+                $"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rIdCategoryChartWorkbook\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/package\" Target=\"/{workbookPath}\"/></Relationships>");
+            ReplaceZipText(archive, "[Content_Types].xml", xml => xml.Replace(
+                "</Types>",
+                $"<Override PartName=\"/{workbookPath}\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\"/></Types>",
+                StringComparison.Ordinal));
+            AddZipBytes(archive, workbookPath, workbook);
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] AddEmbeddedCategoricalComboChartDataWorkbook(byte[] bytes, string chartPath, string workbookPath)
+    {
+        var workbook = CreateEmbeddedCategoricalComboChartDataWorkbook();
+        var separator = chartPath.LastIndexOf('/');
+        var chartRelationshipsPath = $"{chartPath[..separator]}/_rels/{chartPath[(separator + 1)..]}.rels";
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Update, leaveOpen: true))
+        {
+            var seriesIndex = 0;
+            ReplaceZipText(archive, chartPath, xml => Regex.Replace(
+                    xml,
+                    "<c:numLit>(?<body>.*?)</c:numLit>",
+                    match =>
+                    {
+                        var column = seriesIndex++ switch
+                        {
+                            0 => "B",
+                            1 => "C",
+                            2 => "D",
+                            _ => throw new InvalidOperationException("Combo fixture has more than three native series."),
+                        };
+                        return $"<c:numRef><c:f>Sheet1!${column}$2:${column}$3</c:f><c:numCache>{match.Groups["body"].Value}</c:numCache></c:numRef>";
+                    },
+                    RegexOptions.Singleline,
+                    TimeSpan.FromSeconds(1))
+                .Replace("<c:chartSpace", "<c:chartSpace xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"", StringComparison.Ordinal)
+                .Replace("</c:chartSpace>", "<c:externalData r:id=\"rIdComboChartWorkbook\"><c:autoUpdate val=\"0\"/></c:externalData></c:chartSpace>", StringComparison.Ordinal));
+            AddZipText(archive, chartRelationshipsPath,
+                $"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rIdComboChartWorkbook\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/package\" Target=\"/{workbookPath}\"/></Relationships>");
+            ReplaceZipText(archive, "[Content_Types].xml", xml => xml.Replace(
+                "</Types>",
+                $"<Override PartName=\"/{workbookPath}\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\"/></Types>",
+                StringComparison.Ordinal));
+            AddZipBytes(archive, workbookPath, workbook);
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] AddEmbeddedNumericChartDataWorkbook(byte[] bytes, string chartPath, string workbookPath)
+    {
+        var workbook = CreateEmbeddedNumericChartDataWorkbook();
+        var separator = chartPath.LastIndexOf('/');
+        var chartRelationshipsPath = $"{chartPath[..separator]}/_rels/{chartPath[(separator + 1)..]}.rels";
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Update, leaveOpen: true))
+        {
+            ReplaceZipText(archive, chartPath, xml => Regex.Replace(
+                    Regex.Replace(
+                        Regex.Replace(
+                            xml,
+                            "<c:xVal><c:numLit>(?<body>.*?)</c:numLit></c:xVal>",
+                            "<c:xVal><c:numRef><c:f>Sheet1!$B$2:$B$4</c:f><c:numCache>${body}</c:numCache></c:numRef></c:xVal>",
+                            RegexOptions.Singleline,
+                            TimeSpan.FromSeconds(1)),
+                        "<c:yVal><c:numLit>(?<body>.*?)</c:numLit></c:yVal>",
+                        "<c:yVal><c:numRef><c:f>Sheet1!$C$2:$C$4</c:f><c:numCache>${body}</c:numCache></c:numRef></c:yVal>",
+                        RegexOptions.Singleline,
+                        TimeSpan.FromSeconds(1)),
+                    "<c:bubbleSize><c:numLit>(?<body>.*?)</c:numLit></c:bubbleSize>",
+                    "<c:bubbleSize><c:numRef><c:f>Sheet1!$D$2:$D$4</c:f><c:numCache>${body}</c:numCache></c:numRef></c:bubbleSize>",
+                    RegexOptions.Singleline,
+                    TimeSpan.FromSeconds(1))
+                .Replace("<c:chartSpace", "<c:chartSpace xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"", StringComparison.Ordinal)
+                .Replace("</c:chartSpace>", "<c:externalData r:id=\"rIdNumericChartWorkbook\"><c:autoUpdate val=\"0\"/></c:externalData></c:chartSpace>", StringComparison.Ordinal));
+            AddZipText(archive, chartRelationshipsPath,
+                $"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rIdNumericChartWorkbook\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/package\" Target=\"/{workbookPath}\"/></Relationships>");
+            ReplaceZipText(archive, "[Content_Types].xml", xml => xml.Replace(
+                "</Types>",
+                $"<Override PartName=\"/{workbookPath}\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\"/></Types>",
+                StringComparison.Ordinal));
+            AddZipBytes(archive, workbookPath, workbook);
+        }
+        return stream.ToArray();
+    }
+
     private static byte[] CreateEmbeddedChartDataWorkbook()
     {
         using var stream = new MemoryStream();
@@ -12085,6 +12797,95 @@ public sealed partial class PptxCodecTests
                     new S.Cell { CellReference = "B2", CellValue = new S.CellValue("8") }) { RowIndex = 2 },
                 new S.Row(
                     new S.Cell { CellReference = "B3", CellValue = new S.CellValue("13") }) { RowIndex = 3 }));
+            workbookPart.Workbook.AppendChild(new S.Sheets(new S.Sheet
+            {
+                Id = workbookPart.GetIdOfPart(worksheetPart),
+                SheetId = 1,
+                Name = "Sheet1",
+            }));
+            workbookPart.Workbook.Save();
+            worksheetPart.Worksheet.Save();
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] CreateEmbeddedCategoryChartDataWorkbook()
+    {
+        using var stream = new MemoryStream();
+        using (var document = SpreadsheetDocument.Create(stream, SpreadsheetDocumentType.Workbook, autoSave: true))
+        {
+            var workbookPart = document.AddWorkbookPart();
+            workbookPart.Workbook = new S.Workbook();
+            var worksheetPart = workbookPart.AddNewPart<WorksheetPart>();
+            worksheetPart.Worksheet = new S.Worksheet(new S.SheetData(
+                new S.Row(
+                    new S.Cell { CellReference = "A2", DataType = S.CellValues.InlineString, InlineString = new S.InlineString(new S.Text("A")) },
+                    new S.Cell { CellReference = "B2", CellValue = new S.CellValue("8") }) { RowIndex = 2 },
+                new S.Row(
+                    new S.Cell { CellReference = "A3", DataType = S.CellValues.InlineString, InlineString = new S.InlineString(new S.Text("B")) },
+                    new S.Cell { CellReference = "B3", CellValue = new S.CellValue("13") }) { RowIndex = 3 }));
+            workbookPart.Workbook.AppendChild(new S.Sheets(new S.Sheet
+            {
+                Id = workbookPart.GetIdOfPart(worksheetPart),
+                SheetId = 1,
+                Name = "Sheet1",
+            }));
+            workbookPart.Workbook.Save();
+            worksheetPart.Worksheet.Save();
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] CreateEmbeddedCategoricalComboChartDataWorkbook()
+    {
+        using var stream = new MemoryStream();
+        using (var document = SpreadsheetDocument.Create(stream, SpreadsheetDocumentType.Workbook, autoSave: true))
+        {
+            var workbookPart = document.AddWorkbookPart();
+            workbookPart.Workbook = new S.Workbook();
+            var worksheetPart = workbookPart.AddNewPart<WorksheetPart>();
+            worksheetPart.Worksheet = new S.Worksheet(new S.SheetData(
+                new S.Row(
+                    new S.Cell { CellReference = "B2", CellValue = new S.CellValue("5") },
+                    new S.Cell { CellReference = "C2", CellValue = new S.CellValue("8") },
+                    new S.Cell { CellReference = "D2", CellValue = new S.CellValue("21") }) { RowIndex = 2 },
+                new S.Row(
+                    new S.Cell { CellReference = "B3", CellValue = new S.CellValue("9") },
+                    new S.Cell { CellReference = "C3", CellValue = new S.CellValue("13") },
+                    new S.Cell { CellReference = "D3", CellValue = new S.CellValue("34") }) { RowIndex = 3 }));
+            workbookPart.Workbook.AppendChild(new S.Sheets(new S.Sheet
+            {
+                Id = workbookPart.GetIdOfPart(worksheetPart),
+                SheetId = 1,
+                Name = "Sheet1",
+            }));
+            workbookPart.Workbook.Save();
+            worksheetPart.Worksheet.Save();
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] CreateEmbeddedNumericChartDataWorkbook()
+    {
+        using var stream = new MemoryStream();
+        using (var document = SpreadsheetDocument.Create(stream, SpreadsheetDocumentType.Workbook, autoSave: true))
+        {
+            var workbookPart = document.AddWorkbookPart();
+            workbookPart.Workbook = new S.Workbook();
+            var worksheetPart = workbookPart.AddNewPart<WorksheetPart>();
+            worksheetPart.Worksheet = new S.Worksheet(new S.SheetData(
+                new S.Row(
+                    new S.Cell { CellReference = "B2", CellValue = new S.CellValue("10") },
+                    new S.Cell { CellReference = "C2", CellValue = new S.CellValue("35") },
+                    new S.Cell { CellReference = "D2", CellValue = new S.CellValue("4") }) { RowIndex = 2 },
+                new S.Row(
+                    new S.Cell { CellReference = "B3", CellValue = new S.CellValue("20") },
+                    new S.Cell { CellReference = "C3", CellValue = new S.CellValue("68") },
+                    new S.Cell { CellReference = "D3", CellValue = new S.CellValue("9") }) { RowIndex = 3 },
+                new S.Row(
+                    new S.Cell { CellReference = "B4", CellValue = new S.CellValue("34") },
+                    new S.Cell { CellReference = "C4", CellValue = new S.CellValue("84") },
+                    new S.Cell { CellReference = "D4", CellValue = new S.CellValue("16") }) { RowIndex = 4 }));
             workbookPart.Workbook.AppendChild(new S.Sheets(new S.Sheet
             {
                 Id = workbookPart.GetIdOfPart(worksheetPart),
@@ -12746,5 +13547,6768 @@ public sealed partial class PptxCodecTests
             part.ViewProperties.Save();
         }
         return stream.ToArray();
+    }
+}
+public sealed partial class PptxCodecTests
+{
+    [Fact]
+    public void PpjChartFrameImageFillAuthorsAndReprojects()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        var chart = program["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "chart");
+        chart["style"] = new JsonObject
+        {
+            ["legend"] = "none",
+            ["frame"] = new JsonObject
+            {
+                ["fill"] = new JsonObject
+                {
+                    ["type"] = "image",
+                    ["asset"] = "evidence-mark",
+                    ["fit"] = "stretch",
+                    ["opacity"] = 0.61,
+                },
+            },
+        };
+
+        var programBytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var assetBytes = File.ReadAllBytes(Path.Combine(
+            root.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "ppj-assets",
+            "evidence-mark.svg"));
+        var assetHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(assetBytes)).ToLowerInvariant();
+        var replacementAssetBytes = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(assetBytes).Replace("#0B5D5E", "#A83232", StringComparison.Ordinal));
+        var replacementAssetHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(replacementAssetBytes)).ToLowerInvariant();
+        var authored = Invoke(new CodecRequest
+            {
+                ProtocolVersion = CodecProtocol.ProtocolVersion,
+                Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFrom(programBytes),
+                Assets =
+                {
+                    new Asset
+                    {
+                        Id = "evidence-mark",
+                        FileName = "evidence-mark.svg",
+                        ContentType = "image/svg+xml",
+                        Data = ByteString.CopyFrom(assetBytes),
+                        Sha256 = assetHash,
+                    },
+                },
+            },
+            });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "chart-frame-image/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var projectedProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedChart = projectedProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "chart");
+        Assert.Equal("image", projectedChart["style"]!["frame"]!["fill"]!["type"]!.GetValue<string>());
+        Assert.Equal("stretch", projectedChart["style"]!["frame"]!["fill"]!["fit"]!.GetValue<string>());
+        Assert.Equal(0.61, projectedChart["style"]!["frame"]!["fill"]!["opacity"]!.GetValue<double>(), 3);
+        string sourceImagePartPath;
+        using (var sourceStream = new MemoryStream(sourceBytes))
+        using (var sourcePackage = PresentationDocument.Open(sourceStream, false))
+        {
+            var sourceChartPart = sourcePackage.PresentationPart!.SlideParts
+                .SelectMany(slide => slide.ChartParts)
+                .Single();
+            sourceImagePartPath = sourceChartPart.ImageParts.Single().Uri.OriginalString.TrimStart('/');
+        }
+
+        var editedProgram = projectedProgram.DeepClone().AsObject();
+        editedProgram["design"]!["grammar"]!["tokens"] = new JsonObject
+        {
+            ["chartFrameFit"] = new JsonObject { ["kind"] = "string", ["value"] = "stretch" },
+            ["chartFrameOpacity"] = new JsonObject { ["kind"] = "opacity", ["value"] = 0.43 },
+        };
+        var editedChart = editedProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "chart");
+        editedChart["style"]!["frame"]!["fill"]!["fit"] = new JsonObject { ["token"] = "chartFrameFit" };
+        editedChart["style"]!["frame"]!["fill"]!["opacity"] = new JsonObject { ["token"] = "chartFrameOpacity" };
+        editedChart["style"]!["frame"]!["fill"]!["asset"] = "evidence-mark-replacement";
+        editedChart["style"]!["frame"]!["fill"]!["crop"] = new JsonObject
+        {
+            ["left"] = 0.1,
+            ["top"] = 0.02,
+            ["right"] = 0.04,
+            ["bottom"] = 0.08,
+        };
+        var sourceAssetId = projectedChart["style"]!["frame"]!["fill"]!["asset"]!.GetValue<string>();
+        var replacementDeclaration = editedProgram["assets"]!.AsArray()
+            .Select(asset => asset?.AsObject() ?? throw new InvalidOperationException("Projected asset declaration is null."))
+            .Single(asset => asset["id"]!.GetValue<string>() == sourceAssetId)
+            .DeepClone()
+            .AsObject();
+        replacementDeclaration["id"] = "evidence-mark-replacement";
+        replacementDeclaration["uri"] = "ppj-assets/evidence-mark-replacement.svg";
+        replacementDeclaration["sha256"] = replacementAssetHash;
+        editedProgram["assets"]!.AsArray().Add(replacementDeclaration);
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(editedProgram.ToJsonString()),
+                Assets =
+                {
+                    new Asset
+                    {
+                        Id = "evidence-mark-replacement",
+                        FileName = "evidence-mark-replacement.svg",
+                        ContentType = "image/svg+xml",
+                        Data = ByteString.CopyFrom(replacementAssetBytes),
+                        Sha256 = replacementAssetHash,
+                    },
+                },
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Contains(edited.PresentationProgram.ChangedParts, path => path.Contains("/charts/", StringComparison.Ordinal));
+        Assert.Contains(edited.PresentationProgram.ChangedParts, path => path.Contains("/charts/_rels/", StringComparison.Ordinal));
+        Assert.Contains(edited.PresentationProgram.ChangedParts, path => path.Contains("/media/", StringComparison.Ordinal));
+        Assert.DoesNotContain(edited.PresentationProgram.ChangedParts, path => path.Equals(sourceImagePartPath, StringComparison.Ordinal));
+
+        var secondProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "chart-frame-image/edited.pptx" },
+        });
+        Assert.True(secondProjection.Ok, Diagnostics(secondProjection));
+        var secondProgram = JsonNode.Parse(secondProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var secondChart = secondProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "chart");
+        var secondFill = secondChart["style"]!["frame"]!["fill"]!;
+        Assert.Equal("stretch", secondFill!["fit"]!.GetValue<string>());
+        Assert.Equal(0.43, secondFill["opacity"]!.GetValue<double>(), 3);
+        Assert.Equal(0.1, secondFill["crop"]!["left"]!.GetValue<double>(), 3);
+    }
+
+    [Fact]
+    public void PpjSourceBoundTableCellStylesEditOnlySlideAndReproject()
+    {
+        var request = ExportRequest();
+        var table = new PresentationTable
+        {
+            LeftEmu = 1_000_000,
+            TopEmu = 1_600_000,
+            WidthEmu = 5_000_000,
+            HeightEmu = 2_000_000,
+        };
+        table.ColumnWidthsEmu.Add(new[] { 2_500_000L, 2_500_000L });
+        var cell = new PresentationTableCell
+        {
+            Text = "Source cell",
+            Fill = new PresentationTableCellFill
+            {
+                SolidRgb = "F2C14E",
+                OpacityThousandthPercent = 82_000,
+            },
+            Borders = new PresentationTableCellBorders
+            {
+                Bottom = new SpreadsheetChartLineStyleArtifact
+                {
+                    Color = new SpreadsheetColor { Rgb = "16324F" },
+                    WidthPoints = 1.25,
+                    DashStyle = SpreadsheetChartLineDashStyle.Dashed,
+                    Cap = "round",
+                    Join = "round",
+                    OpacityThousandthPercent = 65_000,
+                },
+            },
+        };
+        var plainCell = new PresentationTableCell { Text = "Second cell" };
+        table.Rows.Add(new PresentationTableRow { HeightEmu = 2_000_000, Cells = { cell, plainCell } });
+        request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/source-table",
+            Name = "Source table",
+            Table = table,
+        });
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        using (var sourceStream = new MemoryStream())
+        {
+            sourceStream.Write(sourceBytes);
+            sourceStream.Position = 0;
+            using (var sourcePackage = PresentationDocument.Open(sourceStream, true))
+            {
+                var sourceTable = sourcePackage.PresentationPart!.SlideParts
+                .SelectMany(slide => slide.Slide!.Descendants<A.Table>())
+                .Single(table => table.Descendants<A.Text>().Any(text => text.Text == "Source cell"));
+                var sourceCell = sourceTable.Elements<A.TableRow>().First().Elements<A.TableCell>().First();
+                var sourceRun = sourceCell.GetFirstChild<A.TextBody>()!.Elements<A.Paragraph>().Single().Elements<A.Run>().Single();
+                var sourceText = sourceRun.GetFirstChild<A.Text>()!;
+                var split = sourceText.Text!.Length / 2;
+                var secondRun = (A.Run)sourceRun.CloneNode(true);
+                secondRun.GetFirstChild<A.Text>()!.Text = sourceText.Text[split..];
+                sourceText.Text = sourceText.Text[..split];
+                var paragraph = sourceCell.GetFirstChild<A.TextBody>()!.Elements<A.Paragraph>().Single();
+                paragraph.InsertAfter(secondRun, sourceRun);
+                var secondParagraph = (A.Paragraph)paragraph.CloneNode(true);
+                foreach (var extraRun in secondParagraph.Elements<A.Run>().Skip(1).ToArray()) extraRun.Remove();
+                secondParagraph.GetFirstChild<A.Run>()!.GetFirstChild<A.Text>()!.Text = "tail";
+                sourceCell.GetFirstChild<A.TextBody>()!.InsertAfter(secondParagraph, paragraph);
+                foreach (var slide in sourcePackage.PresentationPart.SlideParts)
+                    slide.Slide!.Save();
+            }
+            sourceBytes = sourceStream.ToArray();
+        }
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "table-cell-style/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var projectedProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedTable = projectedProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table");
+        var tableId = projectedTable["id"]!.GetValue<string>();
+        Assert.Contains(projectedTable["nativeRef"]!["capabilities"]!.AsArray(), capability =>
+            capability!["operation"]!.GetValue<string>() == "setTableCellStyle" &&
+            capability["fields"]!.AsArray().Any(field => field!.GetValue<string>() == "table.cell.textStyle"));
+        Assert.Contains(projectedTable["nativeRef"]!["capabilities"]!.AsArray(), capability =>
+            capability!["operation"]!.GetValue<string>() == "setTableGeometry" &&
+            capability["fields"]!.AsArray().Any(field => field!.GetValue<string>() == "table.geometry"));
+        var projectedCell = projectedTable["rows"]![0]!["cells"]![0]!.AsObject();
+        Assert.Equal("Source cell\ntail", projectedCell["text"]!.GetValue<string>());
+        Assert.Equal("solid", projectedCell["fill"]!["type"]!.GetValue<string>());
+        Assert.Equal("#F2C14E", projectedCell["fill"]!["color"]!.GetValue<string>());
+        Assert.Equal(0.82, projectedCell["fill"]!["opacity"]!.GetValue<double>(), 3);
+        Assert.Equal(1.25, projectedCell["borders"]!["bottom"]!["width"]!.GetValue<double>(), 3);
+        Assert.Equal("#16324F", projectedCell["borders"]!["bottom"]!["color"]!.GetValue<string>());
+        Assert.Equal("dash", projectedCell["borders"]!["bottom"]!["dash"]!.GetValue<string>());
+        Assert.Equal(13.5, projectedCell["textStyle"]!["defaultText"]!["size"]!.GetValue<double>(), 3);
+        Assert.Equal("#0F172A", projectedCell["textStyle"]!["defaultText"]!["color"]!.GetValue<string>());
+
+        var editedProgram = projectedProgram.DeepClone().AsObject();
+        editedProgram["design"]!["grammar"]!["tokens"] = new JsonObject
+        {
+            ["tableFillOpacity"] = new JsonObject { ["kind"] = "opacity", ["value"] = 0.43 },
+            ["tableCellSize"] = new JsonObject { ["kind"] = "size", ["value"] = 20 },
+            ["tableCellBold"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["tableCellFont"] = new JsonObject { ["kind"] = "string", ["value"] = "Courier New" },
+            ["tableCellFontEastAsia"] = new JsonObject { ["kind"] = "string", ["value"] = "Microsoft YaHei" },
+            ["tableCellColor"] = new JsonObject { ["kind"] = "color", ["value"] = "#AABBCC" },
+            ["tableBorderColor"] = new JsonObject { ["kind"] = "color", ["value"] = "#6B7280" },
+        };
+        var editedTable = editedProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table");
+        var editedCell = editedTable["rows"]![0]!["cells"]![0]!.AsObject();
+        editedCell["text"] = "Edited source cell\ntail edited";
+        editedCell["fill"]!["color"] = "#0B8F8F";
+        editedCell["fill"]!["opacity"] = new JsonObject { ["token"] = "tableFillOpacity" };
+        editedCell["borders"]!["bottom"]!["color"] = new JsonObject { ["token"] = "tableBorderColor" };
+        editedCell["borders"]!["bottom"]!["width"] = 2.25;
+        editedCell["textStyle"]!["defaultText"]!["size"] = new JsonObject { ["token"] = "tableCellSize" };
+        editedCell["textStyle"]!["defaultText"]!["bold"] = new JsonObject { ["token"] = "tableCellBold" };
+        editedCell["textStyle"]!["defaultText"]!["fontFamily"] = new JsonObject { ["token"] = "tableCellFont" };
+        editedCell["textStyle"]!["defaultText"]!["fontFamilyEastAsia"] = new JsonObject { ["token"] = "tableCellFontEastAsia" };
+        editedCell["textStyle"]!["defaultText"]!["color"] = new JsonObject { ["token"] = "tableCellColor", ["alpha"] = 0.75 };
+        var editedColumns = editedTable["columns"]!.AsArray();
+        editedColumns[0]!["width"] = 150.0;
+        editedColumns[1]!["width"] = 243.7007874016;
+        editedTable["rows"]![0]!["height"] = 180.0;
+        editedTable["frame"]!["height"] = 180.0;
+
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(editedProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(new[] { "ppt/slides/slide1.xml" }, edited.PresentationProgram.ChangedParts);
+        Assert.Contains(tableId, edited.PresentationProgram.ChangedNodeIds);
+        using (var editedStream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var editedPackage = PresentationDocument.Open(editedStream, false))
+        {
+            var savedCell = editedPackage.PresentationPart!.SlideParts
+                .SelectMany(slide => slide.Slide!.Descendants<A.Table>())
+                .Single(table => table.Descendants<A.Text>().Any(text => text.Text?.StartsWith("Edited", StringComparison.Ordinal) == true))
+                .Elements<A.TableRow>().First()
+                .Elements<A.TableCell>().First();
+            var editedParagraphs = savedCell.GetFirstChild<A.TextBody>()!.Elements<A.Paragraph>().ToArray();
+            Assert.Equal(2, editedParagraphs.Length);
+            var editedParagraph = editedParagraphs[0];
+            Assert.Equal(2, editedParagraph.Elements<A.Run>().Count());
+            Assert.Equal("Edited source cell", string.Concat(editedParagraph.Descendants<A.Text>().Select(text => text.Text)));
+            Assert.Equal("tail edited", string.Concat(editedParagraphs[1].Descendants<A.Text>().Select(text => text.Text)));
+            var savedTable = editedPackage.PresentationPart!.SlideParts
+                .SelectMany(slide => slide.Slide!.Descendants<A.Table>())
+                .Single(table => table.Descendants<A.Text>().Any(text => text.Text?.StartsWith("Edited", StringComparison.Ordinal) == true));
+            Assert.Equal(1_905_000L, savedTable.GetFirstChild<A.TableGrid>()!.Elements<A.GridColumn>().First().Width!.Value);
+            Assert.Equal(3_095_000L, savedTable.GetFirstChild<A.TableGrid>()!.Elements<A.GridColumn>().Last().Width!.Value);
+            Assert.Equal(2_286_000L, savedTable.Elements<A.TableRow>().Single().Height!.Value);
+        }
+
+        var secondProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "table-cell-style/edited.pptx" },
+        });
+        Assert.True(secondProjection.Ok, Diagnostics(secondProjection));
+        var secondProgram = JsonNode.Parse(secondProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var reprojectedCell = secondProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table")["rows"]![0]!["cells"]![0]!.AsObject();
+        Assert.Equal("Edited source cell\ntail edited", reprojectedCell["text"]!.GetValue<string>());
+        Assert.Equal("#0B8F8F", reprojectedCell["fill"]!["color"]!.GetValue<string>());
+        Assert.Equal(0.43, reprojectedCell["fill"]!["opacity"]!.GetValue<double>(), 3);
+        Assert.Equal("#6B7280", reprojectedCell["borders"]!["bottom"]!["color"]!.GetValue<string>());
+        Assert.Equal(2.25, reprojectedCell["borders"]!["bottom"]!["width"]!.GetValue<double>(), 3);
+        Assert.Equal(20, reprojectedCell["textStyle"]!["defaultText"]!["size"]!.GetValue<double>(), 3);
+        Assert.True(reprojectedCell["textStyle"]!["defaultText"]!["bold"]!.GetValue<bool>());
+        Assert.Equal("Courier New", reprojectedCell["textStyle"]!["defaultText"]!["fontFamily"]!.GetValue<string>());
+        Assert.Equal("Microsoft YaHei", reprojectedCell["textStyle"]!["defaultText"]!["fontFamilyEastAsia"]!.GetValue<string>());
+        Assert.Equal("#AABBCCBF", reprojectedCell["textStyle"]!["defaultText"]!["color"]!.GetValue<string>());
+        var reprojectedTable = secondProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table");
+        Assert.Equal(150.0, reprojectedTable["columns"]![0]!["width"]!.GetValue<double>(), 3);
+        Assert.Equal(243.7007874016, reprojectedTable["columns"]![1]!["width"]!.GetValue<double>(), 3);
+        Assert.Equal(180.0, reprojectedTable["rows"]![0]!["height"]!.GetValue<double>(), 3);
+    }
+
+    [Fact]
+    public void PpjSourceBoundTableCellMixedRunStylesEditOnlySlideAndReproject()
+    {
+        var request = ExportRequest();
+        request.Artifact.Presentation.Slides[0].Elements.Clear();
+        var mixedBody = new PresentationTextBody();
+        mixedBody.BodyProperties = new PresentationTextBodyProperties
+        {
+            LeftInsetEmu = 127_000,
+            TopInsetEmu = 25_400,
+            VerticalAnchor = "center",
+            Wrap = "square",
+            AutoFitMode = "shrinkText",
+            Columns = 2,
+            ColumnSpacingEmu = 50_800,
+            RightToLeftColumns = true,
+            VerticalTextMode = "vertical",
+        };
+        mixedBody.Paragraphs.Add(new PresentationTextParagraph
+        {
+            Alignment = "distributed",
+            MarginLeftEmu = 12_700,
+            IndentEmu = -6_350,
+            SpaceAfterPoints = 8,
+            BulletCharacter = "•",
+            BulletFontFamily = "Arial",
+            BulletColorRgb = "008060",
+            BulletColorOpacityThousandthPercent = 65_000,
+            BulletSizePercent = 1.25,
+            DefaultRunProperties = new PresentationTextStyle
+            {
+                FontSizePoints = 11,
+                FontFamily = "Arial",
+                ColorRgb = "112233",
+            },
+            TabStops =
+            {
+                new PresentationTabStop { PositionEmu = 1_143_000, Alignment = "left" },
+                new PresentationTabStop { PositionEmu = 2_286_000, Alignment = "decimal" },
+            },
+            Runs =
+            {
+                new PresentationTextRun
+                {
+                    Text = "Mixed",
+                    Bold = true,
+                    FontSizePoints = 14,
+                    ColorRgb = "C0392B",
+                },
+                new PresentationTextRun
+                {
+                    Text = " styles",
+                    Italic = true,
+                    FontSizePoints = 10,
+                    ColorRgb = "1F4E79",
+                },
+            },
+        });
+        mixedBody.Paragraphs.Add(new PresentationTextParagraph
+        {
+            AutoNumber = new PresentationAutoNumberBullet { Scheme = "arabicPeriod", StartAt = 3 },
+            Runs =
+            {
+                new PresentationTextRun
+                {
+                    Text = "Numbered",
+                    FontSizePoints = 12,
+                    ColorRgb = "34495E",
+                },
+            },
+        });
+        var table = new PresentationTable
+        {
+            LeftEmu = 500_000,
+            TopEmu = 900_000,
+            WidthEmu = 4_000_000,
+            HeightEmu = 1_800_000,
+        };
+        table.ColumnWidthsEmu.Add([2_000_000, 2_000_000]);
+        table.Rows.Add(new PresentationTableRow
+        {
+            HeightEmu = 1_800_000,
+            Cells =
+            {
+                new PresentationTableCell { Text = "Mixed styles\nNumbered", TextBody = mixedBody },
+                new PresentationTableCell { Text = "Untouched" },
+            },
+        });
+        request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/table/mixed-run-styles",
+            Name = "Mixed run styles",
+            Table = table,
+        });
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "table-mixed/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedTable = program["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table");
+        Assert.Contains(projectedTable["nativeRef"]!["capabilities"]!.AsArray(), capability =>
+            capability!["operation"]!.GetValue<string>() == "setTableCellStyle" &&
+            capability["fields"]!.AsArray().Any(field => field!.GetValue<string>() == "table.cell.textStyle"));
+        var projectedCell = projectedTable["rows"]![0]!["cells"]![0]!.AsObject();
+        var projectedText = projectedCell["text"]!.AsObject();
+        Assert.Equal("Mixed", projectedText["paragraphs"]![0]!["runs"]![0]!["text"]!.GetValue<string>());
+        Assert.Equal("middle", projectedText["style"]!["verticalAlignment"]!.GetValue<string>());
+        Assert.Equal("square", projectedText["style"]!["wrap"]!.GetValue<string>());
+        Assert.Equal("shrink-text", projectedText["style"]!["autoFit"]!.GetValue<string>());
+        Assert.Equal(10, projectedText["style"]!["margins"]!["left"]!.GetValue<double>(), 3);
+        Assert.Equal(2, projectedText["style"]!["margins"]!["top"]!.GetValue<double>(), 3);
+        Assert.Equal(2, projectedText["style"]!["columns"]!.GetValue<int>());
+        Assert.Equal(4, projectedText["style"]!["columnGap"]!.GetValue<double>(), 3);
+        Assert.Equal("right-to-left", projectedText["style"]!["columnDirection"]!.GetValue<string>());
+        Assert.Equal("vertical", projectedText["style"]!["verticalText"]!.GetValue<string>());
+        Assert.Equal("distributed", projectedText["paragraphs"]![0]!["style"]!["alignment"]!.GetValue<string>());
+        var projectedTabs = projectedText["paragraphs"]![0]!["style"]!["tabStops"]!.AsArray();
+        Assert.Equal(2, projectedTabs.Count);
+        Assert.Equal(90, projectedTabs[0]!["position"]!.GetValue<double>(), 3);
+        Assert.Equal("decimal", projectedTabs[1]!["alignment"]!.GetValue<string>());
+        Assert.Equal(1, projectedText["paragraphs"]![0]!["style"]!["indent"]!.GetValue<double>(), 3);
+        Assert.Equal(0.5, projectedText["paragraphs"]![0]!["style"]!["hanging"]!.GetValue<double>(), 3);
+        Assert.Equal(8, projectedText["paragraphs"]![0]!["style"]!["spaceAfter"]!.GetValue<double>(), 3);
+        Assert.Equal("character", projectedText["paragraphs"]![0]!["style"]!["bullet"]!["type"]!.GetValue<string>());
+        Assert.Equal("•", projectedText["paragraphs"]![0]!["style"]!["bullet"]!["character"]!.GetValue<string>());
+        Assert.Equal("Arial", projectedText["paragraphs"]![0]!["style"]!["bullet"]!["fontFamily"]!.GetValue<string>());
+        Assert.Equal("#008060A6", projectedText["paragraphs"]![0]!["style"]!["bullet"]!["color"]!.GetValue<string>());
+        Assert.Equal(1.25, projectedText["paragraphs"]![0]!["style"]!["bullet"]!["sizePercent"]!.GetValue<double>(), 3);
+        Assert.Equal(11, projectedText["paragraphs"]![0]!["style"]!["defaultText"]!["size"]!.GetValue<double>(), 3);
+        Assert.Equal("Arial", projectedText["paragraphs"]![0]!["style"]!["defaultText"]!["fontFamily"]!.GetValue<string>());
+        Assert.Equal(14, projectedText["paragraphs"]![0]!["runs"]![0]!["style"]!["size"]!.GetValue<double>(), 3);
+        Assert.Equal(10, projectedText["paragraphs"]![0]!["runs"]![1]!["style"]!["size"]!.GetValue<double>(), 3);
+        Assert.Equal(2, projectedText["paragraphs"]!.AsArray().Count);
+        var projectedNumbered = projectedText["paragraphs"]![1]!;
+        Assert.Equal("number", projectedNumbered["style"]!["bullet"]!["type"]!.GetValue<string>());
+        Assert.Equal("arabicPeriod", projectedNumbered["style"]!["bullet"]!["scheme"]!.GetValue<string>());
+        Assert.Equal(3, projectedNumbered["style"]!["bullet"]!["startAt"]!.GetValue<int>());
+
+        // Removing an imported tab list is explicit: an omitted list would
+        // be ambiguous with an unchanged source-owned paragraph, so the
+        // public PPJ uses noTabStops=true for this bounded operation.
+        var noTabs = program.DeepClone().AsObject();
+        var noTabsStyle = noTabs["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table")["rows"]![0]!["cells"]![0]!["text"]!["paragraphs"]![0]!["style"]!.AsObject();
+        noTabsStyle.Remove("tabStops");
+        noTabsStyle["noTabStops"] = true;
+        var noTabsCompiled = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(noTabs.ToJsonString()),
+            },
+        });
+        Assert.True(noTabsCompiled.Ok, Diagnostics(noTabsCompiled));
+        Assert.Equal(new[] { "ppt/slides/slide1.xml" }, noTabsCompiled.PresentationProgram.ChangedParts);
+        using (var stream = new MemoryStream(noTabsCompiled.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var paragraph = Assert.Single(package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.Table>())
+                .Elements<A.TableRow>().Single().Elements<A.TableCell>().First()
+                .GetFirstChild<A.TextBody>()!.Elements<A.Paragraph>().First();
+            Assert.Null(paragraph.ParagraphProperties?.GetFirstChild<A.TabStopList>());
+        }
+
+        var edited = program.DeepClone().AsObject();
+        var editedTable = edited["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table");
+        var editedText = editedTable["rows"]![0]!["cells"]![0]!["text"]!.AsObject();
+        editedText["paragraphs"]![0]!["runs"]![0]!["text"] = "Mixed edited";
+        editedText["paragraphs"]![0]!["runs"]![1]!["style"]!["size"] = 18.0;
+        editedText["paragraphs"]![0]!["style"]!["alignment"] = "right";
+        editedText["paragraphs"]![0]!["style"]!["tabStops"]![0]!["position"] = 120.0;
+        editedText["paragraphs"]![0]!["style"]!["tabStops"]![1]!["alignment"] = "center";
+        editedText["paragraphs"]![0]!["style"]!["indent"] = 2.0;
+        editedText["paragraphs"]![0]!["style"]!["hanging"] = 1.0;
+        editedText["paragraphs"]![0]!["style"]!["spaceAfter"] = 12.0;
+        editedText["style"]!["verticalAlignment"] = "bottom";
+        editedText["style"]!["autoFit"] = "resize-shape";
+        editedText["style"]!["margins"]!["left"] = 16.0;
+        editedText["style"]!["margins"]!["top"] = 3.0;
+        editedText["style"]!["columns"] = 3;
+        editedText["style"]!["columnGap"] = 6.0;
+        editedText["style"]!["columnDirection"] = "left-to-right";
+        editedText["style"]!["verticalText"] = "vertical270";
+        editedText["paragraphs"]![0]!["style"]!["bullet"]!["character"] = "▪";
+        editedText["paragraphs"]![0]!["style"]!["bullet"]!["fontFamily"] = "Calibri";
+        editedText["paragraphs"]![0]!["style"]!["bullet"]!["color"] = "#C0392BA6";
+        var editedBullet = editedText["paragraphs"]![0]!["style"]!["bullet"]!.AsObject();
+        editedBullet.Remove("sizePercent");
+        editedBullet["size"] = 9.0;
+        editedText["paragraphs"]![0]!["style"]!["defaultText"]!["size"] = 13.0;
+        editedText["paragraphs"]![0]!["style"]!["defaultText"]!["fontFamily"] = "Calibri";
+        editedText["paragraphs"]![1]!["style"]!["bullet"]!["scheme"] = "romanLcPeriod";
+        editedText["paragraphs"]![1]!["style"]!["bullet"]!["startAt"] = 7;
+        var compiled = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(edited.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(compiled.Ok, Diagnostics(compiled));
+        Assert.Equal(new[] { "ppt/slides/slide1.xml" }, compiled.PresentationProgram.ChangedParts);
+        Assert.Contains(projectedTable["id"]!.GetValue<string>(), compiled.PresentationProgram.ChangedNodeIds);
+        using (var stream = new MemoryStream(compiled.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var savedCell = Assert.Single(package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.Table>())
+                .Elements<A.TableRow>().Single()
+                .Elements<A.TableCell>().First();
+            var runs = savedCell.GetFirstChild<A.TextBody>()!.Elements<A.Paragraph>().First().Elements<A.Run>().ToArray();
+            Assert.Equal(2, runs.Length);
+            Assert.Equal("Mixed edited", runs[0].GetFirstChild<A.Text>()!.Text);
+            Assert.Equal(" styles", runs[1].GetFirstChild<A.Text>()!.Text);
+            Assert.Equal(A.TextAlignmentTypeValues.Right, runs[0].Parent!.GetFirstChild<A.ParagraphProperties>()!.Alignment!.Value);
+            var bodyProperties = savedCell.GetFirstChild<A.TextBody>()!.GetFirstChild<A.BodyProperties>()!;
+            Assert.Equal(A.TextAnchoringTypeValues.Bottom, bodyProperties.Anchor!.Value);
+            Assert.Equal(203_200, bodyProperties.LeftInset!.Value);
+            Assert.Equal(38_100, bodyProperties.TopInset!.Value);
+            Assert.Equal(A.TextWrappingValues.Square, bodyProperties.Wrap!.Value);
+            Assert.NotNull(bodyProperties.GetFirstChild<A.ShapeAutoFit>());
+            Assert.Equal(3, bodyProperties.ColumnCount!.Value);
+            Assert.Equal(76_200, bodyProperties.ColumnSpacing!.Value);
+            Assert.True(bodyProperties.RightToLeftColumns is not null && !bodyProperties.RightToLeftColumns.Value);
+            Assert.Equal(A.TextVerticalValues.Vertical270, bodyProperties.Vertical!.Value);
+            var savedTabs = runs[0].Parent!.GetFirstChild<A.ParagraphProperties>()!.GetFirstChild<A.TabStopList>()!.Elements<A.TabStop>().ToArray();
+            Assert.Equal(1_524_000, savedTabs[0].Position!.Value);
+            Assert.Equal(A.TextTabAlignmentValues.Center, savedTabs[1].Alignment!.Value);
+            Assert.Equal(25_400, runs[0].Parent!.GetFirstChild<A.ParagraphProperties>()!.LeftMargin!.Value);
+            Assert.Equal(-12_700, runs[0].Parent!.GetFirstChild<A.ParagraphProperties>()!.Indent!.Value);
+            Assert.Equal(1_200, runs[0].Parent!.GetFirstChild<A.ParagraphProperties>()!.GetFirstChild<A.SpaceAfter>()!.GetFirstChild<A.SpacingPoints>()!.Val!.Value);
+            Assert.Equal("▪", runs[0].Parent!.GetFirstChild<A.ParagraphProperties>()!.GetFirstChild<A.CharacterBullet>()!.Char!.Value);
+            Assert.Equal("Calibri", runs[0].Parent!.GetFirstChild<A.ParagraphProperties>()!.GetFirstChild<A.BulletFont>()!.Typeface!.Value);
+            var bulletColor = runs[0].Parent!.GetFirstChild<A.ParagraphProperties>()!.GetFirstChild<A.BulletColor>()!;
+            Assert.Equal("C0392B", bulletColor.GetFirstChild<A.RgbColorModelHex>()!.Val!.Value);
+            Assert.Equal(65_098, bulletColor.GetFirstChild<A.RgbColorModelHex>()!.GetFirstChild<A.Alpha>()!.Val!.Value);
+            var bulletSizePoints = runs[0].Parent!.GetFirstChild<A.ParagraphProperties>()!.GetFirstChild<A.BulletSizePoints>();
+            Assert.True(bulletSizePoints is not null, string.Join(" | ", runs[0].Parent!.GetFirstChild<A.ParagraphProperties>()!.ChildElements.Select(child => child.OuterXml)));
+            Assert.Equal(900, bulletSizePoints!.Val!.Value);
+            Assert.Equal(1_300, runs[0].Parent!.GetFirstChild<A.ParagraphProperties>()!.GetFirstChild<A.DefaultRunProperties>()!.FontSize!.Value);
+            Assert.Equal("Calibri", runs[0].Parent!.GetFirstChild<A.ParagraphProperties>()!.GetFirstChild<A.DefaultRunProperties>()!.GetFirstChild<A.LatinFont>()!.Typeface!.Value);
+            Assert.Equal(1800, runs[1].RunProperties!.FontSize!.Value);
+            var numberedParagraph = savedCell.GetFirstChild<A.TextBody>()!.Elements<A.Paragraph>().ElementAt(1);
+            var autoNumber = numberedParagraph.ParagraphProperties!.GetFirstChild<A.AutoNumberedBullet>();
+            Assert.NotNull(autoNumber);
+            Assert.Equal("romanLcPeriod", autoNumber!.Type!.InnerText);
+            Assert.Equal(7, autoNumber.StartAt!.Value);
+        }
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = compiled.File,
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "table-mixed/edited.pptx" },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var output = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var outputCell = output["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table")["rows"]![0]!["cells"]![0]!.AsObject();
+        var outputRuns = outputCell["text"]!["paragraphs"]![0]!["runs"]!;
+        Assert.Equal("Mixed edited", outputRuns![0]!["text"]!.GetValue<string>());
+        Assert.Equal("bottom", outputCell["text"]!["style"]!["verticalAlignment"]!.GetValue<string>());
+        Assert.Equal("resize-shape", outputCell["text"]!["style"]!["autoFit"]!.GetValue<string>());
+        Assert.Equal(16, outputCell["text"]!["style"]!["margins"]!["left"]!.GetValue<double>(), 3);
+        Assert.Equal(3, outputCell["text"]!["style"]!["margins"]!["top"]!.GetValue<double>(), 3);
+        Assert.Equal(3, outputCell["text"]!["style"]!["columns"]!.GetValue<int>());
+        Assert.Equal(6, outputCell["text"]!["style"]!["columnGap"]!.GetValue<double>(), 3);
+        Assert.Equal("left-to-right", outputCell["text"]!["style"]!["columnDirection"]!.GetValue<string>());
+        Assert.Equal("vertical270", outputCell["text"]!["style"]!["verticalText"]!.GetValue<string>());
+        Assert.Equal(18, outputRuns[1]!["style"]!["size"]!.GetValue<double>(), 3);
+        Assert.Equal("right", outputCell["text"]!["paragraphs"]![0]!["style"]!["alignment"]!.GetValue<string>());
+        var outputTabs = outputCell["text"]!["paragraphs"]![0]!["style"]!["tabStops"]!.AsArray();
+        Assert.Equal(120, outputTabs[0]!["position"]!.GetValue<double>(), 3);
+        Assert.Equal("center", outputTabs[1]!["alignment"]!.GetValue<string>());
+        Assert.Equal(12, outputCell["text"]!["paragraphs"]![0]!["style"]!["spaceAfter"]!.GetValue<double>(), 3);
+        Assert.Equal("▪", outputCell["text"]!["paragraphs"]![0]!["style"]!["bullet"]!["character"]!.GetValue<string>());
+        Assert.Equal("Calibri", outputCell["text"]!["paragraphs"]![0]!["style"]!["bullet"]!["fontFamily"]!.GetValue<string>());
+        Assert.Equal("#C0392BA6", outputCell["text"]!["paragraphs"]![0]!["style"]!["bullet"]!["color"]!.GetValue<string>());
+        Assert.Equal(9, outputCell["text"]!["paragraphs"]![0]!["style"]!["bullet"]!["size"]!.GetValue<double>(), 3);
+        Assert.Equal(13, outputCell["text"]!["paragraphs"]![0]!["style"]!["defaultText"]!["size"]!.GetValue<double>(), 3);
+        Assert.Equal("Calibri", outputCell["text"]!["paragraphs"]![0]!["style"]!["defaultText"]!["fontFamily"]!.GetValue<string>());
+        var outputNumbered = outputCell["text"]!["paragraphs"]![1]!;
+        Assert.Equal("number", outputNumbered["style"]!["bullet"]!["type"]!.GetValue<string>());
+        Assert.Equal("romanLcPeriod", outputNumbered["style"]!["bullet"]!["scheme"]!.GetValue<string>());
+        Assert.Equal(7, outputNumbered["style"]!["bullet"]!["startAt"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public void PpjSourceBoundTableCellPictureBulletPreservesAssetAndEditsText()
+    {
+        var request = ExportRequest();
+        request.Artifact.Presentation.Slides[0].Elements.Clear();
+        var markerBytes = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nGQAAAAASUVORK5CYII=");
+        var markerAssetId = AddPictureAsset(request.Artifact, markerBytes, "image/png");
+        var body = new PresentationTextBody();
+        var paragraph = new PresentationTextParagraph
+        {
+            PictureBullet = new PresentationPictureBullet { AssetId = markerAssetId },
+            BulletFontFamily = "Wingdings",
+            BulletColorRgb = "C0392B",
+            BulletColorOpacityThousandthPercent = 70_000,
+            BulletSizePercent = 1.5,
+        };
+        paragraph.Runs.Add(new PresentationTextRun { Text = "Picture marker" });
+        body.Paragraphs.Add(paragraph);
+        var externalBody = new PresentationTextBody();
+        var externalParagraph = new PresentationTextParagraph
+        {
+            PictureBullet = new PresentationPictureBullet { Uri = "https://example.com/table-marker.png" },
+            BulletSizePoints = 12,
+        };
+        externalParagraph.Runs.Add(new PresentationTextRun { Text = "External marker" });
+        externalBody.Paragraphs.Add(externalParagraph);
+        var table = new PresentationTable
+        {
+            LeftEmu = 500_000,
+            TopEmu = 900_000,
+            WidthEmu = 4_000_000,
+            HeightEmu = 1_800_000,
+        };
+        table.ColumnWidthsEmu.Add([2_000_000, 2_000_000]);
+        table.Rows.Add(new PresentationTableRow
+        {
+            HeightEmu = 1_800_000,
+            Cells =
+            {
+                new PresentationTableCell { Text = "Picture marker", TextBody = body },
+                new PresentationTableCell { Text = "External marker", TextBody = externalBody },
+            },
+        });
+        request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/table/picture-bullet",
+            Name = "Picture bullet table",
+            Table = table,
+        });
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "table-picture-bullet/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedTable = program["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table");
+        var projectedCell = projectedTable["rows"]![0]!["cells"]![0]!.AsObject();
+        var projectedBullet = projectedCell["text"]!["paragraphs"]![0]!["style"]!["bullet"]!.AsObject();
+        Assert.Equal("picture", projectedBullet["type"]!.GetValue<string>());
+        Assert.False(string.IsNullOrWhiteSpace(projectedBullet["asset"]!.GetValue<string>()));
+        Assert.Equal("Wingdings", projectedBullet["fontFamily"]!.GetValue<string>());
+        Assert.Equal("#C0392BB2", projectedBullet["color"]!.GetValue<string>());
+        Assert.Equal(1.5, projectedBullet["sizePercent"]!.GetValue<double>(), 3);
+        var projectedExternalCell = projectedTable["rows"]![0]!["cells"]![1]!.AsObject();
+        var projectedExternalBullet = projectedExternalCell["text"]!["paragraphs"]![0]!["style"]!["bullet"]!.AsObject();
+        Assert.Equal("picture", projectedExternalBullet["type"]!.GetValue<string>());
+        Assert.Equal("https://example.com/table-marker.png", projectedExternalBullet["uri"]!.GetValue<string>());
+        Assert.Equal(12, projectedExternalBullet["size"]!.GetValue<double>(), 3);
+
+        var edited = program.DeepClone().AsObject();
+        var editedTable = edited["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table");
+        editedTable["rows"]![0]!["cells"]![0]!["text"]!["paragraphs"]![0]!["runs"]![0]!["text"] = "Edited marker";
+        var editedBullet = editedTable["rows"]![0]!["cells"]![0]!["text"]!["paragraphs"]![0]!["style"]!["bullet"]!.AsObject();
+        editedBullet["fontFamily"] = "Aptos";
+        editedBullet["color"] = "#2563EB80";
+        editedBullet.Remove("sizePercent");
+        editedBullet["size"] = 18;
+        var editedExternalCell = editedTable["rows"]![0]!["cells"]![1]!.AsObject();
+        editedExternalCell["text"]!["paragraphs"]![0]!["runs"]![0]!["text"] = "Edited external marker";
+        var editedExternalBullet = editedExternalCell["text"]!["paragraphs"]![0]!["style"]!["bullet"]!.AsObject();
+        editedExternalBullet["uri"] = "https://example.com/table-marker-replacement.png";
+        var compiled = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(edited.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(compiled.Ok, Diagnostics(compiled));
+        Assert.Contains("ppt/slides/slide1.xml", compiled.PresentationProgram.ChangedParts);
+        Assert.Contains("ppt/slides/_rels/slide1.xml.rels", compiled.PresentationProgram.ChangedParts);
+        using (var stream = new MemoryStream(compiled.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var slide = package.PresentationPart!.SlideParts.Single();
+            var savedCell = Assert.Single(slide.Slide!.Descendants<A.Table>())
+                .Elements<A.TableRow>().Single()
+                .Elements<A.TableCell>().First();
+            var savedParagraph = savedCell.GetFirstChild<A.TextBody>()!.Elements<A.Paragraph>().Single();
+            Assert.Equal("Edited marker", string.Concat(savedParagraph.Descendants<A.Text>().Select(text => text.Text)));
+            var savedProperties = savedParagraph.ParagraphProperties!;
+            Assert.NotNull(savedProperties.GetFirstChild<A.PictureBullet>());
+            Assert.Equal("Aptos", savedProperties.GetFirstChild<A.BulletFont>()!.Typeface!.Value);
+            Assert.Equal("2563EB", savedProperties.GetFirstChild<A.BulletColor>()!.GetFirstChild<A.RgbColorModelHex>()!.Val!.Value);
+            Assert.Equal(50_196, savedProperties.GetFirstChild<A.BulletColor>()!.GetFirstChild<A.RgbColorModelHex>()!.GetFirstChild<A.Alpha>()!.Val!.Value);
+            Assert.Equal(1_800, savedProperties.GetFirstChild<A.BulletSizePoints>()!.Val!.Value);
+            var savedExternalCell = slide.Slide.Descendants<A.Table>().Single()
+                .Elements<A.TableRow>().Single()
+                .Elements<A.TableCell>().Last();
+            var savedExternalParagraph = savedExternalCell.GetFirstChild<A.TextBody>()!.Elements<A.Paragraph>().Single();
+            Assert.Equal("Edited external marker", string.Concat(savedExternalParagraph.Descendants<A.Text>().Select(text => text.Text)));
+            Assert.NotNull(savedExternalParagraph.ParagraphProperties!.GetFirstChild<A.PictureBullet>());
+            Assert.Contains(slide.ExternalRelationships, relationship =>
+                relationship.RelationshipType.EndsWith("/image", StringComparison.Ordinal) &&
+                relationship.Uri.OriginalString == "https://example.com/table-marker-replacement.png");
+            Assert.Contains(slide.ExternalRelationships, relationship =>
+                relationship.RelationshipType.EndsWith("/image", StringComparison.Ordinal) &&
+                relationship.Uri.OriginalString == "https://example.com/table-marker.png");
+        }
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = compiled.File,
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "table-picture-bullet/edited.pptx" },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var output = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var outputCell = output["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table")["rows"]![0]!["cells"]![0]!.AsObject();
+        Assert.Equal("Edited marker", outputCell["text"]!["paragraphs"]![0]!["runs"]![0]!["text"]!.GetValue<string>());
+        var outputBullet = outputCell["text"]!["paragraphs"]![0]!["style"]!["bullet"]!.AsObject();
+        Assert.Equal("picture", outputBullet["type"]!.GetValue<string>());
+        Assert.Equal("Aptos", outputBullet["fontFamily"]!.GetValue<string>());
+        Assert.Equal("#2563EB80", outputBullet["color"]!.GetValue<string>());
+        Assert.Equal(18, outputBullet["size"]!.GetValue<double>(), 3);
+        var outputExternalCell = output["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table")["rows"]![0]!["cells"]![1]!.AsObject();
+        Assert.Equal("Edited external marker", outputExternalCell["text"]!["paragraphs"]![0]!["runs"]![0]!["text"]!.GetValue<string>());
+        Assert.Equal("https://example.com/table-marker-replacement.png", outputExternalCell["text"]!["paragraphs"]![0]!["style"]!["bullet"]!["uri"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void PpjSourceBoundTableCellFieldPreservesIdentityAndEditsCachedText()
+    {
+        var request = ExportRequest();
+        request.Artifact.Presentation.Slides[0].Elements.Clear();
+        var body = new PresentationTextBody();
+        var paragraph = new PresentationTextParagraph();
+        paragraph.Runs.Add(new PresentationTextRun { Text = "Page " });
+        paragraph.Runs.Add(new PresentationTextRun
+        {
+            Field = new PresentationTextField
+            {
+                Id = "{11111111-2222-4333-8444-555555555555}",
+                Type = "slidenum",
+                Text = "1",
+            },
+        });
+        body.Paragraphs.Add(paragraph);
+        var table = new PresentationTable
+        {
+            LeftEmu = 500_000,
+            TopEmu = 900_000,
+            WidthEmu = 4_000_000,
+            HeightEmu = 1_800_000,
+        };
+        table.ColumnWidthsEmu.Add([2_000_000, 2_000_000]);
+        table.Rows.Add(new PresentationTableRow
+        {
+            HeightEmu = 1_800_000,
+            Cells =
+            {
+                new PresentationTableCell { Text = "Page 1", TextBody = body },
+                new PresentationTableCell { Text = "Untouched" },
+            },
+        });
+        request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/table/field",
+            Name = "Field table",
+            Table = table,
+        });
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "table-field/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedTable = program["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table");
+        var projectedCell = projectedTable["rows"]![0]!["cells"]![0]!.AsObject();
+        var projectedField = projectedCell["text"]!["paragraphs"]![0]!["runs"]![1]!["field"]!.AsObject();
+        Assert.Equal("slidenum", projectedField["type"]!.GetValue<string>());
+        Assert.Equal("1", projectedField["text"]!.GetValue<string>());
+
+        var edited = program.DeepClone().AsObject();
+        var editedField = edited["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table")["rows"]![0]!["cells"]![0]!["text"]!["paragraphs"]![0]!["runs"]![1]!["field"]!.AsObject();
+        editedField["text"] = "2";
+        var compiled = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(edited.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(compiled.Ok, Diagnostics(compiled));
+        Assert.Equal(new[] { "ppt/slides/slide1.xml" }, compiled.PresentationProgram.ChangedParts);
+        using (var stream = new MemoryStream(compiled.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var savedField = Assert.Single(package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.Table>())
+                .Elements<A.TableRow>().Single()
+                .Elements<A.TableCell>().First()
+                .GetFirstChild<A.TextBody>()!.Elements<A.Paragraph>().Single()
+                .Elements<A.Field>().Single();
+            Assert.Equal("slidenum", savedField.Type!.Value);
+            Assert.Equal("2", savedField.Text!.Text);
+            Assert.Equal("{11111111-2222-4333-8444-555555555555}", savedField.Id!.Value);
+        }
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = compiled.File,
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "table-field/edited.pptx" },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var output = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var outputField = output["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table")["rows"]![0]!["cells"]![0]!["text"]!["paragraphs"]![0]!["runs"]![1]!["field"]!.AsObject();
+        Assert.Equal("2", outputField["text"]!.GetValue<string>());
+        Assert.Equal("slidenum", outputField["type"]!.GetValue<string>());
+
+        var invalid = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var invalidField = invalid["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table")["rows"]![0]!["cells"]![0]!["text"]!["paragraphs"]![0]!["runs"]![1]!["field"]!.AsObject();
+        invalidField["type"] = "date";
+        var rejected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest { ProgramJson = ByteString.CopyFromUtf8(invalid.ToJsonString()) },
+        });
+        Assert.False(rejected.Ok, Diagnostics(rejected));
+        Assert.Contains(rejected.Diagnostics, diagnostic => diagnostic.Code == "unsupported_presentation_edit");
+    }
+
+    [Fact]
+    public void PpjSourceBoundTableCellLineBreakPreservesInlineAndEditsText()
+    {
+        var request = ExportRequest();
+        request.Artifact.Presentation.Slides[0].Elements.Clear();
+        var body = new PresentationTextBody();
+        var paragraph = new PresentationTextParagraph();
+        paragraph.Runs.Add(new PresentationTextRun { Text = "Line one" });
+        paragraph.Runs.Add(new PresentationTextRun { LineBreak = true });
+        paragraph.Runs.Add(new PresentationTextRun { Text = "Line two" });
+        body.Paragraphs.Add(paragraph);
+        var table = new PresentationTable
+        {
+            LeftEmu = 500_000,
+            TopEmu = 900_000,
+            WidthEmu = 4_000_000,
+            HeightEmu = 1_800_000,
+        };
+        table.ColumnWidthsEmu.Add([2_000_000, 2_000_000]);
+        table.Rows.Add(new PresentationTableRow
+        {
+            HeightEmu = 1_800_000,
+            Cells =
+            {
+                new PresentationTableCell { Text = "Line one\nLine two", TextBody = body },
+                new PresentationTableCell { Text = "Untouched" },
+            },
+        });
+        request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/table/line-break",
+            Name = "Line break table",
+            Table = table,
+        });
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "table-line-break/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedTable = program["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table");
+        var projectedCell = projectedTable["rows"]![0]!["cells"]![0]!.AsObject();
+        var projectedRuns = projectedCell["text"]!["paragraphs"]![0]!["runs"]!;
+        Assert.Equal("Line one", projectedRuns[0]!["text"]!.GetValue<string>());
+        Assert.True(projectedRuns[1]!["break"]!.GetValue<bool>());
+        Assert.Equal("Line two", projectedRuns[2]!["text"]!.GetValue<string>());
+
+        var edited = program.DeepClone().AsObject();
+        edited["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table")["rows"]![0]!["cells"]![0]!["text"]!["paragraphs"]![0]!["runs"]![2]!["text"] = "Line two edited";
+        var compiled = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(edited.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(compiled.Ok, Diagnostics(compiled));
+        Assert.Equal(new[] { "ppt/slides/slide1.xml" }, compiled.PresentationProgram.ChangedParts);
+        using (var stream = new MemoryStream(compiled.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var savedParagraph = Assert.Single(package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.Table>())
+                .Elements<A.TableRow>().Single()
+                .Elements<A.TableCell>().First()
+                .GetFirstChild<A.TextBody>()!.Elements<A.Paragraph>().Single();
+            Assert.Equal(3, savedParagraph.ChildElements.Count(child => child is A.Run or A.Break));
+            Assert.Single(savedParagraph.Elements<A.Break>());
+            Assert.Equal("Line one", savedParagraph.Elements<A.Run>().First().GetFirstChild<A.Text>()!.Text);
+            Assert.Equal("Line two edited", savedParagraph.Elements<A.Run>().Last().GetFirstChild<A.Text>()!.Text);
+        }
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = compiled.File,
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "table-line-break/edited.pptx" },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var output = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var outputRuns = output["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table")["rows"]![0]!["cells"]![0]!["text"]!["paragraphs"]![0]!["runs"]!;
+        Assert.True(outputRuns[1]!["break"]!.GetValue<bool>());
+        Assert.Equal("Line two edited", outputRuns[2]!["text"]!.GetValue<string>());
+
+        var invalid = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var invalidRuns = invalid["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table")["rows"]![0]!["cells"]![0]!["text"]!["paragraphs"]![0]!["runs"]!;
+        invalidRuns[1] = new JsonObject { ["text"] = "flattened" };
+        var rejected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest { ProgramJson = ByteString.CopyFromUtf8(invalid.ToJsonString()) },
+        });
+        Assert.False(rejected.Ok, Diagnostics(rejected));
+        Assert.Contains(rejected.Diagnostics, diagnostic => diagnostic.Code == "presentation_text_topology_changed");
+    }
+
+    [Fact]
+    public void PpjSourceBoundTableCellImageFillReplacesRelationshipAndReprojects()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var assetBytes = File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "ppj-assets",
+            "evidence-mark.svg"));
+        var replacementAssetBytes = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(assetBytes).Replace("#0B5D5E", "#A83232", StringComparison.Ordinal));
+        var replacementAssetHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(replacementAssetBytes)).ToLowerInvariant();
+        var request = ExportRequest();
+        // Use a source-only variant so the old table relationship is not
+        // accidentally shared with the canonical fixture's other pictures;
+        // the single-owner case can then prove removal of the old media part.
+        var sourceAssetBytes = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(assetBytes).Replace("#0B5D5E", "#13579B", StringComparison.Ordinal));
+        var authoredAssetId = AddPictureAsset(request.Artifact, sourceAssetBytes, "image/svg+xml");
+        var table = new PresentationTable
+        {
+            LeftEmu = 1_000_000,
+            TopEmu = 1_600_000,
+            WidthEmu = 5_000_000,
+            HeightEmu = 2_000_000,
+        };
+        table.ColumnWidthsEmu.Add(new[] { 2_500_000L, 2_500_000L });
+        table.Rows.Add(new PresentationTableRow
+        {
+            HeightEmu = 2_000_000,
+            Cells =
+            {
+                new PresentationTableCell
+                {
+                    Text = "Image cell",
+                    Fill = new PresentationTableCellFill
+                    {
+                        ImagePaint = new PresentationImagePaint
+                        {
+                            AssetId = authoredAssetId,
+                            Mode = PresentationImagePaint.Types.Mode.Stretch,
+                            OpacityThousandthPercent = 76_000,
+                        },
+                    },
+                },
+                new PresentationTableCell { Text = "Second cell" },
+            },
+        });
+        request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/source-image-table",
+            Name = "Image table",
+            Table = table,
+        });
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        string sourceImagePartPath;
+        using (var sourceStream = new MemoryStream(sourceBytes))
+        using (var sourcePackage = PresentationDocument.Open(sourceStream, false))
+        {
+            var sourceSlide = sourcePackage.PresentationPart!.SlideParts.Single();
+            var sourceTable = sourceSlide.Slide!.Descendants<A.Table>()
+                .Single(item => item.Descendants<A.Text>().Any(text => text.Text == "Image cell"));
+            var sourceCell = sourceTable.Elements<A.TableRow>().First().Elements<A.TableCell>().First();
+            var sourceBlip = sourceCell.GetFirstChild<A.TableCellProperties>()!
+                .GetFirstChild<A.BlipFill>()!
+                .GetFirstChild<A.Blip>()!;
+            var sourceRelationshipId = sourceBlip.Embed?.Value;
+            Assert.False(string.IsNullOrWhiteSpace(sourceRelationshipId));
+            sourceImagePartPath = ((ImagePart)sourceSlide.GetPartById(sourceRelationshipId!)!).Uri.OriginalString.TrimStart('/');
+        }
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "table-cell-image/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var projectedProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedTable = projectedProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table");
+        var projectedCell = projectedTable["rows"]![0]!["cells"]![0]!.AsObject();
+        Assert.Equal("image", projectedCell["fill"]!["type"]!.GetValue<string>());
+        Assert.Equal("stretch", projectedCell["fill"]!["fit"]!.GetValue<string>());
+        Assert.Equal(0.76, projectedCell["fill"]!["opacity"]!.GetValue<double>(), 3);
+        Assert.Contains(projectedTable["nativeRef"]!["capabilities"]!.AsArray(), capability =>
+            capability!["operation"]!.GetValue<string>() == "setTableCellStyle" &&
+            capability["fields"]!.AsArray().Any(field => field!.GetValue<string>() == "table.cell.fill"));
+
+        var editedProgram = projectedProgram.DeepClone().AsObject();
+        editedProgram["design"]!["grammar"]!["tokens"] = new JsonObject
+        {
+            ["tableImageFit"] = new JsonObject { ["kind"] = "string", ["value"] = "stretch" },
+            ["tableImageOpacity"] = new JsonObject { ["kind"] = "opacity", ["value"] = 0.37 },
+        };
+        var editedTable = editedProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table");
+        var editedCell = editedTable["rows"]![0]!["cells"]![0]!.AsObject();
+        var sourceAssetId = projectedCell["fill"]!["asset"]!.GetValue<string>();
+        editedCell["fill"]!["asset"] = "evidence-mark-replacement";
+        editedCell["fill"]!["fit"] = new JsonObject { ["token"] = "tableImageFit" };
+        editedCell["fill"]!["opacity"] = new JsonObject { ["token"] = "tableImageOpacity" };
+        editedCell["fill"]!["crop"] = new JsonObject
+        {
+            ["left"] = 0.08,
+            ["top"] = 0.02,
+            ["right"] = 0.04,
+            ["bottom"] = 0.06,
+        };
+        var replacementDeclaration = editedProgram["assets"]!.AsArray()
+            .Select(asset => asset?.AsObject() ?? throw new InvalidOperationException("Projected asset declaration is null."))
+            .Single(asset => asset["id"]!.GetValue<string>() == sourceAssetId)
+            .DeepClone()
+            .AsObject();
+        replacementDeclaration["id"] = "evidence-mark-replacement";
+        replacementDeclaration["uri"] = "ppj-assets/evidence-mark-replacement.svg";
+        replacementDeclaration["sha256"] = replacementAssetHash;
+        editedProgram["assets"]!.AsArray().Add(replacementDeclaration);
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(editedProgram.ToJsonString()),
+                Assets =
+                {
+                    new Asset
+                    {
+                        Id = "evidence-mark-replacement",
+                        FileName = "evidence-mark-replacement.svg",
+                        ContentType = "image/svg+xml",
+                        Data = ByteString.CopyFrom(replacementAssetBytes),
+                        Sha256 = replacementAssetHash,
+                    },
+                },
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Contains(edited.PresentationProgram.ChangedParts, path => path.Equals("ppt/slides/slide1.xml", StringComparison.Ordinal));
+        Assert.Contains(edited.PresentationProgram.ChangedParts, path => path.Equals("ppt/slides/_rels/slide1.xml.rels", StringComparison.Ordinal));
+        Assert.Contains(edited.PresentationProgram.ChangedParts, path => path.Contains("/media/", StringComparison.Ordinal));
+        // Removed source media is validated by the package inventory assertion
+        // below; ChangedParts reports retained edits and additions only.
+        Assert.DoesNotContain(ZipPartPaths(edited.File.ToByteArray()), path => path.Equals(sourceImagePartPath, StringComparison.Ordinal));
+
+        var secondProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "table-cell-image/edited.pptx" },
+        });
+        Assert.True(secondProjection.Ok, Diagnostics(secondProjection));
+        var secondProgram = JsonNode.Parse(secondProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var secondCell = secondProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table")["rows"]![0]!["cells"]![0]!.AsObject();
+        Assert.Equal("image", secondCell["fill"]!["type"]!.GetValue<string>());
+        Assert.Equal("stretch", secondCell["fill"]!["fit"]!.GetValue<string>());
+        Assert.Equal(0.37, secondCell["fill"]!["opacity"]!.GetValue<double>(), 3);
+        Assert.Equal(0.08, secondCell["fill"]!["crop"]!["left"]!.GetValue<double>(), 3);
+    }
+
+    [Fact]
+    public void PpjSourceBoundTableCellSharedImageFillPreservesOtherReference()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var assetBytes = File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "ppj-assets",
+            "evidence-mark.svg"));
+        var replacementAssetBytes = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(assetBytes).Replace("#0B5D5E", "#A83232", StringComparison.Ordinal));
+        var replacementAssetHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(replacementAssetBytes)).ToLowerInvariant();
+        var request = ExportRequest();
+        var authoredAssetId = AddPictureAsset(request.Artifact, assetBytes, "image/svg+xml");
+        var table = new PresentationTable
+        {
+            LeftEmu = 1_000_000,
+            TopEmu = 1_600_000,
+            WidthEmu = 5_000_000,
+            HeightEmu = 2_000_000,
+        };
+        table.ColumnWidthsEmu.Add(new[] { 2_500_000L, 2_500_000L });
+        var sharedPaint = new PresentationImagePaint
+        {
+            AssetId = authoredAssetId,
+            Mode = PresentationImagePaint.Types.Mode.Stretch,
+            OpacityThousandthPercent = 76_000,
+        };
+        table.Rows.Add(new PresentationTableRow
+        {
+            HeightEmu = 2_000_000,
+            Cells =
+            {
+                new PresentationTableCell { Text = "Replace image", Fill = new PresentationTableCellFill { ImagePaint = sharedPaint.Clone() } },
+                new PresentationTableCell { Text = "Keep image", Fill = new PresentationTableCellFill { ImagePaint = sharedPaint.Clone() } },
+            },
+        });
+        request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/shared-image-table",
+            Name = "Shared image table",
+            Table = table,
+        });
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        string sourceImagePartPath;
+        string sourceRelationshipId;
+        using (var sourceStream = new MemoryStream(sourceBytes))
+        using (var sourcePackage = PresentationDocument.Open(sourceStream, false))
+        {
+            var sourceSlide = sourcePackage.PresentationPart!.SlideParts.Single();
+            var sourceTable = sourceSlide.Slide!.Descendants<A.Table>()
+                .Single(item => item.Descendants<A.Text>().Any(text => text.Text == "Replace image"));
+            var sourceCells = sourceTable.Elements<A.TableRow>().First().Elements<A.TableCell>().ToArray();
+            var sourceRelationships = sourceCells.Select(cell => cell.GetFirstChild<A.TableCellProperties>()!
+                .GetFirstChild<A.BlipFill>()!.GetFirstChild<A.Blip>()!.Embed?.Value
+                ?? throw new InvalidOperationException("Shared table-cell image relationship is missing.")).ToArray();
+            Assert.Equal(sourceRelationships[0], sourceRelationships[1]);
+            sourceRelationshipId = sourceRelationships[0];
+            sourceImagePartPath = ((ImagePart)sourceSlide.GetPartById(sourceRelationshipId)!).Uri.OriginalString.TrimStart('/');
+        }
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "table-cell-shared-image/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var projectedProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedTable = projectedProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table");
+        var projectedCells = projectedTable["rows"]![0]!["cells"]!.AsArray();
+        var sourceAssetId = projectedCells[0]!["fill"]!["asset"]!.GetValue<string>();
+        Assert.Equal(sourceAssetId, projectedCells[1]!["fill"]!["asset"]!.GetValue<string>());
+
+        var editedProgram = projectedProgram.DeepClone().AsObject();
+        var editedTable = editedProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table");
+        editedTable["rows"]![0]!["cells"]![0]!["fill"]!["asset"] = "evidence-mark-replacement";
+        editedTable["rows"]![0]!["cells"]![0]!["fill"]!["opacity"] = 0.37;
+        var replacementDeclaration = editedProgram["assets"]!.AsArray()
+            .Select(asset => asset?.AsObject() ?? throw new InvalidOperationException("Projected asset declaration is null."))
+            .Single(asset => asset["id"]!.GetValue<string>() == sourceAssetId)
+            .DeepClone()
+            .AsObject();
+        replacementDeclaration["id"] = "evidence-mark-replacement";
+        replacementDeclaration["uri"] = "ppj-assets/evidence-mark-replacement.svg";
+        replacementDeclaration["sha256"] = replacementAssetHash;
+        editedProgram["assets"]!.AsArray().Add(replacementDeclaration);
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(editedProgram.ToJsonString()),
+                IncludeNodeMap = true,
+                Assets =
+                {
+                    new Asset
+                    {
+                        Id = "evidence-mark-replacement",
+                        FileName = "evidence-mark-replacement.svg",
+                        ContentType = "image/svg+xml",
+                        Data = ByteString.CopyFrom(replacementAssetBytes),
+                        Sha256 = replacementAssetHash,
+                    },
+                },
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Contains(edited.PresentationProgram.ChangedParts, path => path.Equals("ppt/slides/slide1.xml", StringComparison.Ordinal));
+        Assert.Contains(edited.PresentationProgram.ChangedParts, path => path.Contains("/media/", StringComparison.Ordinal));
+        Assert.DoesNotContain(edited.PresentationProgram.ChangedParts, path => path.Equals(sourceImagePartPath, StringComparison.Ordinal));
+
+        using (var editedStream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var editedPackage = PresentationDocument.Open(editedStream, false))
+        {
+            var editedSlide = editedPackage.PresentationPart!.SlideParts.Single();
+            var packageTable = editedSlide.Slide!.Descendants<A.Table>()
+                .Single(item => item.Descendants<A.Text>().Any(text => text.Text == "Replace image"));
+            var editedCells = packageTable.Elements<A.TableRow>().First().Elements<A.TableCell>().ToArray();
+            var editedRelationships = editedCells.Select(cell => cell.GetFirstChild<A.TableCellProperties>()!
+                .GetFirstChild<A.BlipFill>()!.GetFirstChild<A.Blip>()!.Embed!.Value).ToArray();
+            Assert.NotEqual(sourceRelationshipId, editedRelationships[0]);
+            Assert.Equal(sourceRelationshipId, editedRelationships[1]);
+            Assert.NotNull(editedSlide.GetPartById(sourceRelationshipId));
+            Assert.Equal(2, editedSlide.ImageParts.Count());
+        }
+
+        var secondProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "table-cell-shared-image/edited.pptx" },
+        });
+        Assert.True(secondProjection.Ok, Diagnostics(secondProjection));
+        var secondProgram = JsonNode.Parse(secondProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var secondTable = secondProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table");
+        var secondCells = secondTable["rows"]![0]!["cells"]!.AsArray();
+        Assert.NotEqual(sourceAssetId, secondCells[0]!["fill"]!["asset"]!.GetValue<string>());
+        Assert.Equal(sourceAssetId, secondCells[1]!["fill"]!["asset"]!.GetValue<string>());
+        Assert.Equal(0.37, secondCells[0]!["fill"]!["opacity"]!.GetValue<double>(), 3);
+        Assert.Equal(0.76, secondCells[1]!["fill"]!["opacity"]!.GetValue<double>(), 3);
+    }
+
+    [Fact]
+    public void PpjSourceBoundKimiLinePointsPreserveCompactProjection()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        var page = program["pages"]![0]!.AsObject();
+        page.Remove("animations");
+        page["elements"] = new JsonArray(new JsonObject
+        {
+            ["id"] = "free-points",
+            ["type"] = "line",
+            ["frame"] = new JsonObject { ["x"] = 80, ["y"] = 80, ["width"] = 220, ["height"] = 90 },
+            ["viewBox"] = new JsonArray(220, 90),
+            ["points"] = "0,80 90,0 220,45",
+            ["curve"] = "sharp",
+            ["stroke"] = new JsonObject { ["color"] = "#16324F", ["width"] = 2 },
+        });
+        var programBytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var assetBytes = File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "ppj-assets",
+            "evidence-mark.svg"));
+        var assetHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(assetBytes)).ToLowerInvariant();
+        var validation = PpjProgramValidator.Validate(programBytes);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFrom(programBytes),
+                Assets =
+                {
+                    new Asset
+                    {
+                        Id = "evidence-mark",
+                        FileName = "evidence-mark.svg",
+                        ContentType = "image/svg+xml",
+                        Data = ByteString.CopyFrom(assetBytes),
+                        Sha256 = assetHash,
+                    },
+                },
+            },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        XNamespace drawing = "http://schemas.openxmlformats.org/drawingml/2006/main";
+        var smoothSegments = XDocument.Parse(Encoding.UTF8.GetString(ZipBytes(authored.File.ToByteArray(), "ppt/slides/slide1.xml")))
+            .Descendants(drawing + "cubicBezTo")
+            .Select(segment => segment.Elements(drawing + "pt")
+                .Select(point => (X: (string?)point.Attribute("x"), Y: (string?)point.Attribute("y")))
+                .ToArray())
+            .ToArray();
+        Assert.Equal(5, smoothSegments.Length);
+        Assert.Equal(("12000", "57000"), smoothSegments[0][0]);
+        Assert.Equal(("25000", "50000"), smoothSegments[0][1]);
+        Assert.Equal(("39000", "45000"), smoothSegments[0][2]);
+        var sourceBytes = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "line-points/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var projectedProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedLine = projectedProgram["pages"]!.AsArray()[0]!["elements"]![0]!.AsObject();
+        Assert.Equal("line", projectedLine["type"]!.GetValue<string>());
+        Assert.Equal("0,80 90,0 220,45", projectedLine["points"]!.GetValue<string>());
+        Assert.Equal("sharp", projectedLine["curve"]!.GetValue<string>());
+        Assert.Null(projectedLine["path"]);
+
+        projectedLine["points"] = "0,80 100,10 220,45";
+        projectedLine["curve"] = "smooth";
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest { ProgramJson = ByteString.CopyFromUtf8(projectedProgram.ToJsonString()) },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(new[] { "ppt/slides/slide1.xml" }, edited.PresentationProgram.ChangedParts);
+
+        var secondProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "line-points/edited.pptx" },
+        });
+        Assert.True(secondProjection.Ok, Diagnostics(secondProjection));
+        var secondProgram = JsonNode.Parse(secondProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var secondLine = secondProgram["pages"]!.AsArray()[0]!["elements"]![0]!.AsObject();
+        Assert.Equal("0,80 100,10 220,45", secondLine["points"]!.GetValue<string>());
+        Assert.Equal("smooth", secondLine["curve"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void PpjKimiSmoothLineAuthorsMultiSegmentBezier()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        program["assets"] = new JsonArray();
+        program["components"] = new JsonArray();
+        program["sections"] = new JsonArray();
+        program["customShows"] = new JsonArray();
+        program["comments"] = new JsonArray();
+        var page = program["pages"]![0]!.AsObject();
+        page.Remove("animations");
+        page.Remove("timing");
+        page["readingOrder"] = new JsonArray("smooth-long");
+        page["elements"] = new JsonArray(new JsonObject
+        {
+            ["id"] = "smooth-long",
+            ["type"] = "line",
+            ["frame"] = new JsonObject { ["x"] = 80, ["y"] = 80, ["width"] = 220, ["height"] = 90 },
+            ["viewBox"] = new JsonArray(220, 90),
+            ["points"] = "0,80 35,10 80,70 130,5 175,65 220,20",
+            ["curve"] = "smooth",
+            ["stroke"] = new JsonObject { ["color"] = "#16324F", ["width"] = 2 },
+        });
+        program["pages"] = new JsonArray(page.DeepClone());
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var validation = PpjProgramValidator.Validate(bytes);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest { ProgramJson = ByteString.CopyFrom(bytes) },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "line-smooth-long/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var output = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var line = output["pages"]![0]!["elements"]![0]!.AsObject();
+        Assert.Equal("line", line["type"]!.GetValue<string>());
+        Assert.Null(line["path"]);
+        Assert.Equal("0,80 35,10 80,70 130,5 175,65 220,20", line["points"]!.GetValue<string>());
+        Assert.Equal("smooth", line["curve"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void PpjKimiArbitraryMultiSegmentBezierStaysTypedPath()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        program["assets"] = new JsonArray();
+        program["components"] = new JsonArray();
+        program["sections"] = new JsonArray();
+        program["customShows"] = new JsonArray();
+        program["comments"] = new JsonArray();
+        var page = program["pages"]![0]!.AsObject();
+        page.Remove("animations");
+        page.Remove("timing");
+        page["readingOrder"] = new JsonArray("arbitrary-cubic");
+        page["elements"] = new JsonArray(new JsonObject
+        {
+            ["id"] = "arbitrary-cubic",
+            ["type"] = "line",
+            ["frame"] = new JsonObject { ["x"] = 80, ["y"] = 80, ["width"] = 220, ["height"] = 90 },
+            ["path"] = new JsonObject
+            {
+                ["viewBox"] = new JsonObject { ["x"] = 0, ["y"] = 0, ["width"] = 220, ["height"] = 90 },
+                ["commands"] = new JsonArray
+                {
+                    new JsonObject { ["op"] = "moveTo", ["x"] = 0, ["y"] = 80 },
+                    new JsonObject { ["op"] = "cubicTo", ["x1"] = 10, ["y1"] = 0, ["x2"] = 60, ["y2"] = 95, ["x"] = 80, ["y"] = 70 },
+                    new JsonObject { ["op"] = "cubicTo", ["x1"] = 130, ["y1"] = 20, ["x2"] = 150, ["y2"] = 10, ["x"] = 160, ["y"] = 5 },
+                    new JsonObject { ["op"] = "cubicTo", ["x1"] = 210, ["y1"] = 50, ["x2"] = 180, ["y2"] = 0, ["x"] = 220, ["y"] = 20 },
+                },
+            },
+            ["stroke"] = new JsonObject { ["color"] = "#16324F", ["width"] = 2 },
+        });
+        program["pages"] = new JsonArray(page.DeepClone());
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var validation = PpjProgramValidator.Validate(bytes);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest { ProgramJson = ByteString.CopyFrom(bytes) },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "line-arbitrary-cubic/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var output = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var line = output["pages"]![0]!["elements"]![0]!.AsObject();
+        Assert.Equal("line", line["type"]!.GetValue<string>());
+        Assert.NotNull(line["path"]);
+        Assert.Null(line["points"]);
+        Assert.Null(line["curve"]);
+    }
+
+    [Fact]
+    public void PpjGapProfilesCompileAndReproject()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var fixture = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+
+        var grammar = fixture["design"]!["grammar"]!.AsObject();
+        grammar["tokens"] = new JsonObject
+        {
+            ["accent"] = new JsonObject { ["kind"] = "color", ["value"] = "#336699" },
+            ["bodySize"] = new JsonObject { ["kind"] = "size", ["value"] = 18 },
+            ["bodyBold"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["bodyFont"] = new JsonObject { ["kind"] = "font", ["value"] = "Arial" },
+            ["shapeOpacity"] = new JsonObject { ["kind"] = "opacity", ["value"] = 0.64 },
+            ["chartSize"] = new JsonObject { ["kind"] = "size", ["value"] = 16 },
+            ["chartFont"] = new JsonObject { ["kind"] = "string", ["value"] = "Arial" },
+            ["chartBold"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["compositingOpacity"] = new JsonObject { ["kind"] = "opacity", ["value"] = 0.82 },
+            ["lineOpacity"] = new JsonObject { ["kind"] = "opacity", ["value"] = 0.7 },
+            ["lineWidth"] = new JsonObject { ["kind"] = "size", ["value"] = 3.5 },
+            ["tableBandedRows"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["chartLegendPosition"] = new JsonObject { ["kind"] = "string", ["value"] = "bottom" },
+            ["chartStackingMode"] = new JsonObject { ["kind"] = "string", ["value"] = "none" },
+            ["chartShowCategoryAxis"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["chartShowValueAxis"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["chartShowGridlines"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["chartSmooth"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["chartAxisTickInterval"] = new JsonObject { ["kind"] = "size", ["value"] = 2 },
+            ["chartAxisMin"] = new JsonObject { ["kind"] = "size", ["value"] = 0 },
+            ["chartAxisMax"] = new JsonObject { ["kind"] = "size", ["value"] = 100 },
+            ["chartAxisMajorUnit"] = new JsonObject { ["kind"] = "size", ["value"] = 20 },
+            ["chartAxisVisible"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["chartAxisReverse"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["chartAxisTickLabelsVisible"] = new JsonObject { ["kind"] = "boolean", ["value"] = false },
+            ["chartAxisLine"] = new JsonObject { ["kind"] = "boolean", ["value"] = false },
+            ["chartAxisGridLine"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["chartAxisNumberFormat"] = new JsonObject { ["kind"] = "string", ["value"] = "0.0" },
+            ["chartAxisTitle"] = new JsonObject { ["kind"] = "string", ["value"] = "Period" },
+            ["chartDataLabelVisible"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["chartDataLabelCategory"] = new JsonObject { ["kind"] = "boolean", ["value"] = false },
+            ["chartDataLabelSeries"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["chartDataLabelPosition"] = new JsonObject { ["kind"] = "string", ["value"] = "top" },
+        };
+        grammar["stylePrecedence"] = new JsonArray(new JsonObject
+        {
+            ["target"] = "shape.fill",
+            ["sources"] = new JsonArray("inline", "styleRef", "theme", "master", "default"),
+        });
+        grammar["predicates"] = new JsonArray(new JsonObject
+        {
+            ["id"] = "is-shape",
+            ["field"] = "element.type",
+            ["op"] = "eq",
+            ["value"] = "shape",
+        });
+
+        var component = fixture["components"]!.AsArray()[0]!.AsObject();
+        component["slots"] = new JsonArray(new JsonObject
+        {
+            ["name"] = "hero-image",
+            ["accepts"] = new JsonArray("image"),
+            ["maxItems"] = 1,
+            ["imagePolicy"] = new JsonObject
+            {
+                ["role"] = "hero",
+                ["allowedFit"] = new JsonArray("cover"),
+                ["allowedMask"] = new JsonArray("roundRect"),
+                ["minWidthPx"] = 320,
+                ["minHeightPx"] = 180,
+                ["rights"] = new JsonArray("user-provided", "generated"),
+            },
+        });
+        fixture["pages"]!.AsArray()[0]!["elements"] = new JsonArray(
+            fixture["pages"]!.AsArray()[0]!["elements"]!.AsArray()
+                .Where(item => item!["type"]!.GetValue<string>() != "image")
+                .Select(item => item!.DeepClone())
+                .ToArray());
+        fixture["assets"] = new JsonArray();
+
+        var claimPage = fixture["pages"]!.AsArray()[0]!.AsObject();
+        var claimShape = claimPage["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .First(item => item["type"]!.GetValue<string>() == "shape");
+        claimShape["style"] = new JsonObject
+        {
+            ["fill"] = new JsonObject
+            {
+                ["type"] = "solid",
+                ["color"] = new JsonObject { ["token"] = "accent", ["tint"] = 0.25 },
+            },
+            ["opacity"] = new JsonObject { ["token"] = "shapeOpacity" },
+        };
+        var claimTitle = claimPage["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["id"]!.GetValue<string>() == "claim-title");
+        var claimTitleFirstRun = claimTitle["text"]!["paragraphs"]![0]!["runs"]![0]!.AsObject();
+        claimTitleFirstRun["style"]!["size"] = new JsonObject { ["token"] = "bodySize" };
+        claimTitleFirstRun["style"]!["bold"] = new JsonObject { ["token"] = "bodyBold" };
+        claimTitleFirstRun["style"]!["font"] = new JsonObject { ["token"] = "bodyFont" };
+        claimShape["compositing"] = new JsonObject { ["opacity"] = new JsonObject { ["token"] = "compositingOpacity" } };
+        claimPage["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "free-curve",
+            ["type"] = "line",
+            ["frame"] = new JsonObject { ["x"] = 640, ["y"] = 90, ["width"] = 220, ["height"] = 90 },
+            ["viewBox"] = new JsonArray(220, 90),
+            ["points"] = "0,80 90,0 220,45",
+            ["curve"] = "smooth",
+            ["opacity"] = new JsonObject { ["token"] = "lineOpacity" },
+            ["stroke"] = new JsonObject
+            {
+                ["color"] = new JsonObject { ["token"] = "ink" },
+                ["width"] = new JsonObject { ["token"] = "lineWidth" },
+                ["cap"] = "round",
+                ["join"] = "round",
+            },
+            ["endArrow"] = "triangle",
+        });
+        claimPage["timing"] = new JsonObject
+        {
+            ["nodes"] = new JsonArray(new JsonObject
+            {
+                ["id"] = "curve-reveal",
+                ["target"] = "free-curve",
+                ["phase"] = "entrance",
+                ["effect"] = "fade",
+                ["start"] = "afterPrevious",
+                ["trigger"] = "afterPrevious",
+                ["durationMs"] = 300,
+                ["easing"] = "ease-in-out",
+                ["repeat"] = 2,
+                ["autoReverse"] = true,
+            }),
+        };
+
+        var chart = fixture["pages"]!.AsArray()[1]!.AsObject()["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "chart");
+        chart["chartType"] = "line";
+        chart["title"] = "Evidence KPI";
+        chart["data"] = new JsonObject
+        {
+            ["dataset"] = new JsonObject
+            {
+                ["cols"] = new JsonArray("period", "actual", "target", "segment"),
+                ["rows"] = new JsonArray(
+                    new JsonObject { ["period"] = "Q1", ["actual"] = "69", ["target"] = 72, ["segment"] = "keep" },
+                    new JsonObject { ["period"] = "Q2", ["actual"] = 54, ["target"] = 60, ["segment"] = "drop" },
+                    new JsonObject { ["period"] = "Q3", ["actual"] = 81, ["target"] = 78, ["segment"] = "keep" }),
+            },
+            ["dataFilter"] = new JsonArray(new JsonObject
+            {
+                ["column"] = "segment",
+                ["op"] = "neq",
+                ["value"] = "drop",
+            }),
+            ["series"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["type"] = "line",
+                    ["name"] = "Actual",
+                    ["encode"] = new JsonObject { ["x"] = "period", ["y"] = "actual" },
+                    ["dataLabels"] = new JsonObject
+                    {
+                        ["showSeries"] = new JsonObject { ["token"] = "chartDataLabelSeries" },
+                        ["position"] = new JsonObject { ["token"] = "chartDataLabelPosition" },
+                    },
+                    ["trendlines"] = new JsonArray(new JsonObject
+                    {
+                        ["type"] = "linear",
+                        ["name"] = "Actual trend",
+                        ["displayEquation"] = true,
+                        ["stroke"] = new JsonObject { ["color"] = "#F59E0B", ["width"] = 1.25, ["dash"] = "dash" },
+                    }),
+                    ["errorBars"] = new JsonObject
+                    {
+                        ["direction"] = "y",
+                        ["type"] = "both",
+                        ["valueType"] = "standard-error",
+                        ["noEndCap"] = true,
+                        ["stroke"] = new JsonObject { ["color"] = "#0B8F8F", ["width"] = 0.75 },
+                    },
+                    ["dataFilter"] = new JsonArray(new JsonObject
+                    {
+                        ["column"] = "period",
+                        ["op"] = "in",
+                        ["value"] = new JsonArray("Q1", "Q2", "Q3"),
+                    }),
+                },
+                new JsonObject
+                {
+                    ["type"] = "line",
+                    ["name"] = "Target",
+                    ["encode"] = new JsonObject { ["x"] = "period", ["y"] = "target" },
+                },
+            },
+            ["seriesDefaults"] = new JsonObject
+            {
+                ["line"] = new JsonObject
+                {
+                    ["stroke"] = new JsonObject { ["color"] = new JsonObject { ["token"] = "ink" }, ["width"] = 1.25 },
+                },
+            },
+        };
+        chart["style"] = new JsonObject
+        {
+            ["legend"] = new JsonObject { ["token"] = "chartLegendPosition" },
+            ["stacking"] = new JsonObject { ["token"] = "chartStackingMode" },
+            ["smooth"] = new JsonObject { ["token"] = "chartSmooth" },
+        };
+        chart["xAxis"] = new JsonObject
+        {
+            ["title"] = new JsonObject { ["token"] = "chartAxisTitle" },
+            ["numberFormat"] = new JsonObject { ["token"] = "chartAxisNumberFormat" },
+            ["tickLabelInterval"] = new JsonObject { ["token"] = "chartAxisTickInterval" },
+            ["visible"] = new JsonObject { ["token"] = "chartAxisVisible" },
+            ["reverse"] = new JsonObject { ["token"] = "chartAxisReverse" },
+            ["axisLine"] = new JsonObject { ["token"] = "chartAxisLine" },
+            ["gridLine"] = new JsonObject { ["token"] = "chartAxisGridLine" },
+        };
+        chart["yAxis"] = new JsonObject
+        {
+            ["title"] = new JsonObject { ["token"] = "chartAxisTitle" },
+            ["numberFormat"] = new JsonObject { ["token"] = "chartAxisNumberFormat" },
+            ["visible"] = new JsonObject { ["token"] = "chartAxisVisible" },
+            ["reverse"] = new JsonObject { ["token"] = "chartAxisReverse" },
+            ["min"] = new JsonObject { ["token"] = "chartAxisMin" },
+            ["max"] = new JsonObject { ["token"] = "chartAxisMax" },
+            ["majorUnit"] = new JsonObject { ["token"] = "chartAxisMajorUnit" },
+            ["tickLabelsVisible"] = new JsonObject { ["token"] = "chartAxisTickLabelsVisible" },
+            ["axisLine"] = new JsonObject { ["token"] = "chartAxisLine" },
+            ["gridLine"] = new JsonObject { ["token"] = "chartAxisGridLine" },
+        };
+        var chartStyle = fixture["design"]!["styles"]!["chart"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["id"]!.GetValue<string>() == "evidence-chart")["style"]!.AsObject();
+        chartStyle["legend"] = "none";
+        chartStyle.Remove("showCategoryAxis");
+        chartStyle.Remove("showValueAxis");
+        chartStyle.Remove("showGridlines");
+        chartStyle.Remove("dataLabelPosition");
+        chartStyle.Remove("showDataLabels");
+        chartStyle["dataLabels"] = new JsonObject
+        {
+            ["showValue"] = new JsonObject { ["token"] = "chartDataLabelVisible" },
+            ["showCategory"] = new JsonObject { ["token"] = "chartDataLabelCategory" },
+            ["position"] = new JsonObject { ["token"] = "chartDataLabelPosition" },
+            ["numberFormat"] = new JsonObject { ["token"] = "chartAxisNumberFormat" },
+        };
+        chartStyle.Remove("gapWidth");
+        chartStyle["frame"] = new JsonObject
+        {
+            ["fill"] = new JsonObject
+            {
+                ["type"] = "gradient",
+                ["kind"] = "linear",
+                ["angle"] = 90,
+                ["stops"] = new JsonArray
+                {
+                    new JsonObject { ["offset"] = 0, ["color"] = new JsonObject { ["token"] = "paper" } },
+                    new JsonObject { ["offset"] = 1, ["color"] = new JsonObject { ["token"] = "ink" }, ["opacity"] = 0.72 },
+                },
+            },
+            ["stroke"] = new JsonObject { ["color"] = new JsonObject { ["token"] = "ink" }, ["width"] = 1.5 },
+        };
+        chartStyle["titleTextStyle"] = new JsonObject
+        {
+            ["fontSize"] = new JsonObject { ["token"] = "chartSize" },
+            ["fontFamily"] = new JsonObject { ["token"] = "chartFont" },
+            ["bold"] = new JsonObject { ["token"] = "chartBold" },
+            ["color"] = new JsonObject { ["token"] = "accent" },
+        };
+        var table = fixture["pages"]!.AsArray()[1]!.AsObject()["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table");
+        table["style"] = new JsonObject
+        {
+            ["bandedRows"] = new JsonObject { ["token"] = "tableBandedRows" },
+        };
+
+        var programBytes = Encoding.UTF8.GetBytes(fixture.ToJsonString());
+        var validation = PpjProgramValidator.Validate(programBytes);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+
+        var wrongTokenKind = fixture.DeepClone().AsObject();
+        var wrongTokenShape = wrongTokenKind["pages"]!.AsArray()[0]! ["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["id"]!.GetValue<string>() == "claim-rule");
+        wrongTokenShape["style"]!["opacity"] = new JsonObject { ["token"] = "bodySize" };
+        var wrongTokenCompile = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(wrongTokenKind.ToJsonString()),
+            },
+        });
+        Assert.False(wrongTokenCompile.Ok);
+        Assert.Contains(wrongTokenCompile.Diagnostics, diagnostic => diagnostic.Code == "ppj.grammar.tokenKind");
+
+        var wrongStrokeToken = fixture.DeepClone().AsObject();
+        var wrongStrokeLine = wrongStrokeToken["pages"]!.AsArray()[0]! ["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["id"]!.GetValue<string>() == "free-curve");
+        wrongStrokeLine["stroke"]!["width"] = new JsonObject { ["token"] = "bodyBold" };
+        var wrongStrokeCompile = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(wrongStrokeToken.ToJsonString()),
+            },
+        });
+        Assert.False(wrongStrokeCompile.Ok);
+        Assert.Contains(wrongStrokeCompile.Diagnostics, diagnostic => diagnostic.Code == "ppj.grammar.tokenKind");
+
+        var wrongColorToken = fixture.DeepClone().AsObject();
+        var wrongColorStyle = wrongColorToken["design"]!["styles"]!["chart"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["id"]!.GetValue<string>() == "evidence-chart")["style"]!.AsObject();
+        wrongColorStyle["titleTextStyle"]!["color"] = new JsonObject { ["token"] = "bodySize" };
+        var wrongColorCompile = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(wrongColorToken.ToJsonString()),
+            },
+        });
+        Assert.False(wrongColorCompile.Ok);
+        Assert.Contains(wrongColorCompile.Diagnostics, diagnostic => diagnostic.Code == "ppj.grammar.tokenKind");
+
+        var wrongTableToken = fixture.DeepClone().AsObject();
+        var wrongTable = wrongTableToken["pages"]!.AsArray()[1]! ["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table");
+        wrongTable["style"]!["bandedRows"] = new JsonObject { ["token"] = "bodySize" };
+        var wrongTableCompile = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(wrongTableToken.ToJsonString()),
+            },
+        });
+        Assert.False(wrongTableCompile.Ok);
+        Assert.Contains(wrongTableCompile.Diagnostics, diagnostic => diagnostic.Code == "ppj.grammar.tokenKind");
+
+        var wrongChartToken = fixture.DeepClone().AsObject();
+        var wrongChart = wrongChartToken["pages"]!.AsArray()[1]! ["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "chart");
+        wrongChart["style"] = new JsonObject
+        {
+            ["legend"] = new JsonObject { ["token"] = "bodySize" },
+        };
+        var wrongChartCompile = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(wrongChartToken.ToJsonString()),
+            },
+        });
+        Assert.False(wrongChartCompile.Ok);
+        Assert.Contains(wrongChartCompile.Diagnostics, diagnostic => diagnostic.Code == "ppj.grammar.tokenKind");
+
+        var wrongChartBooleanToken = fixture.DeepClone().AsObject();
+        var wrongChartBoolean = wrongChartBooleanToken["pages"]!.AsArray()[1]!["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "chart");
+        wrongChartBoolean["style"] = new JsonObject
+        {
+            ["smooth"] = new JsonObject { ["token"] = "chartFont" },
+        };
+        var wrongChartBooleanCompile = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(wrongChartBooleanToken.ToJsonString()),
+            },
+        });
+        Assert.False(wrongChartBooleanCompile.Ok);
+        Assert.Contains(wrongChartBooleanCompile.Diagnostics, diagnostic => diagnostic.Code == "ppj.grammar.tokenKind");
+
+        var wrongChartAxisToken = fixture.DeepClone().AsObject();
+        var wrongChartAxis = wrongChartAxisToken["pages"]!.AsArray()[1]! ["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "chart");
+        wrongChartAxis["yAxis"] = new JsonObject
+        {
+            ["min"] = new JsonObject { ["token"] = "chartAxisVisible" },
+        };
+        var wrongChartAxisCompile = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(wrongChartAxisToken.ToJsonString()),
+            },
+        });
+        Assert.False(wrongChartAxisCompile.Ok);
+        Assert.Contains(wrongChartAxisCompile.Diagnostics, diagnostic => diagnostic.Code == "ppj.grammar.tokenKind");
+
+        var wrongChartAxisNumberFormatToken = fixture.DeepClone().AsObject();
+        var wrongChartAxisNumberFormat = wrongChartAxisNumberFormatToken["pages"]!.AsArray()[1]!["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "chart");
+        wrongChartAxisNumberFormat["yAxis"] = new JsonObject
+        {
+            ["numberFormat"] = new JsonObject { ["token"] = "chartAxisMin" },
+        };
+        var wrongChartAxisNumberFormatCompile = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(wrongChartAxisNumberFormatToken.ToJsonString()),
+            },
+        });
+        Assert.False(wrongChartAxisNumberFormatCompile.Ok);
+        Assert.Contains(wrongChartAxisNumberFormatCompile.Diagnostics, diagnostic => diagnostic.Code == "ppj.grammar.tokenKind");
+
+        var wrongChartAxisTitleToken = fixture.DeepClone().AsObject();
+        var wrongChartAxisTitle = wrongChartAxisTitleToken["pages"]!.AsArray()[1]! ["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "chart");
+        wrongChartAxisTitle["xAxis"] = new JsonObject
+        {
+            ["title"] = new JsonObject { ["token"] = "bodySize" },
+        };
+        var wrongChartAxisTitleCompile = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(wrongChartAxisTitleToken.ToJsonString()),
+            },
+        });
+        Assert.False(wrongChartAxisTitleCompile.Ok);
+        Assert.Contains(wrongChartAxisTitleCompile.Diagnostics, diagnostic => diagnostic.Code == "ppj.grammar.tokenKind");
+
+        var wrongChartLabelToken = fixture.DeepClone().AsObject();
+        var wrongChartLabel = wrongChartLabelToken["design"]!["styles"]!["chart"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["id"]!.GetValue<string>() == "evidence-chart")["style"]!.AsObject();
+        wrongChartLabel["dataLabels"] = new JsonObject
+        {
+            ["showValue"] = new JsonObject { ["token"] = "bodySize" },
+        };
+        var wrongChartLabelCompile = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(wrongChartLabelToken.ToJsonString()),
+            },
+        });
+        Assert.False(wrongChartLabelCompile.Ok);
+        Assert.Contains(wrongChartLabelCompile.Diagnostics, diagnostic => diagnostic.Code == "ppj.grammar.tokenKind");
+
+        var outOfViewBox = fixture.DeepClone().AsObject();
+        var outOfViewBoxLine = outOfViewBox["pages"]!.AsArray()[0]! ["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["id"]!.GetValue<string>() == "free-curve");
+        outOfViewBoxLine["points"] = "0,80 221,45";
+        var rejectedPoints = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(outOfViewBox.ToJsonString()));
+        Assert.False(rejectedPoints.IsValid);
+        Assert.Contains(rejectedPoints.Diagnostics, diagnostic => diagnostic.Code == "ppj.line.points");
+
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFrom(programBytes),
+            },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "gap-profiles/source.pptx",
+                AssetRootUri = "gap-profiles/assets",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var projectedValidation = PpjProgramValidator.Validate(projected.PresentationProgram.ProgramJson.ToByteArray());
+        Assert.True(projectedValidation.IsValid, string.Join(Environment.NewLine, projectedValidation.Diagnostics));
+        var reprojected = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedTokenTitle = reprojected["pages"]!.AsArray()[0]! ["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "text" &&
+                item["text"]!.ToJsonString().Contains("Reduce incident hours", StringComparison.Ordinal));
+        var projectedTokenRunStyle = projectedTokenTitle["text"]!["paragraphs"]![0]!["runs"]![0]!["style"]!.AsObject();
+        Assert.Equal(18, projectedTokenRunStyle["size"]!.GetValue<double>());
+        Assert.True(projectedTokenRunStyle["bold"]!.GetValue<bool>());
+        Assert.Equal("Arial", projectedTokenRunStyle["fontFamily"]!.GetValue<string>());
+        var projectedTokenShape = reprojected["pages"]!.AsArray()[0]! ["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "shape" &&
+                item["style"]?["fill"]?["opacity"]?.GetValue<double>() is 0.5248);
+        Assert.Equal(0.5248, projectedTokenShape["style"]!["fill"]!["opacity"]!.GetValue<double>(), precision: 6);
+        Assert.Contains(reprojected["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray()), element =>
+            element!["type"]!.GetValue<string>() == "line" && (element["path"] is not null || element["points"] is not null));
+        var projectedTokenLine = reprojected["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "line");
+        Assert.Equal(0.7, projectedTokenLine["stroke"]!["opacity"]!.GetValue<double>(), precision: 6);
+        Assert.Equal(3.5, projectedTokenLine["stroke"]!["width"]!.GetValue<double>(), precision: 6);
+        var projectedLineId = reprojected["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Single(element => element!["type"]!.GetValue<string>() == "line")!.AsObject()["id"]!.GetValue<string>();
+        var compactSmoothLine = reprojected["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Single(element => element!["id"]!.GetValue<string>() == projectedLineId)!.AsObject();
+        Assert.Equal("0,80 90,0 220,45", compactSmoothLine["points"]!.GetValue<string>());
+        Assert.Equal("smooth", compactSmoothLine["curve"]!.GetValue<string>());
+        var projectedTiming = reprojected["pages"]!.AsArray()[0]!["animations"]!.AsArray()
+            .Single(animation => animation!["target"]!.GetValue<string>() == projectedLineId)!.AsObject();
+        Assert.Equal("afterPrevious", projectedTiming["trigger"]!.GetValue<string>());
+        Assert.Equal("ease-in-out", projectedTiming["easing"]!.GetValue<string>());
+        Assert.Equal(2, projectedTiming["repeat"]!.GetValue<int>());
+        Assert.True(projectedTiming["autoReverse"]!.GetValue<bool>());
+        var projectedChart = reprojected["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "chart");
+        Assert.Equal("line", projectedChart["chartType"]!.GetValue<string>());
+        Assert.Equal("Evidence KPI", projectedChart["title"]!.GetValue<string>());
+        var projectedChartTitleStyle = projectedChart["style"]!["titleTextStyle"]!.AsObject();
+        Assert.Equal(16, projectedChartTitleStyle["fontSize"]!.GetValue<double>());
+        Assert.Equal("Arial", projectedChartTitleStyle["fontFamily"]!.GetValue<string>());
+        Assert.True(projectedChartTitleStyle["bold"]!.GetValue<bool>());
+        Assert.Equal("#336699", projectedChartTitleStyle["color"]!.GetValue<string>());
+        Assert.Equal("bottom", projectedChart["style"]!["legend"]!.GetValue<string>());
+        Assert.Equal("none", projectedChart["style"]!["stacking"]!.GetValue<string>());
+        Assert.True(projectedChart["xAxis"]!["visible"]!.GetValue<bool>());
+        Assert.Equal("Period", projectedChart["xAxis"]!["title"]!.GetValue<string>());
+        Assert.Equal("0.0", projectedChart["xAxis"]!["numberFormat"]!.GetValue<string>());
+        Assert.True(projectedChart["yAxis"]!["visible"]!.GetValue<bool>());
+        Assert.Equal("Period", projectedChart["yAxis"]!["title"]!.GetValue<string>());
+        Assert.Equal("0.0", projectedChart["yAxis"]!["numberFormat"]!.GetValue<string>());
+        Assert.Equal("0.0", projectedChart["style"]!["dataLabels"]!["numberFormat"]!.GetValue<string>());
+        Assert.True(projectedChart["style"]!["dataLabels"]!["showValue"]!.GetValue<bool>());
+        Assert.False(projectedChart["style"]!["dataLabels"]!["showCategory"]!.GetValue<bool>());
+        Assert.Equal("top", projectedChart["style"]!["dataLabels"]!["position"]!.GetValue<string>());
+        Assert.True(projectedChart["data"]!["series"]![0]!["dataLabels"]!["showSeries"]!.GetValue<bool>());
+        Assert.Equal("top", projectedChart["data"]!["series"]![0]!["dataLabels"]!["position"]!.GetValue<string>());
+        Assert.True(projectedChart["yAxis"]!["gridLine"]!.GetValue<bool>());
+        Assert.True(projectedChart["style"]!["smooth"]!.GetValue<bool>());
+        Assert.NotNull(projectedChart["style"]!["frame"]);
+        Assert.Equal("gradient", projectedChart["style"]!["frame"]!["fill"]!["type"]!.GetValue<string>());
+        Assert.Equal("linear", projectedChart["style"]!["frame"]!["fill"]!["kind"]!.GetValue<string>());
+        Assert.Equal(new[] { "Q1", "Q3" }, projectedChart["data"]!["categories"]!.AsArray().Select(item => item!.GetValue<string>()).ToArray());
+        Assert.Equal(new[] { 69d, 81d }, projectedChart["data"]!["series"]!.AsArray()[0]!["values"]!.AsArray().Select(item => item!.GetValue<double>()).ToArray());
+        Assert.Equal(1.25, projectedChart["data"]!["series"]!.AsArray()[0]!["stroke"]!["width"]!.GetValue<double>());
+        var projectedTable = reprojected["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table");
+        Assert.True(projectedTable["style"]!["bandedRows"]!.GetValue<bool>());
+
+        var mismatchedTrigger = fixture.DeepClone().AsObject();
+        mismatchedTrigger["pages"]!.AsArray()[0]! ["timing"]!["nodes"]![0]!["trigger"] = "onClick";
+        var rejectedTrigger = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(mismatchedTrigger.ToJsonString()));
+        Assert.False(rejectedTrigger.IsValid);
+        Assert.Contains(rejectedTrigger.Diagnostics, diagnostic => diagnostic.Code == "ppj.timing.triggerMismatch");
+
+        var mismatchedAnimationTrigger = reprojected.DeepClone().AsObject();
+        mismatchedAnimationTrigger["pages"]!.AsArray()[0]!["animations"]!.AsArray()[0]!["trigger"] = "onClick";
+        var rejectedAnimationTrigger = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(mismatchedAnimationTrigger.ToJsonString()));
+        Assert.False(rejectedAnimationTrigger.IsValid);
+        Assert.Contains(rejectedAnimationTrigger.Diagnostics, diagnostic => diagnostic.Code == "ppj.animation.triggerMismatch");
+
+        // The authored profile above proves that a literal free curve can be
+        // represented without a connector.  Exercise the source-bound route
+        // as well: edit one path/points command, keep the package opaque elsewhere,
+        // and require a single changed slide part plus a fresh projection.
+        var sourceProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var sourceLine = sourceProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "line");
+        var sourceLineId = sourceLine["id"]!.GetValue<string>();
+        if (sourceLine["points"] is not null)
+            sourceLine["points"] = "0,80 200,0 220,45";
+        else
+            sourceLine["path"]!["commands"]!.AsArray()[1]!["x"] = 200;
+        var sourceLineEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(sourceProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(sourceLineEdit.Ok, Diagnostics(sourceLineEdit));
+        Assert.Single(sourceLineEdit.PresentationProgram.ChangedParts);
+        Assert.StartsWith("ppt/slides/", sourceLineEdit.PresentationProgram.ChangedParts[0], StringComparison.Ordinal);
+        Assert.Contains(sourceLineId, sourceLineEdit.PresentationProgram.ChangedNodeIds);
+
+        var sourceLineReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = sourceLineEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "gap-profiles/source-line-output.pptx",
+                AssetRootUri = "gap-profiles/assets",
+            },
+        });
+        Assert.True(sourceLineReprojection.Ok, Diagnostics(sourceLineReprojection));
+        var sourceLineState = JsonNode.Parse(sourceLineReprojection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var sourceLineAfter = sourceLineState["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["id"]!.GetValue<string>() == sourceLineId);
+        if (sourceLineAfter["points"] is not null)
+            Assert.Equal("0,80 200,0 220,45", sourceLineAfter["points"]!.GetValue<string>());
+        else
+            Assert.Equal(200, sourceLineAfter["path"]!["commands"]!.AsArray()[1]!["x"]!.GetValue<double>());
+
+        var chartProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var sourceChart = chartProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "chart");
+        var sourceChartId = sourceChart["id"]!.GetValue<string>();
+        Assert.Contains(sourceChart["nativeRef"]!["capabilities"]!.AsArray(), capability =>
+            capability!["operation"]!.GetValue<string>() == "setChartSeriesAnalytics");
+        chartProgram["design"]!["grammar"]!["tokens"] = new JsonObject
+        {
+            ["sourceChartSize"] = new JsonObject { ["kind"] = "size", ["value"] = 19 },
+            ["sourceChartFont"] = new JsonObject { ["kind"] = "string", ["value"] = "Courier New" },
+            ["sourceChartBold"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["sourceChartItalic"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["sourceChartColor"] = new JsonObject { ["kind"] = "color", ["value"] = "#0A1B2C" },
+            ["sourceChartLegend"] = new JsonObject { ["kind"] = "string", ["value"] = "top" },
+            ["sourceChartStacking"] = new JsonObject { ["kind"] = "string", ["value"] = "stacked" },
+            ["sourceChartShowCategoryAxis"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["sourceChartShowValueAxis"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["sourceChartShowGridlines"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["sourceChartSmooth"] = new JsonObject { ["kind"] = "boolean", ["value"] = false },
+            ["sourceChartVaryColors"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["sourceChartTickInterval"] = new JsonObject { ["kind"] = "size", ["value"] = 2 },
+            ["sourceChartAxisMin"] = new JsonObject { ["kind"] = "size", ["value"] = 0 },
+            ["sourceChartAxisMax"] = new JsonObject { ["kind"] = "size", ["value"] = 100 },
+            ["sourceChartMajorUnit"] = new JsonObject { ["kind"] = "size", ["value"] = 20 },
+            ["sourceChartAxisVisible"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["sourceChartAxisReverse"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["sourceChartTickLabelsVisible"] = new JsonObject { ["kind"] = "boolean", ["value"] = false },
+            ["sourceChartAxisLine"] = new JsonObject { ["kind"] = "boolean", ["value"] = false },
+            ["sourceChartGridLine"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["sourceChartFrameWidth"] = new JsonObject { ["kind"] = "size", ["value"] = 2.25 },
+            ["sourceChartNumberFormat"] = new JsonObject { ["kind"] = "string", ["value"] = "#,##0.0" },
+            ["sourceChartAxisTitle"] = new JsonObject { ["kind"] = "string", ["value"] = "Fiscal period" },
+            ["sourceChartDataLabelVisible"] = new JsonObject { ["kind"] = "boolean", ["value"] = false },
+            ["sourceChartDataLabelCategory"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["sourceChartDataLabelSeries"] = new JsonObject { ["kind"] = "boolean", ["value"] = false },
+            ["sourceChartDataLabelPosition"] = new JsonObject { ["kind"] = "string", ["value"] = "bottom" },
+        };
+        sourceChart["style"]!["frame"]!["stroke"]!["width"] = new JsonObject { ["token"] = "sourceChartFrameWidth" };
+        sourceChart["style"]!["frame"]!["fill"]!["stops"]![0]!["color"] = new JsonObject { ["token"] = "sourceChartColor" };
+        sourceChart["style"]!["titleTextStyle"] = new JsonObject
+        {
+            ["fontSize"] = new JsonObject { ["token"] = "sourceChartSize" },
+            ["fontFamily"] = new JsonObject { ["token"] = "sourceChartFont" },
+            ["bold"] = new JsonObject { ["token"] = "sourceChartBold" },
+            ["italic"] = new JsonObject { ["token"] = "sourceChartItalic" },
+            ["color"] = new JsonObject { ["token"] = "sourceChartColor" },
+        };
+        sourceChart["style"]!["legend"] = new JsonObject { ["token"] = "sourceChartLegend" };
+        sourceChart["style"]!["stacking"] = new JsonObject { ["token"] = "sourceChartStacking" };
+        sourceChart["style"]!["showCategoryAxis"] = new JsonObject { ["token"] = "sourceChartShowCategoryAxis" };
+        sourceChart["style"]!["showValueAxis"] = new JsonObject { ["token"] = "sourceChartShowValueAxis" };
+        sourceChart["style"]!["showGridlines"] = new JsonObject { ["token"] = "sourceChartShowGridlines" };
+        sourceChart["style"]!["smooth"] = new JsonObject { ["token"] = "sourceChartSmooth" };
+        sourceChart["style"]!["varyColors"] = new JsonObject { ["token"] = "sourceChartVaryColors" };
+        sourceChart["style"]!["dataLabels"]!["showValue"] = new JsonObject { ["token"] = "sourceChartDataLabelVisible" };
+        sourceChart["style"]!["dataLabels"]!["showCategory"] = new JsonObject { ["token"] = "sourceChartDataLabelCategory" };
+        sourceChart["style"]!["dataLabels"]!["position"] = new JsonObject { ["token"] = "sourceChartDataLabelPosition" };
+        sourceChart["style"]!["dataLabels"]!["numberFormat"] = new JsonObject { ["token"] = "sourceChartNumberFormat" };
+        sourceChart["xAxis"]!["tickLabelInterval"] = new JsonObject { ["token"] = "sourceChartTickInterval" };
+        sourceChart["xAxis"]!["title"] = new JsonObject { ["token"] = "sourceChartAxisTitle" };
+        sourceChart["xAxis"]!["numberFormat"] = new JsonObject { ["token"] = "sourceChartNumberFormat" };
+        sourceChart["xAxis"]!["visible"] = new JsonObject { ["token"] = "sourceChartAxisVisible" };
+        sourceChart["xAxis"]!["reverse"] = new JsonObject { ["token"] = "sourceChartAxisReverse" };
+        sourceChart["xAxis"]!["axisLine"] = new JsonObject { ["token"] = "sourceChartAxisLine" };
+        sourceChart["xAxis"]!["gridLine"] = new JsonObject { ["token"] = "sourceChartGridLine" };
+        sourceChart["yAxis"]!["visible"] = new JsonObject { ["token"] = "sourceChartAxisVisible" };
+        sourceChart["yAxis"]!["title"] = new JsonObject { ["token"] = "sourceChartAxisTitle" };
+        sourceChart["yAxis"]!["numberFormat"] = new JsonObject { ["token"] = "sourceChartNumberFormat" };
+        sourceChart["yAxis"]!["reverse"] = new JsonObject { ["token"] = "sourceChartAxisReverse" };
+        sourceChart["yAxis"]!["min"] = new JsonObject { ["token"] = "sourceChartAxisMin" };
+        sourceChart["yAxis"]!["max"] = new JsonObject { ["token"] = "sourceChartAxisMax" };
+        sourceChart["yAxis"]!["majorUnit"] = new JsonObject { ["token"] = "sourceChartMajorUnit" };
+        sourceChart["yAxis"]!["tickLabelsVisible"] = new JsonObject { ["token"] = "sourceChartTickLabelsVisible" };
+        sourceChart["yAxis"]!["axisLine"] = new JsonObject { ["token"] = "sourceChartAxisLine" };
+        sourceChart["yAxis"]!["gridLine"] = new JsonObject { ["token"] = "sourceChartGridLine" };
+        sourceChart["data"]!["series"]![0]!["dataLabels"]!["showSeries"] = new JsonObject { ["token"] = "sourceChartDataLabelSeries" };
+        sourceChart["data"]!["series"]![0]!["dataLabels"]!["position"] = new JsonObject { ["token"] = "sourceChartDataLabelPosition" };
+        var sourceChartLineSeries = sourceChart["data"]!["series"]![1]!.AsObject();
+        sourceChartLineSeries["stroke"]!["width"] = 3.25;
+        sourceChartLineSeries["marker"] = new JsonObject
+        {
+            ["symbol"] = "diamond",
+            ["size"] = 10,
+            ["fill"] = "#164E63CC",
+            ["stroke"] = new JsonObject
+            {
+                ["color"] = "#F59E0B",
+                ["width"] = 1.25,
+                ["dash"] = "dot",
+            },
+        };
+        var sourceChartAnalyticsSeries = sourceChart["data"]!["series"]![0]!.AsObject();
+        sourceChartAnalyticsSeries["trendlines"]![0]!["name"] = "Actual trend revised";
+        sourceChartAnalyticsSeries["trendlines"]![0]!["forward"] = 2.5;
+        sourceChartAnalyticsSeries["trendlines"]![0]!["displayEquation"] = false;
+        sourceChartAnalyticsSeries["trendlines"]![0]!["stroke"]!["color"] = "#7C3AED";
+        sourceChartAnalyticsSeries["errorBars"]!["noEndCap"] = false;
+        sourceChartAnalyticsSeries["errorBars"]!["stroke"]!["color"] = "#DC2626";
+        sourceChartAnalyticsSeries["errorBars"]!["stroke"]!["width"] = 1.5;
+        var sourceChartEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(chartProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(sourceChartEdit.Ok, Diagnostics(sourceChartEdit));
+        Assert.Single(sourceChartEdit.PresentationProgram.ChangedParts);
+        Assert.Contains("/charts/", sourceChartEdit.PresentationProgram.ChangedParts[0], StringComparison.Ordinal);
+        Assert.Contains(sourceChartId, sourceChartEdit.PresentationProgram.ChangedNodeIds);
+
+        var sourceChartReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = sourceChartEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "gap-profiles/source-chart-output.pptx",
+                AssetRootUri = "gap-profiles/assets",
+            },
+        });
+        Assert.True(sourceChartReprojection.Ok, Diagnostics(sourceChartReprojection));
+        var sourceChartState = JsonNode.Parse(sourceChartReprojection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var sourceChartAfter = sourceChartState["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["id"]!.GetValue<string>() == sourceChartId);
+        Assert.Equal(2.25, sourceChartAfter["style"]!["frame"]!["stroke"]!["width"]!.GetValue<double>());
+        Assert.Equal("#0A1B2C", sourceChartAfter["style"]!["frame"]!["fill"]!["stops"]![0]!["color"]!.GetValue<string>());
+        var sourceChartTitleAfter = sourceChartAfter["style"]!["titleTextStyle"]!.AsObject();
+        Assert.Equal(19, sourceChartTitleAfter["fontSize"]!.GetValue<double>());
+        Assert.Equal("Courier New", sourceChartTitleAfter["fontFamily"]!.GetValue<string>());
+        Assert.True(sourceChartTitleAfter["bold"]!.GetValue<bool>());
+        Assert.True(sourceChartTitleAfter["italic"]!.GetValue<bool>());
+        Assert.Equal("#0A1B2C", sourceChartTitleAfter["color"]!.GetValue<string>());
+        Assert.Equal("top", sourceChartAfter["style"]!["legend"]!.GetValue<string>());
+        Assert.Equal("stacked", sourceChartAfter["style"]!["stacking"]!.GetValue<string>());
+        Assert.True(sourceChartAfter["xAxis"]!["visible"]!.GetValue<bool>());
+        Assert.Equal("Fiscal period", sourceChartAfter["xAxis"]!["title"]!.GetValue<string>());
+        Assert.True(sourceChartAfter["yAxis"]!["visible"]!.GetValue<bool>());
+        Assert.Equal("Fiscal period", sourceChartAfter["yAxis"]!["title"]!.GetValue<string>());
+        Assert.Equal(2, sourceChartAfter["xAxis"]!["tickLabelInterval"]!.GetValue<int>());
+        Assert.Equal("#,##0.0", sourceChartAfter["xAxis"]!["numberFormat"]!.GetValue<string>());
+        Assert.True(sourceChartAfter["xAxis"]!["reverse"]!.GetValue<bool>());
+        Assert.Equal(0, sourceChartAfter["yAxis"]!["min"]!.GetValue<double>());
+        Assert.Equal("#,##0.0", sourceChartAfter["yAxis"]!["numberFormat"]!.GetValue<string>());
+        Assert.Equal("#,##0.0", sourceChartAfter["style"]!["dataLabels"]!["numberFormat"]!.GetValue<string>());
+        Assert.False(sourceChartAfter["style"]!["dataLabels"]!["showValue"]!.GetValue<bool>());
+        Assert.True(sourceChartAfter["style"]!["dataLabels"]!["showCategory"]!.GetValue<bool>());
+        Assert.Equal("bottom", sourceChartAfter["style"]!["dataLabels"]!["position"]!.GetValue<string>());
+        Assert.False(sourceChartAfter["data"]!["series"]![0]!["dataLabels"]!["showSeries"]!.GetValue<bool>());
+        Assert.Equal("bottom", sourceChartAfter["data"]!["series"]![0]!["dataLabels"]!["position"]!.GetValue<string>());
+        var sourceChartLineSeriesAfter = sourceChartAfter["data"]!["series"]![1]!.AsObject();
+        Assert.Equal(3.25, sourceChartLineSeriesAfter["stroke"]!["width"]!.GetValue<double>());
+        var sourceChartMarkerAfter = sourceChartLineSeriesAfter["marker"]!.AsObject();
+        Assert.Equal("diamond", sourceChartMarkerAfter["symbol"]!.GetValue<string>());
+        Assert.Equal(10, sourceChartMarkerAfter["size"]!.GetValue<int>());
+        Assert.Equal("#164E63CC", sourceChartMarkerAfter["fill"]!.GetValue<string>());
+        Assert.Equal("#F59E0B", sourceChartMarkerAfter["stroke"]!["color"]!.GetValue<string>());
+        Assert.Equal(1.25, sourceChartMarkerAfter["stroke"]!["width"]!.GetValue<double>());
+        Assert.Equal("dot", sourceChartMarkerAfter["stroke"]!["dash"]!.GetValue<string>());
+        var sourceChartAnalyticsAfter = sourceChartAfter["data"]!["series"]![0]!.AsObject();
+        var sourceChartTrendlineAfter = sourceChartAnalyticsAfter["trendlines"]![0]!.AsObject();
+        Assert.Equal("Actual trend revised", sourceChartTrendlineAfter["name"]!.GetValue<string>());
+        Assert.Equal(2.5, sourceChartTrendlineAfter["forward"]!.GetValue<double>());
+        Assert.Null(sourceChartTrendlineAfter["displayEquation"]);
+        Assert.Equal("#7C3AED", sourceChartTrendlineAfter["stroke"]!["color"]!.GetValue<string>());
+        var sourceChartErrorBarsAfter = sourceChartAnalyticsAfter["errorBars"]!.AsObject();
+        Assert.Null(sourceChartErrorBarsAfter["noEndCap"]);
+        Assert.Equal("#DC2626", sourceChartErrorBarsAfter["stroke"]!["color"]!.GetValue<string>());
+        Assert.Equal(1.5, sourceChartErrorBarsAfter["stroke"]!["width"]!.GetValue<double>());
+        Assert.Equal(100, sourceChartAfter["yAxis"]!["max"]!.GetValue<double>());
+        Assert.Equal(20, sourceChartAfter["yAxis"]!["majorUnit"]!.GetValue<double>());
+        Assert.True(sourceChartAfter["yAxis"]!["reverse"]!.GetValue<bool>());
+        Assert.False(sourceChartAfter["yAxis"]!["tickLabelsVisible"]!.GetValue<bool>());
+        Assert.False(sourceChartAfter["xAxis"]!["axisLine"]!.GetValue<bool>());
+        Assert.False(sourceChartAfter["yAxis"]!["axisLine"]!.GetValue<bool>());
+        Assert.True(sourceChartAfter["xAxis"]!["gridLine"]!.GetValue<bool>());
+        Assert.True(sourceChartAfter["yAxis"]!["gridLine"]!.GetValue<bool>());
+        Assert.False(sourceChartAfter["style"]!["smooth"]!.GetValue<bool>());
+        Assert.True(sourceChartAfter["style"]!["varyColors"]!.GetValue<bool>());
+
+        // Removing the same two leaves is a second source-bound transaction;
+        // it must clear only the existing series style nodes and preserve the
+        // rest of the ChartPart closure.
+        sourceChartLineSeriesAfter.Remove("stroke");
+        sourceChartLineSeriesAfter.Remove("marker");
+        var sourceChartStyleRemoval = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = sourceChartEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(sourceChartState.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(sourceChartStyleRemoval.Ok, Diagnostics(sourceChartStyleRemoval));
+        Assert.Single(sourceChartStyleRemoval.PresentationProgram.ChangedParts);
+        Assert.Contains("/charts/", sourceChartStyleRemoval.PresentationProgram.ChangedParts[0], StringComparison.Ordinal);
+
+        var sourceChartStyleRemovalProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = sourceChartStyleRemoval.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "gap-profiles/source-chart-style-removal.pptx",
+                AssetRootUri = "gap-profiles/assets",
+            },
+        });
+        Assert.True(sourceChartStyleRemovalProjection.Ok, Diagnostics(sourceChartStyleRemovalProjection));
+        var sourceChartStyleRemovalState = JsonNode.Parse(sourceChartStyleRemovalProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var sourceChartStyleRemovalSeries = sourceChartStyleRemovalState["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["id"]!.GetValue<string>() == sourceChartId)["data"]!["series"]![1]!.AsObject();
+        Assert.Null(sourceChartStyleRemovalSeries["stroke"]);
+        Assert.Null(sourceChartStyleRemovalSeries["marker"]);
+    }
+
+    [Fact]
+    public void PpjSourceBoundTimingGraphEditsOnlySlideAndReprojects()
+    {
+        var request = ExportRequest();
+        request.Artifact.Presentation.Slides[0].Animations.Add(new PresentationAnimation
+        {
+            Id = "title-reveal",
+            TargetId = "presentation/slide/1/title",
+            TargetKind = "element",
+            Effect = "wipe",
+            Phase = "entrance",
+            Start = "afterPrevious",
+            Direction = "right",
+            DurationMs = 420,
+            DelayMs = 120,
+            RepeatCount = 2,
+            AutoReverse = true,
+            Easing = "ease-in-out",
+            TextBuild = "paragraph",
+        });
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "timing-source/source.pptx",
+                AssetRootUri = "timing-source/assets",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var page = program["pages"]!.AsArray()[0]!.AsObject();
+        var animation = Assert.Single(page["animations"]!.AsArray()).AsObject();
+        Assert.Equal("wipe", animation["effect"]!.GetValue<string>());
+        Assert.Equal("afterPrevious", animation["trigger"]!.GetValue<string>());
+        Assert.Equal(420, animation["durationMs"]!.GetValue<int>());
+        Assert.Equal(120, animation["delayMs"]!.GetValue<int>());
+        Assert.Equal(2, animation["repeat"]!.GetValue<int>());
+        Assert.True(animation["autoReverse"]!.GetValue<bool>());
+        Assert.Equal("ease-in-out", animation["easing"]!.GetValue<string>());
+        Assert.Equal("paragraph", animation["textBuild"]!.GetValue<string>());
+        Assert.Contains(page["nativeRef"]!["capabilities"]!.AsArray(), capability =>
+            capability!["operation"]!.GetValue<string>() == "setAnimations" &&
+            capability["fields"]!.AsArray().Any(field => field!.GetValue<string>() == "animations"));
+
+        var animationId = animation["id"]!.GetValue<string>();
+        animation["durationMs"] = 600;
+        animation["delayMs"] = 180;
+        animation["repeat"] = 3;
+        animation["autoReverse"] = false;
+        animation["easing"] = "ease-out";
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(new[] { "ppt/slides/slide1.xml" }, edited.PresentationProgram.ChangedParts);
+        Assert.Contains(animationId, edited.PresentationProgram.ChangedNodeIds);
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "timing-source/edited.pptx",
+                AssetRootUri = "timing-source/assets",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        using var output = JsonDocument.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray());
+        var outputAnimation = output.RootElement.GetProperty("pages")[0]
+            .GetProperty("animations")[0];
+        Assert.Equal("wipe", outputAnimation.GetProperty("effect").GetString());
+        Assert.Equal("afterPrevious", outputAnimation.GetProperty("trigger").GetString());
+        Assert.Equal(600, outputAnimation.GetProperty("durationMs").GetInt32());
+        Assert.Equal(180, outputAnimation.GetProperty("delayMs").GetInt32());
+        Assert.Equal(3, outputAnimation.GetProperty("repeat").GetInt32());
+        Assert.False(outputAnimation.GetProperty("autoReverse").GetBoolean());
+        Assert.Equal("ease-out", outputAnimation.GetProperty("easing").GetString());
+        Assert.Equal("paragraph", outputAnimation.GetProperty("textBuild").GetString());
+    }
+
+    [Fact]
+    public void PpjRadarSpokeGrammarTokensAuthorAndReproject()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        program["assets"] = new JsonArray();
+        program["components"] = new JsonArray();
+        program["sections"] = new JsonArray();
+        program["customShows"] = new JsonArray();
+        program["comments"] = new JsonArray();
+        var grammar = program["design"]!["grammar"]!.AsObject();
+        grammar["tokens"] = new JsonObject
+        {
+            ["radarShow"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["radarMin"] = new JsonObject { ["kind"] = "size", ["value"] = 0 },
+            ["radarMax"] = new JsonObject { ["kind"] = "size", ["value"] = 100 },
+            ["radarUnit"] = new JsonObject { ["kind"] = "size", ["value"] = 20 },
+            ["radarFormat"] = new JsonObject { ["kind"] = "string", ["value"] = "0.0" },
+            ["radarSize"] = new JsonObject { ["kind"] = "size", ["value"] = 11 },
+            ["radarFont"] = new JsonObject { ["kind"] = "string", ["value"] = "Arial" },
+            ["radarBold"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["radarItalic"] = new JsonObject { ["kind"] = "boolean", ["value"] = false },
+            ["radarAxisLine"] = new JsonObject { ["kind"] = "boolean", ["value"] = false },
+            ["radarGridLine"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+        };
+        var page = program["pages"]!.AsArray()[0]!.DeepClone().AsObject();
+        page.Remove("animations");
+        page.Remove("timing");
+        page.Remove("readingOrder");
+        page["elements"] = new JsonArray(new JsonObject
+        {
+            ["id"] = "grammar-radar",
+            ["type"] = "chart",
+            ["frame"] = new JsonObject { ["x"] = 80, ["y"] = 80, ["width"] = 420, ["height"] = 280 },
+            ["chartType"] = "radar",
+            ["title"] = "Risk profile",
+            ["data"] = new JsonObject
+            {
+                ["categories"] = new JsonArray("Availability", "Latency", "Cost"),
+                ["series"] = new JsonArray(new JsonObject
+                {
+                    ["id"] = "risk",
+                    ["name"] = "Current",
+                    ["values"] = new JsonArray(70, 45, 82),
+                }),
+            },
+            ["spokeAxis"] = new JsonObject
+            {
+                ["show"] = new JsonObject { ["token"] = "radarShow" },
+                ["min"] = new JsonObject { ["token"] = "radarMin" },
+                ["max"] = new JsonObject { ["token"] = "radarMax" },
+                ["majorUnit"] = new JsonObject { ["token"] = "radarUnit" },
+                ["label"] = new JsonObject
+                {
+                    ["numberFormat"] = new JsonObject { ["token"] = "radarFormat" },
+                    ["fontSize"] = new JsonObject { ["token"] = "radarSize" },
+                    ["fontFamily"] = new JsonObject { ["token"] = "radarFont" },
+                    ["bold"] = new JsonObject { ["token"] = "radarBold" },
+                    ["italic"] = new JsonObject { ["token"] = "radarItalic" },
+                },
+                ["axisLine"] = new JsonObject { ["token"] = "radarAxisLine" },
+                ["gridLine"] = new JsonObject { ["token"] = "radarGridLine" },
+            },
+        });
+        program["pages"] = new JsonArray(page);
+
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var validation = PpjProgramValidator.Validate(bytes);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest { ProgramJson = ByteString.CopyFrom(bytes) },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var radarSourceBytes = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(radarSourceBytes),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "radar-grammar/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var output = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var chart = output["pages"]!.AsArray()[0]!["elements"]!.AsArray()[0]!.AsObject();
+        Assert.Equal("radar", chart["chartType"]!.GetValue<string>());
+        var spokeAxis = chart["spokeAxis"]!.AsObject();
+        Assert.True(spokeAxis["show"]!.GetValue<bool>());
+        Assert.Equal(0, spokeAxis["min"]!.GetValue<double>());
+        Assert.Equal(100, spokeAxis["max"]!.GetValue<double>());
+        Assert.Equal(20, spokeAxis["majorUnit"]!.GetValue<double>());
+        Assert.False(spokeAxis["axisLine"]!.GetValue<bool>());
+        Assert.True(spokeAxis["gridLine"]!.GetValue<bool>());
+        var label = spokeAxis["label"]!.AsObject();
+        Assert.Equal("0.0", label["numberFormat"]!.GetValue<string>());
+        Assert.Equal(11, label["fontSize"]!.GetValue<double>());
+        Assert.Equal("Arial", label["fontFamily"]!.GetValue<string>());
+        Assert.True(label["bold"]!.GetValue<bool>());
+        Assert.False(label["italic"]!.GetValue<bool>());
+
+        var sourceProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var sourceChartId = sourceProgram["pages"]![0]! ["elements"]!.AsArray()[0]! ["id"]!.GetValue<string>();
+        sourceProgram["design"]!["grammar"]!["tokens"] = new JsonObject
+        {
+            ["sourceRadarShow"] = new JsonObject { ["kind"] = "boolean", ["value"] = false },
+            ["sourceRadarMin"] = new JsonObject { ["kind"] = "size", ["value"] = 10 },
+            ["sourceRadarMax"] = new JsonObject { ["kind"] = "size", ["value"] = 90 },
+            ["sourceRadarUnit"] = new JsonObject { ["kind"] = "size", ["value"] = 20 },
+            ["sourceRadarFormat"] = new JsonObject { ["kind"] = "string", ["value"] = "#,##0" },
+            ["sourceRadarSize"] = new JsonObject { ["kind"] = "size", ["value"] = 12 },
+            ["sourceRadarFont"] = new JsonObject { ["kind"] = "string", ["value"] = "Courier New" },
+            ["sourceRadarBold"] = new JsonObject { ["kind"] = "boolean", ["value"] = false },
+            ["sourceRadarItalic"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["sourceRadarAxisLine"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["sourceRadarGridLine"] = new JsonObject { ["kind"] = "boolean", ["value"] = false },
+        };
+        var sourceSpokeAxis = sourceProgram["pages"]![0]!["elements"]![0]!["spokeAxis"]!.AsObject();
+        sourceSpokeAxis["show"] = new JsonObject { ["token"] = "sourceRadarShow" };
+        sourceSpokeAxis["min"] = new JsonObject { ["token"] = "sourceRadarMin" };
+        sourceSpokeAxis["max"] = new JsonObject { ["token"] = "sourceRadarMax" };
+        sourceSpokeAxis["majorUnit"] = new JsonObject { ["token"] = "sourceRadarUnit" };
+        sourceSpokeAxis["axisLine"] = new JsonObject { ["token"] = "sourceRadarAxisLine" };
+        sourceSpokeAxis["gridLine"] = new JsonObject { ["token"] = "sourceRadarGridLine" };
+        sourceSpokeAxis["label"] = new JsonObject
+        {
+            ["numberFormat"] = new JsonObject { ["token"] = "sourceRadarFormat" },
+            ["fontSize"] = new JsonObject { ["token"] = "sourceRadarSize" },
+            ["fontFamily"] = new JsonObject { ["token"] = "sourceRadarFont" },
+            ["bold"] = new JsonObject { ["token"] = "sourceRadarBold" },
+            ["italic"] = new JsonObject { ["token"] = "sourceRadarItalic" },
+        };
+        var sourceEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(radarSourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(sourceProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(sourceEdit.Ok, Diagnostics(sourceEdit));
+        Assert.Single(sourceEdit.PresentationProgram.ChangedParts);
+        Assert.Contains("/charts/", sourceEdit.PresentationProgram.ChangedParts[0], StringComparison.Ordinal);
+        Assert.Contains(sourceChartId, sourceEdit.PresentationProgram.ChangedNodeIds);
+        var sourceReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = sourceEdit.File,
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "radar-grammar/source-output.pptx" },
+        });
+        Assert.True(sourceReprojection.Ok, Diagnostics(sourceReprojection));
+        var sourceOutput = JsonNode.Parse(sourceReprojection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var sourceSpoke = sourceOutput["pages"]![0]!["elements"]![0]!["spokeAxis"]!.AsObject();
+        Assert.False(sourceSpoke["show"]!.GetValue<bool>());
+        Assert.Equal(10, sourceSpoke["min"]!.GetValue<double>());
+        Assert.Equal(90, sourceSpoke["max"]!.GetValue<double>());
+        Assert.Equal("#,##0", sourceSpoke["label"]!["numberFormat"]!.GetValue<string>());
+        Assert.Equal(12, sourceSpoke["label"]!["fontSize"]!.GetValue<double>());
+        Assert.Equal("Courier New", sourceSpoke["label"]!["fontFamily"]!.GetValue<string>());
+        Assert.False(sourceSpoke["label"]!["bold"]!.GetValue<bool>());
+        Assert.True(sourceSpoke["label"]!["italic"]!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void PpjStylePrecedenceAuthorsStyleRefBeforeInlineForShapeChartAndTable()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        program["assets"] = new JsonArray();
+        program["components"] = new JsonArray();
+        program["sections"] = new JsonArray();
+        program["customShows"] = new JsonArray();
+        program["comments"] = new JsonArray();
+        var grammar = program["design"]!["grammar"]!.AsObject();
+        grammar["tokens"] = new JsonObject
+        {
+            ["chartLegend"] = new JsonObject { ["kind"] = "string", ["value"] = "bottom" },
+            ["chartStacking"] = new JsonObject { ["kind"] = "string", ["value"] = "stacked" },
+            ["chartGapWidth"] = new JsonObject { ["kind"] = "size", ["value"] = 42 },
+            ["chartShowCategoryAxis"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["chartShowValueAxis"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+            ["chartShowGridlines"] = new JsonObject { ["kind"] = "boolean", ["value"] = true },
+        };
+        grammar["stylePrecedence"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["target"] = "shape.fill",
+                ["sources"] = new JsonArray("styleRef", "inline", "default"),
+            },
+            new JsonObject
+            {
+                ["target"] = "chart.frame",
+                ["sources"] = new JsonArray("styleRef", "inline", "default"),
+            },
+            new JsonObject
+            {
+                ["target"] = "table.headerRows",
+                ["sources"] = new JsonArray("styleRef", "inline", "default"),
+            },
+            new JsonObject
+            {
+                ["target"] = "table.bandedRows",
+                ["sources"] = new JsonArray("styleRef", "inline", "default"),
+            },
+            new JsonObject
+            {
+                ["target"] = "text.size",
+                ["sources"] = new JsonArray("styleRef", "inline", "default"),
+            },
+            new JsonObject
+            {
+                ["target"] = "chart.legendTextStyle",
+                ["sources"] = new JsonArray("styleRef", "inline", "default"),
+            },
+            new JsonObject
+            {
+                ["target"] = "chart.legendTextStyle.fontSize",
+                ["sources"] = new JsonArray("styleRef", "inline", "default"),
+            },
+            new JsonObject
+            {
+                ["target"] = "chart.legendTextStyle.fontFamily",
+                ["sources"] = new JsonArray("inline", "styleRef", "default"),
+            },
+            new JsonObject
+            {
+                ["target"] = "chart.legendTextStyle.color",
+                ["sources"] = new JsonArray("styleRef", "inline", "default"),
+            },
+        };
+
+        var shapeStyle = program["design"]!["styles"]!["shape"]!.AsArray()
+            .Single(item => item!["id"]!.GetValue<string>() == "decision-band")!["style"]!.AsObject();
+        shapeStyle["fill"] = new JsonObject
+        {
+            ["type"] = "solid",
+            ["color"] = "#A0B0C0",
+        };
+        var titleStyle = program["design"]!["styles"]!["text"]!.AsArray()
+            .Single(item => item!["id"]!.GetValue<string>() == "title")!["style"]!.AsObject();
+        titleStyle["defaultText"]!["size"] = 24;
+        var claimPage = program["pages"]!.AsArray()[0]!.AsObject();
+        claimPage.Remove("animations");
+        claimPage.Remove("timing");
+        claimPage["elements"] = new JsonArray(
+            claimPage["elements"]!.AsArray()
+                .Where(item => item!["id"]!.GetValue<string>() is "claim-title" or "claim-band")
+                .Select(item => item!.DeepClone())
+                .ToArray());
+        claimPage["readingOrder"] = new JsonArray("claim-title", "claim-band");
+        claimPage["elements"]!.AsArray()
+            .Single(item => item!["id"]!.GetValue<string>() == "claim-band")!["style"] = new JsonObject
+        {
+            ["fill"] = new JsonObject
+            {
+                ["type"] = "solid",
+                ["color"] = "#654321",
+            },
+        };
+
+        var chartStyle = program["design"]!["styles"]!["chart"]!.AsArray()
+            .Single(item => item!["id"]!.GetValue<string>() == "evidence-chart")!["style"]!.AsObject();
+        chartStyle["frame"] = new JsonObject
+        {
+            ["fill"] = new JsonObject
+            {
+                ["type"] = "solid",
+                ["color"] = "#102030",
+            },
+        };
+        chartStyle["legendTextStyle"] = new JsonObject
+        {
+            ["fontSize"] = 14,
+            ["fontFamily"] = "Times New Roman",
+            ["color"] = "#203040",
+        };
+        var evidencePage = program["pages"]!.AsArray()[1]!.AsObject();
+        evidencePage.Remove("animations");
+        evidencePage.Remove("timing");
+        evidencePage["elements"] = new JsonArray(
+            evidencePage["elements"]!.AsArray()
+                .Where(item => item!["type"]!.GetValue<string>() is "chart" or "table")
+                .Select(item => item!.DeepClone())
+                .ToArray());
+        evidencePage["readingOrder"] = new JsonArray("evidence-chart-main", "method-table-main");
+        evidencePage["elements"]![0]!["style"] = new JsonObject
+        {
+            ["legend"] = new JsonObject { ["token"] = "chartLegend" },
+            ["stacking"] = new JsonObject { ["token"] = "chartStacking" },
+            ["gapWidth"] = new JsonObject { ["token"] = "chartGapWidth" },
+            ["showCategoryAxis"] = new JsonObject { ["token"] = "chartShowCategoryAxis" },
+            ["showValueAxis"] = new JsonObject { ["token"] = "chartShowValueAxis" },
+            ["showGridlines"] = new JsonObject { ["token"] = "chartShowGridlines" },
+            ["frame"] = new JsonObject
+            {
+                ["fill"] = new JsonObject
+                {
+                    ["type"] = "solid",
+                    ["color"] = "#F0E0D0",
+                },
+            },
+            ["legendTextStyle"] = new JsonObject
+            {
+                ["fontSize"] = 9,
+                ["fontFamily"] = "Arial",
+                ["color"] = "#908070",
+            },
+        };
+        evidencePage["elements"]![1]!["style"] = new JsonObject
+        {
+            ["headerRows"] = 0,
+            ["bandedRows"] = true,
+        };
+
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var validation = PpjProgramValidator.Validate(bytes);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest { ProgramJson = ByteString.CopyFrom(bytes) },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(authored.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "style-precedence/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var output = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var outputShape = output["pages"]!.AsArray()[0]!["elements"]!.AsArray()
+            .Single(item => item!["name"]!.GetValue<string>() == "decision rule")!.AsObject();
+        Assert.Equal("#A0B0C0", outputShape["style"]!["fill"]!["color"]!.GetValue<string>());
+        var outputChart = output["pages"]!.AsArray()[1]!["elements"]!.AsArray()[0]!.AsObject();
+        Assert.Equal("bottom", outputChart["style"]!["legend"]!.GetValue<string>());
+        Assert.Equal("stacked", outputChart["style"]!["stacking"]!.GetValue<string>());
+        Assert.Equal(42, outputChart["style"]!["gapWidth"]!.GetValue<int>());
+        Assert.Equal("#102030", outputChart["style"]!["frame"]!["fill"]!["color"]!.GetValue<string>());
+        Assert.Equal(14, outputChart["style"]!["legendTextStyle"]!["fontSize"]!.GetValue<double>());
+        Assert.Equal("#203040", outputChart["style"]!["legendTextStyle"]!["color"]!.GetValue<string>());
+        var outputTable = output["pages"]!.AsArray()[1]!["elements"]!.AsArray()[1]!.AsObject();
+        Assert.Equal(1, outputTable["style"]!["headerRows"]!.GetValue<int>());
+        Assert.False(outputTable["style"]!["bandedRows"]!.GetValue<bool>());
+        var outputTitle = output["pages"]!.AsArray()[0]!["elements"]!.AsArray()
+            .Single(item => item!["name"]!.GetValue<string>() == "title")!.AsObject();
+        Assert.Equal(24, outputTitle["text"]!["paragraphs"]![0]!["runs"]![0]!["style"]!["size"]!.GetValue<double>());
+    }
+
+    [Fact]
+    public void PpjImageOpacityGrammarTokenAuthorsAndReprojects()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var fixtureDirectory = Path.Combine(root!.FullName, "test", "fixtures", "presentation");
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            fixtureDirectory, "evidence-ledger-canonical.ppj")))!.AsObject();
+        program["design"]!["grammar"]!["tokens"] = new JsonObject
+        {
+            ["imageOpacity"] = new JsonObject { ["kind"] = "opacity", ["value"] = 0.92 },
+            ["imageShadowOpacity"] = new JsonObject { ["kind"] = "opacity", ["value"] = 0.38 },
+            ["imageShadowColor"] = new JsonObject { ["kind"] = "color", ["value"] = "#445566" },
+            ["imageBorderColor"] = new JsonObject { ["kind"] = "color", ["value"] = "#112233" },
+            ["imageBorderOpacity"] = new JsonObject { ["kind"] = "opacity", ["value"] = 0.66 },
+            ["imageBorderWidth"] = new JsonObject { ["kind"] = "size", ["value"] = 1.5 },
+            ["imageFit"] = new JsonObject { ["kind"] = "string", ["value"] = "tile" },
+        };
+        program["design"]!["grammar"]!["stylePrecedence"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["target"] = "image.fit",
+                ["sources"] = new JsonArray("styleRef", "inline", "default"),
+            },
+            new JsonObject
+            {
+                ["target"] = "image.opacity",
+                ["sources"] = new JsonArray("styleRef", "inline", "default"),
+            },
+        };
+        program["design"]!["styles"]!["image"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["id"] = "reusable-image-paint",
+                ["style"] = new JsonObject
+                {
+                    ["fit"] = "tile",
+                    ["opacity"] = 0.81,
+                },
+            },
+        };
+        var image = program["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["id"]!.GetValue<string>() == "claim-mark");
+        image["styleRef"] = "reusable-image-paint";
+        image["style"] = new JsonObject
+        {
+            ["fit"] = "stretch",
+            ["opacity"] = 0.44,
+        };
+        image["opacity"] = new JsonObject { ["token"] = "imageOpacity" };
+        image["fit"] = new JsonObject { ["token"] = "imageFit" };
+        image["shadow"] = new JsonObject
+        {
+            ["color"] = new JsonObject { ["token"] = "imageShadowColor" },
+            ["blur"] = 3,
+            ["distance"] = 2,
+            ["angle"] = 45,
+            ["opacity"] = new JsonObject { ["token"] = "imageShadowOpacity" },
+        };
+        image["border"] = new JsonObject
+        {
+            ["color"] = new JsonObject { ["token"] = "imageBorderColor" },
+            ["width"] = 1.5,
+            ["dash"] = "dash",
+            ["opacity"] = new JsonObject { ["token"] = "imageBorderOpacity" },
+        };
+        var imagePaintShape = program["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["id"]!.GetValue<string>() == "claim-band");
+        imagePaintShape["style"] = new JsonObject
+        {
+            ["fill"] = new JsonObject
+            {
+                ["type"] = "image",
+                ["asset"] = "evidence-mark",
+                ["fit"] = new JsonObject { ["token"] = "imageFit" },
+                ["opacity"] = new JsonObject { ["token"] = "imageOpacity" },
+            },
+        };
+        var assetBytes = File.ReadAllBytes(Path.Combine(fixtureDirectory, "ppj-assets", "evidence-mark.svg"));
+        var assetSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(assetBytes)).ToLowerInvariant();
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+                Assets =
+                {
+                    new Asset
+                    {
+                        Id = "evidence-mark",
+                        FileName = "evidence-mark.svg",
+                        ContentType = "image/svg+xml",
+                        Data = ByteString.CopyFrom(assetBytes),
+                        Sha256 = assetSha256,
+                    },
+                },
+            },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceFile = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceFile),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "image-token/source.pptx",
+                AssetRootUri = "image-token/assets",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var reprojected = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedImage = reprojected["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "image");
+        Assert.Equal("tile", projectedImage["fit"]!.GetValue<string>());
+        Assert.Equal(0.81, projectedImage["opacity"]!.GetValue<double>(), precision: 6);
+        Assert.Equal("#445566", projectedImage["shadow"]!["color"]!.GetValue<string>());
+        Assert.Equal(0.38, projectedImage["shadow"]!["opacity"]!.GetValue<double>(), precision: 6);
+        Assert.Equal("#112233", projectedImage["border"]!["color"]!.GetValue<string>());
+        Assert.Equal(0.66, projectedImage["border"]!["opacity"]!.GetValue<double>(), precision: 6);
+        var projectedImagePaintShape = reprojected["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["style"] is JsonObject style &&
+                style["fill"] is JsonObject fill &&
+                fill["type"]?.GetValue<string>() == "image");
+        Assert.Equal("tile", projectedImagePaintShape["style"]!["fill"]!["fit"]!.GetValue<string>());
+        Assert.Equal(0.92, projectedImagePaintShape["style"]!["fill"]!["opacity"]!.GetValue<double>(), precision: 6);
+
+        // The same token must remain usable on a source-bound edit.  The
+        // source projection keeps the resolved literal, while the request
+        // may reintroduce the grammar reference; the compiler must resolve
+        // it against the requested design grammar before changing the
+        // picture crop/tile owner.
+        var sourceBoundProgram = reprojected.DeepClone().AsObject();
+        sourceBoundProgram["design"]!["styles"]!["image"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["id"] = "source-bound-image-paint",
+                ["style"] = new JsonObject
+                {
+                    ["fit"] = "stretch",
+                    ["opacity"] = 0.73,
+                },
+            },
+        };
+        sourceBoundProgram["design"]!["grammar"]!["stylePrecedence"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["target"] = "image.fit",
+                ["sources"] = new JsonArray("styleRef", "inline", "default"),
+            },
+            new JsonObject
+            {
+                ["target"] = "image.opacity",
+                ["sources"] = new JsonArray("styleRef", "inline", "default"),
+            },
+        };
+        sourceBoundProgram["design"]!["grammar"]!["tokens"] = new JsonObject
+        {
+            ["imageFit"] = new JsonObject { ["kind"] = "string", ["value"] = "stretch" },
+            ["imageOpacity"] = new JsonObject { ["kind"] = "opacity", ["value"] = 0.73 },
+            ["imageShadowOpacity"] = new JsonObject { ["kind"] = "opacity", ["value"] = 0.27 },
+            ["imageShadowColor"] = new JsonObject { ["kind"] = "color", ["value"] = "#AABBCC" },
+            ["imageBorderColor"] = new JsonObject { ["kind"] = "color", ["value"] = "#DDAA11" },
+            ["imageBorderOpacity"] = new JsonObject { ["kind"] = "opacity", ["value"] = 0.55 },
+            ["imageBorderWidth"] = new JsonObject { ["kind"] = "size", ["value"] = 2.25 },
+            ["connectorWidth"] = new JsonObject { ["kind"] = "size", ["value"] = 2.5 },
+            ["connectorOpacity"] = new JsonObject { ["kind"] = "opacity", ["value"] = 0.41 },
+        };
+        var sourceBoundImage = sourceBoundProgram["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "image");
+        sourceBoundImage["styleRef"] = "source-bound-image-paint";
+        sourceBoundImage["fit"] = new JsonObject { ["token"] = "imageFit" };
+        sourceBoundImage["shadow"]!["color"] = new JsonObject { ["token"] = "imageShadowColor" };
+        sourceBoundImage["shadow"]!["opacity"] = new JsonObject { ["token"] = "imageShadowOpacity" };
+        sourceBoundImage["border"]!["color"] = new JsonObject { ["token"] = "imageBorderColor" };
+        sourceBoundImage["border"]!["opacity"] = new JsonObject { ["token"] = "imageBorderOpacity" };
+        sourceBoundImage["border"]!["width"] = new JsonObject { ["token"] = "imageBorderWidth" };
+        var sourceBoundImagePaintShape = sourceBoundProgram["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["style"] is JsonObject style &&
+                style["fill"] is JsonObject fill &&
+                fill["type"]?.GetValue<string>() == "image");
+        sourceBoundImagePaintShape["style"]!["fill"]!["fit"] = new JsonObject { ["token"] = "imageFit" };
+        sourceBoundImagePaintShape["style"]!["fill"]!["opacity"] = new JsonObject { ["token"] = "imageOpacity" };
+        var sourceBoundSolidShape = sourceBoundProgram["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["style"] is JsonObject style &&
+                style["fill"] is JsonObject fill &&
+                fill["type"]?.GetValue<string>() == "solid" &&
+                fill["color"]?.GetValue<string>() == "#17324D");
+        sourceBoundSolidShape["style"]!["fill"]!["opacity"] = new JsonObject { ["token"] = "imageOpacity" };
+        var sourceBoundConnector = sourceBoundProgram["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]?.GetValue<string>() == "connector");
+        sourceBoundConnector["stroke"]!["width"] = new JsonObject { ["token"] = "connectorWidth" };
+        sourceBoundConnector["stroke"]!["opacity"] = new JsonObject { ["token"] = "connectorOpacity" };
+        var sourceBoundEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceFile),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(sourceBoundProgram.ToJsonString()),
+            },
+        });
+        Assert.True(sourceBoundEdit.Ok, Diagnostics(sourceBoundEdit));
+        var sourceBoundRoundTrip = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = sourceBoundEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "image-token/source-bound.pptx",
+                AssetRootUri = "image-token/assets",
+            },
+        });
+        Assert.True(sourceBoundRoundTrip.Ok, Diagnostics(sourceBoundRoundTrip));
+        var sourceBoundRoot = JsonNode.Parse(sourceBoundRoundTrip.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var sourceBoundProjectedImage = sourceBoundRoot["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "image");
+        Assert.Equal("stretch", sourceBoundProjectedImage["fit"]!.GetValue<string>());
+        Assert.Equal(0.73, sourceBoundProjectedImage["opacity"]!.GetValue<double>(), precision: 6);
+        Assert.Equal("#AABBCC", sourceBoundProjectedImage["shadow"]!["color"]!.GetValue<string>());
+        Assert.Equal(0.27, sourceBoundProjectedImage["shadow"]!["opacity"]!.GetValue<double>(), precision: 6);
+        Assert.Equal("#DDAA11", sourceBoundProjectedImage["border"]!["color"]!.GetValue<string>());
+        Assert.Equal(0.55, sourceBoundProjectedImage["border"]!["opacity"]!.GetValue<double>(), precision: 6);
+        Assert.Equal(2.25, sourceBoundProjectedImage["border"]!["width"]!.GetValue<double>(), precision: 6);
+        var sourceBoundProjectedImagePaintShape = sourceBoundRoot["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["style"] is JsonObject style &&
+                style["fill"] is JsonObject fill &&
+                fill["type"]?.GetValue<string>() == "image");
+        Assert.Equal("stretch", sourceBoundProjectedImagePaintShape["style"]!["fill"]!["fit"]!.GetValue<string>());
+        Assert.Equal(0.73, sourceBoundProjectedImagePaintShape["style"]!["fill"]!["opacity"]!.GetValue<double>(), precision: 6);
+        var sourceBoundProjectedSolidShape = sourceBoundRoot["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["style"] is JsonObject style &&
+                style["fill"] is JsonObject fill &&
+                fill["type"]?.GetValue<string>() == "solid" &&
+                fill["color"]?.GetValue<string>() == "#17324D");
+        Assert.Equal(0.73, sourceBoundProjectedSolidShape["style"]!["fill"]!["opacity"]!.GetValue<double>(), precision: 6);
+        var sourceBoundProjectedConnector = sourceBoundRoot["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]?.GetValue<string>() == "connector");
+        Assert.Equal(2.5, sourceBoundProjectedConnector["stroke"]!["width"]!.GetValue<double>(), precision: 6);
+        Assert.Equal(0.41, sourceBoundProjectedConnector["stroke"]!["opacity"]!.GetValue<double>(), precision: 6);
+    }
+
+    [Fact]
+    public void PpjSourceBoundImageMaskPresetAndCustomIdentityChangesAndReprojects()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var fixtureDirectory = Path.Combine(root!.FullName, "test", "fixtures", "presentation");
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            fixtureDirectory, "evidence-ledger-canonical.ppj")))!.AsObject();
+        var image = program["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["id"]!.GetValue<string>() == "claim-mark");
+        // The omitted PPJ mask is the native rectangle default.  This makes
+        // the regression prove both the canonical `rect` leaf and a semantic
+        // source-bound identity change to a supported preset.
+        image.Remove("mask");
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var assetBytes = File.ReadAllBytes(Path.Combine(fixtureDirectory, "ppj-assets", "evidence-mark.svg"));
+        var assetSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(assetBytes)).ToLowerInvariant();
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFrom(bytes),
+                Assets =
+                {
+                    new Asset
+                    {
+                        Id = "evidence-mark",
+                        FileName = "evidence-mark.svg",
+                        ContentType = "image/svg+xml",
+                        Data = ByteString.CopyFrom(assetBytes),
+                        Sha256 = assetSha256,
+                    },
+                },
+            },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "image-mask-preset/source.pptx",
+                AssetRootUri = "image-mask-preset/assets",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var state = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedImage = state["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "image");
+        Assert.Null(projectedImage["mask"]);
+        var maskLeaf = projectedImage["nativeRef"]!["leaves"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["kind"]!.GetValue<string>() == "imageMaskPreset");
+        Assert.Equal("rect", maskLeaf["value"]!.GetValue<string>());
+        var maskCapability = projectedImage["nativeRef"]!["capabilities"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["operation"]!.GetValue<string>() == "setImageMask");
+        Assert.Contains("image.mask.preset", maskCapability["fields"]!.AsArray().Select(item => item!.GetValue<string>()));
+
+        projectedImage["mask"] = new JsonObject { ["kind"] = "preset", ["preset"] = "roundRect" };
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(state.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(new[] { "ppt/slides/slide1.xml" }, edited.PresentationProgram.ChangedParts);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var presets = package.PresentationPart!.SlideParts.First().Slide!.Descendants<P.Picture>()
+                .Select(item => item.ShapeProperties!.GetFirstChild<A.PresetGeometry>()?.Preset?.Value)
+                .ToArray();
+            Assert.Contains(presets, preset => preset is { } value &&
+                value.Equals(new A.ShapeTypeValues("roundRect")));
+        }
+
+        var secondProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "image-mask-preset/edited.pptx",
+                AssetRootUri = "image-mask-preset/assets",
+            },
+        });
+        Assert.True(secondProjection.Ok, Diagnostics(secondProjection));
+        var output = JsonNode.Parse(secondProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var outputImage = output["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "image");
+        Assert.Equal("preset", outputImage["mask"]!["kind"]!.GetValue<string>());
+        Assert.Equal("roundRect", outputImage["mask"]!["preset"]!.GetValue<string>());
+
+        // Preset identity changes remain local even when the source preset
+        // carries a complete adjustment list.  The requested preset may have
+        // a different guide arity; PptxPictureCodec replaces only the
+        // picture-owned geometry slot and keeps the existing relationship.
+        var adjustedProgram = output.DeepClone().AsObject();
+        var adjustedImage = adjustedProgram["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "image");
+        adjustedImage["mask"] = new JsonObject
+        {
+            ["kind"] = "preset",
+            ["preset"] = "roundRect",
+            ["adjustments"] = new JsonArray(30000),
+        };
+        var adjusted = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(adjustedProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(adjusted.Ok, Diagnostics(adjusted));
+        Assert.Equal(new[] { "ppt/slides/slide1.xml" }, adjusted.PresentationProgram.ChangedParts);
+
+        var adjustedProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = adjusted.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "image-mask-preset/adjusted.pptx",
+                AssetRootUri = "image-mask-preset/assets",
+            },
+        });
+        Assert.True(adjustedProjection.Ok, Diagnostics(adjustedProjection));
+        var adjustedOutput = JsonNode.Parse(adjustedProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var adjustedOutputImage = adjustedOutput["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "image");
+        Assert.Equal("roundRect", adjustedOutputImage["mask"]!["preset"]!.GetValue<string>());
+        Assert.Equal(30000, adjustedOutputImage["mask"]!["adjustments"]![0]!.GetValue<int>());
+        var adjustedMaskLeafProgram = adjustedOutput.DeepClone().AsObject();
+        var adjustedMaskLeafImageInput = adjustedMaskLeafProgram["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "image");
+        var adjustedMaskLeaf = adjustedMaskLeafImageInput["nativeRef"]!["leaves"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["kind"]!.GetValue<string>() == "imageMaskAdjustment");
+        Assert.Equal(30000, adjustedMaskLeaf["value"]!.GetValue<long>());
+        adjustedMaskLeaf["value"] = 31000;
+        var adjustedMaskLeafEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = adjusted.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(adjustedMaskLeafProgram.ToJsonString()),
+            },
+        });
+        Assert.True(adjustedMaskLeafEdit.Ok, Diagnostics(adjustedMaskLeafEdit));
+        Assert.Equal(new[] { "ppt/slides/slide1.xml" }, adjustedMaskLeafEdit.PresentationProgram.ChangedParts);
+        var adjustedMaskLeafXml = Encoding.UTF8.GetString(ZipBytes(adjustedMaskLeafEdit.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("fmla=\"val 31000\"", adjustedMaskLeafXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(adjustedMaskLeafEdit.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        var adjustedMaskLeafProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = adjustedMaskLeafEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "image-mask-preset/adjusted-leaf.pptx",
+                AssetRootUri = "image-mask-preset/assets",
+            },
+        });
+        Assert.True(adjustedMaskLeafProjection.Ok, Diagnostics(adjustedMaskLeafProjection));
+        var adjustedMaskLeafOutput = JsonNode.Parse(adjustedMaskLeafProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var adjustedMaskLeafImage = adjustedMaskLeafOutput["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "image");
+        Assert.Equal(31000, adjustedMaskLeafImage["mask"]!["adjustments"]![0]!.GetValue<int>());
+        Assert.Equal(31000, adjustedMaskLeafImage["nativeRef"]!["leaves"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["kind"]!.GetValue<string>() == "imageMaskAdjustment")["value"]!.GetValue<long>());
+        var adjustedMaskCapabilities = adjustedOutputImage["nativeRef"]!["capabilities"]!.AsArray()
+            .Where(item => item!["operation"]!.GetValue<string>() == "setImageMask")
+            .ToArray();
+        Assert.Single(adjustedMaskCapabilities);
+        Assert.Contains("image.mask.preset", adjustedMaskCapabilities[0]!["fields"]!.AsArray().Select(item => item!.GetValue<string>()));
+        Assert.Contains("image.mask.adjustments", adjustedMaskCapabilities[0]!["fields"]!.AsArray().Select(item => item!.GetValue<string>()));
+
+        adjustedOutputImage["mask"] = new JsonObject
+        {
+            ["kind"] = "preset",
+            ["preset"] = "snipRoundRect",
+            ["adjustments"] = new JsonArray(24000, 32000),
+        };
+        var adjustedIdentity = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = adjusted.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(adjustedOutput.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(adjustedIdentity.Ok, Diagnostics(adjustedIdentity));
+        Assert.Equal(new[] { "ppt/slides/slide1.xml" }, adjustedIdentity.PresentationProgram.ChangedParts);
+        var adjustedIdentityProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = adjustedIdentity.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "image-mask-preset/adjusted-identity.pptx",
+                AssetRootUri = "image-mask-preset/assets",
+            },
+        });
+        Assert.True(adjustedIdentityProjection.Ok, Diagnostics(adjustedIdentityProjection));
+        var adjustedIdentityOutput = JsonNode.Parse(adjustedIdentityProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var adjustedIdentityImage = adjustedIdentityOutput["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "image");
+        Assert.Equal("snipRoundRect", adjustedIdentityImage["mask"]!["preset"]!.GetValue<string>());
+        Assert.Equal(new[] { 24000, 32000 }, adjustedIdentityImage["mask"]!["adjustments"]!.AsArray().Select(item => item!.GetValue<int>()).ToArray());
+
+        // If one preset guide becomes formula-valued, the whole image mask is
+        // intentionally opaque, but an independent literal sibling remains a
+        // safe native leaf.  This proves the partial-mask boundary without
+        // reconstructing or flattening the picture geometry.
+        var partialMaskSource = ReplaceZipText(adjustedIdentity.File.ToByteArray(), "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("fmla=\"val 32000\"", xml, StringComparison.Ordinal);
+            return xml.Replace("fmla=\"val 32000\"", "fmla=\"*/ 1 2 3\"", StringComparison.Ordinal);
+        });
+        var partialMaskProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(partialMaskSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "image-mask-preset/partial.pptx",
+                AssetRootUri = "image-mask-preset/assets",
+            },
+        });
+        Assert.True(partialMaskProjection.Ok, Diagnostics(partialMaskProjection));
+        var partialMaskProgram = JsonNode.Parse(partialMaskProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var partialMaskImage = partialMaskProgram["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["name"]?.GetValue<string>() == "evidence identity");
+        Assert.True(partialMaskImage["nativeRef"] is JsonObject nativeRef && nativeRef["leaves"] is JsonArray leaves &&
+            leaves.Any(leaf => leaf!["kind"]!.GetValue<string>() == "imageMaskAdjustment"), partialMaskImage.ToJsonString());
+        Assert.Equal("opaque", partialMaskImage!["type"]!.GetValue<string>());
+        var partialMaskLeaf = partialMaskImage["nativeRef"]!["leaves"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["kind"]!.GetValue<string>() == "imageMaskAdjustment");
+        Assert.Equal(24000, partialMaskLeaf["value"]!.GetValue<long>());
+        partialMaskLeaf["value"] = 25000;
+        var partialMaskEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(partialMaskSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(partialMaskProgram.ToJsonString()),
+            },
+        });
+        Assert.True(partialMaskEdit.Ok, Diagnostics(partialMaskEdit));
+        Assert.Equal(new[] { "ppt/slides/slide1.xml" }, partialMaskEdit.PresentationProgram.ChangedParts);
+        var partialMaskXml = Encoding.UTF8.GetString(ZipBytes(partialMaskEdit.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("fmla=\"val 25000\"", partialMaskXml, StringComparison.Ordinal);
+        Assert.Contains("fmla=\"*/ 1 2 3\"", partialMaskXml, StringComparison.Ordinal);
+        var partialMaskReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = partialMaskEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "image-mask-preset/partial-edited.pptx",
+                AssetRootUri = "image-mask-preset/assets",
+            },
+        });
+        Assert.True(partialMaskReprojection.Ok, Diagnostics(partialMaskReprojection));
+        var partialMaskOutput = JsonNode.Parse(partialMaskReprojection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var partialMaskOutputImage = partialMaskOutput["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "opaque");
+        Assert.Equal(25000, partialMaskOutputImage["nativeRef"]!["leaves"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["kind"]!.GetValue<string>() == "imageMaskAdjustment")["value"]!.GetValue<long>());
+
+        // A recognized preset picture mask and a literal custom mask share
+        // the same picture-owned geometry slot.  The bounded profile permits
+        // this topology transition without touching the picture relationship.
+        outputImage["mask"] = new JsonObject
+        {
+            ["kind"] = "custom",
+            ["viewBox"] = new JsonObject
+            {
+                ["x"] = 0,
+                ["y"] = 0,
+                ["width"] = 100,
+                ["height"] = 100,
+            },
+            ["paths"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["fill"] = true,
+                    ["commands"] = new JsonArray
+                    {
+                        new JsonObject { ["op"] = "moveTo", ["x"] = 0, ["y"] = 0 },
+                        new JsonObject { ["op"] = "lineTo", ["x"] = 100, ["y"] = 0 },
+                        new JsonObject { ["op"] = "lineTo", ["x"] = 100, ["y"] = 100 },
+                        new JsonObject { ["op"] = "lineTo", ["x"] = 0, ["y"] = 100 },
+                        new JsonObject { ["op"] = "close" },
+                    },
+                },
+            },
+        };
+        var customEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(output.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(customEdit.Ok, Diagnostics(customEdit));
+        Assert.Equal(new[] { "ppt/slides/slide1.xml" }, customEdit.PresentationProgram.ChangedParts);
+        var customProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = customEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "image-mask-preset/custom.pptx",
+                AssetRootUri = "image-mask-preset/assets",
+            },
+        });
+        Assert.True(customProjection.Ok, Diagnostics(customProjection));
+        var customOutput = JsonNode.Parse(customProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var customImage = customOutput["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "image");
+        Assert.Equal("custom", customImage["mask"]!["kind"]!.GetValue<string>());
+        Assert.Equal(100, customImage["mask"]!["paths"]![0]!["commands"]![2]!["x"]!.GetValue<double>());
+
+        // Clearing the semantic mask returns to the native rectangle default
+        // and exercises the inverse custom -> preset transition.
+        customImage.Remove("mask");
+        var restored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(customEdit.File.ToByteArray()),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(customOutput.ToJsonString()),
+            },
+        });
+        Assert.True(restored.Ok, Diagnostics(restored));
+        Assert.Equal(new[] { "ppt/slides/slide1.xml" }, restored.PresentationProgram.ChangedParts);
+        var restoredProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = restored.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "image-mask-preset/restored.pptx",
+                AssetRootUri = "image-mask-preset/assets",
+            },
+        });
+        Assert.True(restoredProjection.Ok, Diagnostics(restoredProjection));
+        var restoredOutput = JsonNode.Parse(restoredProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var restoredImage = restoredOutput["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "image");
+        Assert.Null(restoredImage["mask"]);
+    }
+
+    [Fact]
+    public void PpjConnectorStrokeOpacityGrammarTokenAuthorsAndReprojects()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        program["design"]!["grammar"]!["tokens"] = new JsonObject
+        {
+            ["connectorOpacity"] = new JsonObject { ["kind"] = "opacity", ["value"] = 0.58 },
+        };
+        program["assets"] = new JsonArray();
+        program["components"] = new JsonArray();
+        foreach (var pageNode in program["pages"]!.AsArray())
+        {
+            var page = pageNode!.AsObject();
+            page.Remove("animations");
+            page.Remove("timing");
+            page["elements"] = new JsonArray(page["elements"]!.AsArray()
+                .Where(item => item!["type"]!.GetValue<string>() is not ("image" or "component"))
+                .Select(item => item!.DeepClone())
+                .ToArray());
+        }
+        var connector = program["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["id"]!.GetValue<string>() == "decision-flow-link");
+        connector["stroke"]!["opacity"] = new JsonObject { ["token"] = "connectorOpacity" };
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var validation = PpjProgramValidator.Validate(bytes);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest { ProgramJson = ByteString.CopyFrom(bytes) },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(authored.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "connector-stroke-opacity/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var output = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedConnector = output["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "connector");
+        Assert.Equal("connector", projectedConnector["type"]!.GetValue<string>());
+        Assert.Equal(0.58, projectedConnector["stroke"]!["opacity"]!.GetValue<double>(), precision: 6);
+    }
+
+    [Fact]
+    public void PpjDatasetEncodingCoversKimiChannels()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var fixture = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+
+        PpjChartElementModel Parse(string? chartType, JsonObject data)
+        {
+            var program = fixture.DeepClone().AsObject();
+            foreach (var page in program["pages"]!.AsArray()) page!.AsObject().Remove("animations");
+            foreach (var page in program["pages"]!.AsArray())
+            {
+                var elements = page!.AsObject()["elements"]!.AsArray();
+                page.AsObject()["elements"] = new JsonArray(elements.Where(item => item!["type"]!.GetValue<string>() != "component").Select(item => item!.DeepClone()).ToArray());
+            }
+            program["components"] = new JsonArray();
+            var chart = program["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+                .Select(item => item!.AsObject())
+                .Single(item => item["type"]!.GetValue<string>() == "chart");
+            if (chartType is null) chart.Remove("chartType");
+            else chart["chartType"] = chartType;
+            chart.Remove("styleRef");
+            chart.Remove("style");
+            chart["data"] = data;
+            var validation = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(program.ToJsonString()));
+            Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+            return validation.Program!.Pages.SelectMany(page => page.Elements).OfType<PpjChartElementModel>().Single();
+        }
+
+        var candlestick = Parse(null, new JsonObject
+        {
+            ["dataset"] = new JsonObject
+            {
+                ["cols"] = new JsonArray("date", "open", "high", "low", "close"),
+                ["rows"] = new JsonArray(
+                    new JsonArray("2026-01-01", "10", 14, 8, 12),
+                    new JsonArray("2026-01-02", 12, 16, 11, 15)),
+            },
+            ["series"] = new JsonArray(new JsonObject
+            {
+                ["type"] = "candlestick",
+                ["encode"] = new JsonObject
+                {
+                    ["x"] = "date", ["open"] = "open", ["high"] = "high", ["low"] = "low", ["close"] = "close",
+                },
+            }),
+        });
+        Assert.Equal(new[] { 12d, 15d }, candlestick.Data.Series[0].Values.Select(value => value!.Value).ToArray());
+        Assert.Equal(new[] { 10d, 12d }, candlestick.Data.Series[0].OpenValues.ToArray());
+        Assert.Equal(new[] { 14d, 16d }, candlestick.Data.Series[0].HighValues.ToArray());
+        Assert.Equal(new[] { 8d, 11d }, candlestick.Data.Series[0].LowValues.ToArray());
+
+        var heatmap = Parse("heatmap", new JsonObject
+        {
+            ["dataset"] = new JsonObject
+            {
+                ["cols"] = new JsonArray("hour", "day", "count"),
+                ["rows"] = new JsonArray(
+                    new JsonArray("08:00", "Mon", 2),
+                    new JsonArray("09:00", "Mon", 4),
+                    new JsonArray("08:00", "Tue", 3)),
+            },
+            ["series"] = new JsonArray(new JsonObject
+            {
+                ["type"] = "heatmap",
+                ["encode"] = new JsonObject { ["x"] = "hour", ["y"] = "day", ["value"] = "count" },
+            }),
+        });
+        Assert.Equal(new[] { "08:00", "09:00" }, heatmap.Data.Categories.Select(item => item.GetString()).ToArray());
+        Assert.Equal(new[] { 2d, 4d }, heatmap.Data.Series[0].Values.Select(value => value!.Value).ToArray());
+        Assert.Null(heatmap.Data.Series[1].Values[1]);
+
+        var sankey = Parse("sankey", new JsonObject
+        {
+            ["dataset"] = new JsonObject
+            {
+                ["cols"] = new JsonArray("from", "to", "users"),
+                ["rows"] = new JsonArray(
+                    new JsonArray("A", "B", "10"),
+                    new JsonArray("B", "C", 10)),
+            },
+            ["series"] = new JsonArray(new JsonObject
+            {
+                ["type"] = "sankey",
+                ["encode"] = new JsonObject { ["source"] = "from", ["target"] = "to", ["flow"] = "users" },
+            }),
+        });
+        Assert.Equal(new[] { "A", "B", "C" }, sankey.Data.Categories.Select(item => item.GetString()).ToArray());
+        Assert.Equal(new[] { "A", "B" }, sankey.Data.Series[0].Sources.ToArray());
+        Assert.Equal(new[] { "B", "C" }, sankey.Data.Series[0].Targets.ToArray());
+        Assert.Equal(new[] { 10d, 10d }, sankey.Data.Series[0].Values.Select(value => value!.Value).ToArray());
+
+        var waterfall = Parse("waterfall", new JsonObject
+        {
+            ["dataset"] = new JsonObject
+            {
+                ["cols"] = new JsonArray("phase", "amount", "total"),
+                ["rows"] = new JsonArray(
+                    new JsonArray("Start", 10, false),
+                    new JsonArray("Loss", -3, false),
+                    new JsonArray("End", 7, true)),
+            },
+            ["series"] = new JsonArray(new JsonObject
+            {
+                ["type"] = "waterfall",
+                ["encode"] = new JsonObject { ["x"] = "phase", ["y"] = "amount", ["isTotal"] = "total" },
+            }),
+        });
+        Assert.Equal(new[] { "delta", "delta", "total" }, waterfall.Data.Series[0].PointRoles.ToArray());
+
+        var indexedCombo = Parse("combo", new JsonObject
+        {
+            ["dataset"] = new JsonObject
+            {
+                ["cols"] = new JsonArray("period", "revenue", "margin"),
+                ["rows"] = new JsonArray(
+                    new JsonArray("Q1", 100, 12),
+                    new JsonArray("Q2", 120, 15),
+                    new JsonArray("Q3", 140, 18)),
+            },
+            ["series"] = new JsonArray(
+                new JsonObject
+                {
+                    ["type"] = "bar",
+                    ["chartType"] = "column",
+                    ["encode"] = new JsonObject { ["x"] = "period", ["y"] = "revenue" },
+                    ["xAxisIndex"] = 0,
+                    ["yAxisIndex"] = 0,
+                },
+                new JsonObject
+                {
+                    ["type"] = "line",
+                    ["encode"] = new JsonObject { ["x"] = "period", ["y"] = "margin" },
+                    ["yAxisIndex"] = 1,
+                }),
+        });
+        Assert.Null(indexedCombo.Data.Series[0].Axis);
+        Assert.Equal(0, indexedCombo.Data.Series[0].XAxisIndex);
+        Assert.Equal(0, indexedCombo.Data.Series[0].YAxisIndex);
+        Assert.Equal("secondary", indexedCombo.Data.Series[1].Axis);
+        Assert.Null(indexedCombo.Data.Series[1].XAxisIndex);
+        Assert.Equal(1, indexedCombo.Data.Series[1].YAxisIndex);
+
+        var comboProgram = fixture.DeepClone().AsObject();
+        comboProgram["components"] = new JsonArray();
+        comboProgram["assets"] = new JsonArray();
+        foreach (var page in comboProgram["pages"]!.AsArray())
+        {
+            var pageObject = page!.AsObject();
+            pageObject.Remove("animations");
+            pageObject.Remove("transition");
+            pageObject.Remove("notes");
+            pageObject["elements"] = new JsonArray(pageObject["elements"]!.AsArray()
+                .Where(item => item!["type"]!.GetValue<string>() == "chart")
+                .Select(item => item!.DeepClone())
+                .ToArray());
+        }
+        var comboChart = comboProgram["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject()).Single();
+        comboChart["chartType"] = "combo";
+        comboChart.Remove("styleRef");
+        comboChart.Remove("style");
+        comboChart["xAxis"] = new JsonArray(
+            new JsonObject { ["visible"] = true },
+            new JsonObject { ["visible"] = true });
+        comboChart["yAxis"] = new JsonArray(
+            new JsonObject { ["visible"] = true },
+            new JsonObject { ["visible"] = true });
+        comboChart["data"] = new JsonObject
+        {
+            ["dataset"] = new JsonObject
+            {
+                ["cols"] = new JsonArray("period", "revenue", "margin"),
+                ["rows"] = new JsonArray(
+                    new JsonArray("Q1", 100, 12),
+                    new JsonArray("Q2", 120, 15),
+                    new JsonArray("Q3", 140, 18)),
+            },
+            ["series"] = new JsonArray(
+                new JsonObject
+                {
+                    ["type"] = "bar",
+                    ["chartType"] = "column",
+                    ["encode"] = new JsonObject { ["x"] = "period", ["y"] = "revenue" },
+                    ["xAxisIndex"] = 0,
+                    ["yAxisIndex"] = 0,
+                },
+                new JsonObject
+                {
+                    ["type"] = "line",
+                    ["encode"] = new JsonObject { ["x"] = "period", ["y"] = "margin" },
+                    ["yAxisIndex"] = 1,
+                }),
+        };
+        var comboBytes = Encoding.UTF8.GetBytes(comboProgram.ToJsonString());
+        var comboValidation = PpjProgramValidator.Validate(comboBytes);
+        Assert.True(comboValidation.IsValid, string.Join(Environment.NewLine, comboValidation.Diagnostics));
+        var comboAuthored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFrom(comboBytes),
+            },
+        });
+        Assert.True(comboAuthored.Ok, Diagnostics(comboAuthored));
+        var comboProjected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(comboAuthored.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "dataset-indexed-combo/source.pptx",
+                AssetRootUri = "dataset-indexed-combo/assets",
+            },
+        });
+        Assert.True(comboProjected.Ok, Diagnostics(comboProjected));
+        var comboProjectedChart = JsonNode.Parse(comboProjected.PresentationProgram.ProgramJson.ToByteArray())!["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject()).Single(item => item["type"]!.GetValue<string>() == "chart");
+        Assert.Equal("combo", comboProjectedChart["chartType"]!.GetValue<string>());
+        Assert.Equal("secondary", comboProjectedChart["data"]!["series"]!.AsArray()[1]!["axis"]!.GetValue<string>());
+        Assert.Equal(0, comboProjectedChart["data"]!["series"]!.AsArray()[0]!["xAxisIndex"]!.GetValue<int>());
+        Assert.Equal(0, comboProjectedChart["data"]!["series"]!.AsArray()[0]!["yAxisIndex"]!.GetValue<int>());
+        Assert.Equal(1, comboProjectedChart["data"]!["series"]!.AsArray()[1]!["xAxisIndex"]!.GetValue<int>());
+        Assert.Equal(1, comboProjectedChart["data"]!["series"]!.AsArray()[1]!["yAxisIndex"]!.GetValue<int>());
+        Assert.NotNull(comboProjectedChart["secondaryYAxis"]);
+    }
+
+    [Fact]
+    public void PpjDatasetEncodingAuthorsAllKimiSeriesFamilies()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var fixture = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+
+        var profiles = new (string Type, JsonObject Data, JsonObject? Style)[]
+        {
+            ("bar", KimiCategoryDataset("bar"), null),
+            ("line", KimiLineDatasetWithDefaults(), null),
+            ("area", KimiCategoryDataset("area"), null),
+            ("scatter", KimiNumericDataset("scatter"), null),
+            ("bubble", KimiNumericDataset("bubble"), null),
+            ("candlestick", KimiCandlestickDataset(), new JsonObject
+            {
+                ["candlestick"] = new JsonObject
+                {
+                    ["up"] = new JsonObject { ["fill"] = KimiSolid("#16A34A") },
+                    ["down"] = new JsonObject { ["fill"] = KimiSolid("#DC2626") },
+                    ["wick"] = KimiStroke("#334155"),
+                },
+            }),
+            ("pie", KimiCategoryDataset("pie"), null),
+            ("radar", KimiCategoryDataset("radar"), null),
+            ("waterfall", KimiWaterfallDataset(), new JsonObject
+            {
+                ["waterfall"] = new JsonObject
+                {
+                    ["increase"] = new JsonObject { ["label"] = "Increase", ["fill"] = KimiSolid("#16A34A") },
+                    ["decrease"] = new JsonObject { ["label"] = "Decrease", ["fill"] = KimiSolid("#DC2626") },
+                    ["total"] = new JsonObject { ["label"] = "Total", ["fill"] = KimiSolid("#2563EB") },
+                },
+            }),
+            ("heatmap", KimiHeatmapDataset(), new JsonObject
+            {
+                ["heatmap"] = new JsonObject
+                {
+                    ["colors"] = new JsonArray("#EFF6FF", "#1D4ED8"),
+                    ["showColorBar"] = false,
+                },
+            }),
+            ("treemap", KimiHierarchyDataset("treemap"), new JsonObject
+            {
+                ["treemap"] = new JsonObject { ["rootColors"] = new JsonArray("#2563EB") },
+            }),
+            ("sunburst", KimiHierarchyDataset("sunburst"), new JsonObject
+            {
+                ["sunburst"] = new JsonObject { ["rootColors"] = new JsonArray("#2563EB") },
+            }),
+            ("sankey", KimiSankeyDataset(), new JsonObject
+            {
+                ["sankey"] = new JsonObject { ["nodeColors"] = new JsonArray("#2563EB", "#16A34A", "#F59E0B") },
+            }),
+        };
+
+        foreach (var profile in profiles)
+        {
+            var program = fixture.DeepClone().AsObject();
+            program["components"] = new JsonArray();
+            program["assets"] = new JsonArray();
+            program["sections"] = new JsonArray();
+            program["customShows"] = new JsonArray();
+            program["comments"] = new JsonArray();
+            program.Remove("source");
+
+            var sourcePage = program["pages"]!.AsArray()
+                .Select(page => page!.AsObject())
+                .Single(page => page["elements"]!.AsArray().Any(item => item!["type"]!.GetValue<string>() == "chart"));
+            var chart = sourcePage["elements"]!.AsArray()
+                .Select(item => item!.AsObject())
+                .Single(item => item["type"]!.GetValue<string>() == "chart")
+                .DeepClone().AsObject();
+            chart["chartType"] = profile.Type;
+            chart.Remove("styleRef");
+            chart.Remove("style");
+            chart.Remove("nativeRef");
+            chart["data"] = profile.Data.DeepClone();
+            if (profile.Style is not null) chart["style"] = profile.Style.DeepClone();
+
+            var page = sourcePage.DeepClone().AsObject();
+            foreach (var field in new[] { "animations", "timing", "transition", "notes", "sourceClone", "nativeRef" })
+                page.Remove(field);
+            page["elements"] = new JsonArray(chart);
+            program["pages"] = new JsonArray(page);
+
+            var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+            var validation = PpjProgramValidator.Validate(bytes);
+            Assert.True(validation.IsValid, $"{profile.Type}: {string.Join(Environment.NewLine, validation.Diagnostics)}");
+            if (profile.Type == "line")
+            {
+                var parsedLine = validation.Program!.Pages.Single().Elements.OfType<PpjChartElementModel>().Single();
+                Assert.Equal("circle", parsedLine.Data.Series[0].Raw.GetProperty("marker").GetProperty("symbol").GetString());
+                Assert.Equal(12, parsedLine.Data.Series[0].Raw.GetProperty("marker").GetProperty("size").GetInt32());
+                Assert.True(parsedLine.Data.Series[0].Raw.GetProperty("dataLabels").GetProperty("showValue").GetBoolean());
+                Assert.Equal(10, parsedLine.Data.Series[0].Raw.GetProperty("dataLabels").GetProperty("textStyle").GetProperty("fontSize").GetInt32());
+                Assert.Equal("#334155", parsedLine.Data.Series[0].Raw.GetProperty("dataLabels").GetProperty("textStyle").GetProperty("color").GetString());
+                Assert.True(parsedLine.Data.Series[0].Raw.GetProperty("dataLabels").GetProperty("textStyle").GetProperty("bold").GetBoolean());
+            }
+            var authored = Invoke(new CodecRequest
+            {
+                ProtocolVersion = CodecProtocol.ProtocolVersion,
+                Operation = CodecOperation.CompilePpjToPptx,
+                Family = ArtifactFamily.Presentation,
+                PresentationProgram = new PresentationProgramRequest
+                {
+                    ProgramJson = ByteString.CopyFrom(bytes),
+                },
+            });
+            Assert.True(authored.Ok, $"{profile.Type}: {Diagnostics(authored)}");
+            if (profile.Type == "line")
+            {
+                var chartPath = SingleZipEntryPath(authored.File.ToByteArray(), path =>
+                    path.Contains("chart", StringComparison.OrdinalIgnoreCase) && path.EndsWith(".xml", StringComparison.Ordinal));
+                var chartXml = XDocument.Parse(Encoding.UTF8.GetString(ZipBytes(authored.File.ToByteArray(), chartPath)));
+                var chartNs = XNamespace.Get("http://schemas.openxmlformats.org/drawingml/2006/chart");
+                Assert.NotNull(chartXml.Descendants(chartNs + "marker").SingleOrDefault());
+                Assert.NotNull(chartXml.Descendants(chartNs + "dLbls").SingleOrDefault());
+                Assert.True(OpenXmlChartSpaceCodec.TryRead(chartXml.ToString(SaveOptions.None), out var nativeChart, out _, out _), nativeChart.Type.ToString());
+            }
+
+            var projected = Invoke(new CodecRequest
+            {
+                ProtocolVersion = CodecProtocol.ProtocolVersion,
+                Operation = CodecOperation.ProjectPptxToPpj,
+                Family = ArtifactFamily.Presentation,
+                File = ByteString.CopyFrom(RemoveEmbeddedPpj(authored.File.ToByteArray())),
+                PresentationProgram = new PresentationProgramRequest
+                {
+                    SourceUri = $"kimi-series/{profile.Type}.pptx",
+                    AssetRootUri = "kimi-series/assets",
+                },
+            });
+            Assert.True(projected.Ok, $"{profile.Type}: {Diagnostics(projected)}");
+            if (profile.Type == "line")
+            {
+                var nativeImport = PptxCodec.Import(RemoveEmbeddedPpj(authored.File.ToByteArray()), EffectiveCodecLimits.From(null)).Artifact;
+                Assert.NotNull(nativeImport.Presentation);
+                Assert.Contains(nativeImport.Presentation!.Slides.SelectMany(slide => slide.Elements), element =>
+                    element.ContentCase == PresentationElement.ContentOneofCase.Chart);
+            }
+            var projectedRoot = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!;
+            var projectedElements = projectedRoot["pages"]!.AsArray()
+                .SelectMany(item => item!["elements"]!.AsArray())
+                .Select(item => item!.AsObject())
+                .ToArray();
+            var loweredToShapes = profile.Type is "candlestick" or "heatmap" or "treemap" or "sunburst" or "sankey";
+            var projectedChart = projectedElements.SingleOrDefault(item => item["type"]!.GetValue<string>() == "chart");
+            if (loweredToShapes)
+            {
+                Assert.Null(projectedChart);
+                Assert.Contains(projectedElements, item => item["type"]!.GetValue<string>() == "group");
+            }
+            else if (profile.Type == "waterfall")
+            {
+                Assert.NotNull(projectedChart);
+                Assert.Equal("column", projectedChart!["chartType"]!.GetValue<string>());
+                Assert.Equal(4, projectedChart["data"]!["series"]!.AsArray().Count);
+            }
+            else
+            {
+                Assert.NotNull(projectedChart);
+                Assert.Equal(profile.Type, projectedChart!["chartType"]!.GetValue<string>());
+                Assert.Equal(profile.Data["series"]!.AsArray().Count, projectedChart["data"]!["series"]!.AsArray().Count);
+                if (profile.Type == "bar")
+                {
+                    Assert.NotNull(projectedChart["data"]!["dataset"]);
+                    Assert.Equal("category", projectedChart["data"]!["encoding"]!["category"]!.GetValue<string>());
+                    Assert.Equal("series", projectedChart["data"]!["encoding"]!["series"]!.GetValue<string>());
+                    Assert.Equal("value", projectedChart["data"]!["encoding"]!["value"]!.GetValue<string>());
+                }
+                if (profile.Type is "scatter" or "bubble")
+                {
+                    Assert.NotNull(projectedChart["data"]!["dataset"]);
+                    Assert.Equal("x", projectedChart["data"]!["encoding"]!["x"]!.GetValue<string>());
+                    Assert.Equal("y", projectedChart["data"]!["encoding"]!["y"]!.GetValue<string>());
+                    Assert.Equal("series", projectedChart["data"]!["encoding"]!["series"]!.GetValue<string>());
+                    if (profile.Type == "bubble")
+                        Assert.Equal("size", projectedChart["data"]!["encoding"]!["size"]!.GetValue<string>());
+                    var dataset = projectedChart["data"]!["dataset"]!.AsObject();
+                    Assert.Equal(profile.Type == "bubble" ? 4 : 3, dataset["cols"]!.AsArray().Count);
+                    Assert.Equal(3, dataset["rows"]!.AsArray().Count);
+                }
+                if (profile.Type == "line")
+                {
+                    var line = projectedChart["data"]!["series"]!.AsArray()[0]!;
+                    Assert.Equal("circle", line["marker"]!["symbol"]!.GetValue<string>());
+                    Assert.Equal(12, line["marker"]!["size"]!.GetValue<int>());
+                    Assert.True(line["dataLabels"]!["showValue"]!.GetValue<bool>());
+                    Assert.Equal(10, line["dataLabels"]!["textStyle"]!["fontSize"]!.GetValue<int>());
+                    Assert.Equal("#334155", line["dataLabels"]!["textStyle"]!["color"]!.GetValue<string>());
+                    Assert.True(line["dataLabels"]!["textStyle"]!["bold"]!.GetValue<bool>());
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void PpjMasterLayoutProjectionRestoresDirectDefinitions()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        program["assets"] = new JsonArray();
+        program["components"] = new JsonArray();
+        program["sections"] = new JsonArray();
+        program["customShows"] = new JsonArray();
+        program["comments"] = new JsonArray();
+        program["design"]!["masters"] = new JsonArray(new JsonObject
+        {
+            ["id"] = "master-roundtrip",
+            ["name"] = "Round-trip master",
+            ["textStyles"] = new JsonObject
+            {
+                ["title"] = new JsonArray(new JsonObject
+                {
+                    ["level"] = 0,
+                    ["alignment"] = "center",
+                    ["defaultText"] = new JsonObject { ["size"] = 28, ["bold"] = true },
+                }),
+            },
+            ["placeholders"] = new JsonArray(new JsonObject
+            {
+                ["id"] = "master-title",
+                ["name"] = "Master title",
+                ["placeholderType"] = "title",
+                ["index"] = 0,
+                ["frame"] = new JsonObject { ["x"] = 40, ["y"] = 24, ["width"] = 880, ["height"] = 64 },
+                ["text"] = "Master prompt",
+            }),
+        });
+        program["design"]!["layouts"] = new JsonArray(new JsonObject
+        {
+            ["id"] = "layout-roundtrip",
+            ["name"] = "Round-trip layout",
+            ["master"] = "master-roundtrip",
+            ["layoutType"] = "titleOnly",
+            ["placeholders"] = new JsonArray(new JsonObject
+            {
+                ["id"] = "layout-title",
+                ["name"] = "Layout title",
+                ["placeholderType"] = "title",
+                ["index"] = 0,
+                ["frame"] = new JsonObject { ["x"] = 40, ["y"] = 24, ["width"] = 880, ["height"] = 64 },
+            }),
+        });
+        program["pages"] = new JsonArray(new JsonObject
+        {
+            ["id"] = "page-roundtrip",
+            ["role"] = "Master/layout projection",
+            ["layout"] = "layout-roundtrip",
+            ["elements"] = new JsonArray(new JsonObject
+            {
+                ["id"] = "body",
+                ["type"] = "text",
+                ["frame"] = new JsonObject { ["x"] = 48, ["y"] = 120, ["width"] = 864, ["height"] = 100 },
+                ["text"] = "Body",
+            }),
+        });
+
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var validation = PpjProgramValidator.Validate(bytes);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFrom(bytes),
+            },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(authored.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "master-layout/source.pptx",
+                AssetRootUri = "master-layout/assets",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var output = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var masters = output["design"]!["masters"]!.AsArray();
+        var layouts = output["design"]!["layouts"]!.AsArray();
+        Assert.Single(masters);
+        Assert.Single(layouts);
+        Assert.Equal("Round-trip master", masters[0]! ["name"]!.GetValue<string>());
+        Assert.Equal("center", masters[0]! ["textStyles"]!["title"]![0]!["alignment"]!.GetValue<string>());
+        Assert.Equal("titleOnly", layouts[0]! ["layoutType"]!.GetValue<string>());
+        Assert.Equal(layouts[0]! ["id"]!.GetValue<string>(), output["pages"]![0]!["layout"]!.GetValue<string>());
+        Assert.Single(masters[0]! ["placeholders"]!.AsArray());
+        Assert.Single(layouts[0]! ["placeholders"]!.AsArray());
+    }
+
+    [Fact]
+    public void PpjMultipleMastersAuthorAndProjectAsSeparateGraphs()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        program["assets"] = new JsonArray();
+        program["components"] = new JsonArray();
+        program["sections"] = new JsonArray();
+        program["customShows"] = new JsonArray();
+        program["comments"] = new JsonArray();
+        program["design"]!["masters"] = new JsonArray(
+            new JsonObject { ["id"] = "master-one", ["name"] = "Master One" },
+            new JsonObject { ["id"] = "master-two", ["name"] = "Master Two" });
+        program["design"]!["layouts"] = new JsonArray(
+            new JsonObject { ["id"] = "layout-one", ["name"] = "Layout One", ["master"] = "master-one", ["layoutType"] = "blank" },
+            new JsonObject { ["id"] = "layout-two", ["name"] = "Layout Two", ["master"] = "master-two", ["layoutType"] = "titleOnly" });
+        program["pages"] = new JsonArray(
+            new JsonObject
+            {
+                ["id"] = "page-one",
+                ["role"] = "first master page",
+                ["layout"] = "layout-one",
+                ["elements"] = new JsonArray(new JsonObject
+                {
+                    ["id"] = "text-one",
+                    ["type"] = "text",
+                    ["frame"] = new JsonObject { ["x"] = 40, ["y"] = 40, ["width"] = 400, ["height"] = 80 },
+                    ["text"] = "One",
+                }),
+            },
+            new JsonObject
+            {
+                ["id"] = "page-two",
+                ["role"] = "second master page",
+                ["layout"] = "layout-two",
+                ["elements"] = new JsonArray(new JsonObject
+                {
+                    ["id"] = "text-two",
+                    ["type"] = "text",
+                    ["frame"] = new JsonObject { ["x"] = 40, ["y"] = 40, ["width"] = 400, ["height"] = 80 },
+                    ["text"] = "Two",
+                }),
+            });
+
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var validation = PpjProgramValidator.Validate(bytes);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest { ProgramJson = ByteString.CopyFrom(bytes) },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var imported = PptxCodec.Import(RemoveEmbeddedPpj(authored.File.ToByteArray()), EffectiveCodecLimits.From(null)).Artifact;
+        Assert.NotNull(imported.Presentation);
+        Assert.Equal(2, imported.Presentation!.Masters.Count);
+        Assert.Equal(2, imported.Presentation.Layouts.Count);
+        Assert.Equal(2, imported.Presentation.Slides.Count);
+        Assert.Equal(imported.Presentation.Layouts[1].Id, imported.Presentation.Slides[1].LayoutId);
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(authored.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "multi-master/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var output = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        Assert.Equal(2, output["design"]!["masters"]!.AsArray().Count);
+        Assert.Equal(2, output["design"]!["layouts"]!.AsArray().Count);
+    }
+
+    [Fact]
+    public void PpjTextFieldAuthorsAndProjectsAsTypedRun()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        program["assets"] = new JsonArray();
+        program["components"] = new JsonArray();
+        program["sections"] = new JsonArray();
+        program["customShows"] = new JsonArray();
+        program["comments"] = new JsonArray();
+        var page = program["pages"]!.AsArray()[0]!.AsObject();
+        page["animations"] = new JsonArray();
+        page["elements"] = new JsonArray(new JsonObject
+        {
+            ["id"] = "field-text",
+            ["type"] = "text",
+            ["frame"] = new JsonObject { ["x"] = 40, ["y"] = 40, ["width"] = 400, ["height"] = 80 },
+            ["text"] = new JsonObject
+            {
+                ["paragraphs"] = new JsonArray(new JsonObject
+                {
+                    ["runs"] = new JsonArray(new JsonObject
+                    {
+                        ["field"] = new JsonObject
+                        {
+                            ["id"] = "{11111111-1111-1111-1111-111111111111}",
+                            ["type"] = "slidenum",
+                            ["text"] = "1",
+                        },
+                    }),
+                }),
+            },
+        });
+        program["pages"] = new JsonArray(page.DeepClone());
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var validation = PpjProgramValidator.Validate(bytes);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest { ProgramJson = ByteString.CopyFrom(bytes) },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourcePptx = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourcePptx),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "text-field/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var output = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var field = output["pages"]![0]!["elements"]![0]!["text"]!["paragraphs"]![0]!["runs"]![0]!["field"]!;
+        Assert.Equal("slidenum", field["type"]!.GetValue<string>());
+        Assert.Equal("1", field["text"]!.GetValue<string>());
+        Assert.Equal("{11111111-1111-1111-1111-111111111111}", field["id"]!.GetValue<string>());
+
+        // A static field display value is editable source-bound text while
+        // its field id/type remain source-owned host semantics.
+        field["text"] = "2";
+        var sourceBoundFieldEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourcePptx),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(output.ToJsonString()),
+            },
+        });
+        Assert.True(sourceBoundFieldEdit.Ok, Diagnostics(sourceBoundFieldEdit));
+        Assert.Equal(["ppt/slides/slide1.xml"], sourceBoundFieldEdit.PresentationProgram.ChangedParts);
+        var fieldReprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = sourceBoundFieldEdit.File,
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "text-field/output.pptx" },
+        });
+        Assert.True(fieldReprojected.Ok, Diagnostics(fieldReprojected));
+        using (var fieldJson = JsonDocument.Parse(fieldReprojected.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var fieldAfterEdit = fieldJson.RootElement.GetProperty("pages")[0]
+                .GetProperty("elements")[0].GetProperty("text")
+                .GetProperty("paragraphs")[0].GetProperty("runs")[0]
+                .GetProperty("field");
+            Assert.Equal("2", fieldAfterEdit.GetProperty("text").GetString());
+            Assert.Equal("slidenum", fieldAfterEdit.GetProperty("type").GetString());
+        }
+
+        var invalidFieldIdentity = JsonNode.Parse(fieldReprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        invalidFieldIdentity["pages"]![0]! ["elements"]![0]! ["text"]!["paragraphs"]![0]! ["runs"]![0]! ["field"]!["type"] = "date";
+        var rejectedFieldIdentity = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = sourceBoundFieldEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(invalidFieldIdentity.ToJsonString()),
+            },
+        });
+        Assert.False(rejectedFieldIdentity.Ok);
+        Assert.Contains(rejectedFieldIdentity.Diagnostics, diagnostic => diagnostic.Code == "ppj.source.unsupportedMutation");
+    }
+
+    [Fact]
+    public void PpjReadingOrderAuthorsAndProjectsAsExplicitPermutation()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        program["assets"] = new JsonArray();
+        program["components"] = new JsonArray();
+        program["sections"] = new JsonArray();
+        program["customShows"] = new JsonArray(new JsonObject
+        {
+            ["id"] = "reading-order-show",
+            ["name"] = "Reading order show",
+            ["pages"] = new JsonArray("page-claim"),
+        });
+        program["comments"] = new JsonArray();
+        var page = program["pages"]!.AsArray()[0]!.AsObject();
+        page["animations"] = new JsonArray();
+        page["elements"] = new JsonArray(
+            new JsonObject
+            {
+                ["id"] = "reading-order-first",
+                ["type"] = "text",
+                ["frame"] = new JsonObject { ["x"] = 40, ["y"] = 40, ["width"] = 400, ["height"] = 80 },
+                ["text"] = "First",
+                ["action"] = new JsonObject { ["uri"] = "https://example.com/next", ["tooltip"] = "Open evidence" },
+                ["hoverAction"] = new JsonObject { ["uri"] = "https://example.com/hover", ["tooltip"] = "Preview evidence" },
+            },
+            new JsonObject
+            {
+                ["id"] = "reading-order-second",
+                ["type"] = "text",
+                ["frame"] = new JsonObject { ["x"] = 40, ["y"] = 140, ["width"] = 400, ["height"] = 80 },
+                ["text"] = "Second",
+                ["action"] = new JsonObject { ["slide"] = "page-claim", ["tooltip"] = "Stay on claim" },
+            },
+            new JsonObject
+            {
+                ["id"] = "reading-order-third",
+                ["type"] = "text",
+                ["frame"] = new JsonObject { ["x"] = 40, ["y"] = 240, ["width"] = 400, ["height"] = 80 },
+                ["text"] = "Third",
+                ["action"] = new JsonObject { ["customShow"] = "reading-order-show", ["returnToSlide"] = true },
+            },
+            new JsonObject
+            {
+                ["id"] = "reading-order-fourth",
+                ["type"] = "shape",
+                ["frame"] = new JsonObject { ["x"] = 40, ["y"] = 340, ["width"] = 400, ["height"] = 80 },
+                ["geometry"] = new JsonObject { ["kind"] = "preset", ["preset"] = "rect" },
+                ["action"] = new JsonObject { ["verb"] = "nextSlide", ["tooltip"] = "Continue" },
+            });
+        page["readingOrder"] = new JsonArray("reading-order-fourth", "reading-order-third", "reading-order-second", "reading-order-first");
+        program["pages"] = new JsonArray(page.DeepClone());
+
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var validation = PpjProgramValidator.Validate(bytes);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest { ProgramJson = ByteString.CopyFrom(bytes) },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceFile = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceFile),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "reading-order/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var output = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedPage = output["pages"]![0]!.AsObject();
+        var elementIds = projectedPage["elements"]!.AsArray()
+            .Select(element => element!["id"]!.GetValue<string>())
+            .ToArray();
+        var readingOrder = projectedPage["readingOrder"]!.AsArray()
+            .Select(element => element!.GetValue<string>())
+            .ToArray();
+        Assert.Equal(elementIds, readingOrder);
+        Assert.Equal(4, readingOrder.Length);
+        var projectedActions = projectedPage["elements"]!.AsArray()
+            .Where(element => element!["action"] is not null)
+            .ToDictionary(element => element!["id"]!.GetValue<string>(), element => element!["action"]!.AsObject());
+        Assert.Equal(4, projectedActions.Count);
+        Assert.Equal("https://example.com/next", projectedActions.Values.Single(action => action["uri"] is not null)["uri"]!.GetValue<string>());
+        Assert.Equal(output["pages"]![0]!["id"]!.GetValue<string>(), projectedActions.Values.Single(action => action["slide"] is not null)["slide"]!.GetValue<string>());
+        var customShowAction = projectedActions.Values.Single(action => action["customShow"] is not null);
+        Assert.Equal(output["customShows"]![0]!["id"]!.GetValue<string>(), customShowAction["customShow"]!.GetValue<string>());
+        Assert.True(customShowAction["returnToSlide"]!.GetValue<bool>());
+            Assert.Equal("nextSlide", projectedActions.Values.Single(action => action["verb"] is not null)["verb"]!.GetValue<string>());
+        var projectedHoverActions = projectedPage["elements"]!.AsArray()
+            .Where(element => element!["hoverAction"] is not null)
+            .Select(element => element!["hoverAction"]!.AsObject())
+            .ToArray();
+        Assert.Single(projectedHoverActions);
+        Assert.Equal("https://example.com/hover", projectedHoverActions[0]["uri"]!.GetValue<string>());
+
+        // A source-bound edit may replace one recognized shape action while
+        // preserving the slide's other shape-tree content and relationship
+        // closure. Unknown sound/macro actions remain outside this profile.
+        var sourceActionProgram = output.DeepClone().AsObject();
+        var sourceActionElement = sourceActionProgram["pages"]![0]!["elements"]!.AsArray()
+            .Single(element => element!["action"]?[
+                "uri"]?.GetValue<string>() == "https://example.com/next")!.AsObject();
+        sourceActionElement["action"]!["uri"] = "https://example.com/replaced";
+        sourceActionElement["hoverAction"]!["uri"] = "https://example.com/hover-replaced";
+        var sourceActionEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceFile),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(sourceActionProgram.ToJsonString()),
+            },
+        });
+        Assert.True(sourceActionEdit.Ok, Diagnostics(sourceActionEdit));
+        Assert.Contains(sourceActionEdit.PresentationProgram.ChangedParts,
+            part => part.Equals("ppt/slides/slide1.xml", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(sourceActionEdit.PresentationProgram.ChangedParts,
+            part => part.Equals("ppt/slides/_rels/slide1.xml.rels", StringComparison.OrdinalIgnoreCase));
+        var actionRelationships = Encoding.UTF8.GetString(ZipBytes(
+            sourceActionEdit.File.ToByteArray(),
+            "ppt/slides/_rels/slide1.xml.rels"));
+        Assert.Contains("https://example.com/replaced", actionRelationships, StringComparison.Ordinal);
+        Assert.Contains("https://example.com/hover-replaced", actionRelationships, StringComparison.Ordinal);
+        Assert.DoesNotContain("https://example.com/next", actionRelationships, StringComparison.Ordinal);
+        Assert.DoesNotContain("https://example.com/hover\"", actionRelationships, StringComparison.Ordinal);
+        var sourceActionReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = sourceActionEdit.File,
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "reading-order/action-output.pptx" },
+        });
+        Assert.True(sourceActionReprojection.Ok, Diagnostics(sourceActionReprojection));
+        using (var sourceActionJson = JsonDocument.Parse(sourceActionReprojection.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var reprojectedAction = sourceActionJson.RootElement.GetProperty("pages")[0].GetProperty("elements")
+                .EnumerateArray().Select(element => element.TryGetProperty("action", out var action) ? action : default)
+                .Single(action => action.ValueKind == JsonValueKind.Object &&
+                    action.TryGetProperty("uri", out var uri) && uri.GetString() == "https://example.com/replaced");
+            Assert.Equal("https://example.com/replaced", reprojectedAction.GetProperty("uri").GetString());
+            var reprojectedHoverAction = sourceActionJson.RootElement.GetProperty("pages")[0].GetProperty("elements")
+                .EnumerateArray().Select(element => element.TryGetProperty("hoverAction", out var action) ? action : default)
+                .Single(action => action.ValueKind == JsonValueKind.Object &&
+                    action.TryGetProperty("uri", out var uri) && uri.GetString() == "https://example.com/hover-replaced");
+            Assert.Equal("https://example.com/hover-replaced", reprojectedHoverAction.GetProperty("uri").GetString());
+        }
+
+        // Removing a recognized hover action must delete only its now-unused
+        // relationship, while leaving the independent click action intact.
+        var sourceHoverRemovalProgram = output.DeepClone().AsObject();
+        var sourceHoverRemovalElement = sourceHoverRemovalProgram["pages"]![0]!["elements"]!.AsArray()
+            .Single(element => element!["hoverAction"] is not null)!.AsObject();
+        sourceHoverRemovalElement.Remove("hoverAction");
+        var sourceHoverRemoval = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceFile),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(sourceHoverRemovalProgram.ToJsonString()),
+            },
+        });
+        Assert.True(sourceHoverRemoval.Ok, Diagnostics(sourceHoverRemoval));
+        Assert.Contains(sourceHoverRemoval.PresentationProgram.ChangedParts,
+            part => part.Equals("ppt/slides/slide1.xml", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(sourceHoverRemoval.PresentationProgram.ChangedParts,
+            part => part.Equals("ppt/slides/_rels/slide1.xml.rels", StringComparison.OrdinalIgnoreCase));
+        var hoverRemovalRelationships = Encoding.UTF8.GetString(ZipBytes(
+            sourceHoverRemoval.File.ToByteArray(),
+            "ppt/slides/_rels/slide1.xml.rels"));
+        Assert.Contains("https://example.com/next", hoverRemovalRelationships, StringComparison.Ordinal);
+        Assert.DoesNotContain("https://example.com/hover\"", hoverRemovalRelationships, StringComparison.Ordinal);
+        var sourceHoverRemovalReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = sourceHoverRemoval.File,
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "reading-order/hover-removal-output.pptx" },
+        });
+        Assert.True(sourceHoverRemovalReprojection.Ok, Diagnostics(sourceHoverRemovalReprojection));
+        using (var sourceHoverRemovalJson = JsonDocument.Parse(sourceHoverRemovalReprojection.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var remainingHoverActions = sourceHoverRemovalJson.RootElement.GetProperty("pages")[0]
+                .GetProperty("elements").EnumerateArray()
+                .Count(element => element.TryGetProperty("hoverAction", out var action) && action.ValueKind == JsonValueKind.Object);
+            Assert.Equal(0, remainingHoverActions);
+            var remainingClick = sourceHoverRemovalJson.RootElement.GetProperty("pages")[0]
+                .GetProperty("elements").EnumerateArray()
+                .Select(element => element.TryGetProperty("action", out var action) ? action : default)
+                .Single(action => action.ValueKind == JsonValueKind.Object &&
+                    action.TryGetProperty("uri", out var uri) && uri.GetString() == "https://example.com/next");
+            Assert.Equal("https://example.com/next", remainingClick.GetProperty("uri").GetString());
+        }
+
+        var sourceReadingOrderProgram = output.DeepClone().AsObject();
+        var sourceReadingOrderPage = sourceReadingOrderProgram["pages"]![0]!.AsObject();
+        var sourceElementDescriptorById = sourceReadingOrderPage["elements"]!.AsArray()
+            .ToDictionary(
+                element => element!["id"]!.GetValue<string>(),
+                element => element!["action"]?["uri"]?.GetValue<string>() ??
+                    element["action"]?["slide"]?.GetValue<string>() ??
+                    element["action"]?["customShow"]?.GetValue<string>() ??
+                    element["action"]?["verb"]?.GetValue<string>() ?? string.Empty,
+                StringComparer.Ordinal);
+        var sourceReadingOrder = sourceReadingOrderPage["readingOrder"]!.AsArray()
+            .Select(item => item!.GetValue<string>()).Reverse().ToArray();
+        sourceReadingOrderPage["readingOrder"] = new JsonArray(sourceReadingOrder
+            .Select(item => (JsonNode?)JsonValue.Create(item)).ToArray());
+        var sourceReadingOrderEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceFile),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(sourceReadingOrderProgram.ToJsonString()),
+            },
+        });
+        Assert.True(sourceReadingOrderEdit.Ok, Diagnostics(sourceReadingOrderEdit));
+        Assert.Contains(sourceReadingOrderEdit.PresentationProgram.ChangedParts,
+            part => part.Equals("ppt/slides/slide1.xml", StringComparison.OrdinalIgnoreCase));
+        var sourceReadingOrderReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = sourceReadingOrderEdit.File,
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "reading-order/order-output.pptx" },
+        });
+        Assert.True(sourceReadingOrderReprojection.Ok, Diagnostics(sourceReadingOrderReprojection));
+        using (var sourceReadingOrderJson = JsonDocument.Parse(sourceReadingOrderReprojection.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var reprojectedPage = sourceReadingOrderJson.RootElement.GetProperty("pages")[0];
+            var reprojectedDescriptors = reprojectedPage.GetProperty("elements").EnumerateArray()
+                .Select(element => element.TryGetProperty("action", out var action) && action.ValueKind == JsonValueKind.Object
+                    ? action.TryGetProperty("uri", out var uri) ? uri.GetString() ?? string.Empty
+                    : action.TryGetProperty("slide", out var slide) ? slide.GetString() ?? string.Empty
+                    : action.TryGetProperty("customShow", out var customShow) ? customShow.GetString() ?? string.Empty
+                    : action.TryGetProperty("verb", out var verb) ? verb.GetString() ?? string.Empty : string.Empty
+                    : string.Empty)
+                .ToArray();
+            var expectedDescriptors = sourceReadingOrder.Select(id => sourceElementDescriptorById[id]).ToArray();
+            Assert.Equal(expectedDescriptors, reprojectedDescriptors);
+            var readingOrderAfterEdit = reprojectedPage.GetProperty("readingOrder").EnumerateArray()
+                .Select(item => item.GetString()).ToArray();
+            Assert.Equal(reprojectedPage.GetProperty("elements").GetArrayLength(), readingOrderAfterEdit.Length);
+        }
+
+        var invalidProgram = program.DeepClone().AsObject();
+        invalidProgram["pages"]![0]!["readingOrder"] = new JsonArray("reading-order-first");
+        var invalid = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidProgram.ToJsonString()));
+        Assert.False(invalid.IsValid);
+        Assert.Contains(invalid.Diagnostics, diagnostic => diagnostic.Code == "ppj.accessibility.readingOrder");
+
+        var invalidAction = program.DeepClone().AsObject();
+        invalidAction["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "invalid-image-action",
+            ["type"] = "image",
+            ["frame"] = new JsonObject { ["x"] = 0, ["y"] = 0, ["width"] = 10, ["height"] = 10 },
+            ["asset"] = "missing-asset",
+            ["action"] = new JsonObject { ["uri"] = "https://example.com" },
+        });
+        var rejectedAction = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidAction.ToJsonString()));
+        Assert.False(rejectedAction.IsValid);
+        Assert.Contains(rejectedAction.Diagnostics, diagnostic => diagnostic.Code == "ppj.action.type");
+    }
+
+    [Fact]
+    public void PpjGroupReadingOrderAuthorsAndReordersLocalShapeTree()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        program["assets"] = new JsonArray();
+        program["components"] = new JsonArray();
+        program["sections"] = new JsonArray();
+        program["customShows"] = new JsonArray();
+        program["comments"] = new JsonArray();
+        var page = program["pages"]!.AsArray()[0]!.AsObject();
+        page.Remove("animations");
+        page.Remove("timing");
+        page.Remove("transition");
+        page["elements"] = new JsonArray(new JsonObject
+        {
+            ["id"] = "ordered-group",
+            ["type"] = "group",
+            ["frame"] = new JsonObject { ["x"] = 40, ["y"] = 40, ["width"] = 480, ["height"] = 260 },
+            ["elements"] = new JsonArray(
+                new JsonObject
+                {
+                    ["id"] = "group-first",
+                    ["type"] = "text",
+                    ["frame"] = new JsonObject { ["x"] = 40, ["y"] = 40, ["width"] = 180, ["height"] = 50 },
+                    ["text"] = "First",
+                },
+                new JsonObject
+                {
+                    ["id"] = "group-second",
+                    ["type"] = "text",
+                    ["frame"] = new JsonObject { ["x"] = 40, ["y"] = 100, ["width"] = 180, ["height"] = 50 },
+                    ["text"] = "Second",
+                },
+                new JsonObject
+                {
+                    ["id"] = "group-third",
+                    ["type"] = "text",
+                    ["frame"] = new JsonObject { ["x"] = 40, ["y"] = 160, ["width"] = 180, ["height"] = 50 },
+                    ["text"] = "Third",
+                }),
+            ["readingOrder"] = new JsonArray("group-third", "group-first", "group-second"),
+        });
+        page["readingOrder"] = new JsonArray("ordered-group");
+        program["pages"] = new JsonArray(page.DeepClone());
+
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var validation = PpjProgramValidator.Validate(bytes);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest { ProgramJson = ByteString.CopyFrom(bytes) },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var sourceBytes = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "group-reading-order/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var projectedProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedGroup = projectedProgram["pages"]![0]!["elements"]![0]!.AsObject();
+        var projectedIds = projectedGroup["elements"]!.AsArray()
+            .Select(element => element!["id"]!.GetValue<string>())
+            .ToArray();
+        var projectedOrder = projectedGroup["readingOrder"]!.AsArray()
+            .Select(element => element!.GetValue<string>())
+            .ToArray();
+        Assert.Equal(projectedIds, projectedOrder);
+        Assert.Equal(new[] { "Third", "First", "Second" },
+            projectedGroup["elements"]!.AsArray()
+                .Select(element => element!["text"]!.AsObject()["paragraphs"]!.AsArray()[0]!
+                    .AsObject()["runs"]!.AsArray()[0]!["text"]!.GetValue<string>())
+                .ToArray());
+
+        var editedProgram = projectedProgram.DeepClone().AsObject();
+        var editedGroup = editedProgram["pages"]![0]!["elements"]![0]!.AsObject();
+        editedGroup["readingOrder"] = new JsonArray(
+            projectedIds[1], projectedIds[2], projectedIds[0]);
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(editedProgram.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(new[] { "ppt/slides/slide1.xml" }, edited.PresentationProgram.ChangedParts);
+        Assert.Contains(projectedIds[0], edited.PresentationProgram.ChangedNodeIds);
+        Assert.Contains(projectedIds[1], edited.PresentationProgram.ChangedNodeIds);
+        Assert.Contains(projectedIds[2], edited.PresentationProgram.ChangedNodeIds);
+
+        var secondProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "group-reading-order/edited.pptx" },
+        });
+        Assert.True(secondProjection.Ok, Diagnostics(secondProjection));
+        var secondProgram = JsonNode.Parse(secondProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var secondGroup = secondProgram["pages"]![0]!["elements"]![0]!.AsObject();
+        var secondIds = secondGroup["elements"]!.AsArray()
+            .Select(element => element!["id"]!.GetValue<string>())
+            .ToArray();
+        Assert.Equal(new[] { "First", "Second", "Third" },
+            secondGroup["elements"]!.AsArray()
+                .Select(element => element!["text"]!.AsObject()["paragraphs"]!.AsArray()[0]!
+                    .AsObject()["runs"]!.AsArray()[0]!["text"]!.GetValue<string>())
+                .ToArray());
+        Assert.Equal(secondIds, secondGroup["readingOrder"]!.AsArray()
+            .Select(element => element!.GetValue<string>()).ToArray());
+
+        // The group outer frame is also a bounded native-leaf surface.  Edit
+        // one coordinate through the projected PPJ, preserve the child-space
+        // transform and require the source-bound compiler to touch only the
+        // owning SlidePart.
+        var frameProgram = projectedProgram.DeepClone().AsObject();
+        var frameGroup = frameProgram["pages"]![0]!["elements"]![0]!.AsObject();
+        var frame = frameGroup["frame"]!.AsObject();
+        var oldX = frame["x"]!.GetValue<double>();
+        var newX = oldX + 1;
+        long sourceChildLeftEmu;
+        using (var sourceStream = new MemoryStream(sourceBytes))
+        using (var sourcePackage = PresentationDocument.Open(sourceStream, false))
+            sourceChildLeftEmu = sourcePackage.PresentationPart!.SlideParts.Single().Slide!.Descendants<P.GroupShape>().Single()
+                .GroupShapeProperties!.GetFirstChild<A.TransformGroup>()!.ChildOffset!.X!.Value;
+        var leftLeaf = Assert.Single(frameGroup["nativeRef"]!["leaves"]!.AsArray(),
+            leaf => leaf!["kind"]!.GetValue<string>() == "leftEmu");
+        var oldLeftEmu = leftLeaf!["value"]!.GetValue<long>();
+        frame["x"] = newX;
+        var frameEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(frameProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(frameEdit.Ok, Diagnostics(frameEdit));
+        Assert.Equal(new[] { "ppt/slides/slide1.xml" }, frameEdit.PresentationProgram.ChangedParts);
+        Assert.Contains(frameGroup["id"]!.GetValue<string>(), frameEdit.PresentationProgram.ChangedNodeIds);
+        using (var stream = new MemoryStream(frameEdit.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var frameEditedGroup = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<P.GroupShape>().Single();
+            var editedTransform = frameEditedGroup.GroupShapeProperties!.GetFirstChild<A.TransformGroup>()!;
+            Assert.Equal(oldLeftEmu + 12_700, editedTransform.Offset!.X!.Value);
+            Assert.Equal(sourceChildLeftEmu, editedTransform.ChildOffset!.X!.Value);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        }
+        var frameReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = frameEdit.File,
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "group-reading-order/frame-output.pptx" },
+        });
+        Assert.True(frameReprojection.Ok, Diagnostics(frameReprojection));
+        var frameAfter = JsonNode.Parse(frameReprojection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var frameAfterGroup = frameAfter["pages"]![0]!["elements"]![0]!.AsObject();
+        Assert.Equal(newX, frameAfterGroup["frame"]!["x"]!.GetValue<double>(), precision: 6);
+
+        // The local child coordinate rectangle is a separate bounded native
+        // surface.  Changing it must splice only chOff/chExt on the group,
+        // without rewriting any descendant shape frames.
+        var childFrameProgram = projectedProgram.DeepClone().AsObject();
+        var childFrameGroup = childFrameProgram["pages"]![0]!["elements"]![0]!.AsObject();
+        var childFrame = childFrameGroup["childFrame"]!.AsObject();
+        var oldChildX = childFrame["x"]!.GetValue<double>();
+        var newChildX = oldChildX + 2;
+        var childLeftLeaf = Assert.Single(childFrameGroup["nativeRef"]!["leaves"]!.AsArray(),
+            leaf => leaf!["kind"]!.GetValue<string>() == "childLeftEmu");
+        var oldChildLeftEmu = childLeftLeaf!["value"]!.GetValue<long>();
+        childFrame["x"] = newChildX;
+        var childFrameEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(childFrameProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(childFrameEdit.Ok, Diagnostics(childFrameEdit));
+        Assert.Equal(new[] { "ppt/slides/slide1.xml" }, childFrameEdit.PresentationProgram.ChangedParts);
+        using (var stream = new MemoryStream(childFrameEdit.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var childEditedGroup = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<P.GroupShape>().Single();
+            var editedTransform = childEditedGroup.GroupShapeProperties!.GetFirstChild<A.TransformGroup>()!;
+            Assert.Equal(oldChildLeftEmu + 25_400, editedTransform.ChildOffset!.X!.Value);
+            Assert.Equal(sourceChildLeftEmu, editedTransform.Offset!.X!.Value);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        }
+        var childFrameReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = childFrameEdit.File,
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "group-reading-order/child-frame-output.pptx" },
+        });
+        Assert.True(childFrameReprojection.Ok, Diagnostics(childFrameReprojection));
+        var childFrameAfter = JsonNode.Parse(childFrameReprojection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var childFrameAfterGroup = childFrameAfter["pages"]![0]!["elements"]![0]!.AsObject();
+        Assert.Equal(newChildX, childFrameAfterGroup["childFrame"]!["x"]!.GetValue<double>(), precision: 6);
+    }
+
+    [Fact]
+    public void PpjComponentGridRepeatAuthorsAndReprojectsDeterministicFrames()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        program["assets"] = new JsonArray();
+        program["sections"] = new JsonArray();
+        program["customShows"] = new JsonArray();
+        program["comments"] = new JsonArray();
+        var component = new JsonObject
+        {
+            ["id"] = "evidence-rows-grid",
+            ["type"] = "component",
+            ["component"] = "evidence-row",
+            ["frame"] = new JsonObject { ["x"] = 40, ["y"] = 40, ["width"] = 480, ["height"] = 220 },
+            ["repeat"] = new JsonObject
+            {
+                ["items"] = new JsonArray(
+                    new JsonObject { ["key"] = "one", ["arguments"] = new JsonObject { ["label"] = "One", ["value"] = "1" } },
+                    new JsonObject { ["key"] = "two", ["arguments"] = new JsonObject { ["label"] = "Two", ["value"] = "2" } },
+                    new JsonObject { ["key"] = "three", ["arguments"] = new JsonObject { ["label"] = "Three", ["value"] = "3" } },
+                    new JsonObject { ["key"] = "four", ["arguments"] = new JsonObject { ["label"] = "Four", ["value"] = "4" } }),
+                ["layout"] = new JsonObject { ["direction"] = "grid", ["gap"] = 12, ["rowGap"] = 18, ["columns"] = 2 },
+            },
+        };
+        program["pages"] = new JsonArray(new JsonObject
+        {
+            ["id"] = "grid-page",
+            ["role"] = "grid repeat",
+            ["elements"] = new JsonArray(component),
+        });
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var validation = PpjProgramValidator.Validate(bytes);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest { ProgramJson = ByteString.CopyFrom(bytes) },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(authored.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "grid-repeat/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var output = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var frames = output["pages"]![0]!["elements"]!.AsArray()
+            .Where(element => element!["type"]!.GetValue<string>() == "text")
+            .Select(element => element!["frame"]!.AsObject())
+            .ToArray();
+        Assert.Equal(8, frames.Length);
+        Assert.All(frames
+            .GroupBy(frame => frame["width"]!.GetValue<double>())
+            .Select(group => group.Select(frame => frame["x"]!.GetValue<double>()).Distinct().Count()),
+            count => Assert.Equal(2, count));
+        Assert.Equal(2, frames.Select(frame => frame["y"]!.GetValue<double>()).Distinct().Count());
+
+        var flowProgram = program.DeepClone().AsObject();
+        var flowPage = flowProgram["pages"]![0]!.AsObject();
+        flowPage["id"] = "flow-page";
+        var flowInstance = flowPage["elements"]![0]!.AsObject();
+        flowInstance["repeat"]!["layout"]!["direction"] = "flow";
+        flowInstance["repeat"]!["layout"]!["anchor"] = "end";
+        flowInstance["repeat"]!["layout"]!.AsObject().Remove("columns");
+        var flowBytes = Encoding.UTF8.GetBytes(flowProgram.ToJsonString());
+        Assert.True(PpjProgramValidator.Validate(flowBytes).IsValid);
+        var flowAuthored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest { ProgramJson = ByteString.CopyFrom(flowBytes) },
+        });
+        Assert.True(flowAuthored.Ok, Diagnostics(flowAuthored));
+        var flowProjected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(flowAuthored.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "flow-repeat/source.pptx" },
+        });
+        Assert.True(flowProjected.Ok, Diagnostics(flowProjected));
+        var flowOutput = JsonNode.Parse(flowProjected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var flowFrames = flowOutput["pages"]![0]!["elements"]!.AsArray()
+            .Where(element => element!["type"]!.GetValue<string>() == "text")
+            .Select(element => element!["frame"]!["y"]!.GetValue<double>())
+            .ToArray();
+        Assert.Equal(8, flowFrames.Length);
+        Assert.Equal(2, flowFrames.Distinct().Count());
+        Assert.True(flowFrames.Min() > 40, "end anchor should place the flow matrix after the available vertical slack");
+    }
+
+    [Fact]
+    public void PpjComponentImagePolicyAuthorsAndRejectsUnsafeReplacement()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        var component = program["components"]!.AsArray()[0]!.AsObject();
+        component["slots"] = new JsonArray(new JsonObject
+        {
+            ["name"] = "hero-image",
+            ["accepts"] = new JsonArray("image"),
+            ["maxItems"] = 1,
+            ["imagePolicy"] = new JsonObject
+            {
+                ["role"] = "hero",
+                ["allowedFit"] = new JsonArray("contain"),
+                ["allowedMask"] = new JsonArray("ellipse"),
+                ["minWidthPx"] = 120,
+                ["minHeightPx"] = 120,
+                ["rights"] = new JsonArray("internal"),
+            },
+        });
+        component["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "hero-slot",
+            ["type"] = "slot",
+            ["frame"] = new JsonObject { ["x"] = 0, ["y"] = 0, ["width"] = 120, ["height"] = 120 },
+            ["slot"] = "hero-image",
+        });
+        var instance = program["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "component");
+        instance["slots"] = new JsonObject
+        {
+            ["hero-image"] = new JsonArray(new JsonObject
+            {
+                ["id"] = "supplied-hero",
+                ["type"] = "image",
+                ["frame"] = new JsonObject { ["x"] = 0, ["y"] = 0, ["width"] = 160, ["height"] = 160 },
+                ["asset"] = "evidence-mark",
+                ["fit"] = "contain",
+                ["mask"] = new JsonObject { ["kind"] = "preset", ["preset"] = "ellipse" },
+                ["accessibility"] = new JsonObject { ["decorative"] = false, ["description"] = "Supplied hero image" },
+            }),
+        };
+
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var validation = PpjProgramValidator.Validate(bytes);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+        var assetBytes = File.ReadAllBytes(Path.Combine(
+            root.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "ppj-assets",
+            "evidence-mark.svg"));
+        var assetHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(assetBytes)).ToLowerInvariant();
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFrom(bytes),
+                Assets =
+                {
+                    new Asset
+                    {
+                        Id = "evidence-mark",
+                        FileName = "evidence-mark.svg",
+                        ContentType = "image/svg+xml",
+                        Data = ByteString.CopyFrom(assetBytes),
+                        Sha256 = assetHash,
+                    },
+                },
+            },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(authored.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "component-image/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var output = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var suppliedImages = output["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Where(element => element!["name"]?.GetValue<string>().Contains("supplied-hero", StringComparison.Ordinal) == true)
+            .ToArray();
+        Assert.True(suppliedImages.Length == 2, output.ToJsonString());
+        Assert.All(suppliedImages, image =>
+        {
+            Assert.Equal("image", image!["type"]!.GetValue<string>());
+            // Without the embedded PPJ, ordinary PPTX projection exposes the
+            // executable stretch/crop owner; the authored PPJ retains the
+            // high-level contain intent.
+            Assert.Equal("stretch", image["fit"]!.GetValue<string>());
+            Assert.Equal("ellipse", image["mask"]!["preset"]!.GetValue<string>());
+        });
+
+        var rejectedProgram = program.DeepClone().AsObject();
+        var rejectedInstance = rejectedProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "component");
+        rejectedInstance["slots"]!["hero-image"]![0]!["fit"] = "cover";
+        var rejected = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(rejectedProgram.ToJsonString()));
+        Assert.False(rejected.IsValid);
+        Assert.Contains(rejected.Diagnostics, diagnostic => diagnostic.Code == "ppj.component.imageFit");
+    }
+
+    [Fact]
+    public void PpjComponentImageCropBindingAuthorsAndReprojects()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        var component = program["components"]!.AsArray()[0]!.AsObject();
+        component["parameters"]!.AsArray().Add(new JsonObject
+        {
+            ["name"] = "imageCrop",
+            ["type"] = "crop",
+            ["required"] = true,
+        });
+        component["parameters"]!.AsArray().Add(new JsonObject
+        {
+            ["name"] = "imageFocus",
+            ["type"] = "focus",
+            ["required"] = true,
+        });
+        component["bindings"]!.AsArray().Add(new JsonObject
+        {
+            ["target"] = "row-image",
+            ["field"] = "image.crop",
+            ["parameter"] = "imageCrop",
+        });
+        component["bindings"]!.AsArray().Add(new JsonObject
+        {
+            ["target"] = "row-focus",
+            ["field"] = "image.focus",
+            ["parameter"] = "imageFocus",
+        });
+        component["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "row-image",
+            ["type"] = "image",
+            ["frame"] = new JsonObject { ["x"] = 0, ["y"] = 0, ["width"] = 24, ["height"] = 24 },
+            ["asset"] = "evidence-mark",
+            ["fit"] = "stretch",
+            ["accessibility"] = new JsonObject { ["decorative"] = true },
+        });
+        component["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "row-focus",
+            ["type"] = "image",
+            ["frame"] = new JsonObject { ["x"] = 0, ["y"] = 0, ["width"] = 48, ["height"] = 24 },
+            ["asset"] = "evidence-mark",
+            ["fit"] = "cover",
+            ["accessibility"] = new JsonObject { ["decorative"] = true },
+        });
+        var instance = program["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "component");
+        instance["arguments"]!.AsObject()["imageCrop"] = new JsonObject
+        {
+            ["crop"] = new JsonObject { ["left"] = 0.1, ["top"] = -0.05, ["right"] = 0.2, ["bottom"] = 0.15 },
+        };
+        instance["arguments"]!.AsObject()["imageFocus"] = new JsonObject
+        {
+            ["focus"] = new JsonObject { ["x"] = 0.5, ["y"] = 0.2 },
+        };
+
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var validation = PpjProgramValidator.Validate(bytes);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+        var assetBytes = File.ReadAllBytes(Path.Combine(
+            root.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "ppj-assets",
+            "evidence-mark.svg"));
+        var assetHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(assetBytes)).ToLowerInvariant();
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFrom(bytes),
+                Assets =
+                {
+                    new Asset
+                    {
+                        Id = "evidence-mark",
+                        FileName = "evidence-mark.svg",
+                        ContentType = "image/svg+xml",
+                        Data = ByteString.CopyFrom(assetBytes),
+                        Sha256 = assetHash,
+                    },
+                },
+            },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(authored.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "component-image-crop/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var output = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var images = output["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Where(element => element!["type"]!.GetValue<string>() == "image" &&
+                              element["crop"]?["left"]?.GetValue<double>() == 0.1)
+            .ToArray();
+        Assert.Equal(2, images.Length);
+        Assert.All(images, image =>
+        {
+            Assert.Equal(0.1, image!["crop"]!["left"]!.GetValue<double>(), precision: 6);
+            Assert.Equal(-0.05, image["crop"]!["top"]!.GetValue<double>(), precision: 6);
+            Assert.Equal(0.2, image["crop"]!["right"]!.GetValue<double>(), precision: 6);
+            Assert.Equal(0.15, image["crop"]!["bottom"]!.GetValue<double>(), precision: 6);
+        });
+        var focusedImages = output["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Where(element => element!["type"]!.GetValue<string>() == "image" &&
+                              element["crop"]?["top"]?.GetValue<double>() == 0 &&
+                              element["crop"]?["bottom"]?.GetValue<double>() == 0.5)
+            .ToArray();
+        Assert.Equal(2, focusedImages.Length);
+    }
+
+    private static JsonObject KimiCategoryDataset(string type) => new()
+    {
+        ["dataset"] = new JsonObject
+        {
+            ["cols"] = new JsonArray("category", "value"),
+            ["rows"] = new JsonArray(
+                new JsonArray("A", 10),
+                new JsonArray("B", 20),
+                new JsonArray("C", 15)),
+        },
+        ["series"] = new JsonArray(new JsonObject
+        {
+            ["type"] = type,
+            ["encode"] = new JsonObject { ["x"] = "category", ["y"] = "value" },
+        }),
+    };
+
+    private static JsonObject KimiLineDatasetWithDefaults() => new()
+    {
+        ["dataset"] = new JsonObject
+        {
+            ["cols"] = new JsonArray("category", "value"),
+            ["rows"] = new JsonArray(
+                new JsonArray("A", 10),
+                new JsonArray("B", 20),
+                new JsonArray("C", 15)),
+        },
+        ["seriesDefaults"] = new JsonObject
+        {
+            ["line"] = new JsonObject
+            {
+                ["marker"] = new JsonObject { ["symbol"] = "circle", ["size"] = 8 },
+                ["dataLabels"] = new JsonObject
+                {
+                    ["showValue"] = true,
+                    ["textStyle"] = new JsonObject { ["fontSize"] = 10, ["color"] = "#334155" },
+                },
+            },
+        },
+        ["series"] = new JsonArray(new JsonObject
+        {
+            ["type"] = "line",
+            ["encode"] = new JsonObject { ["x"] = "category", ["y"] = "value" },
+            ["marker"] = new JsonObject { ["size"] = 12 },
+            ["dataLabels"] = new JsonObject
+            {
+                ["textStyle"] = new JsonObject { ["bold"] = true },
+            },
+        }),
+    };
+
+    private static JsonObject KimiNumericDataset(string type) => new()
+    {
+        ["dataset"] = new JsonObject
+        {
+            ["cols"] = new JsonArray("x", "y", "size"),
+            ["rows"] = new JsonArray(
+                new JsonArray(1, 10, 4),
+                new JsonArray(2, 15, 9),
+                new JsonArray(3, 12, 6)),
+        },
+        ["series"] = new JsonArray(new JsonObject
+        {
+            ["type"] = type,
+            ["encode"] = new JsonObject { ["x"] = "x", ["y"] = "y", ["size"] = "size" },
+        }),
+    };
+
+    private static JsonObject KimiCandlestickDataset() => new()
+    {
+        ["dataset"] = new JsonObject
+        {
+            ["cols"] = new JsonArray("date", "open", "high", "low", "close", "ma"),
+            ["rows"] = new JsonArray(
+                new JsonArray("D1", 10, 14, 8, 12, 11),
+                new JsonArray("D2", 12, 16, 11, 15, 14),
+                new JsonArray("D3", 15, 18, 13, 14, 14.5)),
+        },
+        ["series"] = new JsonArray(
+            new JsonObject
+            {
+                ["type"] = "candlestick",
+                ["encode"] = new JsonObject
+                {
+                    ["x"] = "date", ["open"] = "open", ["high"] = "high", ["low"] = "low", ["close"] = "close",
+                },
+            },
+            new JsonObject
+            {
+                ["type"] = "line",
+                ["encode"] = new JsonObject { ["x"] = "date", ["y"] = "ma" },
+            }),
+    };
+
+    private static JsonObject KimiWaterfallDataset() => new()
+    {
+        ["dataset"] = new JsonObject
+        {
+            ["cols"] = new JsonArray("phase", "amount", "total"),
+            ["rows"] = new JsonArray(
+                new JsonArray("Start", 10, false),
+                new JsonArray("Loss", -3, false),
+                new JsonArray("End", 7, true)),
+        },
+        ["series"] = new JsonArray(new JsonObject
+        {
+            ["type"] = "waterfall",
+            ["encode"] = new JsonObject { ["x"] = "phase", ["y"] = "amount", ["isTotal"] = "total" },
+        }),
+    };
+
+    private static JsonObject KimiHeatmapDataset() => new()
+    {
+        ["dataset"] = new JsonObject
+        {
+            ["cols"] = new JsonArray("hour", "day", "value"),
+            ["rows"] = new JsonArray(
+                new JsonArray("08:00", "Mon", 2),
+                new JsonArray("09:00", "Mon", 4),
+                new JsonArray("08:00", "Tue", 3)),
+        },
+        ["series"] = new JsonArray(new JsonObject
+        {
+            ["type"] = "heatmap",
+            ["encode"] = new JsonObject { ["x"] = "hour", ["y"] = "day", ["value"] = "value" },
+        }),
+    };
+
+    private static JsonObject KimiHierarchyDataset(string type) => new()
+    {
+        ["dataset"] = new JsonObject
+        {
+            ["cols"] = new JsonArray("name", "parent", "value"),
+            ["rows"] = new JsonArray(
+                new JsonArray("Root", null, 10),
+                new JsonArray("Alpha", "Root", 4),
+                new JsonArray("Beta", "Root", 6)),
+        },
+        ["series"] = new JsonArray(new JsonObject
+        {
+            ["type"] = type,
+            ["levels"] = 2,
+            ["encode"] = new JsonObject { ["category"] = "name", ["parent"] = "parent", ["value"] = "value" },
+        }),
+    };
+
+    private static JsonObject KimiSankeyDataset() => new()
+    {
+        ["dataset"] = new JsonObject
+        {
+            ["cols"] = new JsonArray("source", "target", "flow"),
+            ["rows"] = new JsonArray(
+                new JsonArray("A", "B", 10),
+                new JsonArray("B", "C", 10)),
+        },
+        ["series"] = new JsonArray(new JsonObject
+        {
+            ["type"] = "sankey",
+            ["encode"] = new JsonObject { ["source"] = "source", ["target"] = "target", ["flow"] = "flow" },
+        }),
+    };
+
+    private static JsonObject KimiSolid(string color) => new()
+    {
+        ["type"] = "solid",
+        ["color"] = color,
+    };
+
+    private static JsonObject KimiStroke(string color) => new()
+    {
+        ["color"] = color,
+        ["width"] = 1,
+    };
+
+    [Fact]
+    public void PpjFormulaChartReferenceProjectsAndEditsOnlyChartPart()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        program["components"] = new JsonArray();
+        foreach (var page in program["pages"]!.AsArray())
+        {
+            var pageObject = page!.AsObject();
+            pageObject.Remove("animations");
+            pageObject.Remove("transition");
+            pageObject.Remove("notes");
+            pageObject["elements"] = new JsonArray(pageObject["elements"]!.AsArray()
+                .Where(item => item!["type"]!.GetValue<string>() != "component")
+                .Select(item => item!.DeepClone())
+                .ToArray());
+        }
+        var chart = program["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "chart");
+        var assetBytes = File.ReadAllBytes(Path.Combine(root.FullName, "test", "fixtures", "presentation", "ppj-assets", "evidence-mark.svg"));
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+                Assets =
+                {
+                    new Asset
+                    {
+                        Id = "evidence-mark",
+                        FileName = "evidence-mark.svg",
+                        ContentType = "image/svg+xml",
+                        Data = ByteString.CopyFrom(assetBytes),
+                        Sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(assetBytes)).ToLowerInvariant(),
+                    },
+                },
+            },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var chartPaths = ZipPartPaths(source).Where(path => path.Contains("/charts/chart", StringComparison.OrdinalIgnoreCase)).ToArray();
+        Assert.True(chartPaths.Length > 0, string.Join(",", ZipPartPaths(source)));
+        var chartPath = chartPaths[0];
+        var formulaSource = ReplaceZipText(source, chartPath, xml =>
+        {
+            var seriesIndex = 0;
+            var withValues = Regex.Replace(
+                xml,
+                "<c:numLit>(?<body>.*?)</c:numLit>",
+                match =>
+                {
+                    var column = seriesIndex++ == 0 ? "B" : "C";
+                    return $"<c:numRef><c:f>Sheet1!${column}$2:${column}$4</c:f><c:numCache>{match.Groups["body"].Value}</c:numCache></c:numRef>";
+                },
+                RegexOptions.Singleline,
+                TimeSpan.FromSeconds(1));
+            return Regex.Replace(
+                withValues,
+                "<c:strLit>(?<body>.*?)</c:strLit>",
+                match => $"<c:strRef><c:f>Sheet1!$A$2:$A$4</c:f><c:strCache>{match.Groups["body"].Value}</c:strCache></c:strRef>",
+                RegexOptions.Singleline,
+                TimeSpan.FromSeconds(1));
+        });
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(formulaSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/formula-chart.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var state = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedChart = state["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "chart");
+        Assert.Equal("Sheet1!$B$2:$B$4", projectedChart["data"]!["series"]![0]!["valueFormula"]!.GetValue<string>());
+        Assert.Contains(projectedChart["nativeRef"]!["capabilities"]!.AsArray(), capability =>
+            capability!["operation"]!.GetValue<string>() == "setChartData");
+
+        var unsafeState = state.DeepClone().AsObject();
+        var unsafeChart = unsafeState["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "chart");
+        unsafeChart["data"]!["series"]![0]!["valueFormula"] = "[external.xlsx]Sheet1!$B$2:$B$4";
+        var unsafeEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(formulaSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(unsafeState.ToJsonString()),
+            },
+        });
+        Assert.False(unsafeEdit.Ok, Diagnostics(unsafeEdit));
+
+        var cacheOnlyState = state.DeepClone().AsObject();
+        var cacheOnlyChart = cacheOnlyState["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "chart");
+        cacheOnlyChart["data"]!["series"]![0]!["values"]![0] = 999d;
+        var cacheOnlyEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(formulaSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(cacheOnlyState.ToJsonString()),
+            },
+        });
+        Assert.False(cacheOnlyEdit.Ok, Diagnostics(cacheOnlyEdit));
+
+        projectedChart["data"]!["series"]![0]!["valueFormula"] = "Sheet1!$B$2:$B$5";
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(formulaSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(state.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(new[] { chartPath }, edited.PresentationProgram.ChangedParts);
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/formula-chart-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        using var json = JsonDocument.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray());
+        var reprojectedChart = json.RootElement.GetProperty("pages").EnumerateArray()
+            .SelectMany(page => page.GetProperty("elements").EnumerateArray())
+            .Single(item => item.GetProperty("type").GetString() == "chart");
+        Assert.Equal("Sheet1!$B$2:$B$5", reprojectedChart.GetProperty("data").GetProperty("series")[0].GetProperty("valueFormula").GetString());
+    }
+
+    [Fact]
+    public void NativeChartDataLeavesCoverCircularAndRadarCategoryPlots()
+    {
+        foreach (var chartType in new[]
+        {
+            SpreadsheetChartType.Pie,
+            SpreadsheetChartType.Doughnut,
+            SpreadsheetChartType.Radar,
+        })
+        {
+            var request = ExportRequest();
+            var chart = new PresentationChart
+            {
+                LeftEmu = 4_000_000,
+                TopEmu = 1_500_000,
+                WidthEmu = 4_500_000,
+                HeightEmu = 2_500_000,
+                Type = chartType,
+                Title = $"Native {chartType} data proof",
+            };
+            chart.Categories.Add(["A", "B"]);
+            chart.Series.Add(new SpreadsheetChartSeriesArtifact { Name = "Evidence", Values = { 8, 13 } });
+            request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
+            {
+                Id = $"presentation/slide/1/chart/native-{chartType.ToString().ToLowerInvariant()}",
+                Name = $"Native {chartType} source chart",
+                Chart = chart,
+            });
+            var authored = Invoke(request);
+            Assert.True(authored.Ok, Diagnostics(authored));
+            string chartPath;
+            using (var stream = new MemoryStream(authored.File.ToByteArray(), writable: false))
+            using (var package = PresentationDocument.Open(stream, false))
+                chartPath = Assert.Single(package.PresentationPart!.SlideParts.Single().ChartParts).Uri.OriginalString.TrimStart('/');
+            const string workbookPath = "ppt/embeddings/native-circular-chart-data.xlsx";
+            var sourceBytes = RemoveEmbeddedPpj(AddEmbeddedChartDataWorkbook(
+                AddUnknownChartExtension(authored.File.ToByteArray()), chartPath, workbookPath));
+            var imported = Import(sourceBytes);
+            Assert.True(imported.Ok, Diagnostics(imported));
+            var element = Assert.Single(
+                Assert.Single(imported.Artifact.Presentation.Slides).Elements,
+                candidate => candidate.Name == $"Native {chartType} source chart");
+            Assert.Equal(PresentationElement.ContentOneofCase.Opaque, element.ContentCase);
+            var native = Assert.IsType<PresentationNativeChart>(element.Opaque.NativeChart);
+            Assert.Equal(chartPath, native.PartPath);
+            Assert.NotEmpty(native.DataPoints);
+            Assert.All(native.DataPoints, point => Assert.Equal("Sheet1!$B$2:$B$3", point.Formula));
+        }
+    }
+
+    [Fact]
+    public void NativeChartDataLeavesCoverCategoryCacheAndInlineWorksheetText()
+    {
+        var request = ExportRequest();
+        var chart = new PresentationChart
+        {
+            LeftEmu = 4_000_000,
+            TopEmu = 1_500_000,
+            WidthEmu = 4_500_000,
+            HeightEmu = 2_500_000,
+            Type = SpreadsheetChartType.Pie,
+            Title = "Native chart category data proof",
+        };
+        chart.Categories.Add(["A", "B"]);
+        chart.Series.Add(new SpreadsheetChartSeriesArtifact { Name = "Evidence", Values = { 8, 13 } });
+        request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/chart/native-category-data",
+            Name = "Native category source chart",
+            Chart = chart,
+        });
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        string chartPath;
+        using (var stream = new MemoryStream(authored.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            chartPath = Assert.Single(package.PresentationPart!.SlideParts.Single().ChartParts).Uri.OriginalString.TrimStart('/');
+        const string workbookPath = "ppt/embeddings/native-category-chart-data.xlsx";
+        var sourceBytes = RemoveEmbeddedPpj(AddEmbeddedCategoryChartDataWorkbook(
+            AddUnknownChartExtension(authored.File.ToByteArray()), chartPath, workbookPath));
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/native-category-chart-data.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var state = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var opaque = state["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "opaque" &&
+                item["nativeRef"]!["leaves"]!.AsArray().Any(leaf =>
+                    leaf!["kind"]!.GetValue<string>() == "chartDataCategory"));
+        var categoryLeaves = opaque["nativeRef"]!["leaves"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Where(item => item["kind"]!.GetValue<string>() == "chartDataCategory")
+            .ToArray();
+        Assert.Equal(["A", "B"], categoryLeaves.Select(item => item["value"]!.GetValue<string>()));
+        categoryLeaves[0]["value"] = "Alpha";
+
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(state.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(
+            new[] { chartPath, workbookPath }.OrderBy(path => path, StringComparer.OrdinalIgnoreCase),
+            edited.PresentationProgram.ChangedParts.OrderBy(path => path, StringComparer.OrdinalIgnoreCase));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/native-category-chart-data-output.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var output = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var outputCategories = output["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .SelectMany(item => item!["nativeRef"]!["leaves"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Where(item => item["kind"]!.GetValue<string>() == "chartDataCategory")
+            .ToArray();
+        Assert.Equal(["Alpha", "B"], outputCategories.Select(item => item["value"]!.GetValue<string>()));
+    }
+
+    [Fact]
+    public void NativeChartDataLeavesCoverLiteralCachesWithChartPartOnlyEdit()
+    {
+        var request = ExportRequest();
+        var chart = new PresentationChart
+        {
+            LeftEmu = 4_000_000,
+            TopEmu = 1_500_000,
+            WidthEmu = 4_500_000,
+            HeightEmu = 2_500_000,
+            Type = SpreadsheetChartType.Pie,
+            Title = "Native literal chart data proof",
+        };
+        chart.Categories.Add(["A", "B"]);
+        chart.Series.Add(new SpreadsheetChartSeriesArtifact { Name = "Evidence", Values = { 8, 13 } });
+        request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/chart/native-literal-data",
+            Name = "Native literal source chart",
+            Chart = chart,
+        });
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        string chartPath;
+        using (var stream = new MemoryStream(authored.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            chartPath = Assert.Single(package.PresentationPart!.SlideParts.Single().ChartParts).Uri.OriginalString.TrimStart('/');
+        var sourceBytes = AddEmbeddedChartDataWorkbook(
+            AddUnknownChartExtension(authored.File.ToByteArray()),
+            chartPath,
+            "ppt/embeddings/native-literal-chart-data.xlsx");
+        sourceBytes = RemoveEmbeddedPpj(ReplaceZipText(sourceBytes, chartPath, xml => Regex.Replace(
+            xml,
+            "<c:numRef><c:f>Sheet1!\\$B\\$2:\\$B\\$3</c:f><c:numCache>(?<body>.*?)</c:numCache></c:numRef>",
+            "<c:numLit>${body}</c:numLit>",
+            RegexOptions.Singleline,
+            TimeSpan.FromSeconds(1))));
+        var literalChartXml = Encoding.UTF8.GetString(ZipBytes(sourceBytes, chartPath));
+        Assert.Contains("<c:externalData", literalChartXml, StringComparison.Ordinal);
+        Assert.Contains("<c:strLit>", literalChartXml, StringComparison.Ordinal);
+        Assert.Contains("<c:numLit>", literalChartXml, StringComparison.Ordinal);
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/native-literal-chart-data.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var state = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var literalStateElements = state["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .ToArray();
+        Assert.True(literalStateElements.Any(item => item["type"]!.GetValue<string>() == "opaque" &&
+            item["nativeRef"]!["leaves"]!.AsArray().Any(leaf =>
+                leaf!["kind"]!.GetValue<string>() == "chartDataCategory")), state.ToJsonString());
+        var opaque = literalStateElements.Single(item => item["type"]!.GetValue<string>() == "opaque" &&
+            item["nativeRef"]!["leaves"]!.AsArray().Any(leaf =>
+                leaf!["kind"]!.GetValue<string>() == "chartDataCategory"));
+        var native = opaque["nativeRef"]!.AsObject();
+        var categories = native["leaves"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Where(item => item["kind"]!.GetValue<string>() == "chartDataCategory")
+            .ToArray();
+        var values = native["leaves"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Where(item => item["kind"]!.GetValue<string>() == "chartDataValue")
+            .ToArray();
+        Assert.Equal(["A", "B"], categories.Select(item => item["value"]!.GetValue<string>()));
+        Assert.Equal(["8", "13"], values.Select(item => item["value"]!.GetValue<string>()));
+        categories[0]["value"] = "Alpha";
+        values[1]["value"] = "21";
+
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(state.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal([chartPath], edited.PresentationProgram.ChangedParts);
+        var outputChart = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), chartPath));
+        Assert.Contains("<c:strLit>", outputChart, StringComparison.Ordinal);
+        Assert.Contains("<c:numLit>", outputChart, StringComparison.Ordinal);
+        Assert.DoesNotContain("<c:strRef>", outputChart, StringComparison.Ordinal);
+        Assert.DoesNotContain("<c:numRef>", outputChart, StringComparison.Ordinal);
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/native-literal-chart-data-output.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var output = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var outputLeaves = output["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .SelectMany(item => item!["nativeRef"]!["leaves"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .ToArray();
+        Assert.Equal(["Alpha", "B"], outputLeaves
+            .Where(item => item["kind"]!.GetValue<string>() == "chartDataCategory")
+            .Select(item => item["value"]!.GetValue<string>()));
+        Assert.Equal(["8", "21"], outputLeaves
+            .Where(item => item["kind"]!.GetValue<string>() == "chartDataValue")
+            .Select(item => item["value"]!.GetValue<string>()));
+    }
+
+    [Fact]
+    public void NativeChartDataLeavesCoverCategoricalComboPlots()
+    {
+        var request = ExportRequest();
+        var chart = new PresentationChart
+        {
+            LeftEmu = 4_000_000,
+            TopEmu = 1_500_000,
+            WidthEmu = 4_500_000,
+            HeightEmu = 2_500_000,
+            Type = SpreadsheetChartType.Combo,
+            Title = "Native combo data proof",
+        };
+        chart.Categories.Add(["A", "B"]);
+        chart.ComboSeries.Add(new PresentationComboSeriesArtifact
+        {
+            Type = SpreadsheetChartType.Bar,
+            Series = new SpreadsheetChartSeriesArtifact { Name = "Column" },
+        });
+        chart.ComboSeries[0].Series.Values.Add([8, 13]);
+        chart.ComboSeries.Add(new PresentationComboSeriesArtifact
+        {
+            Type = SpreadsheetChartType.Line,
+            Series = new SpreadsheetChartSeriesArtifact { Name = "Trend" },
+        });
+        chart.ComboSeries[1].Series.Values.Add([21, 34]);
+        chart.ComboSeries.Add(new PresentationComboSeriesArtifact
+        {
+            Type = SpreadsheetChartType.Area,
+            Series = new SpreadsheetChartSeriesArtifact { Name = "Band" },
+        });
+        chart.ComboSeries[2].Series.Values.Add([5, 9]);
+        request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/chart/native-combo-data",
+            Name = "Native combo source chart",
+            Chart = chart,
+        });
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        string chartPath;
+        using (var stream = new MemoryStream(authored.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            chartPath = Assert.Single(package.PresentationPart!.SlideParts.Single().ChartParts).Uri.OriginalString.TrimStart('/');
+        const string workbookPath = "ppt/embeddings/native-combo-chart-data.xlsx";
+        var sourceBytes = RemoveEmbeddedPpj(AddEmbeddedCategoricalComboChartDataWorkbook(
+            authored.File.ToByteArray(), chartPath, workbookPath));
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/native-combo-chart-data.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var state = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var opaque = state["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "opaque" &&
+                item["nativeRef"]!["leaves"]!.AsArray().Any(leaf =>
+                    leaf!["kind"]!.GetValue<string>() == "chartDataValue"));
+        var leaves = opaque["nativeRef"]!["leaves"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Where(item => item["kind"]!.GetValue<string>() == "chartDataValue")
+            .ToArray();
+        Assert.Equal(6, leaves.Length);
+        Assert.Equal(["5", "9", "8", "13", "21", "34"], leaves.Select(item => item["value"]!.GetValue<string>()));
+        leaves[0]["value"] = "6";
+        leaves[5]["value"] = "35";
+
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(state.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(
+            new[] { chartPath, workbookPath }.OrderBy(path => path, StringComparer.OrdinalIgnoreCase),
+            edited.PresentationProgram.ChangedParts.OrderBy(path => path, StringComparer.OrdinalIgnoreCase));
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/native-combo-chart-data-output.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var output = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var outputLeaves = output["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .SelectMany(item => item!["nativeRef"]!["leaves"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Where(item => item["kind"]!.GetValue<string>() == "chartDataValue")
+            .ToArray();
+        Assert.Equal(["6", "9", "8", "13", "21", "35"], outputLeaves.Select(item => item["value"]!.GetValue<string>()));
+    }
+
+    [Fact]
+    public void NativeChartDataLeavesCoverScatterAndBubbleNumericChannels()
+    {
+        foreach (var chartType in new[] { SpreadsheetChartType.Scatter, SpreadsheetChartType.Bubble })
+        {
+            var request = ExportRequest();
+            var chart = new PresentationChart
+            {
+                LeftEmu = 4_000_000,
+                TopEmu = 1_500_000,
+                WidthEmu = 4_500_000,
+                HeightEmu = 2_500_000,
+                Type = chartType,
+                Title = $"Native {chartType} numeric data proof",
+            };
+            chart.Series.Add(new SpreadsheetChartSeriesArtifact { Name = "Evidence" });
+            chart.Series[0].XValues.Add([10, 20, 34]);
+            chart.Series[0].Values.Add([35, 68, 84]);
+            if (chartType == SpreadsheetChartType.Bubble) chart.Series[0].BubbleSizes.Add([4, 9, 16]);
+            request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
+            {
+                Id = $"presentation/slide/1/chart/native-{chartType.ToString().ToLowerInvariant()}-data",
+                Name = $"Native {chartType} numeric source chart",
+                Chart = chart,
+            });
+            var authored = Invoke(request);
+            Assert.True(authored.Ok, Diagnostics(authored));
+            string chartPath;
+            using (var stream = new MemoryStream(authored.File.ToByteArray(), writable: false))
+            using (var package = PresentationDocument.Open(stream, false))
+                chartPath = Assert.Single(package.PresentationPart!.SlideParts.Single().ChartParts).Uri.OriginalString.TrimStart('/');
+            var workbookPath = $"ppt/embeddings/native-{chartType.ToString().ToLowerInvariant()}-chart-data.xlsx";
+            var sourceBytes = RemoveEmbeddedPpj(AddEmbeddedNumericChartDataWorkbook(
+                AddUnknownChartExtension(authored.File.ToByteArray()), chartPath, workbookPath));
+
+            var projected = Invoke(new CodecRequest
+            {
+                ProtocolVersion = CodecProtocol.ProtocolVersion,
+                Operation = CodecOperation.ProjectPptxToPpj,
+                Family = ArtifactFamily.Presentation,
+                File = ByteString.CopyFrom(sourceBytes),
+                PresentationProgram = new PresentationProgramRequest
+                {
+                    SourceUri = $"deck.assets/source/native-{chartType.ToString().ToLowerInvariant()}-chart-data.pptx",
+                },
+            });
+            Assert.True(projected.Ok, Diagnostics(projected));
+            var state = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+            var opaque = state["pages"]!.AsArray()
+                .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+                .Select(item => item!.AsObject())
+                .Single(item => item["type"]!.GetValue<string>() == "opaque" &&
+                    item["nativeRef"]!["leaves"]!.AsArray().Any(leaf =>
+                        leaf!["kind"]!.GetValue<string>() is "chartDataXValue" or "chartDataYValue" or "chartDataBubbleSize"));
+            var leaves = opaque["nativeRef"]!["leaves"]!.AsArray()
+                .Select(item => item!.AsObject())
+                .Where(item => item["kind"]!.GetValue<string>() is "chartDataXValue" or "chartDataYValue" or "chartDataBubbleSize")
+                .ToArray();
+            var expectedKinds = chartType == SpreadsheetChartType.Bubble
+                ? new[] { "chartDataXValue", "chartDataYValue", "chartDataBubbleSize" }
+                : new[] { "chartDataXValue", "chartDataYValue" };
+            Assert.Equal(expectedKinds, leaves.Select(item => item["kind"]!.GetValue<string>()).Distinct().ToArray());
+            Assert.Equal(3 * expectedKinds.Length, leaves.Length);
+            Assert.Equal(["10", "20", "34"], leaves.Where(item => item["kind"]!.GetValue<string>() == "chartDataXValue").Select(item => item["value"]!.GetValue<string>()));
+            Assert.Equal(["35", "68", "84"], leaves.Where(item => item["kind"]!.GetValue<string>() == "chartDataYValue").Select(item => item["value"]!.GetValue<string>()));
+            if (chartType == SpreadsheetChartType.Bubble)
+                Assert.Equal(["4", "9", "16"], leaves.Where(item => item["kind"]!.GetValue<string>() == "chartDataBubbleSize").Select(item => item["value"]!.GetValue<string>()));
+            leaves.Single(item => item["kind"]!.GetValue<string>() == "chartDataXValue" && item["value"]!.GetValue<string>() == "10")["value"] = "11";
+            leaves.Single(item => item["kind"]!.GetValue<string>() == "chartDataYValue" && item["value"]!.GetValue<string>() == "35")["value"] = "36";
+            if (chartType == SpreadsheetChartType.Bubble)
+                leaves.Single(item => item["kind"]!.GetValue<string>() == "chartDataBubbleSize" && item["value"]!.GetValue<string>() == "4")["value"] = "5";
+
+            var edited = Invoke(new CodecRequest
+            {
+                ProtocolVersion = CodecProtocol.ProtocolVersion,
+                Operation = CodecOperation.CompilePpjToPptx,
+                Family = ArtifactFamily.Presentation,
+                File = ByteString.CopyFrom(sourceBytes),
+                PresentationProgram = new PresentationProgramRequest
+                {
+                    ProgramJson = ByteString.CopyFromUtf8(state.ToJsonString()),
+                },
+            });
+            Assert.True(edited.Ok, Diagnostics(edited));
+            Assert.Equal(
+                new[] { chartPath, workbookPath }.OrderBy(path => path, StringComparer.OrdinalIgnoreCase),
+                edited.PresentationProgram.ChangedParts.OrderBy(path => path, StringComparer.OrdinalIgnoreCase));
+
+            var reprojected = Invoke(new CodecRequest
+            {
+                ProtocolVersion = CodecProtocol.ProtocolVersion,
+                Operation = CodecOperation.ProjectPptxToPpj,
+                Family = ArtifactFamily.Presentation,
+                File = edited.File,
+                PresentationProgram = new PresentationProgramRequest
+                {
+                    SourceUri = $"deck.assets/source/native-{chartType.ToString().ToLowerInvariant()}-chart-data-output.pptx",
+                },
+            });
+            Assert.True(reprojected.Ok, Diagnostics(reprojected));
+            var output = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+            var outputLeaves = output["pages"]!.AsArray()
+                .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+                .SelectMany(item => item!["nativeRef"]!["leaves"]!.AsArray())
+                .Select(item => item!.AsObject())
+                .Where(item => item["kind"]!.GetValue<string>() is "chartDataXValue" or "chartDataYValue" or "chartDataBubbleSize")
+                .ToArray();
+            Assert.Equal("11", outputLeaves.Single(item => item["kind"]!.GetValue<string>() == "chartDataXValue" && item["value"]!.GetValue<string>() == "11")["value"]!.GetValue<string>());
+            Assert.Equal("36", outputLeaves.Single(item => item["kind"]!.GetValue<string>() == "chartDataYValue" && item["value"]!.GetValue<string>() == "36")["value"]!.GetValue<string>());
+            if (chartType == SpreadsheetChartType.Bubble)
+                Assert.Equal("5", outputLeaves.Single(item => item["kind"]!.GetValue<string>() == "chartDataBubbleSize" && item["value"]!.GetValue<string>() == "5")["value"]!.GetValue<string>());
+        }
+    }
+
+    [Fact]
+    public void PpjSourceBoundNativeChartDataLeafEditsCacheAndWorkbookAndReprojects()
+    {
+        var request = ExportRequest();
+        var chart = new PresentationChart
+        {
+            LeftEmu = 4_000_000,
+            TopEmu = 1_500_000,
+            WidthEmu = 4_500_000,
+            HeightEmu = 2_500_000,
+            Type = SpreadsheetChartType.Bar,
+            Title = "Native chart PPJ data",
+            HasLegend = true,
+        };
+        chart.Categories.Add(["A", "B"]);
+        chart.Series.Add(new SpreadsheetChartSeriesArtifact { Name = "Evidence", Values = { 8, 13 } });
+        request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/chart/native-ppj-data",
+            Name = "Native PPJ chart data",
+            Chart = chart,
+        });
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        string chartPath;
+        using (var stream = new MemoryStream(authored.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            chartPath = Assert.Single(package.PresentationPart!.SlideParts.Single().ChartParts).Uri.OriginalString.TrimStart('/');
+        const string workbookPath = "ppt/embeddings/native-ppj-chart-data.xlsx";
+        var sourceBytes = AddEmbeddedChartDataWorkbook(authored.File.ToByteArray(), chartPath, workbookPath);
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/native-ppj-chart-data.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var state = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var opaque = state["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "opaque" &&
+                item["nativeRef"]!["leaves"]!.AsArray().Any(leaf =>
+                    leaf!["kind"]!.GetValue<string>() == "chartDataValue"));
+        Assert.Equal("opaque", opaque["type"]!.GetValue<string>());
+        var leaf = opaque["nativeRef"]!["leaves"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .First(item => item["kind"]!.GetValue<string>() == "chartDataValue" &&
+                item["value"]!.GetValue<string>() == "8");
+        Assert.Equal("8", leaf["value"]!.GetValue<string>());
+        leaf["value"] = "9";
+
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(state.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(
+            new[] { chartPath, workbookPath }.OrderBy(path => path, StringComparer.OrdinalIgnoreCase),
+            edited.PresentationProgram.ChangedParts.OrderBy(path => path, StringComparer.OrdinalIgnoreCase));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/native-ppj-chart-data-output.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var output = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var outputLeaf = output["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .SelectMany(item => item!["nativeRef"]!["leaves"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["kind"]!.GetValue<string>() == "chartDataValue" &&
+                item["value"]!.GetValue<string>() == "9");
+        Assert.Equal("9", outputLeaf["value"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void SourceBoundLiteralCustomGeometryPathEditChangesOnlySlideAndReprojects()
+    {
+        var request = ExportRequest();
+        var shape = request.Artifact.Presentation.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        var path = new PresentationCustomGeometryPath { Width = 1_000, Height = 1_000 };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { X = 100, Y = 100 },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { X = 900, Y = 100 },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { X = 500, Y = 900 },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedShape = program["pages"]![0]!["elements"]![0]!.AsObject();
+        Assert.Equal("custom", projectedShape["geometry"]!["kind"]!.GetValue<string>());
+        projectedShape["geometry"]!["paths"]![0]! ["commands"]![1]!["x"] = 820;
+        var edit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(edit.Ok, Diagnostics(edit));
+        Assert.Equal(new[] { "ppt/slides/slide1.xml" }, edit.PresentationProgram.ChangedParts);
+        Assert.Contains(projectedShape["id"]!.GetValue<string>(), edit.PresentationProgram.ChangedNodeIds);
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        using var json = JsonDocument.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray());
+        var command = json.RootElement.GetProperty("pages")[0].GetProperty("elements")[0]
+            .GetProperty("geometry").GetProperty("paths")[0].GetProperty("commands")[1];
+        Assert.Equal(820, command.GetProperty("x").GetDouble());
+    }
+
+    [Fact]
+    public void SourceBoundPartialCustomGeometryLiteralSiblingEditsAndReprojects()
+    {
+        var request = ExportRequest();
+        var shape = request.Artifact.Presentation.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        var imageBytes = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
+        shape.ImageFill = new PresentationImagePaint
+        {
+            AssetId = AddPictureAsset(request.Artifact, imageBytes, "image/png"),
+            Mode = PresentationImagePaint.Types.Mode.Stretch,
+        };
+        shape.FillRgb = string.Empty;
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjX", Formula = "val 25000" });
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjY", Formula = "val 50000" });
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = shape.WidthEmu,
+            Height = shape.HeightEmu,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { X = 0, Y = 0 },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { X = shape.WidthEmu, Y = shape.HeightEmu },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = ReplaceZipText(authored.File.ToByteArray(), "ppt/slides/slide1.xml", xml =>
+        {
+            var withSourceFill = new Regex("<a:fillRect\\s*/>")
+                .Replace(xml, "<a:fillRect l=\"0\" t=\"0\" r=\"0\" b=\"0\"/>", 1);
+            return withSourceFill.Replace(
+                "name=\"adjY\" fmla=\"val 50000\"",
+                "name=\"adjY\" fmla=\"mystery 1\"",
+                StringComparison.Ordinal);
+        });
+        var sourceWithoutPpj = RemoveEmbeddedPpj(source);
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceWithoutPpj),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/partial-custom-geometry.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]![0]!.AsObject();
+        Assert.Equal("source-custom", element["geometry"]!["kind"]!.GetValue<string>());
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var literal = Assert.Single(leaves, leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustment");
+        Assert.Equal(25000, literal!["value"]!.GetValue<long>());
+        Assert.DoesNotContain(leaves, leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustment" &&
+            leaf["value"]!.GetValue<long>() == 50000);
+
+        literal["value"] = 30000;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceWithoutPpj),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("name=\"adjX\" fmla=\"val 30000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("name=\"adjY\" fmla=\"mystery 1\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/partial-custom-geometry-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var output = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var outputElement = output["pages"]![0]!["elements"]![0]!.AsObject();
+        var outputLiteral = Assert.Single(outputElement["nativeRef"]!["leaves"]!.AsArray(),
+            leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustment");
+        Assert.Equal(30000, outputLiteral!["value"]!.GetValue<long>());
+    }
+
+    [Fact]
+    public void SourceBoundTableStyleFlagsEditOnlyTablePropertiesAndReproject()
+    {
+        var request = ExportRequest();
+        request.Artifact.Presentation.Slides[0].Elements.Clear();
+        var table = new PresentationTable
+        {
+            LeftEmu = 500_000,
+            TopEmu = 900_000,
+            WidthEmu = 4_000_000,
+            HeightEmu = 1_800_000,
+            FirstRow = true,
+            BandedRows = true,
+            BandedColumns = false,
+            FirstColumn = true,
+            LastColumn = true,
+        };
+        table.ColumnWidthsEmu.Add([2_000_000, 2_000_000]);
+        table.Rows.Add(new PresentationTableRow
+        {
+            HeightEmu = 600_000,
+            Cells = { new PresentationTableCell { Text = "Metric" }, new PresentationTableCell { Text = "Value" } },
+        });
+        table.Rows.Add(new PresentationTableRow
+        {
+            HeightEmu = 1_200_000,
+            Cells = { new PresentationTableCell { Text = "Revenue" }, new PresentationTableCell { Text = "$42M" } },
+        });
+        request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/table/source-bound-style",
+            Name = "Source-bound table style",
+            Table = table,
+        });
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "table-style/source.pptx",
+                AssetRootUri = "table-style/assets",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedTable = program["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table");
+        var capabilities = projectedTable["nativeRef"]!["capabilities"]!.AsArray();
+        var styleCapability = capabilities.Single(capability =>
+            capability!["operation"]!.GetValue<string>() == "setTableStyle");
+        Assert.Equal(new[] { "table.style" }, styleCapability!["fields"]!.AsArray()
+            .Select(field => field!.GetValue<string>()).ToArray());
+        var style = projectedTable["style"]!.AsObject();
+        Assert.Equal(1, style["headerRows"]!.GetValue<int>());
+        Assert.True(style["bandedRows"]!.GetValue<bool>());
+        Assert.False(style["bandedColumns"]!.GetValue<bool>());
+        Assert.True(style["firstColumnEmphasis"]!.GetValue<bool>());
+        Assert.True(style["lastColumnEmphasis"]!.GetValue<bool>());
+
+        style["headerRows"] = 0;
+        style["bandedRows"] = false;
+        style["bandedColumns"] = true;
+        style["firstColumnEmphasis"] = false;
+        style.Remove("lastColumnEmphasis");
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(new[] { "ppt/slides/slide1.xml" }, edited.PresentationProgram.ChangedParts);
+        Assert.Contains(projectedTable["id"]!.GetValue<string>(), edited.PresentationProgram.ChangedNodeIds);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var native = Assert.Single(package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.Table>());
+            var properties = native.TableProperties!;
+            Assert.False(properties.FirstRow!.Value);
+            Assert.False(properties.BandRow!.Value);
+            Assert.True(properties.BandColumn!.Value);
+            Assert.False(properties.FirstColumn!.Value);
+            Assert.Null(properties.LastColumn);
+        }
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "table-style/edited.pptx",
+                AssetRootUri = "table-style/assets",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var output = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var outputStyle = output["pages"]!.AsArray()
+            .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "table")["style"]!.AsObject();
+        Assert.Equal(0, outputStyle["headerRows"]!.GetValue<int>());
+        Assert.False(outputStyle["bandedRows"]!.GetValue<bool>());
+        Assert.True(outputStyle["bandedColumns"]!.GetValue<bool>());
+        Assert.False(outputStyle["firstColumnEmphasis"]!.GetValue<bool>());
+        Assert.False(outputStyle.ContainsKey("lastColumnEmphasis"));
     }
 }

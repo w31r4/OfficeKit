@@ -45,7 +45,21 @@ internal static class PptxCustomGeometryCodec
 
     internal static void Read(A.CustomGeometry? geometry, long widthEmu, long heightEmu, PresentationShape target)
     {
-        if (!TryProfile(geometry, widthEmu, heightEmu, out var profile)) return;
+        if (!TryProfile(geometry, widthEmu, heightEmu, out var profile))
+        {
+            // A source-bound image-filled shape may carry a legal custom path
+            // graph whose adjustment formulas are outside our executable
+            // guide grammar.  Keep the graph source-owned, but retain the
+            // direct adjustment list so independently literal `val N`
+            // siblings can still receive native-leaf capabilities.  Do not
+            // apply this fallback to picture masks or source-free shapes:
+            // ImageFillAssetId is populated only for the bounded shape-level
+            // image-fill profile.
+            if (!string.IsNullOrWhiteSpace(target.ImageFillAssetId) &&
+                TryReadSourceBoundAdjustmentGuides(geometry, out var adjustments))
+                target.CustomAdjustments.Add(adjustments);
+            return;
+        }
         target.CustomAdjustments.Add(profile.Formulas.Adjustments);
         target.CustomGuides.Add(profile.Formulas.Guides);
         target.CustomConnectionSites.Add(profile.ConnectionSites);
@@ -80,6 +94,40 @@ internal static class PptxCustomGeometryCodec
             }
             target.CustomPaths.Add(path);
         }
+    }
+
+    // Narrow source-bound fallback for an adjustment list that is structurally
+    // simple even when the rest of custGeom (or one sibling formula) is not
+    // evaluable by the closed formula codec.  The returned guides preserve
+    // their native order and exact formula text; only direct `val N` entries
+    // are later exposed as editable leaves.  Unknown children, missing
+    // identity attributes, duplicate names and oversized lists are rejected.
+    private static bool TryReadSourceBoundAdjustmentGuides(
+        A.CustomGeometry? geometry,
+        out IReadOnlyList<PresentationCustomGeometryGuide> adjustments)
+    {
+        adjustments = [];
+        if (geometry is null || geometry.HasAttributes || geometry.ChildElements.Count == 0 ||
+            geometry.FirstChild is not A.AdjustValueList list || list.HasAttributes)
+            return false;
+        var nativeGuides = list.Elements<A.ShapeGuide>().ToArray();
+        if (nativeGuides.Length == 0 || nativeGuides.Length > 256 ||
+            list.ChildElements.Count != nativeGuides.Length)
+            return false;
+        var result = new List<PresentationCustomGeometryGuide>(nativeGuides.Length);
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var native in nativeGuides)
+        {
+            if (native.ChildElements.Count != 0 ||
+                !HasOnlyAttributes(native, "name", "fmla") ||
+                native.Name?.Value is not { Length: > 0 } name ||
+                native.Formula?.Value is not { Length: > 0 } formula ||
+                formula.Length > 256 || !names.Add(name))
+                return false;
+            result.Add(new PresentationCustomGeometryGuide { Name = name, Formula = formula });
+        }
+        adjustments = result;
+        return true;
     }
 
     private static bool TryProfile(A.CustomGeometry? geometry, long widthEmu, long heightEmu, out Profile profile)
@@ -153,14 +201,14 @@ internal static class PptxCustomGeometryCodec
         if (shape.PresetAdjustments.Count > 0)
             throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has preset adjustments with custom geometry.");
         // A source-bound image-filled shape may intentionally carry a custom
-        // path graph outside this codec's semantic profile.  Its image fill
-        // and native path tokens remain source-owned; the bounded frame can
-        // still be edited without pretending that an empty projection is an
-        // authorable custom geometry.  Source-free image fills are rejected
+        // path graph outside this codec's semantic profile.  Its image fill,
+        // native path tokens and (when present) adjustment formulas remain
+        // source-owned; the bounded frame and independently literal
+        // adjustment leaves can still be edited without pretending that the
+        // opaque graph is authorable.  Source-free image fills are rejected
         // by ValidatePresentationElement before reaching this branch.
         if (shape.CustomPaths.Count == 0 &&
             !string.IsNullOrWhiteSpace(shape.ImageFillAssetId) &&
-            shape.CustomAdjustments.Count == 0 &&
             shape.CustomGuides.Count == 0 &&
             shape.CustomConnectionSites.Count == 0 &&
             shape.CustomAdjustmentHandles.Count == 0 &&
