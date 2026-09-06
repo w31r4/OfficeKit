@@ -11061,6 +11061,54 @@ public sealed partial class PptxCodecTests
     }
 
     [Fact]
+    public void PpjDateTimeFigureOutFieldAuthorsAndProjectsWithRequestedHostFormat()
+    {
+        var request = RichTextExportRequest();
+        var shape = request.Artifact.Presentation.Slides[0].Elements[0].Shape;
+        shape.TextBody.Paragraphs.Clear();
+        var paragraph = new PresentationTextParagraph();
+        paragraph.Runs.Add(new PresentationTextRun
+        {
+            Field = new PresentationTextField
+            {
+                Id = "{55555555-5555-4333-8444-666666666666}",
+                Type = "datetimeFigureOut",
+                Text = "10/12/2007",
+                Automatic = true,
+            },
+        });
+        shape.TextBody.Paragraphs.Add(paragraph);
+        shape.Text = PptxTextCodec.Flatten(shape.TextBody);
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var field = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.Field>().Single();
+            Assert.Equal("datetimeFigureOut", field.Type!.Value);
+            Assert.Equal("10/12/2007", field.Text!.Text);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        }
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(authored.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "datetime-figure-out-field/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var output = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var fieldJson = output["pages"]![0]!["elements"]![0]!["text"]!["paragraphs"]![0]!["runs"]![0]!["field"]!.AsObject();
+        Assert.Equal("datetimeFigureOut", fieldJson["type"]!.GetValue<string>());
+        Assert.Equal("10/12/2007", fieldJson["text"]!.GetValue<string>());
+        Assert.True(fieldJson["automatic"]!.GetValue<bool>());
+        Assert.Equal("{55555555-5555-4333-8444-666666666666}", fieldJson["id"]!.GetValue<string>());
+    }
+
+    [Fact]
     public void InvalidFieldsBreaksAndTabStopsFailClosed()
     {
         var request = RichTextExportRequest();
