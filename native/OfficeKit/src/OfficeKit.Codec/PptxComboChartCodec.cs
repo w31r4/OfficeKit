@@ -480,6 +480,16 @@ internal static partial class PptxChartCodec
             .Select(item => ComboScalar(item, out var value) ? value : string.Empty)
             .ToHashSet(StringComparer.Ordinal);
         if (ids.Count != 2 || ids.Contains(string.Empty)) return false;
+        // OfficeKit-authored combos use stable axis IDs, so a source-bound
+        // position edit can change c:axPos without losing primary/secondary
+        // ownership. Third-party combos with other IDs still require the
+        // canonical b/l and t/r position evidence below.
+        if (ids.SetEquals(["1", "2"])) return true;
+        if (ids.SetEquals(["3", "4"]))
+        {
+            axisGroup = PresentationChartAxisGroup.Secondary;
+            return true;
+        }
         var categoryAxes = plotArea.Elements(ChartNs + "catAx")
             .Where(axis => ComboScalar(axis.Element(ChartNs + "axId"), out var id) && ids.Contains(id))
             .ToArray();

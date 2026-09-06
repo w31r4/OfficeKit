@@ -3489,15 +3489,22 @@ internal static class PptxCodec
                 PptxTextCodec.NormalizeSemantics(title);
                 element.Chart.TitleBody = title.TextBody;
             }
-            NormalizeChartAxisForHash(element.Chart.XAxis);
-            NormalizeChartAxisForHash(element.Chart.YAxis);
-            NormalizeChartAxisForHash(element.Chart.SecondaryXAxis);
-            NormalizeChartAxisForHash(element.Chart.SecondaryYAxis);
+            NormalizeChartAxisForHash(element.Chart.XAxis, "bottom");
+            NormalizeChartAxisForHash(element.Chart.YAxis, "left");
+            NormalizeChartAxisForHash(element.Chart.SecondaryXAxis, "top");
+            NormalizeChartAxisForHash(element.Chart.SecondaryYAxis, "right");
         }
     }
 
-    private static void NormalizeChartAxisForHash(SpreadsheetChartAxisArtifact? axis)
+    private static void NormalizeChartAxisForHash(SpreadsheetChartAxisArtifact? axis, string defaultPosition)
     {
+        // c:axPos is mandatory in ChartML, but its canonical primary and
+        // secondary values are represented by omission in PPJ. Normalize an
+        // explicit request for the matching default before source-hash
+        // comparison so authored and projected forms stay equivalent.
+        if (axis?.HasPosition == true && string.Equals(axis.Position, defaultPosition, StringComparison.Ordinal))
+            axis.ClearPosition();
+
         // tickLabelPosition=none is the native representation of hidden tick
         // labels. Older PPJ projections also carried tickLabelsVisible=false
         // as a compatibility alias, so canonicalize both forms before the

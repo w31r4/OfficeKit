@@ -6186,6 +6186,22 @@
           "$ref": "#/$defs/stringOrToken",
           "description": "Axis number format code; a token reference must declare kind string."
         },
+        "position": {
+          "oneOf": [
+            {
+              "enum": [
+                "bottom",
+                "left",
+                "right",
+                "top"
+              ]
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ],
+          "description": "Axis placement; horizontal axes accept bottom or top and vertical axes accept left or right; a token reference must declare kind string."
+        },
         "tickLabelInterval": {
           "$ref": "#/$defs/numberOrToken",
           "description": "Category-axis label interval; literals and size grammar tokens must resolve to an integer from 1 through 10000."

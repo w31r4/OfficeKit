@@ -11,6 +11,7 @@ namespace OfficeKit.Codec;
 internal static class XlsxChartAxisCodec
 {
     private const uint MaxTickLabelInterval = 1_048_576;
+    private static readonly string[] AxisPositions = ["bottom", "left", "right", "top"];
     private static readonly string[] TickLabelPositions = ["nextTo", "high", "low", "none"];
     private static readonly string[] TickMarkValues = ["cross", "in", "out", "none"];
     private static readonly XNamespace ChartNs = "http://schemas.openxmlformats.org/drawingml/2006/chart";
@@ -27,8 +28,8 @@ internal static class XlsxChartAxisCodec
         if ((chart.XAxis is null) != (chart.YAxis is null))
             throw Invalid(worksheetId, chart.Id, "must carry both x_axis and y_axis or neither for backward-compatible default authoring.");
         if (chart.XAxis is null) return;
-        ValidateAxis(chart.XAxis, !UsesNumericXAxis(chart.Type), "x", worksheetId, chart.Id);
-        ValidateAxis(chart.YAxis!, false, "y", worksheetId, chart.Id);
+        ValidateAxis(chart.XAxis, !UsesNumericXAxis(chart.Type), true, "x", worksheetId, chart.Id);
+        ValidateAxis(chart.YAxis!, false, false, "y", worksheetId, chart.Id);
     }
 
     internal static bool TryRead(XElement plotArea, XElement plot, SpreadsheetChartArtifact chart, out bool editable)
@@ -50,9 +51,9 @@ internal static class XlsxChartAxisCodec
             return editable;
         }
         var numericX = UsesNumericXAxis(chart.Type);
-        if (!TryLocate(plotArea, plot, numericX, horizontalPosition, verticalPosition, out var horizontalAxis, out var verticalAxis)) return false;
-        if (!TryReadAxis(horizontalAxis, !numericX, horizontalPosition, out var xAxis, out var xEditable) ||
-            !TryReadAxis(verticalAxis, false, verticalPosition, out var yAxis, out var yEditable)) return false;
+        if (!TryLocate(plotArea, plot, numericX, out var horizontalAxis, out var verticalAxis)) return false;
+        if (!TryReadAxis(horizontalAxis, !numericX, true, horizontalPosition, out var xAxis, out var xEditable) ||
+            !TryReadAxis(verticalAxis, false, false, verticalPosition, out var yAxis, out var yEditable)) return false;
         chart.XAxis = xAxis;
         chart.YAxis = yAxis;
         editable = xEditable && yEditable;
@@ -85,27 +86,29 @@ internal static class XlsxChartAxisCodec
     {
         if (target.Type is SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut) return;
         var numericX = UsesNumericXAxis(target.Type);
-        if (target.XAxis is null || target.YAxis is null || !TryLocate(plotArea, plot, numericX, "b", "l", out var horizontalAxis, out var verticalAxis))
+        if (target.XAxis is null || target.YAxis is null || !TryLocate(plotArea, plot, numericX, out var horizontalAxis, out var verticalAxis))
             throw new CodecException("unsupported_spreadsheet_chart_edit", $"Worksheet chart {target.Id} cannot change its primary-axis topology.");
-        PatchAxis(horizontalAxis, target.XAxis, !numericX);
-        PatchAxis(verticalAxis, target.YAxis, false);
+        PatchAxis(horizontalAxis, target.XAxis, !numericX, "b");
+        PatchAxis(verticalAxis, target.YAxis, false, "l");
     }
 
     internal static void PatchPresentationSecondary(XElement plotArea, XElement plot, SpreadsheetChartArtifact target)
     {
-        if (target.XAxis is null || target.YAxis is null || !TryLocate(plotArea, plot, false, "t", "r", out var horizontalAxis, out var verticalAxis))
+        if (target.XAxis is null || target.YAxis is null || !TryLocate(plotArea, plot, false, out var horizontalAxis, out var verticalAxis))
             throw new CodecException("unsupported_presentation_edit", "Presentation combo chart cannot change its secondary-axis topology.");
-        PatchAxis(horizontalAxis, target.XAxis, true);
-        PatchAxis(verticalAxis, target.YAxis, false);
+        PatchAxis(horizontalAxis, target.XAxis, true, "t");
+        PatchAxis(verticalAxis, target.YAxis, false, "r");
     }
 
     internal static string Semantics(SpreadsheetChartArtifact chart) =>
         string.Join('\u001d', AxisSemantics(chart.XAxis), AxisSemantics(chart.YAxis));
 
-    private static void ValidateAxis(SpreadsheetChartAxisArtifact axis, bool category, string axisName, string worksheetId, string chartId)
+    private static void ValidateAxis(SpreadsheetChartAxisArtifact axis, bool category, bool horizontal, string axisName, string worksheetId, string chartId)
     {
         if (axis.Title.Length > 32_767 || HasControls(axis.Title)) throw Invalid(worksheetId, chartId, $"{axisName}-axis title is invalid.");
         if (axis.NumberFormatCode.Length > 255 || HasControls(axis.NumberFormatCode)) throw Invalid(worksheetId, chartId, $"{axisName}-axis number format is invalid.");
+        if (axis.HasPosition && (!AxisPositions.Contains(axis.Position, StringComparer.Ordinal) || horizontal != IsHorizontalPublicPosition(axis.Position)))
+            throw Invalid(worksheetId, chartId, $"{axisName}-axis position must be {(horizontal ? "bottom or top" : "left or right")}.");
         if (axis.AxisLine is not null && axis.HasAxisLineVisible && !axis.AxisLineVisible)
             throw Invalid(worksheetId, chartId, $"{axisName}-axis cannot combine a hidden axis line with a line style.");
         if (axis.MajorGridlineStyle is not null && (!axis.HasShowMajorGridlines || !axis.ShowMajorGridlines))
@@ -141,7 +144,7 @@ internal static class XlsxChartAxisCodec
         if (axis.HasMinorUnit && (!double.IsFinite(axis.MinorUnit) || axis.MinorUnit <= 0)) throw Invalid(worksheetId, chartId, $"{axisName}-axis minor unit must be finite and positive.");
     }
 
-    private static bool TryLocate(XElement plotArea, XElement plot, bool numericX, string horizontalPosition, string verticalPosition, out XElement horizontalAxis, out XElement verticalAxis)
+    private static bool TryLocate(XElement plotArea, XElement plot, bool numericX, out XElement horizontalAxis, out XElement verticalAxis)
     {
         horizontalAxis = null!;
         verticalAxis = null!;
@@ -156,8 +159,8 @@ internal static class XlsxChartAxisCodec
         if (numericX)
         {
             if (categories.Length != 0 || values.Length != 2) return false;
-            var horizontal = values.Where(item => AxisValue(item.Element(ChartNs + "axPos")) == horizontalPosition).ToArray();
-            var vertical = values.Where(item => AxisValue(item.Element(ChartNs + "axPos")) == verticalPosition).ToArray();
+            var horizontal = values.Where(item => IsHorizontalNativePosition(AxisValue(item.Element(ChartNs + "axPos")))).ToArray();
+            var vertical = values.Where(item => IsVerticalNativePosition(AxisValue(item.Element(ChartNs + "axPos")))).ToArray();
             if (horizontal.Length != 1 || vertical.Length != 1 || ReferenceEquals(horizontal[0], vertical[0])) return false;
             horizontalAxis = horizontal[0];
             verticalAxis = vertical[0];
@@ -179,7 +182,7 @@ internal static class XlsxChartAxisCodec
     private static bool UsesNumericXAxis(SpreadsheetChartType type) =>
         type is SpreadsheetChartType.Scatter or SpreadsheetChartType.Bubble;
 
-    private static bool TryReadAxis(XElement source, bool category, string expectedPosition, out SpreadsheetChartAxisArtifact axis, out bool editable)
+    private static bool TryReadAxis(XElement source, bool category, bool horizontal, string expectedPosition, out SpreadsheetChartAxisArtifact axis, out bool editable)
     {
         axis = new SpreadsheetChartAxisArtifact();
         editable = true;
@@ -196,7 +199,9 @@ internal static class XlsxChartAxisCodec
             axis.Visible = IsFalse(deletedValue);
         }
         if (!Singleton(source, "axPos", out var position) || position is null) return false;
-        if (AxisValue(position) != expectedPosition) editable = false;
+        if (!TryReadAxisPosition(position, horizontal, expectedPosition, out var semanticPosition, out var positionEditable)) return false;
+        if (semanticPosition is not null) axis.Position = semanticPosition;
+        editable &= positionEditable;
         if (!TryTitle(source, out var title, out var titleEditable) || !TryNumberFormat(source, out var numberFormat, out var numberFormatEditable)) return false;
         axis.Title = title;
         axis.NumberFormatCode = numberFormat;
@@ -256,6 +261,71 @@ internal static class XlsxChartAxisCodec
         return true;
     }
 
+    private static bool TryReadAxisPosition(
+        XElement source,
+        bool horizontal,
+        string expectedPosition,
+        out string? semanticPosition,
+        out bool editable)
+    {
+        semanticPosition = null;
+        editable = true;
+        var nativePosition = AxisValue(source);
+        var mapped = PublicAxisPosition(nativePosition);
+        if (mapped is null || horizontal != IsHorizontalNativePosition(nativePosition)) return false;
+        var expected = PublicAxisPosition(expectedPosition);
+        if (expected is null) return false;
+        if (!string.Equals(mapped, expected, StringComparison.Ordinal)) semanticPosition = mapped;
+        editable = source.Elements().Any() == false &&
+            source.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration).All(attribute => attribute.Name == "val");
+        return true;
+    }
+
+    private static void PatchAxisPosition(XElement axis, SpreadsheetChartAxisArtifact target, string defaultPosition)
+    {
+        var existing = axis.Element(ChartNs + "axPos")
+            ?? throw new CodecException("unsupported_spreadsheet_chart_edit", "Chart axis has no canonical position node.");
+        var nativePosition = AxisValue(existing);
+        var expectedHorizontal = IsHorizontalNativePosition(defaultPosition);
+        if (PublicAxisPosition(nativePosition) is null ||
+            !IsCanonicalScalar(existing) ||
+            expectedHorizontal != IsHorizontalNativePosition(nativePosition))
+            throw new CodecException("unsupported_spreadsheet_chart_edit", "Chart axis position is outside the bounded scalar profile.");
+        var requestedPosition = NativeAxisPosition(target, defaultPosition);
+        if (expectedHorizontal != IsHorizontalNativePosition(requestedPosition))
+            throw new CodecException("unsupported_spreadsheet_chart_edit", "Chart axis position does not match the axis orientation.");
+        existing.SetAttributeValue("val", requestedPosition);
+    }
+
+    private static string NativeAxisPosition(SpreadsheetChartAxisArtifact axis, string defaultPosition) =>
+        axis.HasPosition
+            ? axis.Position switch
+            {
+                "bottom" => "b",
+                "left" => "l",
+                "right" => "r",
+                "top" => "t",
+                _ => throw new CodecException("invalid_spreadsheet_chart", $"Chart axis position {axis.Position} is outside the bounded profile."),
+            }
+            : defaultPosition;
+
+    private static string? PublicAxisPosition(string nativePosition) => nativePosition switch
+    {
+        "b" => "bottom",
+        "l" => "left",
+        "r" => "right",
+        "t" => "top",
+        _ => null,
+    };
+
+    private static bool IsHorizontalPublicPosition(string position) => position is "bottom" or "top";
+    private static bool IsHorizontalNativePosition(string position) => position is "b" or "t";
+    private static bool IsVerticalNativePosition(string position) => position is "l" or "r";
+    private static bool IsCanonicalScalar(XElement source) =>
+        !source.Elements().Any() &&
+        source.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration).SequenceEqual(
+            source.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration && attribute.Name == "val"));
+
     private static bool TryTitle(XElement source, out string title, out bool editable)
     {
         title = string.Empty;
@@ -287,6 +357,7 @@ internal static class XlsxChartAxisCodec
 
     private static XElement BuildCategoryAxis(SpreadsheetChartAxisArtifact axis, string axisId = "1", string crossAxisId = "2", string position = "b")
     {
+        position = NativeAxisPosition(axis, position);
         var output = new XElement(ChartNs + "catAx",
             new XElement(ChartNs + "axId", new XAttribute("val", axisId)),
             new XElement(ChartNs + "scaling", new XElement(ChartNs + "orientation", new XAttribute("val", axis.HasReverse && axis.Reverse ? "maxMin" : "minMax"))),
@@ -311,6 +382,7 @@ internal static class XlsxChartAxisCodec
 
     private static XElement BuildValueAxis(SpreadsheetChartAxisArtifact axis, string axisId, string crossAxisId, string position, string? crosses = null)
     {
+        position = NativeAxisPosition(axis, position);
         var scaling = new XElement(ChartNs + "scaling", new XElement(ChartNs + "orientation", new XAttribute("val", axis.HasReverse && axis.Reverse ? "maxMin" : "minMax")));
         if (axis.HasMaximum) scaling.Add(ValueElement("max", axis.Maximum));
         if (axis.HasMinimum) scaling.Add(ValueElement("min", axis.Minimum));
@@ -343,10 +415,11 @@ internal static class XlsxChartAxisCodec
         if (semantic.NumberFormatCode.Length > 0) axis.Add(NumberFormatElement(semantic.NumberFormatCode));
     }
 
-    private static void PatchAxis(XElement native, SpreadsheetChartAxisArtifact target, bool category)
+    private static void PatchAxis(XElement native, SpreadsheetChartAxisArtifact target, bool category, string defaultPosition)
     {
         var scaling = native.Element(ChartNs + "scaling")!;
         SetRequiredOrientation(scaling, target.HasReverse && target.Reverse ? "maxMin" : "minMax");
+        PatchAxisPosition(native, target, defaultPosition);
         PatchValue(native, "delete", target.HasVisible, target.Visible ? 0 : 1, ["axPos", "majorGridlines", "minorGridlines", "title", "numFmt", "majorTickMark", "minorTickMark", "tickLblPos", "spPr", "txPr", "crossAx", "crosses", "crossesAt", "extLst"]);
         PatchMajorGridlines(native, target);
         PatchMinorGridlines(native, target);
@@ -692,6 +765,7 @@ internal static class XlsxChartAxisCodec
     private static bool IsTrue(string value) => value is "1" or "true" or "on";
     private static bool HasControls(string value) => value.Any(char.IsControl);
     private static string AxisSemantics(SpreadsheetChartAxisArtifact? axis) => axis is null ? "-" : string.Join('\u001f', axis.Title, axis.NumberFormatCode,
+        axis.HasPosition ? axis.Position : "-",
         axis.HasTickLabelInterval ? axis.TickLabelInterval.ToString(CultureInfo.InvariantCulture) : "-",
         axis.HasMinimum ? axis.Minimum.ToString("R", CultureInfo.InvariantCulture) : "-",
         axis.HasMaximum ? axis.Maximum.ToString("R", CultureInfo.InvariantCulture) : "-",

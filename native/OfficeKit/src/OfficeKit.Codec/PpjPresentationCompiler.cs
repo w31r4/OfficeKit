@@ -3005,7 +3005,7 @@ internal static class PpjSourceBoundPresentationCompiler
             throw Unsupported(path + "." + axisName, "source-bound chart-axis topology change");
         RequireEqualExcept(oldAxis.Value, newAxis.Value, path + "." + axisName,
             "textStyle", "title", "titleTextStyle", "visible", "numberFormat", "tickLabelInterval",
-            "min", "max", "majorUnit", "minorUnit", "majorTickMark", "minorTickMark", "tickLabelsVisible", "tickLabelPosition", "reverse", "axisLine", "axisLineArrow", "gridLine", "minorGridLine");
+            "min", "max", "majorUnit", "minorUnit", "position", "majorTickMark", "minorTickMark", "tickLabelsVisible", "tickLabelPosition", "reverse", "axisLine", "axisLineArrow", "gridLine", "minorGridLine");
         var changed = false;
         if (PropertyChanged(oldAxis, newAxis, "title"))
         {
@@ -3044,6 +3044,19 @@ internal static class PpjSourceBoundPresentationCompiler
             if (newAxis.Value.TryGetProperty("reverse", out var reverse))
                 target.Reverse = ResolveGrammarBooleanToken(grammarRoot, reverse, path + "." + axisName + ".reverse");
             else target.ClearReverse();
+            changed = true;
+        }
+        if (PropertyChanged(oldAxis, newAxis, "position"))
+        {
+            RequireCapability(after, "setChartAxis", path + "." + axisName + ".position");
+            if (newAxis.Value.TryGetProperty("position", out var position))
+                target.Position = ResolveGrammarEnumToken(
+                    grammarRoot,
+                    position,
+                    path + "." + axisName + ".position",
+                    "bottom", "left", "right", "top");
+            else
+                target.ClearPosition();
             changed = true;
         }
         if (PropertyChanged(oldAxis, newAxis, "visible"))

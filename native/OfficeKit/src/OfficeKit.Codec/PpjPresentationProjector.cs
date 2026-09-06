@@ -1404,6 +1404,7 @@ internal static partial class PpjPresentationProjector
         if (axis.HasMaximum) output["max"] = JsonValue.Create(axis.Maximum);
         if (axis.HasMajorUnit) output["majorUnit"] = JsonValue.Create(axis.MajorUnit);
         if (axis.HasMinorUnit) output["minorUnit"] = JsonValue.Create(axis.MinorUnit);
+        if (axis.HasPosition) output["position"] = StringNode(axis.Position);
         if (axis.HasVisible) output["visible"] = JsonValue.Create(axis.Visible);
         if (axis.HasReverse) output["reverse"] = JsonValue.Create(axis.Reverse);
         if (axis.HasTickLabelsVisible) output["tickLabelsVisible"] = JsonValue.Create(axis.TickLabelsVisible);

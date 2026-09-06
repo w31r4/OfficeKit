@@ -1131,6 +1131,9 @@ message SpreadsheetChartAxisArtifact {
   optional bool show_minor_gridlines = 21;
   SpreadsheetChartLineStyleArtifact minor_gridline_style = 22;
   optional bool minor_gridline_visible = 23;
+  // Presence-aware native c:axPos value. The bounded profile accepts
+  // bottom/top for horizontal axes and left/right for vertical axes.
+  optional string position = 24;
 }
 
 message SpreadsheetChartSurfaceFill {

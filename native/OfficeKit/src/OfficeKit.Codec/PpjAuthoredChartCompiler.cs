@@ -4121,6 +4121,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             axis.MajorUnit = catalog.PositiveNumberToken(majorUnit, "size", "chart axis majorUnit");
         if (source.TryGetProperty("minorUnit", out var minorUnit))
             axis.MinorUnit = catalog.PositiveNumberToken(minorUnit, "size", "chart axis minorUnit");
+        if (source.TryGetProperty("position", out var position))
+            axis.Position = ChartEnumToken(position, catalog, "chart axis position", "bottom", "left", "right", "top");
         if (source.TryGetProperty("majorTickMark", out var majorTickMark))
             axis.MajorTickMark = ChartEnumToken(majorTickMark, catalog, "chart axis majorTickMark", "cross", "in", "out", "none");
         if (source.TryGetProperty("minorTickMark", out var minorTickMark))
