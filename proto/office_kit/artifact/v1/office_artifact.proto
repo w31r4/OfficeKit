@@ -1062,7 +1062,7 @@ message SpreadsheetChartSeriesArtifact {
 
 // Bounded primary-axis semantics for category/value worksheet charts. The x
 // axis is a text category axis and may use tick_label_interval. The y axis is
-// a numeric value axis and may use minimum, maximum, and major_unit. Message
+// a numeric value axis and may use minimum, maximum, major_unit, and minor_unit. Message
 // and optional-scalar presence distinguish native defaults from explicit zero.
 message SpreadsheetChartAxisArtifact {
   string title = 1;
@@ -1071,6 +1071,7 @@ message SpreadsheetChartAxisArtifact {
   optional double minimum = 4;
   optional double maximum = 5;
   optional double major_unit = 6;
+  optional double minor_unit = 17;
   // Tick-label style, not the axis-title style. The bounded profile owns a
   // canonical typeface, emphasis, direct RGB/alpha, and size graph; complex
   // native txPr graphs remain opaque.

@@ -6122,6 +6122,10 @@
           "$ref": "#/$defs/positiveNumberOrToken",
           "description": "Value-axis major unit; a token reference must declare kind size and resolve above zero."
         },
+        "minorUnit": {
+          "$ref": "#/$defs/positiveNumberOrToken",
+          "description": "Value-axis minor unit; a token reference must declare kind size and resolve above zero."
+        },
         "textStyle": {
           "$ref": "#/$defs/chartTextStyle"
         },

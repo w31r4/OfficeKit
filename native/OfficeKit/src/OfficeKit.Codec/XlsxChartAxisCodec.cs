@@ -7,7 +7,7 @@ namespace OfficeKit.Codec;
 // Owns the bounded primary category/value or numeric-X value/value-axis projection for worksheet charts.
 // Axis identity and all unmodeled formatting remain in the ChartPart; this
 // module reads and patches titles, number formats, category label interval,
-// linear value-axis bounds/unit, orientation, and bounded line/text styles.
+// linear value-axis bounds/units, orientation, and bounded line/text styles.
 internal static class XlsxChartAxisCodec
 {
     private const uint MaxTickLabelInterval = 1_048_576;
@@ -114,7 +114,7 @@ internal static class XlsxChartAxisCodec
         XlsxChartSeriesLineStyleCodec.ValidateLine(axis.MajorGridlineStyle, worksheetId, chartId, axisName, "major gridline");
         if (category)
         {
-            if (axis.HasMinimum || axis.HasMaximum || axis.HasMajorUnit) throw Invalid(worksheetId, chartId, $"{axisName}-axis cannot carry numeric minimum, maximum, or major unit.");
+            if (axis.HasMinimum || axis.HasMaximum || axis.HasMajorUnit || axis.HasMinorUnit) throw Invalid(worksheetId, chartId, $"{axisName}-axis cannot carry numeric minimum, maximum, major unit, or minor unit.");
             if (axis.HasTickLabelInterval && axis.TickLabelInterval is < 1 or > MaxTickLabelInterval) throw Invalid(worksheetId, chartId, $"{axisName}-axis tick label interval must be 1 through {MaxTickLabelInterval}.");
             return;
         }
@@ -122,6 +122,7 @@ internal static class XlsxChartAxisCodec
         if (axis.HasMinimum && !double.IsFinite(axis.Minimum) || axis.HasMaximum && !double.IsFinite(axis.Maximum)) throw Invalid(worksheetId, chartId, $"{axisName}-axis minimum and maximum must be finite.");
         if (axis.HasMinimum && axis.HasMaximum && axis.Minimum >= axis.Maximum) throw Invalid(worksheetId, chartId, $"{axisName}-axis minimum must be less than maximum.");
         if (axis.HasMajorUnit && (!double.IsFinite(axis.MajorUnit) || axis.MajorUnit <= 0)) throw Invalid(worksheetId, chartId, $"{axisName}-axis major unit must be finite and positive.");
+        if (axis.HasMinorUnit && (!double.IsFinite(axis.MinorUnit) || axis.MinorUnit <= 0)) throw Invalid(worksheetId, chartId, $"{axisName}-axis minor unit must be finite and positive.");
     }
 
     private static bool TryLocate(XElement plotArea, XElement plot, bool numericX, string horizontalPosition, string verticalPosition, out XElement horizontalAxis, out XElement verticalAxis)
@@ -211,11 +212,13 @@ internal static class XlsxChartAxisCodec
         }
         if (!TryOptionalDouble(scaling, "min", out var hasMinimum, out var minimum) ||
             !TryOptionalDouble(scaling, "max", out var hasMaximum, out var maximum) ||
-            !TryOptionalDouble(source, "majorUnit", out var hasMajorUnit, out var majorUnit)) return false;
+            !TryOptionalDouble(source, "majorUnit", out var hasMajorUnit, out var majorUnit) ||
+            !TryOptionalDouble(source, "minorUnit", out var hasMinorUnit, out var minorUnit)) return false;
         if (hasMinimum) axis.Minimum = minimum;
         if (hasMaximum) axis.Maximum = maximum;
         if (hasMajorUnit) axis.MajorUnit = majorUnit;
-        if (hasMinimum && hasMaximum && minimum >= maximum || hasMajorUnit && majorUnit <= 0) return false;
+        if (hasMinorUnit) axis.MinorUnit = minorUnit;
+        if (hasMinimum && hasMaximum && minimum >= maximum || hasMajorUnit && majorUnit <= 0 || hasMinorUnit && minorUnit <= 0) return false;
         return true;
     }
 
@@ -286,6 +289,7 @@ internal static class XlsxChartAxisCodec
         output.Add(new XElement(ChartNs + "crossAx", new XAttribute("val", crossAxisId)));
         if (crosses is not null) output.Add(new XElement(ChartNs + "crosses", new XAttribute("val", crosses)));
         if (axis.HasMajorUnit) output.Add(ValueElement("majorUnit", axis.MajorUnit));
+        if (axis.HasMinorUnit) output.Add(ValueElement("minorUnit", axis.MinorUnit));
         return output;
     }
 
@@ -314,6 +318,7 @@ internal static class XlsxChartAxisCodec
         PatchValue(scaling, "max", target.HasMaximum, target.Maximum, ["min", "extLst"]);
         PatchValue(scaling, "min", target.HasMinimum, target.Minimum, ["extLst"]);
         PatchValue(native, "majorUnit", target.HasMajorUnit, target.MajorUnit, ["minorUnit", "dispUnits", "extLst"]);
+        PatchValue(native, "minorUnit", target.HasMinorUnit, target.MinorUnit, ["dispUnits", "extLst"]);
     }
 
     private static void PatchMajorGridlines(XElement axis, SpreadsheetChartAxisArtifact target)
@@ -565,6 +570,7 @@ internal static class XlsxChartAxisCodec
         axis.HasMinimum ? axis.Minimum.ToString("R", CultureInfo.InvariantCulture) : "-",
         axis.HasMaximum ? axis.Maximum.ToString("R", CultureInfo.InvariantCulture) : "-",
         axis.HasMajorUnit ? axis.MajorUnit.ToString("R", CultureInfo.InvariantCulture) : "-",
+        axis.HasMinorUnit ? axis.MinorUnit.ToString("R", CultureInfo.InvariantCulture) : "-",
         axis.HasVisible ? (axis.Visible ? "visible" : "hidden") : "default-visible",
         axis.HasReverse ? (axis.Reverse ? "reverse" : "forward") : "default-direction",
         axis.HasAxisLineVisible ? (axis.AxisLineVisible ? "axis-line" : "no-axis-line") : "default-axis-line",

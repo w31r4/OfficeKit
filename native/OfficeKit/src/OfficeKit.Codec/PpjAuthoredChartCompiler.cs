@@ -4106,6 +4106,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             axis.Maximum = catalog.NumberToken(maximum, "size", "chart axis max");
         if (source.TryGetProperty("majorUnit", out var majorUnit))
             axis.MajorUnit = catalog.PositiveNumberToken(majorUnit, "size", "chart axis majorUnit");
+        if (source.TryGetProperty("minorUnit", out var minorUnit))
+            axis.MinorUnit = catalog.PositiveNumberToken(minorUnit, "size", "chart axis minorUnit");
         if (source.TryGetProperty("visible", out var visible))
             axis.Visible = catalog.BooleanToken(visible, "boolean", "chart axis visible");
         if (source.TryGetProperty("tickLabelsVisible", out var tickLabelsVisible))
