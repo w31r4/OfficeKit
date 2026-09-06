@@ -3630,13 +3630,15 @@ message PresentationTextField {
   string text = 3;
   // A bounded automatic field identifies a host-refreshable field. The
   // current profile refreshes type "slidenum" from the owning slide number;
-  // types "author", "datetime", "datetime1", "datetime2", "datetime3", "datetime4",
+  // types "author", "datetime", "datetimeFigureOut", "datetime1", "datetime2",
+  // "datetime3", "datetime4",
   // "datetime5", "datetime6", "datetime7", "datetime8", "datetime9",
   // "datetime10", "datetime11", "datetime12", and "datetime13" preserve their cached
   // display for the host to refresh.
   // "datetime1" requests MM/DD/YYYY; "datetime2" requests Day, Month DD,
   // YYYY; "datetime3" requests DD Month YYYY; "datetime4" requests Month
   // DD, YYYY; "datetime5" requests DD-Mon-YY; "datetime6" requests Month YY;
+  // "datetimeFigureOut" is equivalent to "datetime1" and requests MM/DD/YYYY;
   // "datetime7" requests Mon-YY; "datetime8" requests MM/DD/YYYY hh:mm AM/PM;
   // "datetime9" requests MM/DD/YYYY hh:mm:ss AM/PM; "datetime10" requests
   // hh:mm; "datetime11" requests hh:mm:ss; "datetime12" requests
