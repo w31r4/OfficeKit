@@ -15,7 +15,7 @@ internal static class XlsxChartSeriesDataLabelsCodec
     private static readonly XNamespace ChartNs = "http://schemas.openxmlformats.org/drawingml/2006/chart";
     private static readonly string[] OrderedFlags = ["showLegendKey", "showVal", "showCatName", "showSerName", "showPercent", "showBubbleSize", "showLeaderLines"];
     private static readonly HashSet<string> DefaultChildren = new(["dLbl", "numFmt", "txPr", "dLblPos", .. OrderedFlags], StringComparer.Ordinal);
-    private static readonly HashSet<string> PointChildren = new(["idx", "numFmt", "txPr", "dLblPos", .. OrderedFlags], StringComparer.Ordinal);
+    private static readonly HashSet<string> PointChildren = new(["idx", "numFmt", "txPr", "dLblPos", "showLegendKey", "showVal", "showCatName", "showSerName", "showPercent", "showBubbleSize"], StringComparer.Ordinal);
     private static readonly HashSet<string> BooleanValues = new(StringComparer.Ordinal) { "0", "1", "false", "true" };
     private static readonly HashSet<string> PositionValues = new(StringComparer.Ordinal) { "bestFit", "b", "ctr", "inBase", "inEnd", "l", "outEnd", "r", "t" };
 
@@ -76,7 +76,7 @@ internal static class XlsxChartSeriesDataLabelsCodec
     }
 
     internal static XElement? Element(SpreadsheetChartSeriesDataLabelsArtifact? labels) => labels is null ? null :
-        new XElement(ChartNs + "dLbls", labels.Points.OrderBy(point => point.Index).Select(PointElement), Fields(labels.Defaults));
+        new XElement(ChartNs + "dLbls", labels.Points.OrderBy(point => point.Index).Select(PointElement), Fields(labels.Defaults, includeLeaderLines: true));
 
     internal static void Patch(XElement seriesElement, SpreadsheetChartSeriesArtifact target, SpreadsheetChartType chartType, string errorCode, string subject)
     {
@@ -112,7 +112,8 @@ internal static class XlsxChartSeriesDataLabelsCodec
             !ReadOptionalBoolean(owner, "showCatName", value => parsed.ShowCategoryName = value, ref present) ||
             !ReadOptionalBoolean(owner, "showSerName", value => parsed.ShowSeriesName = value, ref present) ||
             !ReadOptionalBoolean(owner, "showPercent", value => parsed.ShowPercent = value, ref present) ||
-            !ReadOptionalBoolean(owner, "showBubbleSize", value => parsed.ShowBubbleSize = value, ref present) ||
+            !ReadOptionalBoolean(owner, "showBubbleSize", value => parsed.ShowBubbleSize = value, ref present)) return false;
+        if (allowedChildren.Contains("showLeaderLines") &&
             !ReadOptionalBoolean(owner, "showLeaderLines", value => parsed.ShowLeaderLines = value, ref present)) return false;
         foreach (var ignored in new[] { "showLegendKey" })
             if (owner.Element(ChartNs + ignored) is { } flag && (!TryBoolean(flag, out var value) || value)) return false;
@@ -140,7 +141,7 @@ internal static class XlsxChartSeriesDataLabelsCodec
         return owner.Elements().All(child => allowedChildren.Contains(child.Name.LocalName));
     }
 
-    private static IEnumerable<XElement?> Fields(SpreadsheetChartDataLabelOverrideArtifact? value)
+    private static IEnumerable<XElement?> Fields(SpreadsheetChartDataLabelOverrideArtifact? value, bool includeLeaderLines)
     {
         if (value is null) yield break;
         if (value.NumberFormatCode.Length > 0) yield return NumberFormat(value.NumberFormatCode);
@@ -151,10 +152,10 @@ internal static class XlsxChartSeriesDataLabelsCodec
         if (value.HasShowSeriesName) yield return BooleanElement("showSerName", value.ShowSeriesName);
         if (value.HasShowPercent) yield return BooleanElement("showPercent", value.ShowPercent);
         if (value.HasShowBubbleSize) yield return BooleanElement("showBubbleSize", value.ShowBubbleSize);
-        if (value.HasShowLeaderLines) yield return BooleanElement("showLeaderLines", value.ShowLeaderLines);
+        if (includeLeaderLines && value.HasShowLeaderLines) yield return BooleanElement("showLeaderLines", value.ShowLeaderLines);
     }
 
-    private static XElement PointElement(SpreadsheetChartPointDataLabelArtifact point) => new(ChartNs + "dLbl", new XElement(ChartNs + "idx", new XAttribute("val", point.Index)), Fields(point.Override));
+    private static XElement PointElement(SpreadsheetChartPointDataLabelArtifact point) => new(ChartNs + "dLbl", new XElement(ChartNs + "idx", new XAttribute("val", point.Index)), Fields(point.Override, includeLeaderLines: false));
     private static string OverrideSemantics(SpreadsheetChartDataLabelOverrideArtifact? value) => value is null ? "-" : $"value:{Optional(value.HasShowValue, value.ShowValue)};category:{Optional(value.HasShowCategoryName, value.ShowCategoryName)};series:{Optional(value.HasShowSeriesName, value.ShowSeriesName)};percent:{Optional(value.HasShowPercent, value.ShowPercent)};bubbleSize:{Optional(value.HasShowBubbleSize, value.ShowBubbleSize)};leaderLines:{Optional(value.HasShowLeaderLines, value.ShowLeaderLines)};position:{(value.HasPosition ? PositionValue(value.Position) : "-")};format:{value.NumberFormatCode};text:{XlsxChartTextStyleCodec.Semantics(value.TextStyle)}";
     private static string Optional(bool present, bool value) => present ? value ? "1" : "0" : "-";
 

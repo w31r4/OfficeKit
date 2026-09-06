@@ -6445,10 +6445,6 @@
           "$ref": "#/$defs/booleanOrToken",
           "description": "Bubble-size label visibility; true requires a bubble series, and a token reference must declare kind boolean."
         },
-        "showLeaderLines": {
-          "$ref": "#/$defs/booleanOrToken",
-          "description": "Leader-line visibility for native point data labels; a token reference must declare kind boolean."
-        },
         "position": {
           "oneOf": [
             {
@@ -6484,7 +6480,6 @@
         { "required": ["showSeries"] },
         { "required": ["showPercent"] },
         { "required": ["showBubbleSize"] },
-        { "required": ["showLeaderLines"] },
         { "required": ["position"] },
         { "required": ["textStyle"] },
         { "required": ["numberFormat"] }
