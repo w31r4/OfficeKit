@@ -415,8 +415,8 @@ internal sealed class XlsxChartCodec
             throw InvalidChart(worksheetId, chart.Id, "gap width is supported only on bar charts and must be 0 through 500.");
         if (chart.HasOverlap && (chart.Type != SpreadsheetChartType.Bar || chart.Overlap is < -100 or > 100))
             throw InvalidChart(worksheetId, chart.Id, "overlap is supported only on bar charts and must be -100 through 100.");
-        if (chart.HasVaryColors && chart.Type != SpreadsheetChartType.Bar)
-            throw InvalidChart(worksheetId, chart.Id, "vary colors is supported only on bar charts.");
+        if (chart.HasVaryColors && chart.Type is not (SpreadsheetChartType.Bar or SpreadsheetChartType.Scatter))
+            throw InvalidChart(worksheetId, chart.Id, "vary colors is supported only on bar or scatter charts.");
         if (chart.BarDirection is not ("" or "bar" or "column") || chart.BarDirection.Length > 0 && chart.Type != SpreadsheetChartType.Bar)
             throw InvalidChart(worksheetId, chart.Id, "bar direction must be bar or column and is supported only on bar charts.");
         if (chart.HasFirstSliceAngle && (chart.Type is not (SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut) || chart.FirstSliceAngle > 360))

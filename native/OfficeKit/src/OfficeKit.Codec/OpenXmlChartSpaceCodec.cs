@@ -126,7 +126,7 @@ internal static class OpenXmlChartSpaceCodec
             SpreadsheetChartType.Line => new XElement(ChartNs + "lineChart", XlsxChartLineOptionsCodec.GroupingElement(LineOptions(chart)), XlsxChartLineOptionsCodec.VaryColorsElement(chart.LineOptions), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), XlsxChartLineOptionsCodec.SmoothElement(chart.LineOptions), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Area => new XElement(ChartNs + "areaChart", new XElement(ChartNs + "grouping", new XAttribute("val", GroupingToken(chart.Grouping, clustered: false))), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Doughnut => new XElement(ChartNs + "doughnutChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "1")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "firstSliceAng", new XAttribute("val", chart.HasFirstSliceAngle ? chart.FirstSliceAngle : 0U)), new XElement(ChartNs + "holeSize", new XAttribute("val", chart.HasDoughnutHoleSize ? chart.DoughnutHoleSize : 50U))),
-            SpreadsheetChartType.Scatter => new XElement(ChartNs + "scatterChart", new XElement(ChartNs + "scatterStyle", new XAttribute("val", ScatterStyleToken(chart.ScatterStyle))), new XElement(ChartNs + "varyColors", new XAttribute("val", "0")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
+            SpreadsheetChartType.Scatter => new XElement(ChartNs + "scatterChart", new XElement(ChartNs + "scatterStyle", new XAttribute("val", ScatterStyleToken(chart.ScatterStyle))), chart.HasVaryColors ? new XElement(ChartNs + "varyColors", new XAttribute("val", chart.VaryColors ? "1" : "0")) : null, series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Bubble => new XElement(ChartNs + "bubbleChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "0")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "bubble3D", new XAttribute("val", "0")), new XElement(ChartNs + "bubbleScale", new XAttribute("val", chart.HasBubbleScale ? chart.BubbleScale : 100U)), new XElement(ChartNs + "showNegBubbles", new XAttribute("val", "0")), new XElement(ChartNs + "sizeRepresents", new XAttribute("val", BubbleSizeModeToken(chart.BubbleSizeMode))), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Radar => new XElement(ChartNs + "radarChart", new XElement(ChartNs + "radarStyle", new XAttribute("val", RadarStyleToken(chart.RadarStyle))), new XElement(ChartNs + "varyColors", new XAttribute("val", "0")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Pie => new XElement(ChartNs + "pieChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "1")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), chart.HasFirstSliceAngle ? new XElement(ChartNs + "firstSliceAng", new XAttribute("val", chart.FirstSliceAngle)) : null),
@@ -680,10 +680,10 @@ internal static class OpenXmlChartSpaceCodec
         if (chart.Type == SpreadsheetChartType.Scatter)
         {
             if (!TryScalar(plot, "scatterStyle", ScatterStyleNativeValues, required: true, out var scatterStyle) ||
-                !TryScalar(plot, "varyColors", BooleanValues, required: false, out var varyColors) ||
-                varyColors is not null and not ("0" or "false"))
+                !TryScalar(plot, "varyColors", BooleanValues, required: false, out var varyColors))
                 return false;
             chart.ScatterStyle = CanonicalScatterStyle(scatterStyle!);
+            if (varyColors is not null) chart.VaryColors = varyColors is "1" or "true";
             return plot.Element(ChartNs + "grouping") is null &&
                    plot.Element(ChartNs + "gapWidth") is null &&
                    plot.Element(ChartNs + "overlap") is null &&
@@ -751,6 +751,7 @@ internal static class OpenXmlChartSpaceCodec
         if (chart.Type == SpreadsheetChartType.Scatter)
         {
             SetRequiredScalar(plot, "scatterStyle", ScatterStyleToken(chart.ScatterStyle));
+            PatchOptionalBool(plot, "varyColors", chart.HasVaryColors, chart.VaryColors);
             return;
         }
         if (chart.Type == SpreadsheetChartType.Bubble)
@@ -929,7 +930,7 @@ internal static class OpenXmlChartSpaceCodec
             var allowed = allowScatterStyleVariants
                 ? ScalarAllowed(plot, "scatterStyle", ScatterStyleNativeValues, required: true)
                 : ScalarEquals(plot, "scatterStyle", "marker", required: true);
-            return allowed && (ScalarEquals(plot, "varyColors", "0", required: false) || ScalarEquals(plot, "varyColors", "false", required: false));
+            return allowed && ScalarAllowed(plot, "varyColors", BooleanValues, required: false);
         }
         if (type == SpreadsheetChartType.Bubble) return ScalarEquals(plot, "varyColors", "0", required: false) && ScalarEquals(plot, "bubble3D", "0", required: false) && ScalarEquals(plot, "showNegBubbles", "0", required: false);
         if (type == SpreadsheetChartType.Radar) return ScalarAllowed(plot, "radarStyle", RadarStyleNativeValues, required: true) && ScalarEquals(plot, "varyColors", "0", required: false);

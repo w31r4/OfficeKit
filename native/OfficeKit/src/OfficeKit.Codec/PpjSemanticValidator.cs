@@ -1455,10 +1455,10 @@ internal static class PpjSemanticValidator
         }
         if (chart.Raw.TryGetProperty("style", out style) &&
             style.TryGetProperty("varyColors", out _) &&
-            chart.ChartType is not ("bar" or "column" or "line" or "combo"))
+            chart.ChartType is not ("bar" or "column" or "line" or "scatter" or "combo"))
             diagnostics.Add(new(
                 "ppj.chart.varyColorsType",
-                "style.varyColors applies only to line, bar, column, and categorical combo charts.",
+                "style.varyColors applies only to line, bar, column, scatter, and categorical combo charts.",
                 path + ".style.varyColors"));
         if (chart.Raw.TryGetProperty("style", out style) &&
             style.TryGetProperty("varyColors", out _) &&

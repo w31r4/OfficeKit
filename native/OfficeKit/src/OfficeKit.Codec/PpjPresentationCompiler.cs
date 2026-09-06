@@ -3040,7 +3040,7 @@ internal static class PpjSourceBoundPresentationCompiler
         if (PropertyChanged(oldStyle, newStyle, "varyColors"))
         {
             RequireCapability(after, "setChartPlot", path + ".style.varyColors");
-            if (target.Type is not (SpreadsheetChartType.Line or SpreadsheetChartType.Bar or SpreadsheetChartType.Combo))
+            if (target.Type is not (SpreadsheetChartType.Line or SpreadsheetChartType.Bar or SpreadsheetChartType.Scatter or SpreadsheetChartType.Combo))
                 throw Unsupported(path + ".style.varyColors", "color variation on an unsupported chart family");
             if (target.Type == SpreadsheetChartType.Line)
             {

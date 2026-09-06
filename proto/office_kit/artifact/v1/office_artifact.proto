@@ -1015,9 +1015,9 @@ message SpreadsheetChartArtifact {
   // Presence-aware c:overlap value for bar/column plots. The native signed
   // percentage is bounded from -100 through 100.
   optional int32 overlap = 34;
-  // Presence-aware c:varyColors value for bar/column plots. The native
-  // boolean is kept separate from line_options because it belongs to the
-  // bar plot rather than the line plot.
+  // Presence-aware c:varyColors value for bar/column/scatter plots. The
+  // native boolean is kept separate from line_options because it belongs to
+  // the plot rather than the line plot options message.
   optional bool vary_colors = 35;
   // Bounded direct c:legend/c:spPr/a:ln outline. Fill and line share the
   // native legend shape-properties container but retain independent fields.
@@ -2862,7 +2862,7 @@ message PresentationChart {
   // Presence-aware c:overlap value mirrored from the native ChartPart.
   optional int32 overlap = 39;
   // Presence-aware c:varyColors value mirrored from the native ChartPart's
-  // bar/column plot.
+  // bar/column/scatter plot.
   optional bool vary_colors = 40;
   // Bounded direct c:legend/c:spPr/a:ln outline mirrored from the native
   // ChartPart.

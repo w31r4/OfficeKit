@@ -3164,8 +3164,8 @@ internal static partial class PpjAuthoredPresentationCompiler
         var varyColors = catalog.PropertyByPrecedence("chart.varyColors", element, inline, named);
         if (smooth is not null && chart.Type != SpreadsheetChartType.Line)
             throw Unsupported(elementId, "smooth applies only to line charts");
-        if (varyColors is not null && chart.Type is not (SpreadsheetChartType.Line or SpreadsheetChartType.Bar or SpreadsheetChartType.Combo))
-            throw Unsupported(elementId, "varyColors applies only to line, column, and categorical combo charts");
+        if (varyColors is not null && chart.Type is not (SpreadsheetChartType.Line or SpreadsheetChartType.Bar or SpreadsheetChartType.Scatter or SpreadsheetChartType.Combo))
+            throw Unsupported(elementId, "varyColors applies only to line, column, scatter, and categorical combo charts");
         if (smooth is { } explicitSmooth)
         {
             chart.LineOptions = new SpreadsheetChartLineOptionsArtifact
