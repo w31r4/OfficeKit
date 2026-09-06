@@ -754,9 +754,15 @@
           "minLength": 1,
           "maxLength": 256,
           "description": "Optional East Asian typeface for the minor theme role; omitted values fall back to minor."
+        },
+        "minorComplexScript": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "Optional complex-script typeface for the minor theme role; omitted values fall back to minor."
         }
       },
-      "description": "The bounded OOXML theme font roles. OfficeKit writes major/minor into the Latin slots; majorEastAsia and minorEastAsia may override the corresponding East Asian slots, majorComplexScript may override the major complex-script slot, and omitted values retain each role's fallback."
+      "description": "The bounded OOXML theme font roles. OfficeKit writes major/minor into the Latin slots; majorEastAsia and minorEastAsia may override the corresponding East Asian slots, majorComplexScript and minorComplexScript may override the corresponding complex-script slots, and omitted values retain each role's fallback."
     },
     "themeAccentColors": {
       "type": "object",
