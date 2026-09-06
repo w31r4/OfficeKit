@@ -6164,6 +6164,22 @@
           "$ref": "#/$defs/positiveNumberOrToken",
           "description": "Value-axis minor unit; a token reference must declare kind size and resolve above zero."
         },
+        "majorTickMark": {
+          "oneOf": [
+            {
+              "enum": [
+                "cross",
+                "in",
+                "out",
+                "none"
+              ]
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ],
+          "description": "Native major tick-mark position; a token reference must declare kind string."
+        },
         "textStyle": {
           "$ref": "#/$defs/chartTextStyle"
         },

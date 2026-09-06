@@ -2785,6 +2785,13 @@ internal static class PpjSemanticValidator
                 "ppj.chart.axisTickLabelPosition",
                 "tickLabelPosition must be nextTo, high, low, or none.",
                 $"{path}.{property}.tickLabelPosition"));
+        if (axis.TryGetProperty("majorTickMark", out var majorTickMark) &&
+            majorTickMark.ValueKind == JsonValueKind.String &&
+            majorTickMark.GetString() is not ("cross" or "in" or "out" or "none"))
+            diagnostics.Add(new(
+                "ppj.chart.axisMajorTickMark",
+                "majorTickMark must be cross, in, out, or none.",
+                $"{path}.{property}.majorTickMark"));
         if (axis.TryGetProperty("tickLabelsVisible", out var tickLabelsVisible) &&
             axis.TryGetProperty("tickLabelPosition", out tickLabelPosition) &&
             tickLabelsVisible.ValueKind == JsonValueKind.False &&

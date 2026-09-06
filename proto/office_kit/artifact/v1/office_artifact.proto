@@ -1117,6 +1117,9 @@ message SpreadsheetChartAxisArtifact {
   // nextTo, high, low, and none; the legacy tick_labels_visible alias may
   // accompany only the none value with false.
   optional string tick_label_position = 18;
+  // Presence-aware native c:majorTickMark value. The bounded profile accepts
+  // cross, in, out, and none; omission retains the native default.
+  optional string major_tick_mark = 19;
 }
 
 message SpreadsheetChartSurfaceFill {

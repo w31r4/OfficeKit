@@ -12,6 +12,7 @@ internal static class XlsxChartAxisCodec
 {
     private const uint MaxTickLabelInterval = 1_048_576;
     private static readonly string[] TickLabelPositions = ["nextTo", "high", "low", "none"];
+    private static readonly string[] TickMarkValues = ["cross", "in", "out", "none"];
     private static readonly XNamespace ChartNs = "http://schemas.openxmlformats.org/drawingml/2006/chart";
     private static readonly XNamespace DrawingNs = "http://schemas.openxmlformats.org/drawingml/2006/main";
 
@@ -113,6 +114,8 @@ internal static class XlsxChartAxisCodec
             throw Invalid(worksheetId, chartId, $"{axisName}-axis cannot combine a hidden major gridline with a line style.");
         if (axis.HasTickLabelPosition && !TickLabelPositions.Contains(axis.TickLabelPosition, StringComparer.Ordinal))
             throw Invalid(worksheetId, chartId, $"{axisName}-axis tick label position must be nextTo, high, low, or none.");
+        if (axis.HasMajorTickMark && !TickMarkValues.Contains(axis.MajorTickMark, StringComparer.Ordinal))
+            throw Invalid(worksheetId, chartId, $"{axisName}-axis major tick mark must be cross, in, out, or none.");
         if (axis.HasTickLabelPosition && axis.HasTickLabelsVisible &&
             (!string.Equals(axis.TickLabelPosition, "none", StringComparison.Ordinal) || axis.TickLabelsVisible))
             throw Invalid(worksheetId, chartId, $"{axisName}-axis tick label position may accompany tick label visibility only as none plus false.");
@@ -195,6 +198,9 @@ internal static class XlsxChartAxisCodec
         if (tickLabelPosition is { } positionValue) axis.TickLabelPosition = positionValue;
         if (tickLabelsVisible is { } labelsVisible) axis.TickLabelsVisible = labelsVisible;
         editable &= tickLabelsEditable;
+        if (!TryReadMajorTickMark(source, out var majorTickMark, out var majorTickMarkEditable)) return false;
+        if (majorTickMark is { } majorTickMarkValue) axis.MajorTickMark = majorTickMarkValue;
+        editable &= majorTickMarkEditable;
         if (!TryReadLineContainer(source.Element(ChartNs + "spPr"), out var axisLineVisible, out var axisLine, out var axisLineEditable, allowArrowheads: true)) return false;
         if (axisLineVisible is { } visible) axis.AxisLineVisible = visible;
         if (axisLine is not null) axis.AxisLine = axisLine;
@@ -269,6 +275,7 @@ internal static class XlsxChartAxisCodec
             output.Add(new XElement(ChartNs + "majorGridlines",
                 GridLineProperties(axis)));
         AppendTitleAndNumberFormat(output, axis);
+        AppendMajorTickMark(output, axis);
         AppendTickLabelPosition(output, axis);
         if (AxisLineProperties(axis) is { } shapeProperties) output.Add(shapeProperties);
         XlsxChartTextStyleCodec.AppendAuthoredAxis(output, axis.TextStyle);
@@ -290,6 +297,7 @@ internal static class XlsxChartAxisCodec
             output.Add(new XElement(ChartNs + "majorGridlines",
                 GridLineProperties(axis)));
         AppendTitleAndNumberFormat(output, axis);
+        AppendMajorTickMark(output, axis);
         AppendTickLabelPosition(output, axis);
         if (AxisLineProperties(axis) is { } shapeProperties) output.Add(shapeProperties);
         XlsxChartTextStyleCodec.AppendAuthoredAxis(output, axis.TextStyle);
@@ -314,6 +322,8 @@ internal static class XlsxChartAxisCodec
         PatchMajorGridlines(native, target);
         PatchTitle(native, target.Title, target.TitleTextStyle);
         PatchNumberFormat(native, target.NumberFormatCode);
+        PatchValue(native, "majorTickMark", target.HasMajorTickMark, target.MajorTickMark,
+            ["minorTickMark", "tickLblPos", "spPr", "txPr", "crossAx", "crosses", "crossesAt", "extLst"]);
         PatchTickLabelPosition(native, target);
         PatchAxisLine(native, target);
         XlsxChartTextStyleCodec.PatchAxis(native, target.TextStyle);
@@ -378,6 +388,29 @@ internal static class XlsxChartAxisCodec
             axis.Add(ValueElement("tickLblPos", target.TickLabelPosition));
         else if (target.HasTickLabelsVisible && !target.TickLabelsVisible)
             axis.Add(ValueElement("tickLblPos", "none"));
+    }
+
+    private static void AppendMajorTickMark(XElement axis, SpreadsheetChartAxisArtifact target)
+    {
+        if (target.HasMajorTickMark)
+            axis.Add(ValueElement("majorTickMark", target.MajorTickMark));
+    }
+
+    private static bool TryReadMajorTickMark(
+        XElement source,
+        out string? value,
+        out bool editable)
+    {
+        value = null;
+        editable = true;
+        if (!Singleton(source, "majorTickMark", out var element)) return false;
+        if (element is null) return true;
+        value = AxisValue(element);
+        if (!TickMarkValues.Contains(value, StringComparer.Ordinal)) return false;
+        editable = !element.Attributes().Any(attribute =>
+                !attribute.IsNamespaceDeclaration && attribute.Name != "val") &&
+            !element.Elements().Any();
+        return true;
     }
 
     private static void PatchTickLabelPosition(XElement axis, SpreadsheetChartAxisArtifact target)
@@ -606,6 +639,7 @@ internal static class XlsxChartAxisCodec
         axis.HasTickLabelPosition
             ? axis.TickLabelPosition
             : axis.HasTickLabelsVisible && !axis.TickLabelsVisible ? "none" : "-",
+        axis.HasMajorTickMark ? axis.MajorTickMark : "-",
         TickLabelSemantics(axis),
         XlsxChartTextStyleCodec.Semantics(axis.TextStyle),
         XlsxChartTextStyleCodec.Semantics(axis.TitleTextStyle));
