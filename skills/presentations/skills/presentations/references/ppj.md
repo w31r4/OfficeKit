@@ -2306,6 +2306,7 @@ array of `number`.
 | `legendFill` | no | `fill` | Bounded none, solid RGB, or literal gradient paint emitted as c:legend/c:spPr. |
 | `stacking` | no | `"none"` | `"stacked"` | `"percent-stacked"` | `"stream"` or `grammarTokenRef` | Chart stacking mode; a string grammar token is resolved and checked against the bounded modes. |
 | `gapWidth` | no | `integer` or `grammarTokenRef` | Column gap width; a size grammar token must resolve to a bounded integer. |
+| `overlap` | no | `integer` or `grammarTokenRef` | Column-series overlap percentage; a size grammar token must resolve to an integer from -100 through 100 and maps to native `c:overlap`. |
 | `startAngle` | no | `integer` or `grammarTokenRef` | First pie/doughnut slice angle; a size grammar token must resolve to a bounded integer. |
 | `holeSize` | no | `integer` or `grammarTokenRef` | Doughnut hole size; a size grammar token must resolve to a bounded integer. |
 | `bubbleScale` | no | `integer` or `grammarTokenRef` | Bubble scale; a size grammar token must resolve to a bounded integer. |

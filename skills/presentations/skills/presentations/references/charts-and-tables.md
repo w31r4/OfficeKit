@@ -490,6 +490,9 @@ values: `none`, `triangle`, `stealth`, `diamond`, `oval`, or `open`. Use an end
 arrow only when direction is part of the analytical meaning; do not add arrows
 as decoration, to grid lines, or to radar spokes. When the matching capability
 is absent, preserve the native graph rather than redrawing it with shapes.
+Column and combo charts may also use `style.overlap` from -100 through 100;
+this is the native ChartML `c:overlap` value, not a ratio conversion from
+Kimi's `barGap`.
 Per-point label formats, logarithmic transforms, custom arrow sizing,
 theme/effect line graphs, and other irregular native formatting remain
 source-owned. `bubbleSizeScale` and `bubbleRadiusRange` are authored vector
