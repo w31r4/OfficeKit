@@ -361,6 +361,13 @@
       "reason": "Authored ordinary and combo charts own structured title runs plus Latin/East Asian typefaces, size, bold, italic, bounded direct none/solid/gradient text paint, underline tokens, paragraph alignment and direct RGB/alpha. Solid text paint remains compatible with the existing color representation; formula-backed titles, hyperlinks, theme transforms, WordArt, shadows, effects and unknown title topology remain outside the bounded profile."
     },
     {
+      "feature": "native chart-wide font family",
+      "ppjPath": "pages[].elements[].fontFamily",
+      "behavior": "partial",
+      "sourceBound": "Recognized ordinary and combo ChartParts project a direct chart-wide Latin typeface from c:chartSpace/c:txPr and issue setChartTextStyle for chart.fontFamily. A source-bound edit changes only the target ChartPart and reprojects the selected font family.",
+      "reason": "PPJ owns Kimi Chart.fontFamily through one bounded direct a:defRPr/a:latin typeface. East Asian or complex-script fallbacks, other global text properties, irregular txPr graphs, vector-lowered charts and unsupported chart families remain source-owned or fail closed."
+    },
+    {
       "feature": "third-party media playback graphs",
       "ppjPath": "pages[].elements[] where type is media and nativeRef is present",
       "behavior": "source-bound-only",
