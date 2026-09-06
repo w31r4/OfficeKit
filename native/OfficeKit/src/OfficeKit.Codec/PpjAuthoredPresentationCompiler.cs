@@ -3038,6 +3038,12 @@ internal static partial class PpjAuthoredPresentationCompiler
                 throw Unsupported(elementId, "legendFill requires a visible legend");
             chart.LegendFill = BuildChartSurfaceFill(legendFill, catalog, $"{elementId} legend");
         }
+        if (catalog.PropertyByPrecedence("chart.legendLine", element, inline, named) is { } legendLine)
+        {
+            if (!chart.HasLegend)
+                throw Unsupported(elementId, "legendLine requires a visible legend");
+            chart.LegendLine = ChartCompiler.BuildChartLine(legendLine, catalog);
+        }
         if (catalog.PropertyByPrecedence("chart.stacking", element, inline, named) is { } stacking)
         {
             if (chart.Type is not (SpreadsheetChartType.Bar or SpreadsheetChartType.Line or SpreadsheetChartType.Area or SpreadsheetChartType.Combo))

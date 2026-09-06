@@ -5549,6 +5549,10 @@
           "$ref": "#/$defs/fill",
           "description": "Bounded direct legend surface paint; none, solid RGB, or literal gradient is emitted as c:legend/c:spPr."
         },
+        "legendLine": {
+          "$ref": "#/$defs/stroke",
+          "description": "Bounded direct legend outline; color, width, and dash are emitted as c:legend/c:spPr/a:ln."
+        },
         "stacking": {
           "oneOf": [
             {

@@ -304,6 +304,7 @@ internal static partial class PptxChartCodec
         if (source.TitleTextStyle is not null) output.TitleTextStyle = source.TitleTextStyle.Clone();
         if (source.LegendTextStyle is not null) output.LegendTextStyle = source.LegendTextStyle.Clone();
         if (source.LegendFill is not null) output.LegendFill = source.LegendFill.Clone();
+        if (source.LegendLine is not null) output.LegendLine = source.LegendLine.Clone();
         if (source.LineOptions is not null) output.LineOptions = source.LineOptions.Clone();
         if (source.HasFirstSliceAngle) output.FirstSliceAngle = source.FirstSliceAngle;
         if (source.HasDoughnutHoleSize) output.DoughnutHoleSize = source.DoughnutHoleSize;
@@ -345,6 +346,7 @@ internal static partial class PptxChartCodec
         if (source.TitleTextStyle is not null) output.TitleTextStyle = source.TitleTextStyle.Clone();
         if (source.LegendTextStyle is not null) output.LegendTextStyle = source.LegendTextStyle.Clone();
         if (source.LegendFill is not null) output.LegendFill = source.LegendFill.Clone();
+        if (source.LegendLine is not null) output.LegendLine = source.LegendLine.Clone();
         if (source.LineOptions is not null) output.LineOptions = source.LineOptions.Clone();
         if (source.HasFirstSliceAngle) output.FirstSliceAngle = source.FirstSliceAngle;
         if (source.HasDoughnutHoleSize) output.DoughnutHoleSize = source.DoughnutHoleSize;

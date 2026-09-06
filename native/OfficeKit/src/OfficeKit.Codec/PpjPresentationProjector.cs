@@ -1117,6 +1117,8 @@ internal static partial class PpjPresentationProjector
         };
         if (chart.HasLegendOverlay) style["legendOverlay"] = JsonValue.Create(chart.LegendOverlay);
         if (chart.LegendFill is not null) style["legendFill"] = ProjectChartSurfaceFill(chart.LegendFill);
+        if (chart.LegendLine is not null && !string.IsNullOrEmpty(chart.LegendLine.Color?.Rgb))
+            style["legendLine"] = ProjectChartLine(chart.LegendLine);
         if (chart.Grouping.Length > 0) style["stacking"] = StringNode(chart.Grouping);
         if (chart.HasGapWidth) style["gapWidth"] = JsonValue.Create(chart.GapWidth);
         if (chart.HasOverlap) style["overlap"] = JsonValue.Create(chart.Overlap);

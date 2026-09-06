@@ -1019,6 +1019,9 @@ message SpreadsheetChartArtifact {
   // boolean is kept separate from line_options because it belongs to the
   // bar plot rather than the line plot.
   optional bool vary_colors = 35;
+  // Bounded direct c:legend/c:spPr/a:ln outline. Fill and line share the
+  // native legend shape-properties container but retain independent fields.
+  SpreadsheetChartLineStyleArtifact legend_line = 36;
 }
 
 message SpreadsheetChartSeriesArtifact {
@@ -2821,6 +2824,9 @@ message PresentationChart {
   // Presence-aware c:varyColors value mirrored from the native ChartPart's
   // bar/column plot.
   optional bool vary_colors = 40;
+  // Bounded direct c:legend/c:spPr/a:ln outline mirrored from the native
+  // ChartPart.
+  SpreadsheetChartLineStyleArtifact legend_line = 41;
 }
 
 // Bounded literal c:chartSpace/c:spPr container paint for Presentation charts.

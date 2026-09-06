@@ -124,7 +124,7 @@ internal static class OpenXmlChartSpaceCodec
         var nativeChart = new XElement(ChartNs + "chart");
         if (chart.Title.Length > 0) nativeChart.Add(XlsxChartTextStyleCodec.TitleElement(chart.Title, chart.TitleTextStyle));
         nativeChart.Add(plotArea);
-        if (chart.HasLegend) nativeChart.Add(LegendElement(chart.LegendPosition, chart.LegendTextStyle, chart.HasLegendOverlay, chart.LegendOverlay, chart.LegendFill));
+        if (chart.HasLegend) nativeChart.Add(LegendElement(chart.LegendPosition, chart.LegendTextStyle, chart.HasLegendOverlay, chart.LegendOverlay, chart.LegendFill, chart.LegendLine));
         nativeChart.Add(new XElement(ChartNs + "plotVisOnly", new XAttribute("val", "1")));
         if (chart.HasDisplayBlanksAs)
             nativeChart.Add(new XElement(ChartNs + "dispBlanksAs", new XAttribute("val", DisplayBlanksAsToken(chart.DisplayBlanksAs))));
@@ -143,7 +143,7 @@ internal static class OpenXmlChartSpaceCodec
     {
         var nativeChart = document.Root?.Element(ChartNs + "chart") ?? throw Topology(errorCode, subject, "is missing c:chart");
         if (patchTitle) PatchTitle(nativeChart, target.Title, target.TitleTextStyle, errorCode, subject);
-        PatchLegend(nativeChart, target.HasLegend, target.LegendPosition, target.LegendTextStyle, target.HasLegendOverlay, target.LegendOverlay, target.LegendFill);
+        PatchLegend(nativeChart, target.HasLegend, target.LegendPosition, target.LegendTextStyle, target.HasLegendOverlay, target.LegendOverlay, target.LegendFill, target.LegendLine);
         PatchDisplayBlanksAs(nativeChart, target.HasDisplayBlanksAs, target.DisplayBlanksAs, errorCode, subject);
         var plotArea = nativeChart.Element(ChartNs + "plotArea") ?? throw Topology(errorCode, subject, "is missing c:plotArea");
         var plotName = target.Type switch
@@ -278,17 +278,18 @@ internal static class OpenXmlChartSpaceCodec
         SpreadsheetChartTextStyleArtifact? textStyle = null,
         bool hasOverlay = false,
         bool overlay = false,
-        SpreadsheetChartSurfaceFill? fill = null)
+        SpreadsheetChartSurfaceFill? fill = null,
+        SpreadsheetChartLineStyleArtifact? line = null)
     {
         var legend = chart.Element(ChartNs + "legend");
         if (!hasLegend) { legend?.Remove(); return; }
         if (legend is null)
         {
-            chart.Element(ChartNs + "plotArea")!.AddAfterSelf(LegendElement(position, textStyle, hasOverlay, overlay, fill));
+            chart.Element(ChartNs + "plotArea")!.AddAfterSelf(LegendElement(position, textStyle, hasOverlay, overlay, fill, line));
             return;
         }
         if (!TryLegendPosition(legend, out _) || !TryLegendOverlay(legend, out _, out _) ||
-            !XlsxChartSurfaceFillCodec.TryRead(legend.Element(ChartNs + "spPr"), out _))
+            !TryReadLegendProperties(legend.Element(ChartNs + "spPr"), out var currentFill, out var currentLine))
             throw Topology("unsupported_chart_edit", "Chart", "has a legend outside the canonical placement profile");
         legend.Element(ChartNs + "legendPos")!.SetAttributeValue("val", LegendPositionToken(position));
         var existingOverlay = legend.Element(ChartNs + "overlay");
@@ -303,7 +304,22 @@ internal static class OpenXmlChartSpaceCodec
         else
             existingOverlay?.Remove();
         XlsxChartTextStyleCodec.PatchTextProperties(legend, textStyle, new HashSet<string>(StringComparer.Ordinal) { "spPr", "extLst" });
-        XlsxChartSurfaceFillCodec.Patch(legend, fill, "Chart legend");
+        if (LegendPropertiesSemantics(currentFill, currentLine) == LegendPropertiesSemantics(fill, line)) return;
+        var replacement = LegendPropertiesElement(fill, line);
+        var existingProperties = legend.Element(ChartNs + "spPr");
+        if (replacement is null)
+        {
+            existingProperties?.Remove();
+            return;
+        }
+        if (existingProperties is not null)
+        {
+            existingProperties.ReplaceWith(replacement);
+            return;
+        }
+        var extension = legend.Element(ChartNs + "extLst");
+        if (extension is null) legend.Add(replacement);
+        else extension.AddBeforeSelf(replacement);
     }
 
     internal static void PatchSeries(XElement native, SpreadsheetChartSeriesArtifact target, IEnumerable<string> categories, SpreadsheetChartType chartType, string errorCode, string subject)
@@ -335,24 +351,26 @@ internal static class OpenXmlChartSpaceCodec
         SpreadsheetChartTextStyleArtifact? textStyle = null,
         bool hasOverlay = false,
         bool overlay = false,
-        SpreadsheetChartSurfaceFill? fill = null) => new(
+        SpreadsheetChartSurfaceFill? fill = null,
+        SpreadsheetChartLineStyleArtifact? line = null) => new(
         ChartNs + "legend",
         new XElement(ChartNs + "legendPos", new XAttribute("val", LegendPositionToken(position))),
         new XElement(ChartNs + "layout"),
         hasOverlay ? new XElement(ChartNs + "overlay", new XAttribute("val", overlay ? "1" : "0")) : null,
         textStyle is null ? null : XlsxChartTextStyleCodec.TextPropertiesElement(textStyle),
-        fill is null ? null : XlsxChartSurfaceFillCodec.Element(fill, "Chart legend"));
+        LegendPropertiesElement(fill, line));
 
     internal static bool TryReadLegend(XElement legend, SpreadsheetChartArtifact chart)
     {
         if (!TryLegendPosition(legend, out var position) ||
             !TryLegendOverlay(legend, out var hasOverlay, out var overlay) ||
-            !XlsxChartSurfaceFillCodec.TryRead(legend.Element(ChartNs + "spPr"), out var legendFill) ||
+            !TryReadLegendProperties(legend.Element(ChartNs + "spPr"), out var legendFill, out var legendLine) ||
             !XlsxChartTextStyleCodec.TryReadTextProperties(legend, out var textStyle)) return false;
         chart.LegendPosition = position;
         if (hasOverlay) chart.LegendOverlay = overlay;
         if (textStyle is not null) chart.LegendTextStyle = textStyle;
         if (legendFill is not null) chart.LegendFill = legendFill;
+        if (legendLine is not null) chart.LegendLine = legendLine;
         return true;
     }
 
@@ -443,6 +461,50 @@ internal static class OpenXmlChartSpaceCodec
         hasOverlay = true;
         return true;
     }
+
+    private static XElement? LegendPropertiesElement(
+        SpreadsheetChartSurfaceFill? fill,
+        SpreadsheetChartLineStyleArtifact? line)
+    {
+        if (fill is null && line is null) return null;
+        return new XElement(
+            ChartNs + "spPr",
+            fill is null ? null : XlsxChartSurfaceFillCodec.PaintElement(fill, "Chart legend"),
+            line is null ? null : XlsxChartSeriesLineStyleCodec.Element(line));
+    }
+
+    private static bool TryReadLegendProperties(
+        XElement? properties,
+        out SpreadsheetChartSurfaceFill? fill,
+        out SpreadsheetChartLineStyleArtifact? line)
+    {
+        fill = null;
+        line = null;
+        if (properties is null) return true;
+        if (properties.HasAttributes) return false;
+        var children = properties.Elements().ToArray();
+        if (children.Length == 0 ||
+            children.Any(child => child.Name != DrawingNs + "noFill" &&
+                                  child.Name != DrawingNs + "solidFill" &&
+                                  child.Name != DrawingNs + "gradFill" &&
+                                  child.Name != DrawingNs + "ln") ||
+            children.Count(child => child.Name == DrawingNs + "noFill" ||
+                                   child.Name == DrawingNs + "solidFill" ||
+                                   child.Name == DrawingNs + "gradFill") > 1 ||
+            children.Count(child => child.Name == DrawingNs + "ln") > 1)
+            return false;
+        var paint = children.FirstOrDefault(child => child.Name == DrawingNs + "noFill" ||
+                                                     child.Name == DrawingNs + "solidFill" ||
+                                                     child.Name == DrawingNs + "gradFill");
+        if (!XlsxChartSurfaceFillCodec.TryReadPaint(paint, out fill) ||
+            !XlsxChartSeriesLineStyleCodec.TryReadLine(properties, out line)) return false;
+        return true;
+    }
+
+    private static string LegendPropertiesSemantics(
+        SpreadsheetChartSurfaceFill? fill,
+        SpreadsheetChartLineStyleArtifact? line) =>
+        string.Join('\0', XlsxChartSurfaceFillCodec.Semantics(fill), XlsxChartSeriesLineStyleCodec.Semantics(line));
 
     private static string LegendPositionToken(string position) => position switch
     {
