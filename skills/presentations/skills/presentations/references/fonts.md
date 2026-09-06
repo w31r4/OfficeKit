@@ -19,6 +19,11 @@ exception. Preserve the user's brand font when it is available on the target
 host. Record fallbacks in the deck's Design Grammar rather than allowing each
 text object to improvise.
 
+For an authored theme, `design.theme.fontScheme.majorEastAsia` may override
+only the major role's East Asian typeface; when omitted, it falls back to
+`major`. This is a bounded PPJ owner for the generated theme XML, not a claim
+about imported theme editing, font embedding, or host-level font substitution.
+
 ## Match the script and medium
 
 - For Chinese or mixed CJK/Latin text, choose families with complete glyph
