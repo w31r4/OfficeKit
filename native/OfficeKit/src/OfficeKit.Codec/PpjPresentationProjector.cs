@@ -1168,6 +1168,8 @@ internal static partial class PpjPresentationProjector
                 labels["textStyle"] = ProjectChartTextStyle(chart.DataLabels.TextStyle);
             if (chart.DataLabels.NumberFormatCode.Length > 0)
                 labels["numberFormat"] = StringNode(chart.DataLabels.NumberFormatCode);
+            if (chart.DataLabels.Line is not null && !string.IsNullOrEmpty(chart.DataLabels.Line.Color?.Rgb))
+                labels["line"] = ProjectChartLine(chart.DataLabels.Line);
             style["dataLabels"] = labels;
         }
         output["style"] = style;

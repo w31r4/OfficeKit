@@ -4801,6 +4801,9 @@ message SpreadsheetChartDataLabelsArtifact {
   // Direct plot-level c:numFmt with sourceLinked=false. Per-point formats and
   // source-linked workbook formats remain source-owned.
   string number_format_code = 7;
+  // Bounded direct plot-level c:dLbls/c:spPr/a:ln outline. Data-label fill
+  // and richer shape/effect graphs remain source-owned.
+  SpreadsheetChartLineStyleArtifact line = 10;
 }
 
 // Presence-aware fields that inherit from the containing series/plot when

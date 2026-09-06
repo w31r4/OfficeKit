@@ -2758,7 +2758,7 @@ internal static class PpjSourceBoundPresentationCompiler
             if (oldLabels is null || newLabels is null || target.DataLabels is null)
                 throw Unsupported(path + ".style.dataLabels", "source-bound chart-data-label topology change");
             RequireEqualExcept(oldLabels.Value, newLabels.Value, path + ".style.dataLabels",
-                "showValue", "showCategory", "showSeries", "showPercent", "showBubbleSize", "showLeaderLines", "position", "textStyle", "numberFormat");
+                "showValue", "showCategory", "showSeries", "showPercent", "showBubbleSize", "showLeaderLines", "position", "textStyle", "numberFormat", "line");
             if (PropertyChanged(oldLabels, newLabels, "showValue"))
             {
                 RequireCapability(after, "setChartLabels", path + ".style.dataLabels.showValue");
@@ -2851,6 +2851,14 @@ internal static class PpjSourceBoundPresentationCompiler
                 target.DataLabels.NumberFormatCode = newLabels.Value.TryGetProperty("numberFormat", out var format)
                     ? ResolveGrammarStringToken(grammarRoot, format, path + ".style.dataLabels.numberFormat")
                     : string.Empty;
+                changed = true;
+            }
+            if (PropertyChanged(oldLabels, newLabels, "line"))
+            {
+                RequireCapability(after, "setChartLabels", path + ".style.dataLabels.line");
+                target.DataLabels.Line = newLabels.Value.TryGetProperty("line", out var line)
+                    ? SourceBoundChartLine(line, path + ".style.dataLabels.line", grammarRoot)
+                    : null;
                 changed = true;
             }
         }

@@ -13,8 +13,9 @@ namespace OfficeKit.Codec;
 internal static class XlsxChartDataLabelsCodec
 {
     private static readonly XNamespace ChartNs = "http://schemas.openxmlformats.org/drawingml/2006/chart";
+    private static readonly XNamespace DrawingNs = "http://schemas.openxmlformats.org/drawingml/2006/main";
     private static readonly string[] OrderedFlags = ["showLegendKey", "showVal", "showCatName", "showSerName", "showPercent", "showBubbleSize", "showLeaderLines"];
-    private static readonly HashSet<string> AllowedChildren = new(["numFmt", "txPr", "dLblPos", .. OrderedFlags], StringComparer.Ordinal);
+    private static readonly HashSet<string> AllowedChildren = new(["numFmt", "spPr", "txPr", "dLblPos", .. OrderedFlags], StringComparer.Ordinal);
     private static readonly HashSet<string> BooleanValues = new(StringComparer.Ordinal) { "0", "1", "false", "true" };
     private static readonly HashSet<string> PositionValues = new(StringComparer.Ordinal) { "bestFit", "b", "ctr", "inBase", "inEnd", "l", "outEnd", "r", "t" };
 
@@ -34,6 +35,7 @@ internal static class XlsxChartDataLabelsCodec
             SpreadsheetChartDataLabelPosition.OutsideEnd or SpreadsheetChartDataLabelPosition.Right or
             SpreadsheetChartDataLabelPosition.Top))
             throw new CodecException("invalid_spreadsheet_chart", $"Worksheet {worksheetId} chart {chart.Id} data-label position is unsupported.");
+        XlsxChartSeriesLineStyleCodec.ValidateLine(chart.DataLabels?.Line, worksheetId, chart.Id, "chart", "data-label line");
     }
 
     internal static bool TryRead(XElement plot, SpreadsheetChartArtifact chart)
@@ -99,8 +101,10 @@ internal static class XlsxChartDataLabelsCodec
             if (!TryScalar(nativePosition, PositionValues, out var positionValue) || !TryPosition(positionValue!, out var position)) return false;
             dataLabels.Position = position;
         }
-        if (!XlsxChartTextStyleCodec.TryReadTextProperties(labels, out var textStyle)) return false;
+        if (!XlsxChartTextStyleCodec.TryReadTextProperties(labels, out var textStyle) ||
+            !TryReadLineProperties(labels.Element(ChartNs + "spPr"), out var line)) return false;
         if (textStyle is not null) dataLabels.TextStyle = textStyle;
+        if (line is not null) dataLabels.Line = line;
         chart.DataLabels = dataLabels;
         return true;
     }
@@ -108,6 +112,7 @@ internal static class XlsxChartDataLabelsCodec
     internal static XElement? Element(SpreadsheetChartDataLabelsArtifact? labels) => labels is null ? null :
         new XElement(ChartNs + "dLbls",
             labels.NumberFormatCode.Length == 0 ? null : NumberFormatElement(labels.NumberFormatCode),
+            labels.Line is null ? null : new XElement(ChartNs + "spPr", XlsxChartSeriesLineStyleCodec.Element(labels.Line)),
             labels.TextStyle is null ? null : XlsxChartTextStyleCodec.TextPropertiesElement(labels.TextStyle),
             PositionElement(labels),
             BooleanElement("showVal", labels.ShowValue),
@@ -134,6 +139,8 @@ internal static class XlsxChartDataLabelsCodec
             }
             return;
         }
+        if (!TryReadLineProperties(existing.Element(ChartNs + "spPr"), out var currentLine))
+            throw new CodecException("unsupported_chart_edit", "Chart data labels use an unmodeled shape-properties graph.");
         XlsxChartTextStyleCodec.PatchTextProperties(existing, labels.TextStyle, AllowedChildren);
         PatchNumberFormat(existing, labels.NumberFormatCode);
         var existingPosition = existing.Element(ChartNs + "dLblPos");
@@ -152,11 +159,48 @@ internal static class XlsxChartDataLabelsCodec
         PatchOptionalBoolean(existing, "showPercent", labels.HasShowPercent ? labels.ShowPercent : null);
         PatchOptionalBoolean(existing, "showBubbleSize", labels.HasShowBubbleSize ? labels.ShowBubbleSize : null);
         PatchOptionalBoolean(existing, "showLeaderLines", labels.HasShowLeaderLines ? labels.ShowLeaderLines : null);
+        PatchLineProperties(existing, currentLine, labels.Line);
     }
 
     internal static string Semantics(SpreadsheetChartDataLabelsArtifact? labels) => labels is null
         ? "-"
-        : $"value:{(labels.ShowValue ? 1 : 0)};category:{(labels.ShowCategoryName ? 1 : 0)};series:{(labels.HasShowSeriesName ? labels.ShowSeriesName ? "1" : "0" : "-")};percent:{(labels.HasShowPercent ? labels.ShowPercent ? "1" : "0" : "-")};bubbleSize:{(labels.HasShowBubbleSize ? labels.ShowBubbleSize ? "1" : "0" : "-")};leaderLines:{(labels.HasShowLeaderLines ? labels.ShowLeaderLines ? "1" : "0" : "-")};position:{(labels.HasPosition ? PositionValue(labels.Position) : "-")};format:{labels.NumberFormatCode};text:{XlsxChartTextStyleCodec.Semantics(labels.TextStyle)}";
+        : $"value:{(labels.ShowValue ? 1 : 0)};category:{(labels.ShowCategoryName ? 1 : 0)};series:{(labels.HasShowSeriesName ? labels.ShowSeriesName ? "1" : "0" : "-")};percent:{(labels.HasShowPercent ? labels.ShowPercent ? "1" : "0" : "-")};bubbleSize:{(labels.HasShowBubbleSize ? labels.ShowBubbleSize ? "1" : "0" : "-")};leaderLines:{(labels.HasShowLeaderLines ? labels.ShowLeaderLines ? "1" : "0" : "-")};position:{(labels.HasPosition ? PositionValue(labels.Position) : "-")};format:{labels.NumberFormatCode};text:{XlsxChartTextStyleCodec.Semantics(labels.TextStyle)};line:{XlsxChartSeriesLineStyleCodec.Semantics(labels.Line)}";
+
+    private static bool TryReadLineProperties(
+        XElement? properties,
+        out SpreadsheetChartLineStyleArtifact? line)
+    {
+        line = null;
+        if (properties is null) return true;
+        if (properties.HasAttributes) return false;
+        var children = properties.Elements().ToArray();
+        if (children.Length != 1 || children[0].Name != DrawingNs + "ln") return false;
+        return XlsxChartSeriesLineStyleCodec.TryReadLine(properties, out line);
+    }
+
+    private static void PatchLineProperties(
+        XElement labels,
+        SpreadsheetChartLineStyleArtifact? current,
+        SpreadsheetChartLineStyleArtifact? target)
+    {
+        if (XlsxChartSeriesLineStyleCodec.Semantics(current) == XlsxChartSeriesLineStyleCodec.Semantics(target)) return;
+        var existing = labels.Element(ChartNs + "spPr");
+        if (target is null)
+        {
+            existing?.Remove();
+            return;
+        }
+        var replacement = new XElement(ChartNs + "spPr", XlsxChartSeriesLineStyleCodec.Element(target));
+        if (existing is not null)
+        {
+            existing.ReplaceWith(replacement);
+            return;
+        }
+        var next = labels.Elements().FirstOrDefault(element => element.Name == ChartNs + "txPr" ||
+            element.Name == ChartNs + "dLblPos" || OrderedFlags.Contains(element.Name.LocalName, StringComparer.Ordinal));
+        if (next is null) labels.Add(replacement);
+        else next.AddBeforeSelf(replacement);
+    }
 
     private static void PatchNumberFormat(XElement labels, string code)
     {
