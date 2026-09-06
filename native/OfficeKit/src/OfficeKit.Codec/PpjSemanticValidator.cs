@@ -43,7 +43,7 @@ internal static class PpjSemanticValidator
             ["setChartTitle"] = Set("chart.title"),
             ["setChartData"] = Set("chart.data"),
             ["setChartTextStyle"] = Set("chart.textStyle"),
-            ["setChartFill"] = Set("chart.fill"),
+            ["setChartFill"] = Set("chart.fill", "chart.legendFill"),
             ["setChartSeriesStyle"] = Set("chart.data.series[].stroke", "chart.data.series[].marker"),
             ["setChartSeriesAnalytics"] = Set("chart.data.series[].trendlines", "chart.data.series[].errorBars"),
             ["setChartFrame"] = Set("chart.frame"),

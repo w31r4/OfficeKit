@@ -1009,6 +1009,9 @@ message SpreadsheetChartArtifact {
   // Presence-aware c:legend/c:overlay behavior. The field is retained even
   // when explicitly false so imported native legend topology is not erased.
   optional bool legend_overlay = 32;
+  // Bounded c:legend/c:spPr surface paint. Direct no-fill, solid RGB, and
+  // literal gradient branches are shared with chart and plot-area fills.
+  SpreadsheetChartSurfaceFill legend_fill = 33;
 }
 
 message SpreadsheetChartSeriesArtifact {
@@ -2793,6 +2796,8 @@ message PresentationChart {
   // Presence-aware c:legend/c:overlay behavior mirrored from the native
   // ChartPart.
   optional bool legend_overlay = 37;
+  // Bounded c:legend/c:spPr surface paint mirrored from the native ChartPart.
+  SpreadsheetChartSurfaceFill legend_fill = 38;
 }
 
 // Bounded literal c:chartSpace/c:spPr container paint for Presentation charts.

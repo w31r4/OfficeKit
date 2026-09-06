@@ -2528,6 +2528,7 @@ internal static class PpjSourceBoundPresentationCompiler
             path + ".style",
             "legend",
             "legendOverlay",
+            "legendFill",
             "stacking",
             "gapWidth",
             "showCategoryAxis",
@@ -2555,6 +2556,7 @@ internal static class PpjSourceBoundPresentationCompiler
                 : "none";
             target.HasLegend = !string.Equals(legend, "none", StringComparison.Ordinal);
             target.LegendPosition = target.HasLegend ? legend : string.Empty;
+            if (!target.HasLegend) target.LegendFill = null;
             changed = true;
         }
         if (PropertyChanged(oldStyle, newStyle, "legendOverlay"))
@@ -2691,6 +2693,15 @@ internal static class PpjSourceBoundPresentationCompiler
             if (legendTextStyle is not null && !target.HasLegend)
                 throw Unsupported(path + ".style.legendTextStyle", "chart-legend style without an existing legend");
             target.LegendTextStyle = legendTextStyle;
+            changed = true;
+        }
+        if (PropertyChanged(oldStyle, newStyle, "legendFill"))
+        {
+            RequireCapabilityField(after, "setChartFill", "chart.legendFill", path + ".style.legendFill");
+            var legendFill = SourceBoundChartFill(newStyle, "legendFill", path + ".style.legendFill", grammarRoot);
+            if (legendFill is not null && !target.HasLegend)
+                throw Unsupported(path + ".style.legendFill", "legendFill requires a visible legend");
+            target.LegendFill = legendFill;
             changed = true;
         }
 

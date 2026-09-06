@@ -1984,6 +1984,7 @@
               "chart.data",
               "chart.textStyle",
               "chart.fill",
+              "chart.legendFill",
               "chart.data.series[].stroke",
               "chart.data.series[].marker",
               "chart.data.series[].trendlines",
@@ -5543,6 +5544,10 @@
         "legendOverlay": {
           "$ref": "#/$defs/booleanOrToken",
           "description": "Whether the chart legend may overlay the plot; a boolean grammar token is resolved and preserved as c:legend/c:overlay."
+        },
+        "legendFill": {
+          "$ref": "#/$defs/fill",
+          "description": "Bounded direct legend surface paint; none, solid RGB, or literal gradient is emitted as c:legend/c:spPr."
         },
         "stacking": {
           "oneOf": [

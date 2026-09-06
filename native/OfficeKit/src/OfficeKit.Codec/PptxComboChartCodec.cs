@@ -149,6 +149,7 @@ internal static partial class PptxChartCodec
             },
         };
         if (source.LegendTextStyle is not null) output.LegendTextStyle = source.LegendTextStyle.Clone();
+        if (source.LegendFill is not null) output.LegendFill = source.LegendFill.Clone();
         output.Categories.Add(source.Categories);
         output.Series.Add(series.Select(item => item.Clone()));
         if (source.XAxis is not null) output.XAxis = source.XAxis.Clone();
@@ -277,6 +278,7 @@ internal static partial class PptxChartCodec
                 chart.LegendPosition = legendProbe.LegendPosition;
                 if (legendProbe.HasLegendOverlay) chart.LegendOverlay = legendProbe.LegendOverlay;
                 if (legendProbe.LegendTextStyle is not null) chart.LegendTextStyle = legendProbe.LegendTextStyle.Clone();
+                if (legendProbe.LegendFill is not null) chart.LegendFill = legendProbe.LegendFill.Clone();
             }
         }
 
@@ -494,7 +496,7 @@ internal static partial class PptxChartCodec
         var nativeChart = new XElement(ChartNs + "chart");
         if (chart.Title.Length > 0) nativeChart.Add(XlsxChartTextStyleCodec.TitleElement(chart.Title, chart.TitleTextStyle));
         nativeChart.Add(plotArea);
-        if (chart.HasLegend) nativeChart.Add(OpenXmlChartSpaceCodec.LegendElement(chart.LegendPosition, chart.LegendTextStyle, chart.HasLegendOverlay, chart.LegendOverlay));
+        if (chart.HasLegend) nativeChart.Add(OpenXmlChartSpaceCodec.LegendElement(chart.LegendPosition, chart.LegendTextStyle, chart.HasLegendOverlay, chart.LegendOverlay, chart.LegendFill));
         nativeChart.Add(new XElement(ChartNs + "plotVisOnly", new XAttribute("val", "1")));
         if (chart.HasDisplayBlanksAs)
             nativeChart.Add(new XElement(ChartNs + "dispBlanksAs", new XAttribute("val", OpenXmlChartSpaceCodec.DisplayBlanksAsToken(chart.DisplayBlanksAs))));
@@ -528,7 +530,7 @@ internal static partial class PptxChartCodec
         var nativeChart = document.Root!.Element(ChartNs + "chart")!;
         if (patchTitle)
             OpenXmlChartSpaceCodec.PatchTitle(nativeChart, target.Title, target.TitleTextStyle, "unsupported_presentation_edit", "Presentation combo chart");
-        OpenXmlChartSpaceCodec.PatchLegend(nativeChart, target.HasLegend, target.LegendPosition, target.LegendTextStyle, target.HasLegendOverlay, target.LegendOverlay);
+        OpenXmlChartSpaceCodec.PatchLegend(nativeChart, target.HasLegend, target.LegendPosition, target.LegendTextStyle, target.HasLegendOverlay, target.LegendOverlay, target.LegendFill);
         OpenXmlChartSpaceCodec.PatchDisplayBlanksAs(nativeChart, target.HasDisplayBlanksAs, target.DisplayBlanksAs, "unsupported_presentation_edit", "Presentation combo chart");
         var plotArea = nativeChart.Element(ChartNs + "plotArea")!;
         var plots = plotArea.Elements().Where(item => item.Name.LocalName.EndsWith("Chart", StringComparison.Ordinal)).ToArray();

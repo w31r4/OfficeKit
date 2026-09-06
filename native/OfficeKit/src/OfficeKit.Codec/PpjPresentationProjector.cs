@@ -1116,6 +1116,7 @@ internal static partial class PpjPresentationProjector
                 : "none"),
         };
         if (chart.HasLegendOverlay) style["legendOverlay"] = JsonValue.Create(chart.LegendOverlay);
+        if (chart.LegendFill is not null) style["legendFill"] = ProjectChartSurfaceFill(chart.LegendFill);
         if (chart.Grouping.Length > 0) style["stacking"] = StringNode(chart.Grouping);
         if (chart.HasGapWidth) style["gapWidth"] = JsonValue.Create(chart.GapWidth);
         if (chart.HasFirstSliceAngle) style["startAngle"] = JsonValue.Create(chart.FirstSliceAngle);
@@ -2849,7 +2850,7 @@ internal static partial class PpjPresentationProjector
                 output.Add(new("setChartTitle", ["chart.title"]));
                 output.Add(new("setChartData", ["chart.data"]));
                 output.Add(new("setChartTextStyle", ["chart.textStyle"]));
-                output.Add(new("setChartFill", ["chart.fill"]));
+                output.Add(new("setChartFill", ["chart.fill", "chart.legendFill"]));
                 // Direct series stroke and marker graphs are parsed by the
                 // existing ChartSpace codecs.  Keep this capability separate
                 // from fill/data so a source-bound edit can change only the
