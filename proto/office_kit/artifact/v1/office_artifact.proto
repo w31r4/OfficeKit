@@ -4836,6 +4836,9 @@ message SpreadsheetChartDataLabelOverrideArtifact {
   // expose this field; a sparse point may own none, solid RGB, or literal
   // gradient fill without claiming the accompanying line/effect graph.
   SpreadsheetChartSurfaceFill fill = 10;
+  // Bounded direct point-label c:dLbl/c:spPr/a:ln outline. Series defaults do
+  // not expose this field; richer line/effect graphs remain source-owned.
+  SpreadsheetChartLineStyleArtifact line = 11;
 }
 
 // One zero-based c:dLbl/c:idx and its sparse inherited-field overrides.

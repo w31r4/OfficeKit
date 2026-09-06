@@ -1389,6 +1389,7 @@ internal static partial class PpjPresentationProjector
         if (source.TextStyle is not null) output["textStyle"] = ProjectChartTextStyle(source.TextStyle);
         if (source.NumberFormatCode.Length > 0) output["numberFormat"] = StringNode(source.NumberFormatCode);
         if (source.Fill is not null) output["fill"] = ProjectChartSurfaceFill(source.Fill);
+        if (source.Line is not null) output["line"] = ProjectChartLine(source.Line);
         return output;
     }
 

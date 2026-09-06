@@ -6000,6 +6000,8 @@ internal static class PpjSourceBoundPresentationCompiler
             output.TextStyle = SourceBoundChartTextStyle(textStyle, path + ".textStyle", grammarRoot);
         if (source.TryGetProperty("fill", out var fill))
             output.Fill = SourceBoundChartFill(fill, path + ".fill", grammarRoot);
+        if (source.TryGetProperty("line", out var line))
+            output.Line = SourceBoundChartLine(line, path + ".line", grammarRoot);
         return output;
     }
 
@@ -6008,7 +6010,8 @@ internal static class PpjSourceBoundPresentationCompiler
         source.TryGetProperty("showSeries", out _) || source.TryGetProperty("showPercent", out _) ||
         source.TryGetProperty("showBubbleSize", out _) || source.TryGetProperty("showLeaderLines", out _) ||
         source.TryGetProperty("position", out _) || source.TryGetProperty("numberFormat", out _) ||
-        source.TryGetProperty("textStyle", out _) || source.TryGetProperty("fill", out _);
+        source.TryGetProperty("textStyle", out _) || source.TryGetProperty("fill", out _) ||
+        source.TryGetProperty("line", out _);
 
     private static SpreadsheetChartDataLabelPosition SourceBoundDataLabelPosition(string value) => value switch
     {

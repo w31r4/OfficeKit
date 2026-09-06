@@ -8,12 +8,13 @@ namespace OfficeKit.Codec;
 // sparse c:dLbl overrides keyed by zero-based c:idx. Bubble-size visibility is
 // presence-aware for bubble-series labels, and leader-line visibility is
 // presence-aware without owning leader-line geometry. Sparse point labels may
-// also own one bounded direct fill in c:spPr. Unsupported label text, layout,
-// line/effect, leader-line, extension, deletion, and source-linked number-format
-// graphs leave the containing chart source-owned.
+// also own bounded direct fill and line children in c:spPr. Unsupported label
+// text, layout, effect, leader-line, extension, deletion, and source-linked
+// number-format graphs leave the containing chart source-owned.
 internal static class XlsxChartSeriesDataLabelsCodec
 {
     private static readonly XNamespace ChartNs = "http://schemas.openxmlformats.org/drawingml/2006/chart";
+    private static readonly XNamespace DrawingNs = "http://schemas.openxmlformats.org/drawingml/2006/main";
     private static readonly string[] OrderedFlags = ["showLegendKey", "showVal", "showCatName", "showSerName", "showPercent", "showBubbleSize", "showLeaderLines"];
     private static readonly HashSet<string> DefaultChildren = new(["dLbl", "numFmt", "txPr", "dLblPos", .. OrderedFlags], StringComparer.Ordinal);
     private static readonly HashSet<string> PointChildren = new(["idx", "numFmt", "spPr", "txPr", "dLblPos", "showLegendKey", "showVal", "showCatName", "showSerName", "showPercent", "showBubbleSize"], StringComparer.Ordinal);
@@ -77,7 +78,7 @@ internal static class XlsxChartSeriesDataLabelsCodec
     }
 
     internal static XElement? Element(SpreadsheetChartSeriesDataLabelsArtifact? labels) => labels is null ? null :
-        new XElement(ChartNs + "dLbls", labels.Points.OrderBy(point => point.Index).Select(PointElement), Fields(labels.Defaults, includeLeaderLines: true, includePointFill: false));
+        new XElement(ChartNs + "dLbls", labels.Points.OrderBy(point => point.Index).Select(PointElement), Fields(labels.Defaults, includeLeaderLines: true, includePointProperties: false));
 
     internal static void Patch(XElement seriesElement, SpreadsheetChartSeriesArtifact target, SpreadsheetChartType chartType, string errorCode, string subject)
     {
@@ -141,18 +142,20 @@ internal static class XlsxChartSeriesDataLabelsCodec
         if (textStyle is not null) { parsed.TextStyle = textStyle; present = true; }
         if (owner.Element(ChartNs + "spPr") is { } properties)
         {
-            if (!allowedChildren.Contains("spPr") || !TryReadPointFill(properties, out var fill)) return false;
+            if (!allowedChildren.Contains("spPr") || !TryReadPointProperties(properties, out var fill, out var line)) return false;
             parsed.Fill = fill;
+            parsed.Line = line;
             present = true;
         }
         return owner.Elements().All(child => allowedChildren.Contains(child.Name.LocalName));
     }
 
-    private static IEnumerable<XElement?> Fields(SpreadsheetChartDataLabelOverrideArtifact? value, bool includeLeaderLines, bool includePointFill)
+    private static IEnumerable<XElement?> Fields(SpreadsheetChartDataLabelOverrideArtifact? value, bool includeLeaderLines, bool includePointProperties)
     {
         if (value is null) yield break;
         if (value.NumberFormatCode.Length > 0) yield return NumberFormat(value.NumberFormatCode);
-        if (includePointFill && value.Fill is not null) yield return XlsxChartSurfaceFillCodec.Element(value.Fill, "chart point data-label fill");
+        if (includePointProperties && (value.Fill is not null || value.Line is not null))
+            yield return PointPropertiesElement(value.Fill, value.Line);
         if (value.TextStyle is not null) yield return XlsxChartTextStyleCodec.TextPropertiesElement(value.TextStyle);
         if (value.HasPosition) yield return new XElement(ChartNs + "dLblPos", new XAttribute("val", PositionValue(value.Position)));
         if (value.HasShowValue) yield return BooleanElement("showVal", value.ShowValue);
@@ -163,14 +166,14 @@ internal static class XlsxChartSeriesDataLabelsCodec
         if (includeLeaderLines && value.HasShowLeaderLines) yield return BooleanElement("showLeaderLines", value.ShowLeaderLines);
     }
 
-    private static XElement PointElement(SpreadsheetChartPointDataLabelArtifact point) => new(ChartNs + "dLbl", new XElement(ChartNs + "idx", new XAttribute("val", point.Index)), Fields(point.Override, includeLeaderLines: false, includePointFill: true));
-    private static string OverrideSemantics(SpreadsheetChartDataLabelOverrideArtifact? value) => value is null ? "-" : $"value:{Optional(value.HasShowValue, value.ShowValue)};category:{Optional(value.HasShowCategoryName, value.ShowCategoryName)};series:{Optional(value.HasShowSeriesName, value.ShowSeriesName)};percent:{Optional(value.HasShowPercent, value.ShowPercent)};bubbleSize:{Optional(value.HasShowBubbleSize, value.ShowBubbleSize)};leaderLines:{Optional(value.HasShowLeaderLines, value.ShowLeaderLines)};position:{(value.HasPosition ? PositionValue(value.Position) : "-")};format:{value.NumberFormatCode};text:{XlsxChartTextStyleCodec.Semantics(value.TextStyle)};fill:{XlsxChartSurfaceFillCodec.Semantics(value.Fill)}";
+    private static XElement PointElement(SpreadsheetChartPointDataLabelArtifact point) => new(ChartNs + "dLbl", new XElement(ChartNs + "idx", new XAttribute("val", point.Index)), Fields(point.Override, includeLeaderLines: false, includePointProperties: true));
+    private static string OverrideSemantics(SpreadsheetChartDataLabelOverrideArtifact? value) => value is null ? "-" : $"value:{Optional(value.HasShowValue, value.ShowValue)};category:{Optional(value.HasShowCategoryName, value.ShowCategoryName)};series:{Optional(value.HasShowSeriesName, value.ShowSeriesName)};percent:{Optional(value.HasShowPercent, value.ShowPercent)};bubbleSize:{Optional(value.HasShowBubbleSize, value.ShowBubbleSize)};leaderLines:{Optional(value.HasShowLeaderLines, value.ShowLeaderLines)};position:{(value.HasPosition ? PositionValue(value.Position) : "-")};format:{value.NumberFormatCode};text:{XlsxChartTextStyleCodec.Semantics(value.TextStyle)};fill:{XlsxChartSurfaceFillCodec.Semantics(value.Fill)};line:{XlsxChartSeriesLineStyleCodec.Semantics(value.Line)}";
     private static string Optional(bool present, bool value) => present ? value ? "1" : "0" : "-";
 
     private static void ValidateOverride(SpreadsheetChartDataLabelOverrideArtifact? value, SpreadsheetChartType chartType, string worksheetId, string chartId, string series, string field)
     {
         if (value is null) return;
-        if (!value.HasShowValue && !value.HasShowCategoryName && !value.HasShowSeriesName && !value.HasShowPercent && !value.HasShowBubbleSize && !value.HasShowLeaderLines && !value.HasPosition && value.TextStyle is null && value.NumberFormatCode.Length == 0 && value.Fill is null)
+        if (!value.HasShowValue && !value.HasShowCategoryName && !value.HasShowSeriesName && !value.HasShowPercent && !value.HasShowBubbleSize && !value.HasShowLeaderLines && !value.HasPosition && value.TextStyle is null && value.NumberFormatCode.Length == 0 && value.Fill is null && value.Line is null)
             throw Invalid(worksheetId, chartId, series, $"{field} must declare at least one bounded property");
         if (value.NumberFormatCode.Length > 255 || value.NumberFormatCode.Any(char.IsControl))
             throw Invalid(worksheetId, chartId, series, $"{field} number format is invalid");
@@ -181,16 +184,45 @@ internal static class XlsxChartSeriesDataLabelsCodec
         if (value.HasPosition && value.Position is not (SpreadsheetChartDataLabelPosition.BestFit or SpreadsheetChartDataLabelPosition.Bottom or SpreadsheetChartDataLabelPosition.Center or SpreadsheetChartDataLabelPosition.InsideBase or SpreadsheetChartDataLabelPosition.InsideEnd or SpreadsheetChartDataLabelPosition.Left or SpreadsheetChartDataLabelPosition.OutsideEnd or SpreadsheetChartDataLabelPosition.Right or SpreadsheetChartDataLabelPosition.Top))
             throw Invalid(worksheetId, chartId, series, $"{field} position is unsupported");
         XlsxChartSurfaceFillCodec.Validate(value.Fill, $"{worksheetId} chart {chartId} series {series} {field} fill");
+        XlsxChartSeriesLineStyleCodec.ValidateLine(value.Line, worksheetId, chartId, series, $"{field} line");
         XlsxChartTextStyleCodec.ValidateStyle(value.TextStyle, worksheetId, chartId, $"series {series} {field}.text_style");
     }
 
-    private static bool TryReadPointFill(XElement properties, out SpreadsheetChartSurfaceFill? fill)
+    private static XElement PointPropertiesElement(
+        SpreadsheetChartSurfaceFill? fill,
+        SpreadsheetChartLineStyleArtifact? line)
+    {
+        return new XElement(
+            ChartNs + "spPr",
+            fill is null ? null : XlsxChartSurfaceFillCodec.PaintElement(fill, "chart point data-label fill"),
+            line is null ? null : XlsxChartSeriesLineStyleCodec.Element(line));
+    }
+
+    private static bool TryReadPointProperties(
+        XElement properties,
+        out SpreadsheetChartSurfaceFill? fill,
+        out SpreadsheetChartLineStyleArtifact? line)
     {
         fill = null;
+        line = null;
         if (properties.HasAttributes || HasUnexpectedText(properties)) return false;
-        var paints = properties.Elements().ToArray();
-        if (paints.Length != 1) return false;
-        return XlsxChartSurfaceFillCodec.TryReadPaint(paints[0], out fill);
+        var children = properties.Elements().ToArray();
+        if (children.Length == 0 ||
+            children.Any(child => child.Name != DrawingNs + "noFill" &&
+                                  child.Name != DrawingNs + "solidFill" &&
+                                  child.Name != DrawingNs + "gradFill" &&
+                                  child.Name != DrawingNs + "ln") ||
+            children.Count(child => child.Name == DrawingNs + "noFill" ||
+                                   child.Name == DrawingNs + "solidFill" ||
+                                   child.Name == DrawingNs + "gradFill") > 1 ||
+            children.Count(child => child.Name == DrawingNs + "ln") > 1)
+            return false;
+        var paint = children.FirstOrDefault(child => child.Name == DrawingNs + "noFill" ||
+                                                     child.Name == DrawingNs + "solidFill" ||
+                                                     child.Name == DrawingNs + "gradFill");
+        if (!XlsxChartSurfaceFillCodec.TryReadPaint(paint, out fill) ||
+            !XlsxChartSeriesLineStyleCodec.TryReadLine(properties, out line)) return false;
+        return fill is not null || line is not null;
     }
 
     private static bool ReadOptionalBoolean(XElement owner, string name, Action<bool> assign, ref bool present)

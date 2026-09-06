@@ -4085,6 +4085,8 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (source.TryGetProperty("textStyle", out var textStyle)) output.TextStyle = BuildChartTextStyle(textStyle, catalog);
         if (source.TryGetProperty("fill", out var fill))
             output.Fill = BuildChartFill(fill, catalog, "chart data-label fill");
+        if (source.TryGetProperty("line", out var line))
+            output.Line = BuildChartLine(line, catalog);
         return output;
     }
 
@@ -4093,7 +4095,8 @@ internal static partial class PpjAuthoredPresentationCompiler
         source.TryGetProperty("showSeries", out _) || source.TryGetProperty("showPercent", out _) ||
         source.TryGetProperty("showBubbleSize", out _) || source.TryGetProperty("showLeaderLines", out _) ||
         source.TryGetProperty("position", out _) || source.TryGetProperty("numberFormat", out _) ||
-        source.TryGetProperty("textStyle", out _) || source.TryGetProperty("fill", out _);
+        source.TryGetProperty("textStyle", out _) || source.TryGetProperty("fill", out _) ||
+        source.TryGetProperty("line", out _);
 
     private static SpreadsheetChartAxisArtifact BuildChartAxis(JsonElement source, Catalog catalog)
     {

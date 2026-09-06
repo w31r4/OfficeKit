@@ -6624,6 +6624,10 @@
           "$ref": "#/$defs/fill",
           "description": "Bounded direct point data-label fill; none, solid RGB, or literal gradient is emitted as c:dLbl/c:spPr."
         },
+        "line": {
+          "$ref": "#/$defs/stroke",
+          "description": "Bounded direct point data-label outline; RGB color, width, and preset dash are emitted as c:dLbl/c:spPr/a:ln."
+        },
         "numberFormat": {
           "$ref": "#/$defs/stringOrToken",
           "description": "Point data-label number format code; a token reference must declare kind string."
@@ -6638,6 +6642,7 @@
         { "required": ["position"] },
         { "required": ["textStyle"] },
         { "required": ["fill"] },
+        { "required": ["line"] },
         { "required": ["numberFormat"] }
       ]
     },
