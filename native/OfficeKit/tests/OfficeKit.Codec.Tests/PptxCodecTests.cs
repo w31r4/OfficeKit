@@ -18158,6 +18158,7 @@ public sealed partial class PptxCodecTests
             ["majorComplexScript"] = "Noto Sans Arabic",
             ["minor"] = "Aptos",
             ["minorEastAsia"] = "Noto Sans CJK TC",
+            ["minorComplexScript"] = "Noto Sans Hebrew",
         };
         program["design"]!["fonts"] = new JsonArray
         {
@@ -18200,7 +18201,7 @@ public sealed partial class PptxCodecTests
             Assert.Equal("Noto Sans Arabic", fontScheme.MajorFont.ComplexScriptFont!.Typeface!.Value);
             Assert.Equal("Aptos", fontScheme.MinorFont!.LatinFont!.Typeface!.Value);
             Assert.Equal("Noto Sans CJK TC", fontScheme.MinorFont.EastAsianFont!.Typeface!.Value);
-            Assert.Equal("Aptos", fontScheme.MinorFont.ComplexScriptFont!.Typeface!.Value);
+            Assert.Equal("Noto Sans Hebrew", fontScheme.MinorFont.ComplexScriptFont!.Typeface!.Value);
         }
 
         var embeddedProjection = Invoke(new CodecRequest
@@ -18218,6 +18219,7 @@ public sealed partial class PptxCodecTests
         Assert.Equal("Noto Sans Arabic", recovered["design"]!["theme"]!["fontScheme"]!["majorComplexScript"]!.GetValue<string>());
         Assert.Equal("Aptos", recovered["design"]!["theme"]!["fontScheme"]!["minor"]!.GetValue<string>());
         Assert.Equal("Noto Sans CJK TC", recovered["design"]!["theme"]!["fontScheme"]!["minorEastAsia"]!.GetValue<string>());
+        Assert.Equal("Noto Sans Hebrew", recovered["design"]!["theme"]!["fontScheme"]!["minorComplexScript"]!.GetValue<string>());
 
         var nativeSource = RemoveEmbeddedPpj(authored.File.ToByteArray());
         var sourceProjection = Invoke(new CodecRequest
@@ -18237,6 +18239,7 @@ public sealed partial class PptxCodecTests
             ["majorComplexScript"] = "Changed Arabic",
             ["minor"] = "Changed Minor",
             ["minorEastAsia"] = "Changed CJK Minor",
+            ["minorComplexScript"] = "Changed Hebrew",
         };
         var rejected = Invoke(new CodecRequest
         {
