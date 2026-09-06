@@ -20,11 +20,10 @@ host. Record fallbacks in the deck's Design Grammar rather than allowing each
 text object to improvise.
 
 For an authored theme, `design.theme.fontScheme.majorEastAsia`,
-`minorEastAsia`, and `majorComplexScript` may override only the corresponding
-theme slot; when omitted, each falls back to its role family. These are bounded
-PPJ owners for the generated theme XML, not a claim about imported theme
-editing, font embedding, or host-level font substitution; minor
-complex-script fallback remains outside this profile.
+`minorEastAsia`, `majorComplexScript`, and `minorComplexScript` may override
+only the corresponding theme slot; when omitted, each falls back to its role
+family. These are bounded PPJ owners for the generated theme XML, not a claim
+about imported theme editing, font embedding, or host-level font substitution.
 
 ## Match the script and medium
 
