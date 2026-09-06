@@ -373,6 +373,10 @@ The same sparse series data-label points may set a bounded `line` using direct
 RGB color, width, and a preset dash. Custom outline/effect graphs and
 leader-line geometry remain source-owned.
 
+Sparse series data-label points may also set literal `text`. OfficeKit accepts
+one plain paragraph/run in the native rich-text owner; formulas, multi-run
+rich text, and custom label layout/effects remain source-owned.
+
 `smooth` preserves an explicit true or false native value. For line charts,
 `varyColors: true` authors one direct native color-variation flag and false is
 canonical omission. Bar/column charts and categorical combos preserve
