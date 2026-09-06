@@ -3499,6 +3499,10 @@
         "text": {
           "type": "string",
           "maxLength": 1000000
+        },
+        "automatic": {
+          "type": "boolean",
+          "description": "Whether this is a bounded automatic field. The current profile only supports type slidenum and refreshes its cached display value from the owning slide number."
         }
       }
     },
