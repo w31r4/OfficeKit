@@ -67,6 +67,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             Title = element.Title is null ? string.Empty : Flatten(element.Title),
             BarDirection = element.ChartType == "bar" ? "bar" : element.ChartType is "column" or "waterfall" ? "column" : string.Empty,
         };
+        if (raw.TryGetProperty("titlePlacement", out var titlePlacement))
+            chart.TitlePlacement = ChartEnumToken(titlePlacement, catalog, "chart titlePlacement", "none", "aboveChart", "centeredOverlay");
         if (BuildFrameTransform(element.Frame) is { } frameTransform) chart.FrameTransform = frameTransform;
         chart.Categories.Add(element.Data.Categories.Select(CategoryText));
         if (raw.TryGetProperty("displayBlanksAs", out var displayBlanksAs))

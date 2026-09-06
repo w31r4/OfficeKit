@@ -18,7 +18,7 @@ internal static class PptxChartTitleTextCodec
         var title = document.Root?.Element(ChartNs + "chart")?.Element(ChartNs + "title");
         if (title is null) return chart.Title.Length == 0;
         var children = title.Elements().ToArray();
-        if (children.Any(child => child.Name != ChartNs + "tx" && child.Name != ChartNs + "layout") ||
+        if (children.Any(child => child.Name != ChartNs + "tx" && child.Name != ChartNs + "layout" && child.Name != ChartNs + "overlay") ||
             children.Count(child => child.Name == ChartNs + "tx") != 1) return false;
         var tx = title.Element(ChartNs + "tx")!;
         var rich = tx.Element(ChartNs + "rich");
@@ -82,6 +82,11 @@ internal static class PptxChartTitleTextCodec
         var replacement = new XElement(ChartNs + "tx", RichText(chart.TitleBody));
         if (existingTx is null) title.AddFirst(replacement);
         else existingTx.ReplaceWith(replacement);
+        OpenXmlChartSpaceCodec.PatchTitlePlacement(
+            title,
+            chart.HasTitlePlacement ? chart.TitlePlacement : string.Empty,
+            "unsupported_presentation_edit",
+            "Presentation chart title");
     }
 
     internal static bool RequiresPlainRewrite(XDocument document)
@@ -101,7 +106,10 @@ internal static class PptxChartTitleTextCodec
             title?.Remove();
             return;
         }
-        var replacement = XlsxChartTextStyleCodec.TitleElement(chart.Title, chart.TitleTextStyle);
+        var replacement = XlsxChartTextStyleCodec.TitleElement(
+            chart.Title,
+            chart.TitleTextStyle,
+            chart.HasTitlePlacement ? chart.TitlePlacement : string.Empty);
         if (title is null)
         {
             var plotArea = nativeChart.Element(ChartNs + "plotArea") ??
@@ -112,6 +120,11 @@ internal static class PptxChartTitleTextCodec
         var existingTx = title.Element(ChartNs + "tx") ??
             throw new CodecException("unsupported_presentation_edit", "Presentation chart title is missing c:tx.");
         existingTx.ReplaceWith(replacement.Element(ChartNs + "tx")!);
+        OpenXmlChartSpaceCodec.PatchTitlePlacement(
+            title,
+            chart.HasTitlePlacement ? chart.TitlePlacement : string.Empty,
+            "unsupported_presentation_edit",
+            "Presentation chart title");
     }
 
     private static XElement RichText(PresentationTextBody body)

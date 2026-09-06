@@ -40,7 +40,7 @@ internal static class PpjSemanticValidator
             ["setTableStyle"] = Set("table.style"),
             ["setTableGeometry"] = Set("table.geometry"),
             ["setTableCellStyle"] = Set("table.cell.fill", "table.cell.borders", "table.cell.textStyle"),
-            ["setChartTitle"] = Set("chart.title"),
+            ["setChartTitle"] = Set("chart.title", "chart.titlePlacement"),
             ["setChartData"] = Set("chart.data"),
             ["setChartTextStyle"] = Set("chart.textStyle"),
             ["setChartFill"] = Set("chart.fill", "chart.legendFill"),
@@ -1121,6 +1121,33 @@ internal static class PpjSemanticValidator
     private static void ValidateChart(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)
     {
         var numericCombo = IsNumericCombo(chart);
+        if (chart.Raw.TryGetProperty("titlePlacement", out var titlePlacement))
+        {
+            var supportsNativeTitle = chart.ChartType is "bar" or "column" or "line" or "area" or "pie" or "doughnut" or "scatter" or "bubble" or "radar" or "combo" or "waterfall";
+            if (!supportsNativeTitle || numericCombo)
+                diagnostics.Add(new(
+                    "ppj.chart.titlePlacementType",
+                    "titlePlacement applies only to bounded native ChartPart charts.",
+                    path + ".titlePlacement"));
+            else if (titlePlacement.ValueKind == JsonValueKind.String)
+            {
+                var value = titlePlacement.GetString();
+                if (value is not ("none" or "aboveChart" or "centeredOverlay"))
+                    diagnostics.Add(new(
+                        "ppj.chart.titlePlacementValue",
+                        "titlePlacement must be none, aboveChart, or centeredOverlay.",
+                        path + ".titlePlacement"));
+                var hasVisibleTitle = chart.Title is { } title &&
+                    (title.PlainText is { Length: > 0 } ||
+                     title.Paragraphs.SelectMany(paragraph => paragraph.Runs).Any(run =>
+                         run.Text is { Length: > 0 } || run.Formula is not null || run.Field is not null));
+                if ((value == "none" && hasVisibleTitle) || (value is ("aboveChart" or "centeredOverlay") && !hasVisibleTitle))
+                    diagnostics.Add(new(
+                        "ppj.chart.titlePlacementTitle",
+                        value == "none" ? "titlePlacement none requires an omitted title." : "aboveChart and centeredOverlay require a visible title.",
+                        path + ".titlePlacement"));
+            }
+        }
         if (chart.Raw.TryGetProperty("displayBlanksAs", out var displayBlanksAs))
         {
             if (chart.ChartType is not ("bar" or "column" or "line" or "area" or "pie" or "doughnut" or "scatter" or "bubble" or "radar" or "combo" or "waterfall"))

@@ -4615,6 +4615,21 @@
               "$ref": "#/$defs/textContent",
               "description": "Use a string for one uniform title or paragraphs/runs for bounded mixed typography. Chart-title hyperlinks, formula references, WordArt, effects, and unknown native title topology remain unsupported or source-owned. titleTextStyle supplies defaults only where a structured run omits the corresponding property."
             },
+            "titlePlacement": {
+              "oneOf": [
+                {
+                  "enum": [
+                    "none",
+                    "aboveChart",
+                    "centeredOverlay"
+                  ]
+                },
+                {
+                  "$ref": "#/$defs/grammarTokenRef"
+                }
+              ],
+              "description": "Chart-title placement; none omits the title, aboveChart is the native default, and centeredOverlay writes c:title/c:overlay val=1. A string grammar token must resolve to one of these values."
+            },
             "data": {
               "$ref": "#/$defs/chartData"
             },

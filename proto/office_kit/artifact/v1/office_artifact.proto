@@ -1022,6 +1022,10 @@ message SpreadsheetChartArtifact {
   // Bounded direct c:legend/c:spPr/a:ln outline. Fill and line share the
   // native legend shape-properties container but retain independent fields.
   SpreadsheetChartLineStyleArtifact legend_line = 36;
+  // Presence-aware c:title/c:overlay placement. `none` is the canonical
+  // value when the chart has no title; aboveChart is the native default and
+  // centeredOverlay maps to c:overlay val=1.
+  optional string title_placement = 42;
 }
 
 message SpreadsheetChartSeriesArtifact {
@@ -2830,6 +2834,10 @@ message PresentationChart {
   // Bounded direct c:legend/c:spPr/a:ln outline mirrored from the native
   // ChartPart.
   SpreadsheetChartLineStyleArtifact legend_line = 41;
+  // Presence-aware c:title/c:overlay placement. `none` is the canonical
+  // value when the chart has no title; aboveChart is the native default and
+  // centeredOverlay maps to c:overlay val=1.
+  optional string title_placement = 42;
 }
 
 // Bounded literal c:chartSpace/c:spPr container paint for Presentation charts.

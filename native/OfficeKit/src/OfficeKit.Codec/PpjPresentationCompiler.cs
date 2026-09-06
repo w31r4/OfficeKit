@@ -2456,7 +2456,7 @@ internal static class PpjSourceBoundPresentationCompiler
     {
         RequireEqualExcept(before.Raw, after.Raw, path,
             "role", "tags", "hidden", "locked", "frame", "title", "data", "style",
-            "displayBlanksAs", "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis", "spokeAxis", "accessibility");
+            "titlePlacement", "displayBlanksAs", "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis", "spokeAxis", "accessibility");
         var changed = ApplyFrame(before, after, target, path);
         if (PropertyChanged(before.Raw, after.Raw, "displayBlanksAs"))
         {
@@ -2489,6 +2489,20 @@ internal static class PpjSourceBoundPresentationCompiler
                 target.TitleBody = PpjAuthoredPresentationCompiler.BuildChartTitleBody(program, after);
                 target.Title = PptxTextCodec.Flatten(target.TitleBody);
             }
+            if (!after.Raw.TryGetProperty("titlePlacement", out _)) target.ClearTitlePlacement();
+            changed = true;
+        }
+        if (PropertyChanged(before.Raw, after.Raw, "titlePlacement"))
+        {
+            RequireCapability(after, "setChartTitle", path + ".titlePlacement");
+            if (after.Raw.TryGetProperty("titlePlacement", out var titlePlacement))
+                target.TitlePlacement = ResolveGrammarEnumToken(
+                    program.Root,
+                    titlePlacement,
+                    path + ".titlePlacement",
+                    "none", "aboveChart", "centeredOverlay");
+            else
+                target.ClearTitlePlacement();
             changed = true;
         }
         if (PropertyChanged(before.Raw, after.Raw, "data"))

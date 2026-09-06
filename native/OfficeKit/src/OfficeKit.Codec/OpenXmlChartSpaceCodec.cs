@@ -54,6 +54,8 @@ internal static class OpenXmlChartSpaceCodec
         if (!TryReadDisplayBlanksAs(nativeChart, out var displayBlanksAs)) editable = false;
         else if (displayBlanksAs is not null) chart.DisplayBlanksAs = displayBlanksAs;
         var title = nativeChart.Element(ChartNs + "title");
+        if (!TryReadTitlePlacement(title, out var titlePlacement)) editable = false;
+        else chart.TitlePlacement = titlePlacement;
         if (title is not null)
         {
             var richText = title.Descendants(DrawingNs + "t").ToArray();
@@ -122,7 +124,7 @@ internal static class OpenXmlChartSpaceCodec
         XlsxChartAxisCodec.AppendAuthored(plotArea, chart);
         if (XlsxChartSurfaceFillCodec.Element(chart.PlotAreaFill, "Chart plot area") is { } plotFill) plotArea.Add(plotFill);
         var nativeChart = new XElement(ChartNs + "chart");
-        if (chart.Title.Length > 0) nativeChart.Add(XlsxChartTextStyleCodec.TitleElement(chart.Title, chart.TitleTextStyle));
+        if (chart.Title.Length > 0) nativeChart.Add(XlsxChartTextStyleCodec.TitleElement(chart.Title, chart.TitleTextStyle, chart.HasTitlePlacement ? chart.TitlePlacement : string.Empty));
         nativeChart.Add(plotArea);
         if (chart.HasLegend) nativeChart.Add(LegendElement(chart.LegendPosition, chart.LegendTextStyle, chart.HasLegendOverlay, chart.LegendOverlay, chart.LegendFill, chart.LegendLine));
         nativeChart.Add(new XElement(ChartNs + "plotVisOnly", new XAttribute("val", "1")));
@@ -142,7 +144,7 @@ internal static class OpenXmlChartSpaceCodec
         bool allowChartFrameDecorations = false)
     {
         var nativeChart = document.Root?.Element(ChartNs + "chart") ?? throw Topology(errorCode, subject, "is missing c:chart");
-        if (patchTitle) PatchTitle(nativeChart, target.Title, target.TitleTextStyle, errorCode, subject);
+        if (patchTitle) PatchTitle(nativeChart, target.Title, target.TitleTextStyle, target.HasTitlePlacement ? target.TitlePlacement : string.Empty, errorCode, subject);
         PatchLegend(nativeChart, target.HasLegend, target.LegendPosition, target.LegendTextStyle, target.HasLegendOverlay, target.LegendOverlay, target.LegendFill, target.LegendLine);
         PatchDisplayBlanksAs(nativeChart, target.HasDisplayBlanksAs, target.DisplayBlanksAs, errorCode, subject);
         var plotArea = nativeChart.Element(ChartNs + "plotArea") ?? throw Topology(errorCode, subject, "is missing c:plotArea");
@@ -254,14 +256,28 @@ internal static class OpenXmlChartSpaceCodec
         return output;
     }
 
-    internal static void PatchTitle(XElement chart, string title, SpreadsheetChartTextStyleArtifact? style, string errorCode, string subject)
+    internal static void PatchTitle(
+        XElement chart,
+        string title,
+        SpreadsheetChartTextStyleArtifact? style,
+        string titlePlacement,
+        string errorCode,
+        string subject)
     {
         var existing = chart.Element(ChartNs + "title");
-        if (title.Length == 0) { existing?.Remove(); return; }
+        if (title.Length == 0)
+        {
+            if (titlePlacement is not ("" or "none"))
+                throw new CodecException(errorCode, $"{subject} cannot place a missing title at {titlePlacement}.");
+            existing?.Remove();
+            return;
+        }
+        if (titlePlacement == "none")
+            throw new CodecException(errorCode, $"{subject} cannot use title placement none with a visible title.");
         if (existing is null)
         {
             var plotArea = chart.Element(ChartNs + "plotArea") ?? throw Topology(errorCode, subject, "is missing c:plotArea");
-            plotArea.AddBeforeSelf(XlsxChartTextStyleCodec.TitleElement(title, style));
+            plotArea.AddBeforeSelf(XlsxChartTextStyleCodec.TitleElement(title, style, titlePlacement));
             return;
         }
         var runs = existing.Descendants(DrawingNs + "t").ToArray();
@@ -269,6 +285,52 @@ internal static class OpenXmlChartSpaceCodec
         runs[0].Value = title;
         foreach (var run in runs.Skip(1)) run.Value = string.Empty;
         XlsxChartTextStyleCodec.PatchTitle(existing, style);
+        PatchTitlePlacement(existing, titlePlacement, errorCode, subject);
+    }
+
+    internal static bool TryReadTitlePlacement(XElement? title, out string placement)
+    {
+        placement = title is null ? "none" : "aboveChart";
+        if (title is null) return true;
+        var overlays = title.Elements(ChartNs + "overlay").ToArray();
+        if (overlays.Length == 0) return true;
+        if (overlays.Length != 1) return false;
+        var overlay = overlays[0];
+        var attributes = overlay.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration).ToArray();
+        if (overlay.HasElements || overlay.Nodes().OfType<XText>().Any(text => !string.IsNullOrWhiteSpace(text.Value)) ||
+            attributes.Length > 1 || attributes.Any(attribute => attribute.Name != "val")) return false;
+        if (attributes.Length == 0) return true;
+        placement = attributes[0].Value switch
+        {
+            "0" or "false" => "aboveChart",
+            "1" or "true" => "centeredOverlay",
+            _ => string.Empty,
+        };
+        return placement.Length > 0;
+    }
+
+    internal static void PatchTitlePlacement(XElement title, string placement, string errorCode, string subject)
+    {
+        if (placement is not ("" or "aboveChart" or "centeredOverlay"))
+            throw new CodecException(errorCode, $"{subject} has unsupported chart title placement {placement}.");
+        var overlays = title.Elements(ChartNs + "overlay").ToArray();
+        if (overlays.Length > 1 || overlays.Length == 1 && !TryReadTitlePlacement(title, out _))
+            throw Topology(errorCode, subject, "has a chart-title overlay outside the bounded scalar profile");
+        if (placement.Length == 0)
+        {
+            overlays.SingleOrDefault()?.Remove();
+            return;
+        }
+        var value = placement == "centeredOverlay" ? "1" : "0";
+        if (overlays.Length == 1)
+        {
+            overlays[0].SetAttributeValue("val", value);
+            return;
+        }
+        var layout = title.Element(ChartNs + "layout");
+        var overlay = new XElement(ChartNs + "overlay", new XAttribute("val", value));
+        if (layout is null) title.Add(overlay);
+        else layout.AddAfterSelf(overlay);
     }
 
     internal static void PatchLegend(

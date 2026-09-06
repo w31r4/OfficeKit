@@ -69,8 +69,18 @@ internal static class XlsxChartTextStyleCodec
         return true;
     }
 
-    internal static XElement TitleElement(string title, SpreadsheetChartTextStyleArtifact? style)
+    internal static XElement TitleElement(
+        string title,
+        SpreadsheetChartTextStyleArtifact? style,
+        string titlePlacement = "")
     {
+        var overlay = titlePlacement switch
+        {
+            "" => null,
+            "aboveChart" => new XElement(ChartNs + "overlay", new XAttribute("val", "0")),
+            "centeredOverlay" => new XElement(ChartNs + "overlay", new XAttribute("val", "1")),
+            _ => throw new CodecException("invalid_chart_title", $"Unsupported chart title placement {titlePlacement}."),
+        };
         var run = new XElement(DrawingNs + "r");
         if (style is not null && HasCharacterStyle(style)) run.Add(StyleProperties("rPr", style));
         run.Add(new XElement(DrawingNs + "t", title));
@@ -82,7 +92,8 @@ internal static class XlsxChartTextStyleCodec
             new XElement(ChartNs + "tx", new XElement(ChartNs + "rich",
                 new XElement(DrawingNs + "bodyPr"), new XElement(DrawingNs + "lstStyle"),
                 paragraph)),
-            new XElement(ChartNs + "layout"));
+            new XElement(ChartNs + "layout"),
+            overlay);
     }
 
     internal static void AppendAuthoredAxis(XElement axis, SpreadsheetChartTextStyleArtifact? style)
@@ -232,7 +243,7 @@ internal static class XlsxChartTextStyleCodec
         run = null!;
         paragraphProperties = null;
         var titleChildren = title.Elements().ToArray();
-        if (titleChildren.Any(item => item.Name != ChartNs + "tx" && item.Name != ChartNs + "layout") || titleChildren.Count(item => item.Name == ChartNs + "tx") != 1) return false;
+        if (titleChildren.Any(item => item.Name != ChartNs + "tx" && item.Name != ChartNs + "layout" && item.Name != ChartNs + "overlay") || titleChildren.Count(item => item.Name == ChartNs + "tx") != 1) return false;
         var tx = title.Element(ChartNs + "tx")!;
         var rich = tx.Element(ChartNs + "rich");
         if (rich is null || tx.Elements().Count() != 1) return false;

@@ -152,6 +152,7 @@ internal static partial class PptxChartCodec
                 HeightEmu = source.HeightEmu,
             },
         };
+        if (source.HasTitlePlacement) output.TitlePlacement = source.TitlePlacement;
         if (source.LegendTextStyle is not null) output.LegendTextStyle = source.LegendTextStyle.Clone();
         if (source.LegendFill is not null) output.LegendFill = source.LegendFill.Clone();
         if (source.LegendLine is not null) output.LegendLine = source.LegendLine.Clone();
@@ -262,6 +263,8 @@ internal static partial class PptxChartCodec
         if (primaryPlot is null) return false;
 
         var title = nativeChart.Element(ChartNs + "title");
+        if (!OpenXmlChartSpaceCodec.TryReadTitlePlacement(title, out var titlePlacement)) return false;
+        chart.TitlePlacement = titlePlacement;
         if (title is not null)
         {
             var richText = title.Descendants(DrawingNs + "t").ToArray();
@@ -531,7 +534,7 @@ internal static partial class PptxChartCodec
         if (HasSecondaryComboPlot(chart)) XlsxChartAxisCodec.AppendAuthoredPresentationSecondary(plotArea, ComboAxisCarrier(chart, id, name, secondary: true));
         if (XlsxChartSurfaceFillCodec.Element(chart.PlotAreaFill, "Presentation combo chart plot area") is { } plotFill) plotArea.Add(plotFill);
         var nativeChart = new XElement(ChartNs + "chart");
-        if (chart.Title.Length > 0) nativeChart.Add(XlsxChartTextStyleCodec.TitleElement(chart.Title, chart.TitleTextStyle));
+        if (chart.Title.Length > 0) nativeChart.Add(XlsxChartTextStyleCodec.TitleElement(chart.Title, chart.TitleTextStyle, chart.HasTitlePlacement ? chart.TitlePlacement : string.Empty));
         nativeChart.Add(plotArea);
         if (chart.HasLegend) nativeChart.Add(OpenXmlChartSpaceCodec.LegendElement(chart.LegendPosition, chart.LegendTextStyle, chart.HasLegendOverlay, chart.LegendOverlay, chart.LegendFill, chart.LegendLine));
         nativeChart.Add(new XElement(ChartNs + "plotVisOnly", new XAttribute("val", "1")));
@@ -570,7 +573,7 @@ internal static partial class PptxChartCodec
     {
         var nativeChart = document.Root!.Element(ChartNs + "chart")!;
         if (patchTitle)
-            OpenXmlChartSpaceCodec.PatchTitle(nativeChart, target.Title, target.TitleTextStyle, "unsupported_presentation_edit", "Presentation combo chart");
+            OpenXmlChartSpaceCodec.PatchTitle(nativeChart, target.Title, target.TitleTextStyle, target.HasTitlePlacement ? target.TitlePlacement : string.Empty, "unsupported_presentation_edit", "Presentation combo chart");
         OpenXmlChartSpaceCodec.PatchLegend(nativeChart, target.HasLegend, target.LegendPosition, target.LegendTextStyle, target.HasLegendOverlay, target.LegendOverlay, target.LegendFill, target.LegendLine);
         OpenXmlChartSpaceCodec.PatchDisplayBlanksAs(nativeChart, target.HasDisplayBlanksAs, target.DisplayBlanksAs, "unsupported_presentation_edit", "Presentation combo chart");
         var plotArea = nativeChart.Element(ChartNs + "plotArea")!;
