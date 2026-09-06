@@ -18154,6 +18154,7 @@ public sealed partial class PptxCodecTests
         program["design"]!["theme"]!["fontScheme"] = new JsonObject
         {
             ["major"] = "Aptos Display",
+            ["majorEastAsia"] = "Noto Sans CJK SC",
             ["minor"] = "Aptos",
         };
         program["design"]!["fonts"] = new JsonArray
@@ -18193,7 +18194,7 @@ public sealed partial class PptxCodecTests
             var theme = Assert.Single(package.PresentationPart!.SlideMasterParts).ThemePart!.Theme!;
             var fontScheme = theme.ThemeElements!.FontScheme!;
             Assert.Equal("Aptos Display", fontScheme.MajorFont!.LatinFont!.Typeface!.Value);
-            Assert.Equal("Aptos Display", fontScheme.MajorFont.EastAsianFont!.Typeface!.Value);
+            Assert.Equal("Noto Sans CJK SC", fontScheme.MajorFont.EastAsianFont!.Typeface!.Value);
             Assert.Equal("Aptos Display", fontScheme.MajorFont.ComplexScriptFont!.Typeface!.Value);
             Assert.Equal("Aptos", fontScheme.MinorFont!.LatinFont!.Typeface!.Value);
             Assert.Equal("Aptos", fontScheme.MinorFont.EastAsianFont!.Typeface!.Value);
@@ -18211,6 +18212,7 @@ public sealed partial class PptxCodecTests
         Assert.True(embeddedProjection.Ok, Diagnostics(embeddedProjection));
         var recovered = JsonNode.Parse(embeddedProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         Assert.Equal("Aptos Display", recovered["design"]!["theme"]!["fontScheme"]!["major"]!.GetValue<string>());
+        Assert.Equal("Noto Sans CJK SC", recovered["design"]!["theme"]!["fontScheme"]!["majorEastAsia"]!.GetValue<string>());
         Assert.Equal("Aptos", recovered["design"]!["theme"]!["fontScheme"]!["minor"]!.GetValue<string>());
 
         var nativeSource = RemoveEmbeddedPpj(authored.File.ToByteArray());
@@ -18227,6 +18229,7 @@ public sealed partial class PptxCodecTests
         sourceBoundProgram["design"]!["theme"]!["fontScheme"] = new JsonObject
         {
             ["major"] = "Changed Major",
+            ["majorEastAsia"] = "Changed CJK",
             ["minor"] = "Changed Minor",
         };
         var rejected = Invoke(new CodecRequest
