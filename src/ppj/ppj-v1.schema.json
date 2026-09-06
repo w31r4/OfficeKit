@@ -4615,6 +4615,19 @@
               "$ref": "#/$defs/textContent",
               "description": "Use a string for one uniform title or paragraphs/runs for bounded mixed typography. Chart-title hyperlinks, formula references, WordArt, effects, and unknown native title topology remain unsupported or source-owned. titleTextStyle supplies defaults only where a structured run omits the corresponding property."
             },
+            "fontFamily": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                {
+                  "$ref": "#/$defs/grammarTokenRef"
+                }
+              ],
+              "description": "Chart-wide Latin typeface; a string grammar token must resolve to a non-empty string. The bounded native profile writes c:chartSpace/c:txPr and does not infer East Asian or complex-script fallbacks."
+            },
             "titlePlacement": {
               "oneOf": [
                 {

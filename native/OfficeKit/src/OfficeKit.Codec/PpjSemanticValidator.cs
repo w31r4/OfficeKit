@@ -42,7 +42,7 @@ internal static class PpjSemanticValidator
             ["setTableCellStyle"] = Set("table.cell.fill", "table.cell.borders", "table.cell.textStyle"),
             ["setChartTitle"] = Set("chart.title", "chart.titlePlacement"),
             ["setChartData"] = Set("chart.data"),
-            ["setChartTextStyle"] = Set("chart.textStyle"),
+            ["setChartTextStyle"] = Set("chart.textStyle", "chart.fontFamily"),
             ["setChartFill"] = Set("chart.fill", "chart.legendFill"),
             ["setChartSeriesStyle"] = Set("chart.data.series[].stroke", "chart.data.series[].marker"),
             ["setChartSeriesAnalytics"] = Set("chart.data.series[].trendlines", "chart.data.series[].errorBars"),
@@ -1147,6 +1147,34 @@ internal static class PpjSemanticValidator
                         value == "none" ? "titlePlacement none requires an omitted title." : "aboveChart and centeredOverlay require a visible title.",
                         path + ".titlePlacement"));
             }
+        }
+        if (chart.Raw.TryGetProperty("fontFamily", out var fontFamily))
+        {
+            var supportsNativeFontFamily =
+                (chart.ChartType is "bar" or "column" or "line" or "area" or "pie" or "doughnut" or "scatter" or "bubble" or "radar" or "waterfall" or "combo") &&
+                !numericCombo &&
+                !IsInlineStreamgraph(chart) &&
+                !IsInlineSizedBubble(chart) &&
+                !IsInlinePictographicChart(chart);
+            if (!supportsNativeFontFamily)
+                diagnostics.Add(new(
+                    "ppj.chart.fontFamilyType",
+                    "fontFamily applies only to bounded native ChartPart charts.",
+                    path + ".fontFamily"));
+            else if (fontFamily.ValueKind == JsonValueKind.String)
+            {
+                var value = fontFamily.GetString();
+                if (string.IsNullOrEmpty(value) || value.Length > 255 || value.Any(char.IsControl))
+                    diagnostics.Add(new(
+                        "ppj.chart.fontFamilyValue",
+                        "fontFamily must contain 1 through 255 characters without controls.",
+                        path + ".fontFamily"));
+            }
+            else if (fontFamily.ValueKind != JsonValueKind.Object)
+                diagnostics.Add(new(
+                    "ppj.chart.fontFamilyValue",
+                    "fontFamily must be a string or a string grammar token reference.",
+                    path + ".fontFamily"));
         }
         if (chart.Raw.TryGetProperty("displayBlanksAs", out var displayBlanksAs))
         {
@@ -4070,7 +4098,7 @@ internal static class PpjSemanticValidator
         "line.path" => target is PpjShapeElementModel { Type: "line" },
         "frame.x" or "frame.y" or "frame.width" or "frame.height" => true,
         "image.asset" or "image.crop" or "image.focus" => target is PpjImageElementModel,
-        "chart.title" or "chart.data" or "chart.frame" => target is PpjChartElementModel,
+        "chart.title" or "chart.data" or "chart.frame" or "chart.fontFamily" => target is PpjChartElementModel,
         "table.cell.text" => target is PpjTableElementModel,
         "accessibility.description" => true,
         _ => false,

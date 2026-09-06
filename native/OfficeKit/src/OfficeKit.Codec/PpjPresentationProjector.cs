@@ -1028,6 +1028,8 @@ internal static partial class PpjPresentationProjector
             : chart.HasTitlePlacement && chart.TitlePlacement.Length > 0
                 ? chart.TitlePlacement
                 : "aboveChart");
+        if (chart.TextStyle is { FontFamily.Length: > 0 } globalTextStyle)
+            output["fontFamily"] = StringNode(globalTextStyle.FontFamily);
         var projectSeriesNullHandling = (chart.Type is SpreadsheetChartType.Line or SpreadsheetChartType.Area or SpreadsheetChartType.Radar) &&
             chart.HasDisplayBlanksAs && chart.DisplayBlanksAs is ("zero" or "gap" or "span");
         if (chart.HasDisplayBlanksAs && !projectSeriesNullHandling)
@@ -2906,7 +2908,7 @@ internal static partial class PpjPresentationProjector
             case PresentationElement.ContentOneofCase.Chart when source.Editable:
                 output.Add(new("setChartTitle", ["chart.title"]));
                 output.Add(new("setChartData", ["chart.data"]));
-                output.Add(new("setChartTextStyle", ["chart.textStyle"]));
+                output.Add(new("setChartTextStyle", ["chart.textStyle", "chart.fontFamily"]));
                 output.Add(new("setChartFill", ["chart.fill", "chart.legendFill"]));
                 // Direct series stroke and marker graphs are parsed by the
                 // existing ChartSpace codecs.  Keep this capability separate

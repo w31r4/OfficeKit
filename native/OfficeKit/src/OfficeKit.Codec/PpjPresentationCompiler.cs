@@ -2456,7 +2456,7 @@ internal static class PpjSourceBoundPresentationCompiler
     {
         RequireEqualExcept(before.Raw, after.Raw, path,
             "role", "tags", "hidden", "locked", "frame", "title", "data", "style",
-            "titlePlacement", "displayBlanksAs", "styleIndex", "dataTable", "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis", "spokeAxis", "accessibility");
+            "fontFamily", "titlePlacement", "displayBlanksAs", "styleIndex", "dataTable", "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis", "spokeAxis", "accessibility");
         var changed = ApplyFrame(before, after, target, path);
         if (PropertyChanged(before.Raw, after.Raw, "displayBlanksAs"))
         {
@@ -2520,6 +2520,17 @@ internal static class PpjSourceBoundPresentationCompiler
                     "none", "aboveChart", "centeredOverlay");
             else
                 target.ClearTitlePlacement();
+            changed = true;
+        }
+        if (PropertyChanged(before.Raw, after.Raw, "fontFamily"))
+        {
+            RequireCapabilityField(after, "setChartTextStyle", "chart.fontFamily", path + ".fontFamily");
+            target.TextStyle = after.Raw.TryGetProperty("fontFamily", out var fontFamily)
+                ? new SpreadsheetChartTextStyleArtifact
+                {
+                    FontFamily = ResolveGrammarStringToken(program.Root, fontFamily, path + ".fontFamily"),
+                }
+                : null;
             changed = true;
         }
         if (PropertyChanged(before.Raw, after.Raw, "data"))

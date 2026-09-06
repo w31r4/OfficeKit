@@ -1043,6 +1043,9 @@ message SpreadsheetChartArtifact {
   // Canonical native radar plot style mirrored from c:radarChart/c:radarStyle.
   // Empty defaults to standard; values are standard, marker, or filled.
   string radar_style = 47;
+  // Bounded chart-wide c:chartSpace/c:txPr typography. The initial profile
+  // owns only the direct Latin typeface used by PPJ chart.fontFamily.
+  SpreadsheetChartTextStyleArtifact text_style = 48;
 }
 
 message SpreadsheetChartSeriesArtifact {
@@ -2884,6 +2887,9 @@ message PresentationChart {
   // Canonical native radar plot style mirrored from c:radarChart/c:radarStyle.
   // Empty defaults to standard; values are standard, marker, or filled.
   string radar_style = 47;
+  // Bounded chart-wide c:chartSpace/c:txPr typography. The initial profile
+  // owns only the direct Latin typeface used by PPJ chart.fontFamily.
+  SpreadsheetChartTextStyleArtifact text_style = 48;
 }
 
 // Bounded literal c:chartSpace/c:spPr container paint for Presentation charts.

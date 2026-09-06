@@ -37,6 +37,9 @@ internal static class XlsxChartTextStyleCodec
         ValidateStyle(chart.YAxis?.TextStyle, worksheetId, chart.Id, "y_axis.text_style");
         ValidateAxisTitleStyle(chart.XAxis, worksheetId, chart.Id, "x_axis.title_text_style");
         ValidateAxisTitleStyle(chart.YAxis, worksheetId, chart.Id, "y_axis.title_text_style");
+        ValidateStyle(chart.TextStyle, worksheetId, chart.Id, "text_style");
+        if (chart.TextStyle is not null && !IsGlobalFontFamilyProfile(chart.TextStyle))
+            throw Invalid(worksheetId, chart.Id, "text_style supports only a direct Latin font_family.");
     }
 
     internal static bool TryReadTitle(XElement title, SpreadsheetChartArtifact chart)
@@ -68,6 +71,25 @@ internal static class XlsxChartTextStyleCodec
         style = parsed;
         return true;
     }
+
+    internal static bool TryReadGlobalFontFamily(XElement owner, out SpreadsheetChartTextStyleArtifact? style)
+    {
+        if (!TryReadTextProperties(owner, out style)) return false;
+        return style is null || IsGlobalFontFamilyProfile(style);
+    }
+
+    internal static bool IsGlobalFontFamilyProfile(SpreadsheetChartTextStyleArtifact style) =>
+        style.FontFamily.Length > 0 &&
+        style.FontFamilyEastAsia.Length == 0 &&
+        style.FontFamilyComplexScript.Length == 0 &&
+        !style.HasFontSizePoints &&
+        !style.HasBold &&
+        !style.HasItalic &&
+        style.ColorRgb.Length == 0 &&
+        !style.HasOpacityThousandthPercent &&
+        style.Underline.Length == 0 &&
+        style.Alignment.Length == 0 &&
+        style.Fill is null;
 
     internal static XElement TitleElement(
         string title,

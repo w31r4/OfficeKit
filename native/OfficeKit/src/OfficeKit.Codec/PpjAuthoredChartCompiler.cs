@@ -33,6 +33,13 @@ internal static partial class PpjAuthoredPresentationCompiler
             if (chart.Data.Series.Any(series => series.Levels is not null) &&
                 chart.ChartType is not ("treemap" or "sunburst"))
                 throw Unsupported(chart.Id, "levels applies only to treemap and sunburst charts");
+            if (raw.TryGetProperty("fontFamily", out _) &&
+                (chart.ChartType is not ("bar" or "column" or "line" or "area" or "pie" or "doughnut" or "scatter" or "bubble" or "radar" or "waterfall" or "combo") ||
+                 IsNumericCombo(chart) ||
+                 IsExplicitlySizedBubble(chart, raw, catalog) ||
+                 IsPictographicChart(chart) ||
+                 chart.ChartType == "area" && IsStreamgraph(chart, raw, catalog)))
+                throw Unsupported(chart.Id, "fontFamily requires a bounded native ChartPart chart");
 
             switch (chart.ChartType)
             {
@@ -78,6 +85,11 @@ internal static partial class PpjAuthoredPresentationCompiler
             Title = element.Title is null ? string.Empty : Flatten(element.Title),
             BarDirection = element.ChartType == "bar" ? "bar" : element.ChartType is "column" or "waterfall" ? "column" : string.Empty,
         };
+        if (raw.TryGetProperty("fontFamily", out var fontFamily))
+            chart.TextStyle = new SpreadsheetChartTextStyleArtifact
+            {
+                FontFamily = catalog.StringToken(fontFamily, "string", $"{element.Id} chart fontFamily"),
+            };
         if (raw.TryGetProperty("titlePlacement", out var titlePlacement))
             chart.TitlePlacement = ChartEnumToken(titlePlacement, catalog, "chart titlePlacement", "none", "aboveChart", "centeredOverlay");
         if (raw.TryGetProperty("styleIndex", out var styleIndex))

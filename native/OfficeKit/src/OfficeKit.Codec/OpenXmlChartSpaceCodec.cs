@@ -36,6 +36,8 @@ internal static class OpenXmlChartSpaceCodec
         var nativeChart = root?.Element(ChartNs + "chart");
         var plotArea = nativeChart?.Element(ChartNs + "plotArea");
         if (root?.Name != ChartNs + "chartSpace" || nativeChart is null || plotArea is null || root.Element(ChartNs + "externalData") is not null) return false;
+        if (!XlsxChartTextStyleCodec.TryReadGlobalFontFamily(root, out var textStyle)) editable = false;
+        else if (textStyle is not null) chart.TextStyle = textStyle;
         if (!TryReadStyleIndex(root, out var hasStyleIndex, out var styleIndex)) editable = false;
         else if (hasStyleIndex) chart.StyleIndex = styleIndex;
         var plots = plotArea.Elements().Where(item => item.Name == ChartNs + "barChart" || item.Name == ChartNs + "lineChart" || item.Name == ChartNs + "pieChart" || item.Name == ChartNs + "areaChart" || item.Name == ChartNs + "doughnutChart" || item.Name == ChartNs + "scatterChart" || item.Name == ChartNs + "bubbleChart" || item.Name == ChartNs + "radarChart").ToArray();
@@ -143,6 +145,7 @@ internal static class OpenXmlChartSpaceCodec
             nativeChart.Add(new XElement(ChartNs + "dispBlanksAs", new XAttribute("val", DisplayBlanksAsToken(chart.DisplayBlanksAs))));
         var chartSpace = new XElement(ChartNs + "chartSpace", new XAttribute(XNamespace.Xmlns + "c", ChartNs), new XAttribute(XNamespace.Xmlns + "a", DrawingNs), chart.HasStyleIndex ? new XElement(ChartNs + "style", new XAttribute("val", chart.StyleIndex.ToString(CultureInfo.InvariantCulture))) : null, nativeChart);
         if (XlsxChartSurfaceFillCodec.Element(chart.ChartAreaFill, "Chart area") is { } chartFill) chartSpace.Add(chartFill);
+        if (chart.TextStyle is not null) chartSpace.Add(XlsxChartTextStyleCodec.TextPropertiesElement(chart.TextStyle));
         return new XDocument(new XDeclaration("1.0", "UTF-8", "yes"), chartSpace);
     }
 
@@ -182,6 +185,7 @@ internal static class OpenXmlChartSpaceCodec
         XlsxChartAxisCodec.Patch(plotArea, plot, target);
         XlsxChartDataTableCodec.Patch(plotArea, target.DataTable, errorCode, subject);
         XlsxChartSurfaceFillCodec.Patch(document.Root!, target.ChartAreaFill, $"{subject} chart area", allowChartFrameDecorations);
+        XlsxChartTextStyleCodec.PatchTextProperties(document.Root!, target.TextStyle, new HashSet<string>(StringComparer.Ordinal) { "externalData", "printSettings", "userShapes", "extLst" });
         XlsxChartPlotAreaStyleCodec.Patch(plotArea, target.PlotAreaFill, target.PlotAreaLine, $"{subject} plot area");
     }
 

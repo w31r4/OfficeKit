@@ -144,6 +144,7 @@ internal static partial class PptxChartCodec
             LegendPosition = source.LegendPosition,
             Grouping = source.Grouping,
             TitleTextStyle = source.TitleTextStyle?.Clone(),
+            TextStyle = source.TextStyle?.Clone(),
             AbsoluteAnchor = new SpreadsheetAbsoluteAnchorArtifact
             {
                 XEmu = source.LeftEmu,
@@ -227,6 +228,8 @@ internal static partial class PptxChartCodec
         var nativeChart = root?.Element(ChartNs + "chart");
         var plotArea = nativeChart?.Element(ChartNs + "plotArea");
         if (root?.Name != ChartNs + "chartSpace" || nativeChart is null || plotArea is null || root.Element(ChartNs + "externalData") is not null) return false;
+        if (!XlsxChartTextStyleCodec.TryReadGlobalFontFamily(root, out var textStyle)) editable = false;
+        else if (textStyle is not null) chart.TextStyle = textStyle;
         var plots = plotArea.Elements().Where(item => item.Name.LocalName.EndsWith("Chart", StringComparison.Ordinal)).ToArray();
         if (plots.Length is < 2 or > 3 ||
             plots.Any(plot => !TryComboPlotType(plot, out _)) ||
@@ -630,6 +633,7 @@ internal static partial class PptxChartCodec
         if (secondaryPlot is not null) XlsxChartAxisCodec.PatchPresentationSecondary(plotArea, secondaryPlot, ComboAxisCarrier(target, id, name, secondary: true));
         XlsxChartDataTableCodec.Patch(plotArea, target.DataTable, "unsupported_presentation_edit", "Presentation combo chart");
         XlsxChartSurfaceFillCodec.Patch(document.Root!, target.ChartAreaFill, "Presentation combo chart area", allowFrameDecorations: true);
+        XlsxChartTextStyleCodec.PatchTextProperties(document.Root!, target.TextStyle, new HashSet<string>(StringComparer.Ordinal) { "externalData", "printSettings", "userShapes", "extLst" });
         XlsxChartPlotAreaStyleCodec.Patch(plotArea, target.PlotAreaFill, target.PlotAreaLine, "Presentation combo chart plot area");
     }
 

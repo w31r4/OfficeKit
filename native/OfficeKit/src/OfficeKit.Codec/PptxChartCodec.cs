@@ -307,6 +307,7 @@ internal static partial class PptxChartCodec
         if (source.DataLabels is not null) output.DataLabels = source.DataLabels.Clone();
         if (source.TitleTextStyle is not null) output.TitleTextStyle = source.TitleTextStyle.Clone();
         if (source.LegendTextStyle is not null) output.LegendTextStyle = source.LegendTextStyle.Clone();
+        if (source.TextStyle is not null) output.TextStyle = source.TextStyle.Clone();
         if (source.LegendFill is not null) output.LegendFill = source.LegendFill.Clone();
         if (source.LegendLine is not null) output.LegendLine = source.LegendLine.Clone();
         if (source.LineOptions is not null) output.LineOptions = source.LineOptions.Clone();
@@ -355,6 +356,7 @@ internal static partial class PptxChartCodec
         if (source.DataLabels is not null) output.DataLabels = source.DataLabels.Clone();
         if (source.TitleTextStyle is not null) output.TitleTextStyle = source.TitleTextStyle.Clone();
         if (source.LegendTextStyle is not null) output.LegendTextStyle = source.LegendTextStyle.Clone();
+        if (source.TextStyle is not null) output.TextStyle = source.TextStyle.Clone();
         if (source.LegendFill is not null) output.LegendFill = source.LegendFill.Clone();
         if (source.LegendLine is not null) output.LegendLine = source.LegendLine.Clone();
         if (source.LineOptions is not null) output.LineOptions = source.LineOptions.Clone();
