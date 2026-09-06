@@ -493,7 +493,40 @@ function grammarThemeValue(theme, target) {
   return color ? { found: true, value: color.value } : { found: false, value: undefined };
 }
 
-function grammarSourceValue(program, record, target, source, tokenMap) {
+function grammarTextStyleValue(style, field) {
+  if (!style || typeof style !== "object" || Array.isArray(style)) return { found: false, value: undefined };
+  const direct = pathValue(style, field);
+  if (direct.found) return direct;
+  const defaultText = pathValue(style, "defaultText");
+  return defaultText.found ? pathValue(defaultText.value, field) : { found: false, value: undefined };
+}
+
+function grammarTextOwners(program, record) {
+  const page = Number(record?.page) > 0 ? program.pages?.[Number(record.page) - 1] : undefined;
+  const layout = Array.isArray(program.design?.layouts)
+    ? program.design.layouts.find((entry) => entry?.id === page?.layout)
+    : undefined;
+  const master = layout && Array.isArray(program.design?.masters)
+    ? program.design.masters.find((entry) => entry?.id === layout.master)
+    : undefined;
+  return { layout, master };
+}
+
+function grammarTextRuns(record) {
+  const element = record?.element;
+  if (element?.type !== "text" && element?.type !== "placeholder") return [];
+  if (typeof element.text === "string") return [{ paragraph: null, run: null, paragraphIndex: 0, runIndex: 0 }];
+  if (!element.text || !Array.isArray(element.text.paragraphs)) return [];
+  return element.text.paragraphs.flatMap((paragraph, paragraphIndex) =>
+    (Array.isArray(paragraph?.runs) ? paragraph.runs : []).map((run, runIndex) => ({
+      paragraph,
+      run,
+      paragraphIndex,
+      runIndex,
+    })));
+}
+
+function grammarSourceValue(program, record, target, source, tokenMap, textRun = null) {
   const resolveToken = (result) => {
     if (!result?.found || !result.value || typeof result.value !== "object" || Array.isArray(result.value)) return result;
     const keys = Object.keys(result.value);
@@ -504,7 +537,18 @@ function grammarSourceValue(program, record, target, source, tokenMap) {
       : result;
   };
   const element = record?.element;
+  const isTextTarget = target.startsWith("text.");
+  const field = isTextTarget ? target.slice("text.".length) : target;
+  const { layout, master } = grammarTextOwners(program, record);
+  const textStyleRef = isTextTarget ? grammarStyles(program, element)[0] : null;
   if (source === "inline") {
+    if (isTextTarget) {
+      for (const owner of [textRun?.run?.style, element?.textStyle, element?.style]) {
+        const result = grammarTextStyleValue(owner, field);
+        if (result.found) return resolveToken(result);
+      }
+      return { found: false, value: undefined };
+    }
     for (const owner of [element, element?.style]) {
       const result = pathValue(owner, target);
       if (result.found) return resolveToken(result);
@@ -512,18 +556,40 @@ function grammarSourceValue(program, record, target, source, tokenMap) {
     return { found: false, value: undefined };
   }
   if (source === "styleRef") {
+    if (isTextTarget) return resolveToken(grammarTextStyleValue(textStyleRef, field));
     for (const style of grammarStyles(program, element)) {
       const result = pathValue(style, target);
       if (result.found) return resolveToken(result);
     }
     return { found: false, value: undefined };
   }
-  if (source === "theme") return resolveToken(grammarThemeValue(program.design?.theme, target));
+  if (source === "element") {
+    return resolveToken(isTextTarget
+      ? grammarTextStyleValue(element?.textStyle, field)
+      : pathValue(element, field));
+  }
+  if (source === "paragraph") {
+    return resolveToken(isTextTarget
+      ? grammarTextStyleValue(textRun?.paragraph?.style, field)
+      : { found: false, value: undefined });
+  }
+  if (source === "run") {
+    return resolveToken(isTextTarget
+      ? grammarTextStyleValue(textRun?.run?.style, field)
+      : { found: false, value: undefined });
+  }
+  if (source === "layout") {
+    return resolveToken(isTextTarget
+      ? grammarTextStyleValue(layout?.style, field)
+      : pathValue(layout, field));
+  }
+  if (source === "theme") return resolveToken(isTextTarget
+    ? grammarTextStyleValue(program.design?.theme?.textStyle, field)
+    : grammarThemeValue(program.design?.theme, target));
   if (source === "master") {
-    const page = Number(record?.page) > 0 ? program.pages?.[Number(record.page) - 1] : undefined;
-    const layoutId = page?.layout;
-    const layout = Array.isArray(program.design?.layouts) ? program.design.layouts.find((entry) => entry?.id === layoutId) : undefined;
-    const master = layout && Array.isArray(program.design?.masters) ? program.design.masters.find((entry) => entry?.id === layout.master) : undefined;
+    if (isTextTarget) {
+      return resolveToken(grammarTextStyleValue(master?.style, field));
+    }
     for (const owner of [layout, master]) {
       const result = pathValue(owner, target);
       if (result.found) return resolveToken(result);
@@ -531,9 +597,9 @@ function grammarSourceValue(program, record, target, source, tokenMap) {
     return { found: false, value: undefined };
   }
   if (source === "default") {
-    const exact = tokenMap.get(target);
-    if (exact) return { found: true, value: exact.value, token: target, kind: exact.kind };
-    const leaf = String(target || "").split(".").pop();
+    const exact = tokenMap.get(isTextTarget ? field : target);
+    if (exact) return { found: true, value: exact.value, token: isTextTarget ? field : target, kind: exact.kind };
+    const leaf = String(isTextTarget ? field : target || "").split(".").pop();
     const fallback = tokenMap.get(leaf);
     if (fallback) return { found: true, value: fallback.value, token: leaf, kind: fallback.kind };
   }
@@ -576,10 +642,20 @@ function grammarReview(program, records) {
     if (!rule || typeof rule !== "object" || typeof rule.target !== "string" || !Array.isArray(rule.sources)) continue;
     const entries = [];
     for (const record of records) {
-      const selected = rule.sources.map((source) => ({ source, result: grammarSourceValue(program, record, rule.target, source, tokenMap) }))
-        .find((candidate) => candidate.result.found);
-      if (!selected) continue;
-      entries.push({ page: record.page, id: record.element?.id, source: selected.source, value: selected.result.value, ...(selected.result.token ? { token: selected.result.token, kind: selected.result.kind } : {}) });
+      const textRuns = rule.target.startsWith("text.") ? grammarTextRuns(record) : [null];
+      for (const textRun of textRuns) {
+        const selected = rule.sources.map((source) => ({ source, result: grammarSourceValue(program, record, rule.target, source, tokenMap, textRun) }))
+          .find((candidate) => candidate.result.found);
+        if (!selected) continue;
+        entries.push({
+          page: record.page,
+          id: record.element?.id,
+          ...(textRun ? { paragraphIndex: textRun.paragraphIndex, runIndex: textRun.runIndex } : {}),
+          source: selected.source,
+          value: selected.result.value,
+          ...(selected.result.token ? { token: selected.result.token, kind: selected.result.kind } : {}),
+        });
+      }
     }
     resolutions.push({ target: rule.target, sources: rule.sources, entries });
   }

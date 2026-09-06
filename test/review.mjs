@@ -99,6 +99,149 @@ assert.equal(visualBoundsReport.design.grammar.resolutions[0].entries[0].value, 
 assert.equal(visualBoundsReport.design.grammar.resolutions[0].entries[0].token, "accent");
 assert.equal(visualBoundsReport.design.grammar.predicates[0].checks.every((entry) => entry.pass), true);
 
+const formalReviewProgram = {
+  schema: "office-kit/ppj/v1",
+  design: {
+    theme: { colors: [], textStyle: { bold: true, fontFamilyEastAsia: "Noto Sans CJK SC", language: { token: "language" } } },
+    styles: {
+      text: [{ id: "formal-named", style: { defaultText: { size: 16 } } }],
+    },
+    masters: [
+      { id: "formal-master", style: { defaultText: { size: 12 } } },
+      { id: "empty-master" },
+    ],
+    layouts: [
+      { id: "formal-layout", master: "formal-master", style: { defaultText: { size: 14 } } },
+      { id: "master-layout", master: "formal-master" },
+      { id: "default-layout", master: "empty-master" },
+    ],
+    grammar: {
+      tokens: {
+        size: { kind: "size", value: 9 },
+        bold: { kind: "boolean", value: false },
+        fontFamilyEastAsia: { kind: "string", value: "Source Han Sans SC" },
+        language: { kind: "string", value: "ar-SA" },
+      },
+      stylePrecedence: [
+        {
+          target: "text.size",
+          sources: ["run", "paragraph", "element", "styleRef", "layout", "master", "theme", "default"],
+        },
+        {
+          target: "text.bold",
+          sources: ["run", "paragraph", "element", "styleRef", "layout", "master", "theme", "default"],
+        },
+        {
+          target: "text.fontFamilyEastAsia",
+          sources: ["run", "paragraph", "element", "styleRef", "layout", "master", "theme", "default"],
+        },
+        {
+          target: "text.language",
+          sources: ["run", "paragraph", "element", "styleRef", "layout", "master", "theme", "default"],
+        },
+      ],
+    },
+  },
+  pages: [
+    {
+      id: "formal-page",
+      layout: "formal-layout",
+      elements: [
+        {
+          id: "run-wins",
+          type: "text",
+          styleRef: "formal-named",
+          textStyle: { size: 18 },
+          text: { paragraphs: [{ style: { defaultText: { size: 20 } }, runs: [{ text: "run", style: { size: 22 } }] }] },
+        },
+        {
+          id: "paragraph-wins",
+          type: "text",
+          styleRef: "formal-named",
+          textStyle: { size: 18 },
+          text: { paragraphs: [{ style: { defaultText: { size: 20 } }, runs: [{ text: "paragraph" }] }] },
+        },
+        {
+          id: "element-wins",
+          type: "text",
+          styleRef: "formal-named",
+          textStyle: { size: 18 },
+          text: { paragraphs: [{ runs: [{ text: "element" }] }] },
+        },
+        {
+          id: "named-wins",
+          type: "text",
+          styleRef: "formal-named",
+          text: { paragraphs: [{ runs: [{ text: "named" }] }] },
+        },
+        {
+          id: "layout-wins",
+          type: "text",
+          text: { paragraphs: [{ runs: [{ text: "layout" }] }] },
+        },
+      ],
+    },
+    {
+      id: "master-page",
+      layout: "master-layout",
+      elements: [{ id: "master-wins", type: "text", text: { paragraphs: [{ runs: [{ text: "master" }] }] } }],
+    },
+    {
+      id: "default-page",
+      layout: "default-layout",
+      elements: [{ id: "default-wins", type: "text", text: { paragraphs: [{ runs: [{ text: "default" }] }] } }],
+    },
+  ],
+};
+const formalReviewJson = JSON.stringify(formalReviewProgram);
+const formalReview = await reviewPpjArtifact(bytes, {
+  ppjReceipt: {
+    ...ppjReceipt,
+    programJson: Buffer.from(formalReviewJson),
+    programSha256: sha256(formalReviewJson),
+    expandedElementCount: 7,
+  },
+});
+const formalResolution = formalReview.design.grammar.resolutions.find((entry) => entry.target === "text.size");
+assert.deepEqual(formalResolution.entries.map(({ id, source, value, paragraphIndex, runIndex }) => ({
+  id,
+  source,
+  value,
+  paragraphIndex,
+  runIndex,
+})), [
+  { id: "run-wins", source: "run", value: 22, paragraphIndex: 0, runIndex: 0 },
+  { id: "paragraph-wins", source: "paragraph", value: 20, paragraphIndex: 0, runIndex: 0 },
+  { id: "element-wins", source: "element", value: 18, paragraphIndex: 0, runIndex: 0 },
+  { id: "named-wins", source: "styleRef", value: 16, paragraphIndex: 0, runIndex: 0 },
+  { id: "layout-wins", source: "layout", value: 14, paragraphIndex: 0, runIndex: 0 },
+  { id: "master-wins", source: "master", value: 12, paragraphIndex: 0, runIndex: 0 },
+  { id: "default-wins", source: "default", value: 9, paragraphIndex: 0, runIndex: 0 },
+]);
+const formalBoldResolution = formalReview.design.grammar.resolutions.find((entry) => entry.target === "text.bold");
+assert.equal(formalBoldResolution.entries.length, 7);
+assert.ok(formalBoldResolution.entries.every(({ source, value }) => source === "theme" && value === true));
+const formalEastAsiaResolution = formalReview.design.grammar.resolutions.find((entry) => entry.target === "text.fontFamilyEastAsia");
+assert.equal(formalEastAsiaResolution.entries.length, 7);
+assert.ok(formalEastAsiaResolution.entries.every(({ source, value }) => source === "theme" && value === "Noto Sans CJK SC"));
+const formalLanguageResolution = formalReview.design.grammar.resolutions.find((entry) => entry.target === "text.language");
+assert.equal(formalLanguageResolution.entries.length, 7);
+assert.ok(formalLanguageResolution.entries.every(({ source, value }) => source === "theme" && value === "ar-SA"));
+const formalDefaultProgram = structuredClone(formalReviewProgram);
+delete formalDefaultProgram.design.theme.textStyle.fontFamilyEastAsia;
+const formalDefaultJson = JSON.stringify(formalDefaultProgram);
+const formalDefaultReview = await reviewPpjArtifact(bytes, {
+  ppjReceipt: {
+    ...ppjReceipt,
+    programJson: Buffer.from(formalDefaultJson),
+    programSha256: sha256(formalDefaultJson),
+    expandedElementCount: 7,
+  },
+});
+const formalDefaultEastAsiaResolution = formalDefaultReview.design.grammar.resolutions.find((entry) => entry.target === "text.fontFamilyEastAsia");
+assert.equal(formalDefaultEastAsiaResolution.entries.length, 7);
+assert.ok(formalDefaultEastAsiaResolution.entries.every(({ source, value }) => source === "default" && value === "Source Han Sans SC"));
+
 const accessibilityProgram = {
   schema: "office-kit/ppj/v1",
   design: { canvas: { width: 960, height: 540, unit: "pt" } },
