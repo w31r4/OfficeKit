@@ -1285,6 +1285,14 @@ internal static class PpjSemanticValidator
         var hasBubbleSeries = chart.ChartType == "bubble" ||
             chart.ChartType == "combo" && chart.Data.Series.Any(series => series.ChartType == "bubble");
         if (chart.Raw.TryGetProperty("style", out style) &&
+            style.TryGetProperty("dataLabels", out var chartDataLabels) &&
+            chartDataLabels.TryGetProperty("showBubbleSize", out var chartBubbleSize) &&
+            chartBubbleSize.ValueKind == JsonValueKind.True && !hasBubbleSeries)
+            diagnostics.Add(new(
+                "ppj.chart.dataLabelBubbleSize",
+                "Bubble-size labels require a chart containing a bubble series.",
+                path + ".style.dataLabels.showBubbleSize"));
+        if (chart.Raw.TryGetProperty("style", out style) &&
             (style.TryGetProperty("bubbleScale", out _) || style.TryGetProperty("bubbleSizeMode", out _) ||
              style.TryGetProperty("bubbleSizeScale", out _) || style.TryGetProperty("bubbleRadiusRange", out _)) &&
             !hasBubbleSeries)
@@ -1353,6 +1361,12 @@ internal static class PpjSemanticValidator
                 "ppj.chart.seriesDataLabelPercent",
                 "Percentage labels require a pie or doughnut series.",
                 path + ".dataLabels.showPercent"));
+        if (labels.TryGetProperty("showBubbleSize", out var seriesBubbleSize) &&
+            seriesBubbleSize.ValueKind == JsonValueKind.True && nativeType != "bubble")
+            diagnostics.Add(new(
+                "ppj.chart.seriesDataLabelBubbleSize",
+                "Bubble-size labels require a bubble series.",
+                path + ".dataLabels.showBubbleSize"));
 
         if (!labels.TryGetProperty("points", out var points)) return;
         var previous = -1;
@@ -1382,6 +1396,12 @@ internal static class PpjSemanticValidator
                     "ppj.chart.dataLabelPointPercent",
                     "Percentage labels require a pie or doughnut series.",
                     pointPath + ".showPercent"));
+            if (point.TryGetProperty("showBubbleSize", out var pointBubbleSize) &&
+                pointBubbleSize.ValueKind == JsonValueKind.True && nativeType != "bubble")
+                diagnostics.Add(new(
+                    "ppj.chart.dataLabelPointBubbleSize",
+                    "Bubble-size labels require a bubble series.",
+                    pointPath + ".showBubbleSize"));
             previous = index;
             pointIndex++;
         }

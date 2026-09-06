@@ -6297,6 +6297,10 @@
           "$ref": "#/$defs/booleanOrToken",
           "description": "Percentage-label visibility; a token reference must declare kind boolean."
         },
+        "showBubbleSize": {
+          "$ref": "#/$defs/booleanOrToken",
+          "description": "Bubble-size label visibility; true requires a bubble chart or bubble series, and a token reference must declare kind boolean."
+        },
         "position": {
           "oneOf": [
             {
@@ -6347,6 +6351,10 @@
           "$ref": "#/$defs/booleanOrToken",
           "description": "Percentage-label visibility; a token reference must declare kind boolean."
         },
+        "showBubbleSize": {
+          "$ref": "#/$defs/booleanOrToken",
+          "description": "Bubble-size label visibility; true requires a bubble series, and a token reference must declare kind boolean."
+        },
         "position": {
           "oneOf": [
             {
@@ -6389,6 +6397,7 @@
         { "required": ["showCategory"] },
         { "required": ["showSeries"] },
         { "required": ["showPercent"] },
+        { "required": ["showBubbleSize"] },
         { "required": ["position"] },
         { "required": ["textStyle"] },
         { "required": ["numberFormat"] },
@@ -6422,6 +6431,10 @@
         "showPercent": {
           "$ref": "#/$defs/booleanOrToken",
           "description": "Percentage-label visibility; a token reference must declare kind boolean."
+        },
+        "showBubbleSize": {
+          "$ref": "#/$defs/booleanOrToken",
+          "description": "Bubble-size label visibility; true requires a bubble series, and a token reference must declare kind boolean."
         },
         "position": {
           "oneOf": [
@@ -6457,6 +6470,7 @@
         { "required": ["showCategory"] },
         { "required": ["showSeries"] },
         { "required": ["showPercent"] },
+        { "required": ["showBubbleSize"] },
         { "required": ["position"] },
         { "required": ["textStyle"] },
         { "required": ["numberFormat"] }

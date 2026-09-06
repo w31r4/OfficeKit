@@ -4067,6 +4067,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             output.ShowSeriesName = catalog.BooleanToken(showSeries, "boolean", "chart data-label showSeries");
         if (source.TryGetProperty("showPercent", out var showPercent))
             output.ShowPercent = catalog.BooleanToken(showPercent, "boolean", "chart data-label showPercent");
+        if (source.TryGetProperty("showBubbleSize", out var showBubbleSize))
+            output.ShowBubbleSize = catalog.BooleanToken(showBubbleSize, "boolean", "chart data-label showBubbleSize");
         if (source.TryGetProperty("position", out var position))
             output.Position = LabelPosition(ChartEnumToken(position, catalog, "chart data-label position",
                 "best-fit", "bottom", "center", "inside-base", "inside-end", "left", "outside-end", "right", "top"));
@@ -4079,6 +4081,7 @@ internal static partial class PpjAuthoredPresentationCompiler
     private static bool HasChartLabelFields(JsonElement source) =>
         source.TryGetProperty("showValue", out _) || source.TryGetProperty("showCategory", out _) ||
         source.TryGetProperty("showSeries", out _) || source.TryGetProperty("showPercent", out _) ||
+        source.TryGetProperty("showBubbleSize", out _) ||
         source.TryGetProperty("position", out _) || source.TryGetProperty("numberFormat", out _) ||
         source.TryGetProperty("textStyle", out _);
 

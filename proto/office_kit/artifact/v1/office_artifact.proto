@@ -4727,6 +4727,7 @@ enum SpreadsheetChartDataLabelPosition {
 // Bounded plot-level worksheet-chart data labels. Message presence owns one
 // canonical c:dLbls container while the booleans map to c:showVal and
 // c:showCatName, optional series-name visibility maps to c:showSerName, and
+// bubble-size visibility maps to c:showBubbleSize.
 // optional position maps to c:dLblPos. A present all-false message, explicit
 // series-name false, and explicit best-fit position remain distinct from
 // omission.
@@ -4739,6 +4740,9 @@ message SpreadsheetChartDataLabelsArtifact {
   // Presence distinguishes an explicit native false from omission so an
   // imported c:showPercent node can round-trip without inventing a default.
   optional bool show_percent = 5;
+  // Bubble charts may expose the native c:showBubbleSize label channel. The
+  // optional wire field preserves explicit false separately from omission.
+  optional bool show_bubble_size = 8;
   // Canonical plot-level c:dLbls/c:txPr typography. Per-point label runs and
   // effect-bearing text graphs remain source-owned.
   SpreadsheetChartTextStyleArtifact text_style = 6;
@@ -4756,6 +4760,8 @@ message SpreadsheetChartDataLabelOverrideArtifact {
   optional SpreadsheetChartDataLabelPosition position = 3;
   optional bool show_series_name = 4;
   optional bool show_percent = 5;
+  // Presence-aware c:showBubbleSize for bubble-series labels.
+  optional bool show_bubble_size = 8;
   SpreadsheetChartTextStyleArtifact text_style = 6;
   string number_format_code = 7;
 }

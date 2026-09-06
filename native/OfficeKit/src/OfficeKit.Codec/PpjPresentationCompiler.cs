@@ -2674,7 +2674,7 @@ internal static class PpjSourceBoundPresentationCompiler
             if (oldLabels is null || newLabels is null || target.DataLabels is null)
                 throw Unsupported(path + ".style.dataLabels", "source-bound chart-data-label topology change");
             RequireEqualExcept(oldLabels.Value, newLabels.Value, path + ".style.dataLabels",
-                "showValue", "showCategory", "showSeries", "showPercent", "position", "textStyle", "numberFormat");
+                "showValue", "showCategory", "showSeries", "showPercent", "showBubbleSize", "position", "textStyle", "numberFormat");
             if (PropertyChanged(oldLabels, newLabels, "showValue"))
             {
                 RequireCapability(after, "setChartLabels", path + ".style.dataLabels.showValue");
@@ -2711,6 +2711,18 @@ internal static class PpjSourceBoundPresentationCompiler
                         path + ".style.dataLabels.showPercent");
                 else
                     target.DataLabels.ClearShowPercent();
+                changed = true;
+            }
+            if (PropertyChanged(oldLabels, newLabels, "showBubbleSize"))
+            {
+                RequireCapability(after, "setChartLabels", path + ".style.dataLabels.showBubbleSize");
+                if (newLabels.Value.TryGetProperty("showBubbleSize", out var showBubbleSize))
+                    target.DataLabels.ShowBubbleSize = ResolveGrammarBooleanToken(
+                        grammarRoot,
+                        showBubbleSize,
+                        path + ".style.dataLabels.showBubbleSize");
+                else
+                    target.DataLabels.ClearShowBubbleSize();
                 changed = true;
             }
             if (PropertyChanged(oldLabels, newLabels, "position"))
@@ -5736,6 +5748,10 @@ internal static class PpjSourceBoundPresentationCompiler
             output.ShowPercent = grammarRoot is { } showPercentRoot
                 ? ResolveGrammarBooleanToken(showPercentRoot, showPercent, path + ".showPercent")
                 : showPercent.GetBoolean();
+        if (source.TryGetProperty("showBubbleSize", out var showBubbleSize))
+            output.ShowBubbleSize = grammarRoot is { } showBubbleSizeRoot
+                ? ResolveGrammarBooleanToken(showBubbleSizeRoot, showBubbleSize, path + ".showBubbleSize")
+                : showBubbleSize.GetBoolean();
         if (source.TryGetProperty("position", out var position))
             output.Position = SourceBoundDataLabelPosition(
                 grammarRoot is { } positionRoot
@@ -5757,6 +5773,7 @@ internal static class PpjSourceBoundPresentationCompiler
     private static bool HasChartLabelFields(JsonElement source) =>
         source.TryGetProperty("showValue", out _) || source.TryGetProperty("showCategory", out _) ||
         source.TryGetProperty("showSeries", out _) || source.TryGetProperty("showPercent", out _) ||
+        source.TryGetProperty("showBubbleSize", out _) ||
         source.TryGetProperty("position", out _) || source.TryGetProperty("numberFormat", out _) ||
         source.TryGetProperty("textStyle", out _);
 

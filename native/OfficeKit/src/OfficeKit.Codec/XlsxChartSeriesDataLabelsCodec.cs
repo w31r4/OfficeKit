@@ -5,7 +5,8 @@ using OfficeKit.Artifact.Wire.V1;
 namespace OfficeKit.Codec;
 
 // Owns one bounded c:ser/c:dLbls graph: presence-aware series defaults and
-// sparse c:dLbl overrides keyed by zero-based c:idx. Unsupported label text,
+// sparse c:dLbl overrides keyed by zero-based c:idx. Bubble-size visibility is
+// presence-aware for bubble-series labels. Unsupported label text,
 // layout, shape/effect, leader-line, extension, deletion, and source-linked
 // number-format graphs leave the containing chart source-owned.
 internal static class XlsxChartSeriesDataLabelsCodec
@@ -109,10 +110,12 @@ internal static class XlsxChartSeriesDataLabelsCodec
         if (!ReadOptionalBoolean(owner, "showVal", value => parsed.ShowValue = value, ref present) ||
             !ReadOptionalBoolean(owner, "showCatName", value => parsed.ShowCategoryName = value, ref present) ||
             !ReadOptionalBoolean(owner, "showSerName", value => parsed.ShowSeriesName = value, ref present) ||
-            !ReadOptionalBoolean(owner, "showPercent", value => parsed.ShowPercent = value, ref present)) return false;
-        foreach (var ignored in new[] { "showLegendKey", "showBubbleSize" })
+            !ReadOptionalBoolean(owner, "showPercent", value => parsed.ShowPercent = value, ref present) ||
+            !ReadOptionalBoolean(owner, "showBubbleSize", value => parsed.ShowBubbleSize = value, ref present)) return false;
+        foreach (var ignored in new[] { "showLegendKey" })
             if (owner.Element(ChartNs + ignored) is { } flag && (!TryBoolean(flag, out var value) || value)) return false;
         if (parsed.HasShowPercent && parsed.ShowPercent && chartType is not (SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut)) return false;
+        if (parsed.HasShowBubbleSize && parsed.ShowBubbleSize && chartType != SpreadsheetChartType.Bubble) return false;
         if (owner.Element(ChartNs + "dLblPos") is { } nativePosition)
         {
             if (!TryScalar(nativePosition, PositionValues, out var positionValue) || !TryPosition(positionValue!, out var position)) return false;
@@ -145,21 +148,24 @@ internal static class XlsxChartSeriesDataLabelsCodec
         if (value.HasShowCategoryName) yield return BooleanElement("showCatName", value.ShowCategoryName);
         if (value.HasShowSeriesName) yield return BooleanElement("showSerName", value.ShowSeriesName);
         if (value.HasShowPercent) yield return BooleanElement("showPercent", value.ShowPercent);
+        if (value.HasShowBubbleSize) yield return BooleanElement("showBubbleSize", value.ShowBubbleSize);
     }
 
     private static XElement PointElement(SpreadsheetChartPointDataLabelArtifact point) => new(ChartNs + "dLbl", new XElement(ChartNs + "idx", new XAttribute("val", point.Index)), Fields(point.Override));
-    private static string OverrideSemantics(SpreadsheetChartDataLabelOverrideArtifact? value) => value is null ? "-" : $"value:{Optional(value.HasShowValue, value.ShowValue)};category:{Optional(value.HasShowCategoryName, value.ShowCategoryName)};series:{Optional(value.HasShowSeriesName, value.ShowSeriesName)};percent:{Optional(value.HasShowPercent, value.ShowPercent)};position:{(value.HasPosition ? PositionValue(value.Position) : "-")};format:{value.NumberFormatCode};text:{XlsxChartTextStyleCodec.Semantics(value.TextStyle)}";
+    private static string OverrideSemantics(SpreadsheetChartDataLabelOverrideArtifact? value) => value is null ? "-" : $"value:{Optional(value.HasShowValue, value.ShowValue)};category:{Optional(value.HasShowCategoryName, value.ShowCategoryName)};series:{Optional(value.HasShowSeriesName, value.ShowSeriesName)};percent:{Optional(value.HasShowPercent, value.ShowPercent)};bubbleSize:{Optional(value.HasShowBubbleSize, value.ShowBubbleSize)};position:{(value.HasPosition ? PositionValue(value.Position) : "-")};format:{value.NumberFormatCode};text:{XlsxChartTextStyleCodec.Semantics(value.TextStyle)}";
     private static string Optional(bool present, bool value) => present ? value ? "1" : "0" : "-";
 
     private static void ValidateOverride(SpreadsheetChartDataLabelOverrideArtifact? value, SpreadsheetChartType chartType, string worksheetId, string chartId, string series, string field)
     {
         if (value is null) return;
-        if (!value.HasShowValue && !value.HasShowCategoryName && !value.HasShowSeriesName && !value.HasShowPercent && !value.HasPosition && value.TextStyle is null && value.NumberFormatCode.Length == 0)
+        if (!value.HasShowValue && !value.HasShowCategoryName && !value.HasShowSeriesName && !value.HasShowPercent && !value.HasShowBubbleSize && !value.HasPosition && value.TextStyle is null && value.NumberFormatCode.Length == 0)
             throw Invalid(worksheetId, chartId, series, $"{field} must declare at least one bounded property");
         if (value.NumberFormatCode.Length > 255 || value.NumberFormatCode.Any(char.IsControl))
             throw Invalid(worksheetId, chartId, series, $"{field} number format is invalid");
         if (value.HasShowPercent && value.ShowPercent && chartType is not (SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut))
             throw Invalid(worksheetId, chartId, series, $"{field} percentage labels require a pie or doughnut chart");
+        if (value.HasShowBubbleSize && value.ShowBubbleSize && chartType != SpreadsheetChartType.Bubble)
+            throw Invalid(worksheetId, chartId, series, $"{field} bubble-size labels require a bubble chart");
         if (value.HasPosition && value.Position is not (SpreadsheetChartDataLabelPosition.BestFit or SpreadsheetChartDataLabelPosition.Bottom or SpreadsheetChartDataLabelPosition.Center or SpreadsheetChartDataLabelPosition.InsideBase or SpreadsheetChartDataLabelPosition.InsideEnd or SpreadsheetChartDataLabelPosition.Left or SpreadsheetChartDataLabelPosition.OutsideEnd or SpreadsheetChartDataLabelPosition.Right or SpreadsheetChartDataLabelPosition.Top))
             throw Invalid(worksheetId, chartId, series, $"{field} position is unsupported");
         XlsxChartTextStyleCodec.ValidateStyle(value.TextStyle, worksheetId, chartId, $"series {series} {field}.text_style");
