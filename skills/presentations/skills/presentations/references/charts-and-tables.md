@@ -108,9 +108,9 @@ The authored chart compiler owns these native visual controls:
   bubble area or width;
 - chart-level blank-cell policy through `displayBlanksAs`: `zero`, `gap`, or
   `span`, with optional string grammar-token resolution;
-- bar direction, gap width, category/value-axis visibility, major gridlines,
+- bar direction, gap width, category/value-axis visibility, major and minor gridlines,
   data-label visibility and bounded label position;
-- presence-aware axis reversal plus direct RGB/no-fill axis and major-grid
+- presence-aware axis reversal plus direct RGB/no-fill axis and major/minor-grid
   lines with bounded width, dash, opacity, cap, and join;
 - chart-area, plot-area, and series none, solid, or bounded direct-RGB gradient
   fills, including solid and per-stop opacity;
@@ -121,9 +121,10 @@ The authored chart compiler owns these native visual controls:
 - editable series line width, dash, opacity, cap, join, and bounded markers;
 - category/value-axis titles, number formats, label interval, bounded
   tick-label placement (`nextTo`, `high`, `low`, `none`), bounded major and
-  minor tick-mark placement (`cross`, `in`, `out`, `none`), typeface, size,
-  bold, italic and direct RGB/alpha, value bounds and major unit; bounded combo
-  charts may declare the matching secondary pair;
+  minor tick-mark placement (`cross`, `in`, `out`, `none`), bounded major and
+  minor gridline visibility/styling, typeface, size, bold, italic and direct
+  RGB/alpha, value bounds and major unit; bounded combo charts may declare the
+  matching secondary pair;
 - chart-title Latin/East Asian typeface, size, bold, italic and direct
   RGB/alpha plus canonical line-chart smoothing and direct color variation;
 - structured data labels for value, category, series, percentage, native
