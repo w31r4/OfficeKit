@@ -119,7 +119,7 @@ internal static class PptxMathCodec
             throw new CodecException("invalid_presentation_formula", "Presentation formula inline requires a finite expression AST.");
         if (string.IsNullOrEmpty(source.Formula.PlainText))
             throw new CodecException("invalid_presentation_formula", "Presentation formula plain text must be non-empty.");
-        if (source.HasBold || source.HasItalic || source.HasFontFamily || source.HasFontFamilyEastAsia ||
+        if (source.HasBold || source.HasItalic || source.HasFontFamily || source.HasFontFamilyEastAsia || source.HasFontFamilyComplexScript ||
             source.HasFontKerningPoints || source.HasFontBaselinePercent || source.HasFontSpacingPoints || source.HasFontCaps ||
             source.HasUnderline || source.HasStrike || source.HasLanguage || source.HighlightCase != PresentationTextRun.HighlightOneofCase.None ||
             source.GradientFill is not null || source.Shadow is not null || source.HyperlinkCase != PresentationTextRun.HyperlinkOneofCase.None)

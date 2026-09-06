@@ -1251,6 +1251,12 @@ internal static class PptxCodec
                         changed = true;
                     }
                     if (!contentChanged) continue;
+                    if (IsMediaAccessibilityOnlyChange(sourceElement, original, requested))
+                    {
+                        ApplyMediaAccessibility(sourceElement, requested);
+                        changed = true;
+                        continue;
+                    }
                     if (original.ContentCase == PresentationElement.ContentOneofCase.Diagram &&
                         requested.ContentCase == PresentationElement.ContentOneofCase.Group &&
                         original.Diagram.DrawingCacheVerified &&
@@ -1760,6 +1766,11 @@ internal static class PptxCodec
                 HeightEmu = frame.Height,
             };
             nativeObjects?.Populate(element.Opaque, source, slideContext.Owner);
+            if (nativeMediaPicture && source is P.Picture mediaPicture &&
+                PptxNonVisualAccessibilityCodec.TryReadResidual(
+                    mediaPicture.NonVisualPictureProperties?.NonVisualDrawingProperties,
+                    out var mediaAccessibility))
+                element.Opaque.Accessibility = mediaAccessibility;
             var nativeKind = string.IsNullOrEmpty(element.Opaque.NativeKind)
                 ? PptxNativeObjectCatalog.Classify(source)
                 : element.Opaque.NativeKind;
@@ -1773,7 +1784,12 @@ internal static class PptxCodec
             DirectFramePresenceEditable = source is P.Shape slidePlaceholder &&
                 PptxPlaceholderCodec.SupportsSlideFrameEditing(slidePlaceholder),
             TextEditable = source is P.Shape textShape && textShape.TextBody is not null && PptxTextCodec.SupportsEditing(textShape.TextBody),
-            AccessibilityEditable = editable && (
+            AccessibilityEditable =
+                (element.ContentCase == PresentationElement.ContentOneofCase.Opaque &&
+                 nativeMediaPicture && source is P.Picture mediaAccessibilityPicture &&
+                 PptxNonVisualAccessibilityCodec.SupportsResidual(
+                     mediaAccessibilityPicture.NonVisualPictureProperties?.NonVisualDrawingProperties)) ||
+                editable && (
                 (source is P.Picture accessibilityPicture && element.ContentCase == PresentationElement.ContentOneofCase.Image &&
                  PptxNonVisualAccessibilityCodec.SupportsResidual(accessibilityPicture.NonVisualPictureProperties?.NonVisualDrawingProperties)) ||
                 PptxNonVisualAccessibilityCodec.Supports(source switch
@@ -2023,6 +2039,10 @@ internal static class PptxCodec
                 ? PptxShapeTransformCodec.Read(transform!)
                 : null,
             Shadow = PptxShadowCodec.TryRead(properties, out var shadow) ? shadow : null,
+            Glow = PptxGlowCodec.TryRead(properties, out var glow) ? glow : null,
+            InnerShadow = PptxInnerShadowCodec.TryRead(properties, out var innerShadow) ? innerShadow : null,
+            Reflection = PptxReflectionCodec.TryRead(properties, out var reflection) ? reflection : null,
+            SoftEdge = PptxSoftEdgeCodec.TryRead(properties, out var softEdge) ? softEdge : null,
         };
         if (ReadFillOpacity(solidFill) is { } fillOpacity)
             result.FillOpacityThousandthPercent = fillOpacity;
@@ -2041,6 +2061,118 @@ internal static class PptxCodec
         if (PptxShapeImageFillCodec.TryRead(properties?.GetFirstChild<A.BlipFill>(), slideContext, out var sourceImageFill))
             result.ImageFillAssetId = sourceImageFill.Id;
         PptxCustomGeometryCodec.Read(properties?.GetFirstChild<A.CustomGeometry>(), frame.Width, frame.Height, result);
+        if (properties?.Elements<A.Shape3DType>().Count() == 1 &&
+            properties.GetFirstChild<A.Shape3DType>() is { } shape3d)
+        {
+            if (PptxShape3DCodec.TryReadExtrusionHeight(shape3d, out var extrusionHeight))
+                result.ShapeExtrusionHeightEmu = extrusionHeight;
+            if (PptxShape3DCodec.TryReadDepth(shape3d, out var depth))
+                result.ShapeDepthEmu = depth;
+            if (PptxShape3DCodec.TryReadContourWidth(shape3d, out var contourWidth))
+                result.ShapeContourWidthEmu = contourWidth;
+            if (PptxShape3DCodec.TryReadPresetMaterial(shape3d, out var presetMaterial))
+                result.ShapePresetMaterial = presetMaterial;
+            if (PptxShape3DCodec.TryReadBevelTopWidth(shape3d, out var bevelTopWidth))
+                result.Shape3DBevelTopWidthEmu = bevelTopWidth;
+            if (PptxShape3DCodec.TryReadBevelTopHeight(shape3d, out var bevelTopHeight))
+                result.Shape3DBevelTopHeightEmu = bevelTopHeight;
+            if (PptxShape3DCodec.TryReadBevelTopPreset(shape3d, out var bevelTopPreset))
+                result.Shape3DBevelTopPreset = bevelTopPreset;
+            if (PptxShape3DCodec.TryReadBevelBottomWidth(shape3d, out var bevelBottomWidth))
+                result.Shape3DBevelBottomWidthEmu = bevelBottomWidth;
+            if (PptxShape3DCodec.TryReadBevelBottomHeight(shape3d, out var bevelBottomHeight))
+                result.Shape3DBevelBottomHeightEmu = bevelBottomHeight;
+            if (PptxShape3DCodec.TryReadBevelBottomPreset(shape3d, out var bevelBottomPreset))
+                result.Shape3DBevelBottomPreset = bevelBottomPreset;
+            if (PptxShape3DCodec.TryReadContourRgb(shape3d, out var contourRgb))
+                result.Shape3DContourRgb = contourRgb;
+            if (PptxShape3DCodec.TryReadExtrusionRgb(shape3d, out var extrusionRgb))
+                result.Shape3DExtrusionRgb = extrusionRgb;
+            if (PptxShape3DCodec.TryReadContourColorScheme(shape3d, out var contourColorScheme))
+                result.Shape3DContourColorScheme = contourColorScheme;
+            if (PptxShape3DCodec.TryReadExtrusionColorScheme(shape3d, out var extrusionColorScheme))
+                result.Shape3DExtrusionColorScheme = extrusionColorScheme;
+        }
+        if (properties?.Elements<A.Scene3DType>().Count() == 1 &&
+            properties.GetFirstChild<A.Scene3DType>() is { } scene3d &&
+            PptxShape3DCodec.TryReadSceneCameraPreset(scene3d, out var sceneCameraPreset))
+            result.Shape3DSceneCameraPreset = sceneCameraPreset;
+        if (properties?.Elements<A.Scene3DType>().Count() == 1 &&
+            properties.GetFirstChild<A.Scene3DType>() is { } cameraZoomScene3d &&
+            PptxShape3DCodec.TryReadSceneCameraZoom(cameraZoomScene3d, out var sceneCameraZoom))
+            result.Shape3DSceneCameraZoomThousandthPercent = sceneCameraZoom;
+        if (properties?.Elements<A.Scene3DType>().Count() == 1 &&
+            properties.GetFirstChild<A.Scene3DType>() is { } cameraFovScene3d &&
+            PptxShape3DCodec.TryReadSceneCameraFov(cameraFovScene3d, out var sceneCameraFov))
+            result.Shape3DSceneCameraFov60000 = sceneCameraFov;
+        if (properties?.Elements<A.Scene3DType>().Count() == 1 &&
+            properties.GetFirstChild<A.Scene3DType>() is { } lightRigScene3d &&
+            PptxShape3DCodec.TryReadSceneLightRigPreset(lightRigScene3d, out var sceneLightRigPreset))
+            result.Shape3DSceneLightRigPreset = sceneLightRigPreset;
+        if (properties?.Elements<A.Scene3DType>().Count() == 1 &&
+            properties.GetFirstChild<A.Scene3DType>() is { } lightRigDirectionScene3d &&
+            PptxShape3DCodec.TryReadSceneLightRigDirection(lightRigDirectionScene3d, out var sceneLightRigDirection))
+            result.Shape3DSceneLightRigDirection = sceneLightRigDirection;
+        if (properties?.Elements<A.Scene3DType>().Count() == 1 &&
+            properties.GetFirstChild<A.Scene3DType>() is { } lightRigRotationLatitudeScene3d &&
+            PptxShape3DCodec.TryReadSceneLightRigRotationLatitude(lightRigRotationLatitudeScene3d, out var sceneLightRigRotationLatitude))
+            result.Shape3DSceneLightRigRotationLatitude60000 = sceneLightRigRotationLatitude;
+        if (properties?.Elements<A.Scene3DType>().Count() == 1 &&
+            properties.GetFirstChild<A.Scene3DType>() is { } lightRigRotationLongitudeScene3d &&
+            PptxShape3DCodec.TryReadSceneLightRigRotationLongitude(lightRigRotationLongitudeScene3d, out var sceneLightRigRotationLongitude))
+            result.Shape3DSceneLightRigRotationLongitude60000 = sceneLightRigRotationLongitude;
+        if (properties?.Elements<A.Scene3DType>().Count() == 1 &&
+            properties.GetFirstChild<A.Scene3DType>() is { } lightRigRotationRevolutionScene3d &&
+            PptxShape3DCodec.TryReadSceneLightRigRotationRevolution(lightRigRotationRevolutionScene3d, out var sceneLightRigRotationRevolution))
+            result.Shape3DSceneLightRigRotationRevolution60000 = sceneLightRigRotationRevolution;
+        if (properties?.Elements<A.Scene3DType>().Count() == 1 &&
+            properties.GetFirstChild<A.Scene3DType>() is { } cameraRotationLatitudeScene3d &&
+            PptxShape3DCodec.TryReadSceneCameraRotationLatitude(cameraRotationLatitudeScene3d, out var sceneCameraRotationLatitude))
+            result.Shape3DSceneCameraRotationLatitude60000 = sceneCameraRotationLatitude;
+        if (properties?.Elements<A.Scene3DType>().Count() == 1 &&
+            properties.GetFirstChild<A.Scene3DType>() is { } cameraRotationLongitudeScene3d &&
+            PptxShape3DCodec.TryReadSceneCameraRotationLongitude(cameraRotationLongitudeScene3d, out var sceneCameraRotationLongitude))
+            result.Shape3DSceneCameraRotationLongitude60000 = sceneCameraRotationLongitude;
+        if (properties?.Elements<A.Scene3DType>().Count() == 1 &&
+            properties.GetFirstChild<A.Scene3DType>() is { } cameraRotationRevolutionScene3d &&
+            PptxShape3DCodec.TryReadSceneCameraRotationRevolution(cameraRotationRevolutionScene3d, out var sceneCameraRotationRevolution))
+            result.Shape3DSceneCameraRotationRevolution60000 = sceneCameraRotationRevolution;
+        if (properties?.Elements<A.Scene3DType>().Count() == 1 &&
+            properties.GetFirstChild<A.Scene3DType>() is { } backdropAnchorScene3d &&
+            PptxShape3DCodec.TryReadSceneBackdropAnchorX(backdropAnchorScene3d, out var sceneBackdropAnchorX))
+            result.Shape3DSceneBackdropAnchorXEmu = sceneBackdropAnchorX;
+        if (properties?.Elements<A.Scene3DType>().Count() == 1 &&
+            properties.GetFirstChild<A.Scene3DType>() is { } backdropAnchorYScene3d &&
+            PptxShape3DCodec.TryReadSceneBackdropAnchorY(backdropAnchorYScene3d, out var sceneBackdropAnchorY))
+            result.Shape3DSceneBackdropAnchorYEmu = sceneBackdropAnchorY;
+        if (properties?.Elements<A.Scene3DType>().Count() == 1 &&
+            properties.GetFirstChild<A.Scene3DType>() is { } backdropAnchorZScene3d &&
+            PptxShape3DCodec.TryReadSceneBackdropAnchorZ(backdropAnchorZScene3d, out var sceneBackdropAnchorZ))
+            result.Shape3DSceneBackdropAnchorZEmu = sceneBackdropAnchorZ;
+        if (properties?.Elements<A.Scene3DType>().Count() == 1 &&
+            properties.GetFirstChild<A.Scene3DType>() is { } backdropNormalDxScene3d &&
+            PptxShape3DCodec.TryReadSceneBackdropNormalDx(backdropNormalDxScene3d, out var sceneBackdropNormalDx))
+            result.Shape3DSceneBackdropNormalDxEmu = sceneBackdropNormalDx;
+        if (properties?.Elements<A.Scene3DType>().Count() == 1 &&
+            properties.GetFirstChild<A.Scene3DType>() is { } backdropNormalDyScene3d &&
+            PptxShape3DCodec.TryReadSceneBackdropNormalDy(backdropNormalDyScene3d, out var sceneBackdropNormalDy))
+            result.Shape3DSceneBackdropNormalDyEmu = sceneBackdropNormalDy;
+        if (properties?.Elements<A.Scene3DType>().Count() == 1 &&
+            properties.GetFirstChild<A.Scene3DType>() is { } backdropNormalDzScene3d &&
+            PptxShape3DCodec.TryReadSceneBackdropNormalDz(backdropNormalDzScene3d, out var sceneBackdropNormalDz))
+            result.Shape3DSceneBackdropNormalDzEmu = sceneBackdropNormalDz;
+        if (properties?.Elements<A.Scene3DType>().Count() == 1 &&
+            properties.GetFirstChild<A.Scene3DType>() is { } backdropUpDxScene3d &&
+            PptxShape3DCodec.TryReadSceneBackdropUpDx(backdropUpDxScene3d, out var sceneBackdropUpDx))
+            result.Shape3DSceneBackdropUpDxEmu = sceneBackdropUpDx;
+        if (properties?.Elements<A.Scene3DType>().Count() == 1 &&
+            properties.GetFirstChild<A.Scene3DType>() is { } backdropUpDyScene3d &&
+            PptxShape3DCodec.TryReadSceneBackdropUpDy(backdropUpDyScene3d, out var sceneBackdropUpDy))
+            result.Shape3DSceneBackdropUpDyEmu = sceneBackdropUpDy;
+        if (properties?.Elements<A.Scene3DType>().Count() == 1 &&
+            properties.GetFirstChild<A.Scene3DType>() is { } backdropUpDzScene3d &&
+            PptxShape3DCodec.TryReadSceneBackdropUpDz(backdropUpDzScene3d, out var sceneBackdropUpDz))
+            result.Shape3DSceneBackdropUpDzEmu = sceneBackdropUpDz;
         result.Accessibility = PptxNonVisualAccessibilityCodec.Read(shape.NonVisualShapeProperties?.NonVisualDrawingProperties);
         return result;
     }
@@ -2089,7 +2221,11 @@ internal static class PptxCodec
         if (!PptxLineStyleCodec.TryRead(outline, out var lineStyle)) return false;
         if (!string.Equals(geometry, "line", StringComparison.Ordinal) && !linePathSupported &&
             (lineStyle.StartArrow.Length > 0 || lineStyle.EndArrow.Length > 0)) return false;
-        if (!PptxShadowCodec.TryRead(properties, out _)) return false;
+        if (!PptxShadowCodec.TryRead(properties, out _) &&
+            !PptxGlowCodec.TryRead(properties, out _) &&
+            !PptxInnerShadowCodec.TryRead(properties, out _) &&
+            !PptxReflectionCodec.TryRead(properties, out _) &&
+            !PptxSoftEdgeCodec.TryRead(properties, out _)) return false;
         if (properties.ChildElements.Any(child => child is not A.Transform2D and not A.PresetGeometry and not A.CustomGeometry and not A.NoFill and not A.SolidFill and not A.GradientFill and not A.BlipFill and not A.Outline and not A.EffectList)) return false;
         // A literal single stroked custom path is the source-bound line
         // profile.  It has no text body by design, but its path/stroke/frame
@@ -2184,7 +2320,26 @@ internal static class PptxCodec
         PptxLineStyleCodec.Apply(properties, semantic);
         if (shape.NonVisualShapeProperties?.NonVisualDrawingProperties is { } nonVisual)
             nonVisual.Name = source.Name;
-        PptxShadowCodec.Apply(properties, semantic.Shadow);
+        if (semantic.Glow is not null)
+            PptxGlowCodec.Apply(properties, semantic.Glow);
+        else if (semantic.InnerShadow is not null)
+            PptxInnerShadowCodec.Apply(properties, semantic.InnerShadow);
+        else if (semantic.Reflection is not null)
+            PptxReflectionCodec.Apply(properties, semantic.Reflection);
+        else if (semantic.SoftEdge is not null)
+            PptxSoftEdgeCodec.Apply(properties, semantic.SoftEdge);
+        else if (semantic.Shadow is not null)
+            PptxShadowCodec.Apply(properties, semantic.Shadow);
+        else if (PptxGlowCodec.TryRead(properties, out var sourceGlow) && sourceGlow is not null)
+            PptxGlowCodec.Apply(properties, null);
+        else if (PptxInnerShadowCodec.TryRead(properties, out var sourceInnerShadow) && sourceInnerShadow is not null)
+            PptxInnerShadowCodec.Apply(properties, null);
+        else if (PptxReflectionCodec.TryRead(properties, out var sourceReflection) && sourceReflection is not null)
+            PptxReflectionCodec.Apply(properties, null);
+        else if (PptxSoftEdgeCodec.TryRead(properties, out var sourceSoftEdge) && sourceSoftEdge is not null)
+            PptxSoftEdgeCodec.Apply(properties, null);
+        else
+            PptxShadowCodec.Apply(properties, null);
         PptxTextCodec.Apply(shape, semantic, slideContext);
     }
 
@@ -2778,6 +2933,10 @@ internal static class PptxCodec
         properties.Append(BuildFill(semantic, slideContext));
         properties.Append(PptxLineStyleCodec.Build(semantic));
         PptxShadowCodec.Apply(properties, semantic.Shadow);
+        PptxGlowCodec.Apply(properties, semantic.Glow);
+        PptxInnerShadowCodec.Apply(properties, semantic.InnerShadow);
+        PptxReflectionCodec.Apply(properties, semantic.Reflection);
+        PptxSoftEdgeCodec.Apply(properties, semantic.SoftEdge);
         var applicationProperties = new P.ApplicationNonVisualDrawingProperties();
         if (semantic.Placeholder is not null)
         {
@@ -2901,6 +3060,12 @@ internal static class PptxCodec
                 changed = true;
             }
             if (!contentChanged) continue;
+            if (IsMediaAccessibilityOnlyChange(sourceChild, originalChild, requestedChild))
+            {
+                ApplyMediaAccessibility(sourceChild, requestedChild);
+                changed = true;
+                continue;
+            }
             if (!binding.Editable)
             {
                 if (binding.TextEditable &&
@@ -2990,6 +3155,34 @@ internal static class PptxCodec
                 $"Presentation native object {requested.Id} may edit only its name and outer frame inside an imported group.");
     }
 
+    private static bool IsMediaAccessibilityOnlyChange(
+        OpenXmlElement source,
+        PresentationElement original,
+        PresentationElement requested) =>
+        original.ContentCase == PresentationElement.ContentOneofCase.Opaque &&
+        requested.ContentCase == PresentationElement.ContentOneofCase.Opaque &&
+        source is P.Picture &&
+        PptxNativeObjectCatalog.IsMediaPicture(source) &&
+        !Equals(original.Opaque.Accessibility, requested.Opaque.Accessibility) &&
+        AccessibilityOnlyRequest(original, requested);
+
+    private static bool AccessibilityOnlyRequest(PresentationElement original, PresentationElement requested)
+    {
+        var expected = original.Clone();
+        expected.Opaque.Accessibility = requested.Opaque.Accessibility?.Clone();
+        return expected.Equals(requested);
+    }
+
+    private static void ApplyMediaAccessibility(OpenXmlElement source, PresentationElement requested)
+    {
+        if (source is not P.Picture picture)
+            throw new CodecException("unsupported_presentation_edit", "Source media accessibility requires a picture-shaped media owner.");
+        PptxNonVisualAccessibilityCodec.ApplyResidualBound(
+            picture.NonVisualPictureProperties?.NonVisualDrawingProperties,
+            requested.Opaque.Accessibility,
+            "media");
+    }
+
     private static P.ShapeTree BasicShapeTree() => new(
         new P.NonVisualGroupShapeProperties(
             new P.NonVisualDrawingProperties { Id = 1U, Name = string.Empty },
@@ -3021,28 +3214,41 @@ internal static class PptxCodec
     {
         var defaults = new[] { "4F81BD", "C0504D", "9BBB59", "8064A2", "4BACC6", "F79646" };
         var accents = defaults
-            .Select((value, index) => authored is not null && index < authored.AccentRgb.Count
-                ? PptxColor.Normalize(authored.AccentRgb[index])
-                : value)
+            .Select((value, index) => ThemeRgb(authored is not null && index < authored.AccentRgb.Count
+                ? authored.AccentRgb[index]
+                : value))
             .ToArray();
+        var accentTransforms = authored?.AccentTransforms
+            .ToDictionary(transform => transform.Role, StringComparer.Ordinal)
+            ?? new Dictionary<string, PresentationThemeColorTransform>(StringComparer.Ordinal);
         var majorFont = authored?.HasMajorFontFamily == true ? authored.MajorFontFamily : "Arial";
         var minorFont = authored?.HasMinorFontFamily == true ? authored.MinorFontFamily : majorFont;
         var themeName = authored?.HasName == true ? authored.Name : "Office Clean Room";
+        (string Rgb, uint? Opacity)? dark1 = authored?.HasDark1Rgb == true ? ThemeRgb(authored.Dark1Rgb) : null;
+        (string Rgb, uint? Opacity)? light1 = authored?.HasLight1Rgb == true ? ThemeRgb(authored.Light1Rgb) : null;
+        var dark2 = authored?.HasDark2Rgb == true ? ThemeRgb(authored.Dark2Rgb) : ThemeRgb("1F497D");
+        var light2 = authored?.HasLight2Rgb == true ? ThemeRgb(authored.Light2Rgb) : ThemeRgb("EEECE1");
+        var hyperlink = authored?.HasHyperlinkRgb == true ? ThemeRgb(authored.HyperlinkRgb) : ThemeRgb("0000FF");
+        var followedHyperlink = authored?.HasFollowedHyperlinkRgb == true ? ThemeRgb(authored.FollowedHyperlinkRgb) : ThemeRgb("800080");
         return new A.Theme(
         new A.ThemeElements(
-            new A.ColorScheme(
-                new A.Dark1Color(new A.SystemColor { Val = A.SystemColorValues.WindowText, LastColor = "000000" }),
-                new A.Light1Color(new A.SystemColor { Val = A.SystemColorValues.Window, LastColor = "FFFFFF" }),
-                new A.Dark2Color(new A.RgbColorModelHex { Val = "1F497D" }),
-                new A.Light2Color(new A.RgbColorModelHex { Val = "EEECE1" }),
-                new A.Accent1Color(new A.RgbColorModelHex { Val = accents[0] }),
-                new A.Accent2Color(new A.RgbColorModelHex { Val = accents[1] }),
-                new A.Accent3Color(new A.RgbColorModelHex { Val = accents[2] }),
-                new A.Accent4Color(new A.RgbColorModelHex { Val = accents[3] }),
-                new A.Accent5Color(new A.RgbColorModelHex { Val = accents[4] }),
-                new A.Accent6Color(new A.RgbColorModelHex { Val = accents[5] }),
-                new A.Hyperlink(new A.RgbColorModelHex { Val = "0000FF" }),
-                new A.FollowedHyperlinkColor(new A.RgbColorModelHex { Val = "800080" })) { Name = "Office" },
+                new A.ColorScheme(
+                new A.Dark1Color(dark1 is null
+                    ? new A.SystemColor { Val = A.SystemColorValues.WindowText, LastColor = "000000" }
+                    : ThemeRgb(dark1.Value)),
+                new A.Light1Color(light1 is null
+                    ? new A.SystemColor { Val = A.SystemColorValues.Window, LastColor = "FFFFFF" }
+                    : ThemeRgb(light1.Value)),
+                new A.Dark2Color(ThemeRgb(dark2)),
+                new A.Light2Color(ThemeRgb(light2)),
+                new A.Accent1Color(ThemeRgb(accents[0], accentTransforms.GetValueOrDefault("accent1"))),
+                new A.Accent2Color(ThemeRgb(accents[1], accentTransforms.GetValueOrDefault("accent2"))),
+                new A.Accent3Color(ThemeRgb(accents[2], accentTransforms.GetValueOrDefault("accent3"))),
+                new A.Accent4Color(ThemeRgb(accents[3], accentTransforms.GetValueOrDefault("accent4"))),
+                new A.Accent5Color(ThemeRgb(accents[4], accentTransforms.GetValueOrDefault("accent5"))),
+                new A.Accent6Color(ThemeRgb(accents[5], accentTransforms.GetValueOrDefault("accent6"))),
+                new A.Hyperlink(ThemeRgb(hyperlink)),
+                new A.FollowedHyperlinkColor(ThemeRgb(followedHyperlink))) { Name = "Office" },
             new A.FontScheme(
                 new A.MajorFont(new A.LatinFont { Typeface = majorFont }, new A.EastAsianFont { Typeface = majorFont }, new A.ComplexScriptFont { Typeface = majorFont }),
                 new A.MinorFont(new A.LatinFont { Typeface = minorFont }, new A.EastAsianFont { Typeface = minorFont }, new A.ComplexScriptFont { Typeface = minorFont })) { Name = themeName },
@@ -3070,6 +3276,71 @@ internal static class PptxCodec
         new A.SolidFill(new A.SchemeColor { Val = A.SchemeColorValues.PhColor }),
         new A.PresetDash { Val = A.PresetLineDashValues.Solid })
     { Width = width, CapType = A.LineCapValues.Flat, CompoundLineType = A.CompoundLineValues.Single, Alignment = A.PenAlignmentValues.Center };
+
+    private static (string Rgb, uint? Opacity) ThemeRgb(string value)
+    {
+        var rgb = PptxColor.NormalizeThemeRgb(value, out var opacity);
+        return (rgb, opacity);
+    }
+
+    private static A.RgbColorModelHex ThemeRgb((string Rgb, uint? Opacity) value)
+    {
+        var color = new A.RgbColorModelHex { Val = value.Rgb };
+        if (value.Opacity is { } opacity) color.Append(new A.Alpha { Val = checked((int)opacity) });
+        return color;
+    }
+
+    private static A.RgbColorModelHex ThemeRgb(
+        (string Rgb, uint? Opacity) value,
+        PresentationThemeColorTransform? transform)
+    {
+        var color = new A.RgbColorModelHex { Val = value.Rgb };
+        if (transform?.HasTintThousandth == true)
+            color.Append(new A.Tint { Val = checked((int)transform.TintThousandth) });
+        if (transform?.HasShadeThousandth == true)
+            color.Append(new A.Shade { Val = checked((int)transform.ShadeThousandth) });
+        if (transform?.HasLuminanceModulationThousandth == true)
+            color.Append(new A.LuminanceModulation { Val = checked((int)transform.LuminanceModulationThousandth) });
+        if (transform?.HasLuminanceOffsetThousandth == true)
+            color.Append(new A.LuminanceOffset { Val = checked((int)transform.LuminanceOffsetThousandth) });
+        if (transform?.HasSaturationModulationThousandth == true)
+            color.Append(new A.SaturationModulation { Val = checked((int)transform.SaturationModulationThousandth) });
+        if (transform?.HasSaturationOffsetThousandth == true)
+            color.Append(new A.SaturationOffset { Val = checked((int)transform.SaturationOffsetThousandth) });
+        if (transform?.HasRedModulationThousandth == true)
+            color.Append(new A.RedModulation { Val = checked((int)transform.RedModulationThousandth) });
+        if (transform?.HasRedOffsetThousandth == true)
+            color.Append(new A.RedOffset { Val = checked(transform.RedOffsetThousandth) });
+        if (transform?.HasGreenModulationThousandth == true)
+            color.Append(new A.GreenModulation { Val = checked((int)transform.GreenModulationThousandth) });
+        if (transform?.HasGreenOffsetThousandth == true)
+            color.Append(new A.GreenOffset { Val = checked(transform.GreenOffsetThousandth) });
+        if (transform?.HasBlueModulationThousandth == true)
+            color.Append(new A.BlueModulation { Val = checked((int)transform.BlueModulationThousandth) });
+        if (transform?.HasBlueOffsetThousandth == true)
+            color.Append(new A.BlueOffset { Val = checked(transform.BlueOffsetThousandth) });
+        if (transform?.HasHueModulationThousandth == true)
+            color.Append(new A.HueModulation { Val = checked((int)transform.HueModulationThousandth) });
+        if (transform?.HasHueOffsetAngleThousandth == true)
+            color.Append(new A.HueOffset { Val = checked(transform.HueOffsetAngleThousandth) });
+        if (value.Opacity is { } opacity)
+            color.Append(new A.Alpha { Val = checked((int)opacity) });
+        if (transform?.HasAlphaModulationThousandth == true)
+            color.Append(new A.AlphaModulation { Val = checked((int)transform.AlphaModulationThousandth) });
+        if (transform?.HasAlphaOffsetThousandth == true)
+            color.Append(new A.AlphaOffset { Val = checked((int)transform.AlphaOffsetThousandth) });
+        if (transform?.HasGray == true)
+            color.Append(new A.Gray());
+        if (transform?.HasComp == true)
+            color.Append(new A.Complement());
+        if (transform?.HasInv == true)
+            color.Append(new A.Inverse());
+        if (transform?.HasGamma == true)
+            color.Append(new A.Gamma());
+        if (transform?.HasInvGamma == true)
+            color.Append(new A.InverseGamma());
+        return color;
+    }
 
     private static OpenXmlElement[] ShapeElements(P.ShapeTree shapeTree) =>
         shapeTree.ChildElements.Where(child => child is not P.NonVisualGroupShapeProperties and not P.GroupShapeProperties).ToArray();
@@ -3486,6 +3757,10 @@ internal static class PptxCodec
             PptxLineStyleCodec.Validate(element.Shape, element.Id);
             PptxShapeTransformCodec.Validate(element.Shape.Transform, element.Id);
             PptxShadowCodec.Validate(element.Shape.Shadow, element.Id);
+            PptxGlowCodec.Validate(element.Shape.Glow, element.Id);
+            PptxInnerShadowCodec.Validate(element.Shape.InnerShadow, element.Id);
+            PptxReflectionCodec.Validate(element.Shape.Reflection, element.Id);
+            PptxSoftEdgeCodec.Validate(element.Shape.SoftEdge, element.Id);
             PptxNonVisualAccessibilityCodec.Validate(element.Shape.Accessibility, element.Id);
             PptxTextCodec.Validate(element.Shape);
             foreach (var paragraph in element.Shape.TextBody?.Paragraphs ?? [])
@@ -5241,6 +5516,10 @@ internal static class PptxCodec
     {
         var clone = source.CloneNode(true);
         PptxElementStateCodec.ScrubModeledContent(clone);
+        if (clone is P.Picture mediaPicture &&
+            PptxNativeObjectCatalog.IsMediaPicture(mediaPicture))
+            PptxNonVisualAccessibilityCodec.ScrubResidualModeledContent(
+                mediaPicture.NonVisualPictureProperties?.NonVisualDrawingProperties);
         if (clone.Descendants<P.NonVisualDrawingProperties>().FirstOrDefault() is { } nonVisual)
             nonVisual.Name = string.Empty;
         if (clone is P.Picture picture && picture.ShapeProperties?.GetFirstChild<A.Transform2D>() is { } pictureTransform)

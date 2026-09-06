@@ -442,7 +442,10 @@ internal static class PptxTimingCodec
             var mute = media.HasMute && media.Mute ? " mute=\"1\"" : string.Empty;
             var repeat = media.HasLoop && media.Loop ? " repeatCount=\"indefinite\"" : string.Empty;
             var kind = media.MediaType == "audio" ? "audio" : "video";
-            sb.Append($"<p:{kind}><p:cMediaNode vol=\"80000\"{mute}><p:cTn id=\"{mediaNodeId++}\" fill=\"hold\" display=\"0\"{repeat}><p:stCondLst><p:cond delay=\"indefinite\"/></p:stCondLst></p:cTn><p:tgtEl><p:spTgt spid=\"{nativeIdsByElementId[element.Id]}\"/></p:tgtEl></p:cMediaNode></p:{kind}>");
+            var startCondition = media.HasPlaybackTrigger && media.PlaybackTrigger == "onSlideStart"
+                ? "<p:stCondLst><p:cond delay=\"0\"/></p:stCondLst>"
+                : "<p:stCondLst><p:cond delay=\"indefinite\"/></p:stCondLst>";
+            sb.Append($"<p:{kind}><p:cMediaNode vol=\"80000\"{mute}><p:cTn id=\"{mediaNodeId++}\" fill=\"hold\" display=\"0\"{repeat}>{startCondition}</p:cTn><p:tgtEl><p:spTgt spid=\"{nativeIdsByElementId[element.Id]}\"/></p:tgtEl></p:cMediaNode></p:{kind}>");
         }
         if (source.Animations.Count > 0)
             sb.Append("<p:seq concurrent=\"1\" nextAc=\"seek\"><p:cTn id=\"2\" grpId=\"0\" dur=\"indefinite\" nodeType=\"mainSeq\"><p:childTnLst>");

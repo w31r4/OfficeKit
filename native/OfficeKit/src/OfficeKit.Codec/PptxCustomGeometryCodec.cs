@@ -37,6 +37,36 @@ internal static class PptxCustomGeometryCodec
         return TryProfile(geometry, widthEmu, heightEmu, out _);
     }
 
+    internal static bool TryReadCanonicalGuideFormula(
+        A.CustomGeometry? geometry,
+        long widthEmu,
+        long heightEmu,
+        uint nativeIndex,
+        out string formula)
+    {
+        formula = string.Empty;
+        if (!TryProfile(geometry, widthEmu, heightEmu, out var profile) ||
+            nativeIndex >= (uint)profile.Formulas.Guides.Count)
+            return false;
+        formula = profile.Formulas.Guides[(int)nativeIndex].Formula;
+        return formula.Length > 0;
+    }
+
+    internal static bool TryReadCanonicalAdjustmentFormula(
+        A.CustomGeometry? geometry,
+        long widthEmu,
+        long heightEmu,
+        uint nativeIndex,
+        out string formula)
+    {
+        formula = string.Empty;
+        if (!TryProfile(geometry, widthEmu, heightEmu, out var profile) ||
+            nativeIndex >= (uint)profile.Formulas.Adjustments.Count)
+            return false;
+        formula = profile.Formulas.Adjustments[(int)nativeIndex].Formula;
+        return formula.Length > 0;
+    }
+
     internal static bool TryPreset(string name, out A.ShapeTypeValues preset) =>
         PptxPresetGeometryAdjustmentCodec.TryPreset(name, out preset);
 

@@ -90,6 +90,7 @@ internal static class PptxTableCodec
             if (properties.BandColumn is not null) result.BandedColumns = properties.BandColumn.Value;
             if (properties.FirstColumn is not null) result.FirstColumn = properties.FirstColumn.Value;
             if (properties.LastColumn is not null) result.LastColumn = properties.LastColumn.Value;
+            if (properties.LastRow is not null) result.LastRow = properties.LastRow.Value;
 
             var nativeCells = new List<A.TableCell[]>(rows.Length);
             var cellStyleEditable = true;
@@ -149,6 +150,7 @@ internal static class PptxTableCodec
         if (table.HasBandedColumns) properties.BandColumn = table.BandedColumns;
         if (table.HasFirstColumn) properties.FirstColumn = table.FirstColumn;
         if (table.HasLastColumn) properties.LastColumn = table.LastColumn;
+        if (table.HasLastRow) properties.LastRow = table.LastRow;
         var grid = new A.TableGrid();
         foreach (var width in table.ColumnWidthsEmu) grid.Append(new A.GridColumn { Width = width });
         var nativeTable = new A.Table(properties, grid);
@@ -216,6 +218,8 @@ internal static class PptxTableCodec
         else properties.FirstColumn = null;
         if (table.HasLastColumn) properties.LastColumn = table.LastColumn;
         else properties.LastColumn = null;
+        if (table.HasLastRow) properties.LastRow = table.LastRow;
+        else properties.LastRow = null;
         var columns = nativeTable.GetFirstChild<A.TableGrid>()!.Elements<A.GridColumn>().ToArray();
         for (var index = 0; index < columns.Length; index++) columns[index].Width = table.ColumnWidthsEmu[index];
         var rows = nativeTable.Elements<A.TableRow>().ToArray();
@@ -338,7 +342,7 @@ internal static class PptxTableCodec
         if (table is null) return;
         if (table.GetFirstChild<A.TableProperties>() is { } properties)
         {
-            // These five flags are the only table-style leaves issued by the
+            // These six flags are the only table-style leaves issued by the
             // source-bound PPJ profile. Keep table-style IDs, no-fill shells,
             // and extension children in the residual hash.
             properties.FirstRow = null;
@@ -346,6 +350,7 @@ internal static class PptxTableCodec
             properties.BandColumn = null;
             properties.FirstColumn = null;
             properties.LastColumn = null;
+            properties.LastRow = null;
         }
         foreach (var column in table.GetFirstChild<A.TableGrid>()?.Elements<A.GridColumn>() ?? []) column.Width = 1L;
         foreach (var row in table.Elements<A.TableRow>())
@@ -403,6 +408,8 @@ internal static class PptxTableCodec
         else allowed.ClearFirstColumn();
         if (requested.Table.HasLastColumn) allowed.LastColumn = requested.Table.LastColumn;
         else allowed.ClearLastColumn();
+        if (requested.Table.HasLastRow) allowed.LastRow = requested.Table.LastRow;
+        else allowed.ClearLastRow();
         for (var rowIndex = 0; rowIndex < allowed.Rows.Count; rowIndex++)
         {
             allowed.Rows[rowIndex].HeightEmu = requested.Table.Rows[rowIndex].HeightEmu;
@@ -670,6 +677,7 @@ internal static class PptxTableCodec
         if (run.HasFontSizePoints) { style.FontSizePoints = run.FontSizePoints; hasStyle = true; }
         if (run.HasFontFamily) { style.FontFamily = run.FontFamily; hasStyle = true; }
         if (run.HasFontFamilyEastAsia) { style.FontFamilyEastAsia = run.FontFamilyEastAsia; hasStyle = true; }
+        if (run.HasFontFamilyComplexScript) { style.FontFamilyComplexScript = run.FontFamilyComplexScript; hasStyle = true; }
         if (run.HasColorRgb) { style.ColorRgb = run.ColorRgb; hasStyle = true; }
         if (run.HasColorOpacityThousandthPercent) { style.ColorOpacityThousandthPercent = run.ColorOpacityThousandthPercent; hasStyle = true; }
         if (run.HasUnderline) { style.Underline = run.Underline; hasStyle = true; }
@@ -694,6 +702,8 @@ internal static class PptxTableCodec
             throw Invalid(elementId, "cell text font family must not be empty");
         if (style.HasFontFamilyEastAsia && string.IsNullOrWhiteSpace(style.FontFamilyEastAsia))
             throw Invalid(elementId, "cell text East Asian font family must not be empty");
+        if (style.HasFontFamilyComplexScript && string.IsNullOrWhiteSpace(style.FontFamilyComplexScript))
+            throw Invalid(elementId, "cell text complex-script font family must not be empty");
         if (style.HasColorRgb) PptxColor.Normalize(style.ColorRgb);
         if (style.HasColorScheme) PptxColor.NormalizeScheme(style.ColorScheme);
         if (style.HasColorOpacityThousandthPercent &&
@@ -922,6 +932,7 @@ internal static class PptxTableCodec
                 if (style.HasFontSizePoints) replacement.FontSizePoints = style.FontSizePoints;
                 if (style.HasFontFamily) replacement.FontFamily = style.FontFamily;
                 if (style.HasFontFamilyEastAsia) replacement.FontFamilyEastAsia = style.FontFamilyEastAsia;
+                if (style.HasFontFamilyComplexScript) replacement.FontFamilyComplexScript = style.FontFamilyComplexScript;
                 if (style.HasColorRgb) replacement.ColorRgb = style.ColorRgb;
                 else if (style.HasColorScheme) replacement.ColorScheme = style.ColorScheme;
                 if (style.HasColorOpacityThousandthPercent) replacement.ColorOpacityThousandthPercent = style.ColorOpacityThousandthPercent;
@@ -1226,6 +1237,8 @@ internal static class PptxTableCodec
             runProperties.Append(new A.LatinFont { Typeface = style.FontFamily });
             runProperties.Append(new A.EastAsianFont { Typeface = style.HasFontFamilyEastAsia ? style.FontFamilyEastAsia : style.FontFamily });
         }
+        if (style?.HasFontFamilyComplexScript == true)
+            runProperties.Append(new A.ComplexScriptFont { Typeface = style.FontFamilyComplexScript });
         var paragraphs = source.Text.Split('\n').Select(line => new A.Paragraph(
             new A.Run((A.RunProperties)runProperties.CloneNode(true), new A.Text(line)),
             new A.EndParagraphRunProperties { Language = "en-US", FontSize = 1_350 })).ToArray();

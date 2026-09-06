@@ -186,6 +186,17 @@ internal static class PptxColor
         return rgb;
     }
 
+    internal static string NormalizeThemeRgb(string value, out uint? opacity)
+    {
+        var normalized = value.Trim().TrimStart('#').ToUpperInvariant();
+        if (normalized.Length is not (6 or 8) || normalized.Any(character => !Uri.IsHexDigit(character)))
+            throw new CodecException("invalid_presentation_color", $"Presentation theme color {value} must be a six- or eight-digit RGB/RGBA value.");
+        opacity = normalized.Length == 8
+            ? checked((uint)Math.Round(Convert.ToByte(normalized[6..], 16) / 255d * 100_000, MidpointRounding.AwayFromZero))
+            : null;
+        return normalized[..6];
+    }
+
     internal static string NormalizeScheme(string value)
     {
         var scheme = value.Trim();

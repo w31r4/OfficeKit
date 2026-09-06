@@ -126,6 +126,7 @@ internal static class XlsxChartTextStyleCodec
             style.HasFontSizePoints ? style.FontSizePoints.ToString("R", CultureInfo.InvariantCulture) : "default-size",
             style.FontFamily.Length > 0 ? style.FontFamily : "default-latin",
             style.FontFamilyEastAsia.Length > 0 ? style.FontFamilyEastAsia : "default-eastAsia",
+            style.FontFamilyComplexScript.Length > 0 ? style.FontFamilyComplexScript : "default-complexScript",
             style.HasBold ? style.Bold.ToString(CultureInfo.InvariantCulture) : "default-bold",
             style.HasItalic ? style.Italic.ToString(CultureInfo.InvariantCulture) : "default-italic",
             style.ColorRgb.Length > 0 ? style.ColorRgb.ToUpperInvariant() : "default-color",
@@ -153,13 +154,14 @@ internal static class XlsxChartTextStyleCodec
     internal static void ValidateStyle(SpreadsheetChartTextStyleArtifact? style, string worksheetId, string chartId, string field)
     {
         if (style is null) return;
-        if (!style.HasFontSizePoints && style.FontFamily.Length == 0 && style.FontFamilyEastAsia.Length == 0 &&
+        if (!style.HasFontSizePoints && style.FontFamily.Length == 0 && style.FontFamilyEastAsia.Length == 0 && style.FontFamilyComplexScript.Length == 0 &&
             !style.HasBold && !style.HasItalic && style.ColorRgb.Length == 0 && !style.HasOpacityThousandthPercent)
             throw Invalid(worksheetId, chartId, $"{field} must declare at least one bounded property.");
         if (style.HasFontSizePoints && (!double.IsFinite(style.FontSizePoints) || style.FontSizePoints < MinimumFontSizePoints || style.FontSizePoints > MaximumFontSizePoints))
             throw Invalid(worksheetId, chartId, $"{field}.font_size_points must be from 1 through 4000.");
         ValidateTypeface(style.FontFamily, worksheetId, chartId, field + ".font_family");
         ValidateTypeface(style.FontFamilyEastAsia, worksheetId, chartId, field + ".font_family_east_asia");
+        ValidateTypeface(style.FontFamilyComplexScript, worksheetId, chartId, field + ".font_family_complex_script");
         if (style.ColorRgb.Length > 0 && (style.ColorRgb.Length != 6 || !style.ColorRgb.All(Uri.IsHexDigit)))
             throw Invalid(worksheetId, chartId, $"{field}.color_rgb must be a six-digit RGB color.");
         if (style.HasOpacityThousandthPercent && (style.ColorRgb.Length == 0 || style.OpacityThousandthPercent > 100_000))
@@ -243,8 +245,13 @@ internal static class XlsxChartTextStyleCodec
             if (!TryTypeface(children[index++], out var value)) return false;
             style.FontFamilyEastAsia = value;
         }
+        if (index < children.Length && children[index].Name == DrawingNs + "cs")
+        {
+            if (!TryTypeface(children[index++], out var value)) return false;
+            style.FontFamilyComplexScript = value;
+        }
         return index == children.Length &&
-            (style.HasFontSizePoints || style.FontFamily.Length > 0 || style.FontFamilyEastAsia.Length > 0 ||
+            (style.HasFontSizePoints || style.FontFamily.Length > 0 || style.FontFamilyEastAsia.Length > 0 || style.FontFamilyComplexScript.Length > 0 ||
              style.HasBold || style.HasItalic || style.ColorRgb.Length > 0);
     }
 
@@ -298,6 +305,8 @@ internal static class XlsxChartTextStyleCodec
             output.Add(new XElement(DrawingNs + "latin", new XAttribute("typeface", style.FontFamily)));
         if (style.FontFamilyEastAsia.Length > 0)
             output.Add(new XElement(DrawingNs + "ea", new XAttribute("typeface", style.FontFamilyEastAsia)));
+        if (style.FontFamilyComplexScript.Length > 0)
+            output.Add(new XElement(DrawingNs + "cs", new XAttribute("typeface", style.FontFamilyComplexScript)));
         return output;
     }
 

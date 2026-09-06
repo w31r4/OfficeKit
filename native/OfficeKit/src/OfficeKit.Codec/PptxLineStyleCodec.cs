@@ -193,6 +193,28 @@ internal static class PptxLineStyleCodec
 
     internal static bool TryArrowSizeToken(string size) => size is "sm" or "med" or "lg";
 
+    internal static bool TryReadArrowSize(OpenXmlElement? source, bool width, out string size)
+    {
+        size = string.Empty;
+        if (source is not (A.HeadEnd or A.TailEnd) || source.ChildElements.Any() ||
+            !HasOnlyAttributes(source, "type", "w", "len") ||
+            source.GetAttributes().Count(attribute => attribute.LocalName == "type") != 1)
+            return false;
+        var sourceType = source is A.HeadEnd head ? head.Type?.Value : ((A.TailEnd)source).Type?.Value;
+        if (!TryArrow(sourceType, out var arrow) || arrow.Length == 0)
+            return false;
+        var attributes = source.GetAttributes().Where(attribute => attribute.LocalName == (width ? "w" : "len")).ToArray();
+        if (attributes.Length != 1)
+            return false;
+        if (width)
+        {
+            var sourceWidth = source is A.HeadEnd headWidth ? headWidth.Width?.Value : ((A.TailEnd)source).Width?.Value;
+            return TryEndWidth(sourceWidth, out size) && size.Length > 0;
+        }
+        var sourceLength = source is A.HeadEnd headLength ? headLength.Length?.Value : ((A.TailEnd)source).Length?.Value;
+        return TryEndLength(sourceLength, out size) && size.Length > 0;
+    }
+
     internal static bool TryRead(A.Outline? outline, out Profile profile)
     {
         if (outline is null)

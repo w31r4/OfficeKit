@@ -8,7 +8,7 @@ namespace OfficeKit.Codec;
 
 // Owns the deliberately bounded, source-preserving p:pic projection. The
 // semantic image owns a compact canonical picture profile: asset, frame, crop,
-// accessibility, opacity, preset or bounded custom mask, border, and one outer shadow. SVG
+// accessibility, opacity, preset or bounded custom mask, border, glow, inner shadow, reflection, soft edge, and one outer shadow. SVG
 // fallback and bounded presentation extensions remain source-preserved.
 internal static class PptxPictureCodec
 {
@@ -28,9 +28,15 @@ internal static class PptxPictureCodec
     internal static bool TryRead(P.Picture source, PptxPartContext context, out PresentationImage image)
     {
         image = new PresentationImage();
+        var sourceProperties = source.ShapeProperties;
+        var shadowSupported = PptxShadowCodec.TryRead(sourceProperties, out var shadow);
+        var glowSupported = PptxGlowCodec.TryRead(sourceProperties, out var glow);
+        var innerShadowSupported = PptxInnerShadowCodec.TryRead(sourceProperties, out var innerShadow);
+        var reflectionSupported = PptxReflectionCodec.TryRead(sourceProperties, out var reflection);
+        var softEdgeSupported = PptxSoftEdgeCodec.TryRead(sourceProperties, out var softEdge);
         if (!TryParts(source, out var nonVisual, out var blip, out var properties, out var transform, out var geometry, out var crop, out var tiled) ||
             !TryReadBorder(properties.GetFirstChild<A.Outline>(), out var border) ||
-            !PptxShadowCodec.TryRead(properties, out var shadow)) return false;
+            !shadowSupported && !glowSupported && !innerShadowSupported && !reflectionSupported && !softEdgeSupported) return false;
         // Accessibility is a leaf capability, not ownership of the whole
         // picture. An ambiguous known extension hides the modeled metadata and
         // disables only that setter; unrelated picture edits remain residual-
@@ -61,6 +67,128 @@ internal static class PptxPictureCodec
             if (accessibility?.HasDecorative == true) image.AccessibilityDecorative = accessibility.Decorative;
             if (crop is not null) image.Crop = ReadCrop(crop);
             image.Tiled = tiled;
+            if (properties.GetFirstChild<A.Shape3DType>() is { } shape3d &&
+                PptxShape3DCodec.TryReadDepth(shape3d, out var shape3dDepth))
+                image.Shape3DDepthEmu = shape3dDepth;
+            if (properties.GetFirstChild<A.Shape3DType>() is { } extrusionShape3d &&
+                PptxShape3DCodec.TryReadExtrusionHeight(extrusionShape3d, out var shape3dExtrusionHeight))
+                image.Shape3DExtrusionHeightEmu = shape3dExtrusionHeight;
+            if (properties.GetFirstChild<A.Shape3DType>() is { } contourShape3d &&
+                PptxShape3DCodec.TryReadContourWidth(contourShape3d, out var shape3dContourWidth))
+                image.Shape3DContourWidthEmu = shape3dContourWidth;
+            if (properties.GetFirstChild<A.Shape3DType>() is { } materialShape3d &&
+                PptxShape3DCodec.TryReadPresetMaterial(materialShape3d, out var shape3dPresetMaterial))
+                image.Shape3DPresetMaterial = shape3dPresetMaterial;
+            if (properties.GetFirstChild<A.Shape3DType>() is { } bevelTopShape3d &&
+                PptxShape3DCodec.TryReadBevelTopWidth(bevelTopShape3d, out var shape3dBevelTopWidth))
+                image.Shape3DBevelTopWidthEmu = shape3dBevelTopWidth;
+            if (properties.GetFirstChild<A.Shape3DType>() is { } bevelTopHeightShape3d &&
+                PptxShape3DCodec.TryReadBevelTopHeight(bevelTopHeightShape3d, out var shape3dBevelTopHeight))
+                image.Shape3DBevelTopHeightEmu = shape3dBevelTopHeight;
+            if (properties.GetFirstChild<A.Shape3DType>() is { } bevelTopPresetShape3d &&
+                PptxShape3DCodec.TryReadBevelTopPreset(bevelTopPresetShape3d, out var shape3dBevelTopPreset))
+                image.Shape3DBevelTopPreset = shape3dBevelTopPreset;
+            if (properties.GetFirstChild<A.Shape3DType>() is { } bevelBottomShape3d &&
+                PptxShape3DCodec.TryReadBevelBottomWidth(bevelBottomShape3d, out var shape3dBevelBottomWidth))
+                image.Shape3DBevelBottomWidthEmu = shape3dBevelBottomWidth;
+            if (properties.GetFirstChild<A.Shape3DType>() is { } bevelBottomHeightShape3d &&
+                PptxShape3DCodec.TryReadBevelBottomHeight(bevelBottomHeightShape3d, out var shape3dBevelBottomHeight))
+                image.Shape3DBevelBottomHeightEmu = shape3dBevelBottomHeight;
+            if (properties.GetFirstChild<A.Shape3DType>() is { } bevelBottomPresetShape3d &&
+                PptxShape3DCodec.TryReadBevelBottomPreset(bevelBottomPresetShape3d, out var shape3dBevelBottomPreset))
+                image.Shape3DBevelBottomPreset = shape3dBevelBottomPreset;
+            if (properties.GetFirstChild<A.Shape3DType>() is { } contourRgbShape3d &&
+                PptxShape3DCodec.TryReadContourRgb(contourRgbShape3d, out var shape3dContourRgb))
+                image.Shape3DContourRgb = shape3dContourRgb;
+            if (properties.GetFirstChild<A.Shape3DType>() is { } extrusionRgbShape3d &&
+                PptxShape3DCodec.TryReadExtrusionRgb(extrusionRgbShape3d, out var shape3dExtrusionRgb))
+                image.Shape3DExtrusionRgb = shape3dExtrusionRgb;
+            if (properties.GetFirstChild<A.Shape3DType>() is { } contourColorSchemeShape3d &&
+                PptxShape3DCodec.TryReadContourColorScheme(contourColorSchemeShape3d, out var shape3dContourColorScheme))
+                image.Shape3DContourColorScheme = shape3dContourColorScheme;
+            if (properties.GetFirstChild<A.Shape3DType>() is { } extrusionColorSchemeShape3d &&
+                PptxShape3DCodec.TryReadExtrusionColorScheme(extrusionColorSchemeShape3d, out var shape3dExtrusionColorScheme))
+                image.Shape3DExtrusionColorScheme = shape3dExtrusionColorScheme;
+            if (properties.Elements<A.Scene3DType>().Count() == 1 &&
+                properties.GetFirstChild<A.Scene3DType>() is { } scene3d &&
+                PptxShape3DCodec.TryReadSceneCameraPreset(scene3d, out var sceneCameraPreset))
+                image.Shape3DSceneCameraPreset = sceneCameraPreset;
+            if (properties.Elements<A.Scene3DType>().Count() == 1 &&
+                properties.GetFirstChild<A.Scene3DType>() is { } cameraZoomScene3d &&
+                PptxShape3DCodec.TryReadSceneCameraZoom(cameraZoomScene3d, out var sceneCameraZoom))
+                image.Shape3DSceneCameraZoomThousandthPercent = sceneCameraZoom;
+            if (properties.Elements<A.Scene3DType>().Count() == 1 &&
+                properties.GetFirstChild<A.Scene3DType>() is { } cameraFovScene3d &&
+                PptxShape3DCodec.TryReadSceneCameraFov(cameraFovScene3d, out var sceneCameraFov))
+                image.Shape3DSceneCameraFov60000 = sceneCameraFov;
+            if (properties.Elements<A.Scene3DType>().Count() == 1 &&
+                properties.GetFirstChild<A.Scene3DType>() is { } cameraRotationLatitudeScene3d &&
+                PptxShape3DCodec.TryReadSceneCameraRotationLatitude(cameraRotationLatitudeScene3d, out var sceneCameraRotationLatitude))
+                image.Shape3DSceneCameraRotationLatitude60000 = sceneCameraRotationLatitude;
+            if (properties.Elements<A.Scene3DType>().Count() == 1 &&
+                properties.GetFirstChild<A.Scene3DType>() is { } cameraRotationLongitudeScene3d &&
+                PptxShape3DCodec.TryReadSceneCameraRotationLongitude(cameraRotationLongitudeScene3d, out var sceneCameraRotationLongitude))
+                image.Shape3DSceneCameraRotationLongitude60000 = sceneCameraRotationLongitude;
+            if (properties.Elements<A.Scene3DType>().Count() == 1 &&
+                properties.GetFirstChild<A.Scene3DType>() is { } cameraRotationRevolutionScene3d &&
+                PptxShape3DCodec.TryReadSceneCameraRotationRevolution(cameraRotationRevolutionScene3d, out var sceneCameraRotationRevolution))
+                image.Shape3DSceneCameraRotationRevolution60000 = sceneCameraRotationRevolution;
+            if (properties.Elements<A.Scene3DType>().Count() == 1 &&
+                properties.GetFirstChild<A.Scene3DType>() is { } lightRigPresetScene3d &&
+                PptxShape3DCodec.TryReadSceneLightRigPreset(lightRigPresetScene3d, out var sceneLightRigPreset))
+                image.Shape3DSceneLightRigPreset = sceneLightRigPreset;
+            if (properties.Elements<A.Scene3DType>().Count() == 1 &&
+                properties.GetFirstChild<A.Scene3DType>() is { } lightRigDirectionScene3d &&
+                PptxShape3DCodec.TryReadSceneLightRigDirection(lightRigDirectionScene3d, out var sceneLightRigDirection))
+                image.Shape3DSceneLightRigDirection = sceneLightRigDirection;
+            if (properties.Elements<A.Scene3DType>().Count() == 1 &&
+                properties.GetFirstChild<A.Scene3DType>() is { } lightRigRotationLatitudeScene3d &&
+                PptxShape3DCodec.TryReadSceneLightRigRotationLatitude(lightRigRotationLatitudeScene3d, out var sceneLightRigRotationLatitude))
+                image.Shape3DSceneLightRigRotationLatitude60000 = sceneLightRigRotationLatitude;
+            if (properties.Elements<A.Scene3DType>().Count() == 1 &&
+                properties.GetFirstChild<A.Scene3DType>() is { } lightRigRotationLongitudeScene3d &&
+                PptxShape3DCodec.TryReadSceneLightRigRotationLongitude(lightRigRotationLongitudeScene3d, out var sceneLightRigRotationLongitude))
+                image.Shape3DSceneLightRigRotationLongitude60000 = sceneLightRigRotationLongitude;
+            if (properties.Elements<A.Scene3DType>().Count() == 1 &&
+                properties.GetFirstChild<A.Scene3DType>() is { } lightRigRotationRevolutionScene3d &&
+                PptxShape3DCodec.TryReadSceneLightRigRotationRevolution(lightRigRotationRevolutionScene3d, out var sceneLightRigRotationRevolution))
+                image.Shape3DSceneLightRigRotationRevolution60000 = sceneLightRigRotationRevolution;
+            if (properties.Elements<A.Scene3DType>().Count() == 1 &&
+                properties.GetFirstChild<A.Scene3DType>() is { } backdropAnchorXScene3d &&
+                PptxShape3DCodec.TryReadSceneBackdropAnchorX(backdropAnchorXScene3d, out var sceneBackdropAnchorX))
+                image.Shape3DSceneBackdropAnchorXEmu = sceneBackdropAnchorX;
+            if (properties.Elements<A.Scene3DType>().Count() == 1 &&
+                properties.GetFirstChild<A.Scene3DType>() is { } backdropAnchorYScene3d &&
+                PptxShape3DCodec.TryReadSceneBackdropAnchorY(backdropAnchorYScene3d, out var sceneBackdropAnchorY))
+                image.Shape3DSceneBackdropAnchorYEmu = sceneBackdropAnchorY;
+            if (properties.Elements<A.Scene3DType>().Count() == 1 &&
+                properties.GetFirstChild<A.Scene3DType>() is { } backdropAnchorZScene3d &&
+                PptxShape3DCodec.TryReadSceneBackdropAnchorZ(backdropAnchorZScene3d, out var sceneBackdropAnchorZ))
+                image.Shape3DSceneBackdropAnchorZEmu = sceneBackdropAnchorZ;
+            if (properties.Elements<A.Scene3DType>().Count() == 1 &&
+                properties.GetFirstChild<A.Scene3DType>() is { } backdropNormalDxScene3d &&
+                PptxShape3DCodec.TryReadSceneBackdropNormalDx(backdropNormalDxScene3d, out var sceneBackdropNormalDx))
+                image.Shape3DSceneBackdropNormalDxEmu = sceneBackdropNormalDx;
+            if (properties.Elements<A.Scene3DType>().Count() == 1 &&
+                properties.GetFirstChild<A.Scene3DType>() is { } backdropNormalDyScene3d &&
+                PptxShape3DCodec.TryReadSceneBackdropNormalDy(backdropNormalDyScene3d, out var sceneBackdropNormalDy))
+                image.Shape3DSceneBackdropNormalDyEmu = sceneBackdropNormalDy;
+            if (properties.Elements<A.Scene3DType>().Count() == 1 &&
+                properties.GetFirstChild<A.Scene3DType>() is { } backdropNormalDzScene3d &&
+                PptxShape3DCodec.TryReadSceneBackdropNormalDz(backdropNormalDzScene3d, out var sceneBackdropNormalDz))
+                image.Shape3DSceneBackdropNormalDzEmu = sceneBackdropNormalDz;
+            if (properties.Elements<A.Scene3DType>().Count() == 1 &&
+                properties.GetFirstChild<A.Scene3DType>() is { } backdropUpDxScene3d &&
+                PptxShape3DCodec.TryReadSceneBackdropUpDx(backdropUpDxScene3d, out var sceneBackdropUpDx))
+                image.Shape3DSceneBackdropUpDxEmu = sceneBackdropUpDx;
+            if (properties.Elements<A.Scene3DType>().Count() == 1 &&
+                properties.GetFirstChild<A.Scene3DType>() is { } backdropUpDyScene3d &&
+                PptxShape3DCodec.TryReadSceneBackdropUpDy(backdropUpDyScene3d, out var sceneBackdropUpDy))
+                image.Shape3DSceneBackdropUpDyEmu = sceneBackdropUpDy;
+            if (properties.Elements<A.Scene3DType>().Count() == 1 &&
+                properties.GetFirstChild<A.Scene3DType>() is { } backdropUpDzScene3d &&
+                PptxShape3DCodec.TryReadSceneBackdropUpDz(backdropUpDzScene3d, out var sceneBackdropUpDz))
+                image.Shape3DSceneBackdropUpDzEmu = sceneBackdropUpDz;
             // An empty alphaModFix is a valid no-op effect, not an explicit
             // opacity token. Preserve it as opaque source structure rather
             // than manufacturing an editable 100% leaf that the writer
@@ -71,6 +199,10 @@ internal static class PptxPictureCodec
             if (!TryReadMask(geometry, image.WidthEmu, image.HeightEmu, image)) return false;
             image.Border = border;
             image.Shadow = shadow;
+            image.Glow = glow;
+            image.InnerShadow = innerShadow;
+            image.Reflection = reflection;
+            image.SoftEdge = softEdge;
             var visual = ReadTransform(transform);
             if (visual is not null) image.Transform = visual;
             PptxNonVisualAccessibilityCodec.Validate(Accessibility(image), "source", "image");
@@ -107,6 +239,265 @@ internal static class PptxPictureCodec
             throw Invalid(elementId, "crop edges must be between -100% and 100% and opposing sums must remain below 100%");
         if (image.HasOpacityThousandthPercent && image.OpacityThousandthPercent > 100_000)
             throw Invalid(elementId, "opacity must be between 0% and 100%");
+        if (image.HasShape3DDepthEmu)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D depth is source-bound only");
+            if (image.Shape3DDepthEmu < int.MinValue || image.Shape3DDepthEmu > int.MaxValue)
+                throw Invalid(elementId, "picture 3-D depth must fit the signed 32-bit DrawingML range");
+        }
+        if (image.HasShape3DExtrusionHeightEmu)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D extrusion height is source-bound only");
+            if (image.Shape3DExtrusionHeightEmu < 0 || image.Shape3DExtrusionHeightEmu > int.MaxValue)
+                throw Invalid(elementId, "picture 3-D extrusion height must fit the non-negative signed 32-bit DrawingML range");
+        }
+        if (image.HasShape3DContourWidthEmu)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D contour width is source-bound only");
+            if (image.Shape3DContourWidthEmu < 0 || image.Shape3DContourWidthEmu > int.MaxValue)
+                throw Invalid(elementId, "picture 3-D contour width must fit the non-negative signed 32-bit DrawingML range");
+        }
+        if (!string.IsNullOrEmpty(image.Shape3DPresetMaterial))
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D preset material is source-bound only");
+            if (!PptxShape3DCodec.IsPresetMaterialToken(image.Shape3DPresetMaterial))
+                throw Invalid(elementId, "picture 3-D preset material must use a bounded DrawingML token");
+        }
+        if (image.HasShape3DBevelTopWidthEmu)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D top-bevel width is source-bound only");
+            if (image.Shape3DBevelTopWidthEmu < 0 || image.Shape3DBevelTopWidthEmu > int.MaxValue)
+                throw Invalid(elementId, "picture 3-D top-bevel width must fit the non-negative signed 32-bit DrawingML range");
+        }
+        if (image.HasShape3DBevelTopHeightEmu)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D top-bevel height is source-bound only");
+            if (image.Shape3DBevelTopHeightEmu < 0 || image.Shape3DBevelTopHeightEmu > int.MaxValue)
+                throw Invalid(elementId, "picture 3-D top-bevel height must fit the non-negative signed 32-bit DrawingML range");
+        }
+        if (!string.IsNullOrEmpty(image.Shape3DBevelTopPreset))
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D top-bevel preset is source-bound only");
+            if (!PptxShape3DCodec.IsBevelTopPresetToken(image.Shape3DBevelTopPreset))
+                throw Invalid(elementId, "picture 3-D top-bevel preset must use a bounded DrawingML token");
+        }
+        if (image.HasShape3DBevelBottomWidthEmu)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D bottom-bevel width is source-bound only");
+            if (image.Shape3DBevelBottomWidthEmu < 0 || image.Shape3DBevelBottomWidthEmu > int.MaxValue)
+                throw Invalid(elementId, "picture 3-D bottom-bevel width must fit the non-negative signed 32-bit DrawingML range");
+        }
+        if (image.HasShape3DBevelBottomHeightEmu)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D bottom-bevel height is source-bound only");
+            if (image.Shape3DBevelBottomHeightEmu < 0 || image.Shape3DBevelBottomHeightEmu > int.MaxValue)
+                throw Invalid(elementId, "picture 3-D bottom-bevel height must fit the non-negative signed 32-bit DrawingML range");
+        }
+        if (!string.IsNullOrEmpty(image.Shape3DBevelBottomPreset))
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D bottom-bevel preset is source-bound only");
+            if (!PptxShape3DCodec.IsBevelBottomPresetToken(image.Shape3DBevelBottomPreset))
+                throw Invalid(elementId, "picture 3-D bottom-bevel preset must use a bounded DrawingML token");
+        }
+        if (!string.IsNullOrEmpty(image.Shape3DContourRgb))
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D contour color is source-bound only");
+            _ = PptxColor.Normalize(image.Shape3DContourRgb);
+        }
+        if (!string.IsNullOrEmpty(image.Shape3DExtrusionRgb))
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D extrusion color is source-bound only");
+            _ = PptxColor.Normalize(image.Shape3DExtrusionRgb);
+        }
+        if (!string.IsNullOrEmpty(image.Shape3DContourColorScheme))
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D contour theme color is source-bound only");
+            _ = PptxColor.NormalizeScheme(image.Shape3DContourColorScheme);
+        }
+        if (!string.IsNullOrEmpty(image.Shape3DExtrusionColorScheme))
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D extrusion theme color is source-bound only");
+            _ = PptxColor.NormalizeScheme(image.Shape3DExtrusionColorScheme);
+        }
+        if (!string.IsNullOrEmpty(image.Shape3DSceneCameraPreset))
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D scene camera preset is source-bound only");
+            if (!PptxShape3DCodec.IsSceneCameraPresetToken(image.Shape3DSceneCameraPreset))
+                throw Invalid(elementId, "picture 3-D scene camera preset must use a bounded DrawingML token");
+        }
+        if (image.HasShape3DSceneCameraZoomThousandthPercent)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D scene camera zoom is source-bound only");
+            if (image.Shape3DSceneCameraZoomThousandthPercent < 0 ||
+                image.Shape3DSceneCameraZoomThousandthPercent > int.MaxValue)
+                throw Invalid(elementId, "picture 3-D scene camera zoom must fit the non-negative signed 32-bit DrawingML range");
+        }
+        if (image.HasShape3DSceneCameraFov60000)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D scene camera FOV is source-bound only");
+            if (image.Shape3DSceneCameraFov60000 <= 0 || image.Shape3DSceneCameraFov60000 >= 180L * 60_000)
+                throw Invalid(elementId, "picture 3-D scene camera FOV must be positive and below 180 degrees");
+        }
+        if (image.HasShape3DSceneCameraRotationLatitude60000)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D scene camera rotation latitude is source-bound only");
+            if (image.Shape3DSceneCameraRotationLatitude60000 < 0 ||
+                image.Shape3DSceneCameraRotationLatitude60000 > 360L * 60_000)
+                throw Invalid(elementId, "picture 3-D scene camera rotation latitude must be non-negative and at most 360 degrees");
+        }
+        if (image.HasShape3DSceneCameraRotationLongitude60000)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D scene camera rotation longitude is source-bound only");
+            if (image.Shape3DSceneCameraRotationLongitude60000 < 0 ||
+                image.Shape3DSceneCameraRotationLongitude60000 > 360L * 60_000)
+                throw Invalid(elementId, "picture 3-D scene camera rotation longitude must be non-negative and at most 360 degrees");
+        }
+        if (image.HasShape3DSceneCameraRotationRevolution60000)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D scene camera rotation revolution is source-bound only");
+            if (image.Shape3DSceneCameraRotationRevolution60000 < 0 ||
+                image.Shape3DSceneCameraRotationRevolution60000 > 360L * 60_000)
+                throw Invalid(elementId, "picture 3-D scene camera rotation revolution must be non-negative and at most 360 degrees");
+        }
+        if (!string.IsNullOrEmpty(image.Shape3DSceneLightRigPreset))
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D scene light-rig preset is source-bound only");
+            if (!PptxShape3DCodec.IsSceneLightRigPresetToken(image.Shape3DSceneLightRigPreset))
+                throw Invalid(elementId, "picture 3-D scene light-rig preset must use a bounded DrawingML token");
+        }
+        if (!string.IsNullOrEmpty(image.Shape3DSceneLightRigDirection))
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D scene light-rig direction is source-bound only");
+            if (!PptxShape3DCodec.IsSceneLightRigDirectionToken(image.Shape3DSceneLightRigDirection))
+                throw Invalid(elementId, "picture 3-D scene light-rig direction must use a bounded DrawingML token");
+        }
+        if (image.HasShape3DSceneLightRigRotationLatitude60000)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D scene light-rig rotation latitude is source-bound only");
+            if (image.Shape3DSceneLightRigRotationLatitude60000 < 0 ||
+                image.Shape3DSceneLightRigRotationLatitude60000 > 360L * 60_000)
+                throw Invalid(elementId, "picture 3-D scene light-rig rotation latitude must be non-negative and at most 360 degrees");
+        }
+        if (image.HasShape3DSceneLightRigRotationLongitude60000)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D scene light-rig rotation longitude is source-bound only");
+            if (image.Shape3DSceneLightRigRotationLongitude60000 < 0 ||
+                image.Shape3DSceneLightRigRotationLongitude60000 > 360L * 60_000)
+                throw Invalid(elementId, "picture 3-D scene light-rig rotation longitude must be non-negative and at most 360 degrees");
+        }
+        if (image.HasShape3DSceneLightRigRotationRevolution60000)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D scene light-rig rotation revolution is source-bound only");
+            if (image.Shape3DSceneLightRigRotationRevolution60000 < 0 ||
+                image.Shape3DSceneLightRigRotationRevolution60000 > 360L * 60_000)
+                throw Invalid(elementId, "picture 3-D scene light-rig rotation revolution must be non-negative and at most 360 degrees");
+        }
+        if (image.HasShape3DSceneBackdropAnchorXEmu)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D scene backdrop anchor X is source-bound only");
+            if (!PptxShape3DCodec.TryLiteralBackdropCoordinate(
+                    image.Shape3DSceneBackdropAnchorXEmu.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    out _))
+                throw Invalid(elementId, "picture 3-D scene backdrop anchor X must be a bounded signed coordinate");
+        }
+        if (image.HasShape3DSceneBackdropAnchorYEmu)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D scene backdrop anchor Y is source-bound only");
+            if (!PptxShape3DCodec.TryLiteralBackdropCoordinate(
+                    image.Shape3DSceneBackdropAnchorYEmu.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    out _))
+                throw Invalid(elementId, "picture 3-D scene backdrop anchor Y must be a bounded signed coordinate");
+        }
+        if (image.HasShape3DSceneBackdropAnchorZEmu)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D scene backdrop anchor Z is source-bound only");
+            if (!PptxShape3DCodec.TryLiteralBackdropCoordinate(
+                    image.Shape3DSceneBackdropAnchorZEmu.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    out _))
+                throw Invalid(elementId, "picture 3-D scene backdrop anchor Z must be a bounded signed coordinate");
+        }
+        if (image.HasShape3DSceneBackdropNormalDxEmu)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D scene backdrop normal X is source-bound only");
+            if (!PptxShape3DCodec.TryLiteralBackdropCoordinate(
+                    image.Shape3DSceneBackdropNormalDxEmu.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    out _))
+                throw Invalid(elementId, "picture 3-D scene backdrop normal X must be a bounded signed coordinate");
+        }
+        if (image.HasShape3DSceneBackdropNormalDyEmu)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D scene backdrop normal Y is source-bound only");
+            if (!PptxShape3DCodec.TryLiteralBackdropCoordinate(
+                    image.Shape3DSceneBackdropNormalDyEmu.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    out _))
+                throw Invalid(elementId, "picture 3-D scene backdrop normal Y must be a bounded signed coordinate");
+        }
+        if (image.HasShape3DSceneBackdropNormalDzEmu)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D scene backdrop normal Z is source-bound only");
+            if (!PptxShape3DCodec.TryLiteralBackdropCoordinate(
+                    image.Shape3DSceneBackdropNormalDzEmu.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    out _))
+                throw Invalid(elementId, "picture 3-D scene backdrop normal Z must be a bounded signed coordinate");
+        }
+        if (image.HasShape3DSceneBackdropUpDxEmu)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D scene backdrop up-vector X is source-bound only");
+            if (!PptxShape3DCodec.TryLiteralBackdropCoordinate(
+                    image.Shape3DSceneBackdropUpDxEmu.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    out _))
+                throw Invalid(elementId, "picture 3-D scene backdrop up-vector X must be a bounded signed coordinate");
+        }
+        if (image.HasShape3DSceneBackdropUpDyEmu)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D scene backdrop up-vector Y is source-bound only");
+            if (!PptxShape3DCodec.TryLiteralBackdropCoordinate(
+                    image.Shape3DSceneBackdropUpDyEmu.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    out _))
+                throw Invalid(elementId, "picture 3-D scene backdrop up-vector Y must be a bounded signed coordinate");
+        }
+        if (image.HasShape3DSceneBackdropUpDzEmu)
+        {
+            if (!sourceBound)
+                throw Invalid(elementId, "picture 3-D scene backdrop up-vector Z is source-bound only");
+            if (!PptxShape3DCodec.TryLiteralBackdropCoordinate(
+                    image.Shape3DSceneBackdropUpDzEmu.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    out _))
+                throw Invalid(elementId, "picture 3-D scene backdrop up-vector Z must be a bounded signed coordinate");
+        }
         if (image.CustomMaskPaths.Count > 0)
         {
             if (image.MaskPreset.Length > 0 || image.MaskPresetAdjustments.Count > 0)
@@ -120,6 +511,10 @@ internal static class PptxPictureCodec
         }
         ValidateBorder(image.Border, elementId);
         PptxShadowCodec.Validate(image.Shadow, elementId, "image");
+        PptxGlowCodec.Validate(image.Glow, elementId, "image");
+        PptxInnerShadowCodec.Validate(image.InnerShadow, elementId, "image");
+        PptxReflectionCodec.Validate(image.Reflection, elementId, "image");
+        PptxSoftEdgeCodec.Validate(image.SoftEdge, elementId, "image");
         ValidateTransform(image.Transform, elementId);
     }
 
@@ -133,6 +528,142 @@ internal static class PptxPictureCodec
             throw new CodecException(
                 "unsupported_presentation_image",
                 $"Presentation image {source.Id} cannot author an SVG fallback outside the bounded source-preserving path.");
+        if (image.HasShape3DDepthEmu)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D depth in a new picture.");
+        if (image.HasShape3DExtrusionHeightEmu)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D extrusion height in a new picture.");
+        if (image.HasShape3DContourWidthEmu)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D contour width in a new picture.");
+        if (!string.IsNullOrEmpty(image.Shape3DPresetMaterial))
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D preset material in a new picture.");
+        if (image.HasShape3DBevelTopWidthEmu)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D top-bevel width in a new picture.");
+        if (image.HasShape3DBevelTopHeightEmu)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D top-bevel height in a new picture.");
+        if (!string.IsNullOrEmpty(image.Shape3DBevelTopPreset))
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D top-bevel preset in a new picture.");
+        if (image.HasShape3DBevelBottomWidthEmu)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D bottom-bevel width in a new picture.");
+        if (image.HasShape3DBevelBottomHeightEmu)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D bottom-bevel height in a new picture.");
+        if (!string.IsNullOrEmpty(image.Shape3DBevelBottomPreset))
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D bottom-bevel preset in a new picture.");
+        if (!string.IsNullOrEmpty(image.Shape3DContourRgb))
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D contour color in a new picture.");
+        if (!string.IsNullOrEmpty(image.Shape3DExtrusionRgb))
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D extrusion color in a new picture.");
+        if (!string.IsNullOrEmpty(image.Shape3DContourColorScheme))
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D contour theme color in a new picture.");
+        if (!string.IsNullOrEmpty(image.Shape3DExtrusionColorScheme))
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D extrusion theme color in a new picture.");
+        if (!string.IsNullOrEmpty(image.Shape3DSceneCameraPreset))
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D scene camera preset in a new picture.");
+        if (image.HasShape3DSceneCameraZoomThousandthPercent)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D scene camera zoom in a new picture.");
+        if (image.HasShape3DSceneCameraFov60000)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D scene camera FOV in a new picture.");
+        if (image.HasShape3DSceneCameraRotationLatitude60000)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D scene camera rotation latitude in a new picture.");
+        if (image.HasShape3DSceneCameraRotationLongitude60000)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D scene camera rotation longitude in a new picture.");
+        if (image.HasShape3DSceneCameraRotationRevolution60000)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D scene camera rotation revolution in a new picture.");
+        if (!string.IsNullOrEmpty(image.Shape3DSceneLightRigPreset))
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D scene light-rig preset in a new picture.");
+        if (!string.IsNullOrEmpty(image.Shape3DSceneLightRigDirection))
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D scene light-rig direction in a new picture.");
+        if (image.HasShape3DSceneLightRigRotationLatitude60000)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D scene light-rig rotation latitude in a new picture.");
+        if (image.HasShape3DSceneLightRigRotationLongitude60000)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D scene light-rig rotation longitude in a new picture.");
+        if (image.HasShape3DSceneLightRigRotationRevolution60000)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D scene light-rig rotation revolution in a new picture.");
+        if (image.HasShape3DSceneBackdropAnchorXEmu)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D scene backdrop anchor X in a new picture.");
+        if (image.HasShape3DSceneBackdropAnchorYEmu)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D scene backdrop anchor Y in a new picture.");
+        if (image.HasShape3DSceneBackdropAnchorZEmu)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D scene backdrop anchor Z in a new picture.");
+        if (image.HasShape3DSceneBackdropNormalDxEmu)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D scene backdrop normal X in a new picture.");
+        if (image.HasShape3DSceneBackdropNormalDyEmu)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D scene backdrop normal Y in a new picture.");
+        if (image.HasShape3DSceneBackdropNormalDzEmu)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D scene backdrop normal Z in a new picture.");
+        if (image.HasShape3DSceneBackdropUpDxEmu)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D scene backdrop up-vector X in a new picture.");
+        if (image.HasShape3DSceneBackdropUpDyEmu)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D scene backdrop up-vector Y in a new picture.");
+        if (image.HasShape3DSceneBackdropUpDzEmu)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author source-bound 3-D scene backdrop up-vector Z in a new picture.");
         var transform = new A.Transform2D(
             new A.Offset { X = image.LeftEmu, Y = image.TopEmu },
             new A.Extents { Cx = image.WidthEmu, Cy = image.HeightEmu });
@@ -151,6 +682,10 @@ internal static class PptxPictureCodec
             properties.Append(BuildMask(image.MaskPreset, image.MaskPresetAdjustments, source.Id));
         if (image.Border is not null) properties.Append(BuildBorder(image.Border));
         PptxShadowCodec.Apply(properties, image.Shadow);
+        PptxGlowCodec.Apply(properties, image.Glow);
+        PptxInnerShadowCodec.Apply(properties, image.InnerShadow);
+        PptxReflectionCodec.Apply(properties, image.Reflection);
+        PptxSoftEdgeCodec.Apply(properties, image.SoftEdge);
         return new P.Picture(
             new P.NonVisualPictureProperties(
                 nonVisual,
@@ -214,6 +749,722 @@ internal static class PptxPictureCodec
             source.BlipFill.Append(requested.Image.Tiled ? new A.Tile() : new A.Stretch(new A.FillRectangle()));
         }
         ApplyTransform(transform, requested.Image.Transform);
+        if (currentImage.HasShape3DDepthEmu != requested.Image.HasShape3DDepthEmu ||
+            currentImage.HasShape3DDepthEmu && currentImage.Shape3DDepthEmu != requested.Image.Shape3DDepthEmu)
+        {
+            if (!currentImage.HasShape3DDepthEmu || !requested.Image.HasShape3DDepthEmu ||
+                properties.GetFirstChild<A.Shape3DType>() is not { } shape3d ||
+                !PptxShape3DCodec.TryReadDepth(shape3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D depth is outside the bounded source-preserving profile.");
+            shape3d.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "z",
+                string.Empty,
+                requested.Image.Shape3DDepthEmu.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (currentImage.HasShape3DExtrusionHeightEmu != requested.Image.HasShape3DExtrusionHeightEmu ||
+            currentImage.HasShape3DExtrusionHeightEmu && currentImage.Shape3DExtrusionHeightEmu != requested.Image.Shape3DExtrusionHeightEmu)
+        {
+            if (!currentImage.HasShape3DExtrusionHeightEmu || !requested.Image.HasShape3DExtrusionHeightEmu ||
+                properties.GetFirstChild<A.Shape3DType>() is not { } extrusionShape3d ||
+                !PptxShape3DCodec.TryReadExtrusionHeight(extrusionShape3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D extrusion height is outside the bounded source-preserving profile.");
+            extrusionShape3d.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "extrusionH",
+                string.Empty,
+                requested.Image.Shape3DExtrusionHeightEmu.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (currentImage.HasShape3DContourWidthEmu != requested.Image.HasShape3DContourWidthEmu ||
+            currentImage.HasShape3DContourWidthEmu && currentImage.Shape3DContourWidthEmu != requested.Image.Shape3DContourWidthEmu)
+        {
+            if (!currentImage.HasShape3DContourWidthEmu || !requested.Image.HasShape3DContourWidthEmu ||
+                properties.GetFirstChild<A.Shape3DType>() is not { } contourShape3d ||
+                !PptxShape3DCodec.TryReadContourWidth(contourShape3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D contour width is outside the bounded source-preserving profile.");
+            contourShape3d.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "contourW",
+                string.Empty,
+                requested.Image.Shape3DContourWidthEmu.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (!string.Equals(currentImage.Shape3DPresetMaterial, requested.Image.Shape3DPresetMaterial, StringComparison.Ordinal))
+        {
+            if (string.IsNullOrEmpty(currentImage.Shape3DPresetMaterial) ||
+                string.IsNullOrEmpty(requested.Image.Shape3DPresetMaterial) ||
+                properties.GetFirstChild<A.Shape3DType>() is not { } materialShape3d ||
+                !PptxShape3DCodec.TryReadPresetMaterial(materialShape3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D preset material is outside the bounded source-preserving profile.");
+            materialShape3d.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "prstMaterial",
+                string.Empty,
+                requested.Image.Shape3DPresetMaterial));
+        }
+        if (currentImage.HasShape3DBevelTopWidthEmu != requested.Image.HasShape3DBevelTopWidthEmu ||
+            currentImage.HasShape3DBevelTopWidthEmu && currentImage.Shape3DBevelTopWidthEmu != requested.Image.Shape3DBevelTopWidthEmu)
+        {
+            if (!currentImage.HasShape3DBevelTopWidthEmu || !requested.Image.HasShape3DBevelTopWidthEmu ||
+                properties.GetFirstChild<A.Shape3DType>() is not { } bevelTopShape3d ||
+                !PptxShape3DCodec.TryReadBevelTopWidth(bevelTopShape3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D top-bevel width is outside the bounded source-preserving profile.");
+            var bevelTop = bevelTopShape3d.GetFirstChild<A.BevelTop>();
+            if (bevelTop is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D top-bevel owner is outside the bounded source-preserving profile.");
+            bevelTop.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "w",
+                string.Empty,
+                requested.Image.Shape3DBevelTopWidthEmu.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (currentImage.HasShape3DBevelTopHeightEmu != requested.Image.HasShape3DBevelTopHeightEmu ||
+            currentImage.HasShape3DBevelTopHeightEmu && currentImage.Shape3DBevelTopHeightEmu != requested.Image.Shape3DBevelTopHeightEmu)
+        {
+            if (!currentImage.HasShape3DBevelTopHeightEmu || !requested.Image.HasShape3DBevelTopHeightEmu ||
+                properties.GetFirstChild<A.Shape3DType>() is not { } bevelTopHeightShape3d ||
+                !PptxShape3DCodec.TryReadBevelTopHeight(bevelTopHeightShape3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D top-bevel height is outside the bounded source-preserving profile.");
+            var bevelTop = bevelTopHeightShape3d.GetFirstChild<A.BevelTop>();
+            if (bevelTop is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D top-bevel owner is outside the bounded source-preserving profile.");
+            bevelTop.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "h",
+                string.Empty,
+                requested.Image.Shape3DBevelTopHeightEmu.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (!string.Equals(currentImage.Shape3DBevelTopPreset, requested.Image.Shape3DBevelTopPreset, StringComparison.Ordinal))
+        {
+            if (string.IsNullOrEmpty(currentImage.Shape3DBevelTopPreset) ||
+                string.IsNullOrEmpty(requested.Image.Shape3DBevelTopPreset) ||
+                properties.GetFirstChild<A.Shape3DType>() is not { } bevelTopPresetShape3d ||
+                !PptxShape3DCodec.TryReadBevelTopPreset(bevelTopPresetShape3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D top-bevel preset is outside the bounded source-preserving profile.");
+            var bevelTop = bevelTopPresetShape3d.GetFirstChild<A.BevelTop>();
+            if (bevelTop is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D top-bevel owner is outside the bounded source-preserving profile.");
+            bevelTop.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "prst",
+                string.Empty,
+                requested.Image.Shape3DBevelTopPreset));
+        }
+        if (currentImage.HasShape3DBevelBottomWidthEmu != requested.Image.HasShape3DBevelBottomWidthEmu ||
+            currentImage.HasShape3DBevelBottomWidthEmu && currentImage.Shape3DBevelBottomWidthEmu != requested.Image.Shape3DBevelBottomWidthEmu)
+        {
+            if (!currentImage.HasShape3DBevelBottomWidthEmu || !requested.Image.HasShape3DBevelBottomWidthEmu ||
+                properties.GetFirstChild<A.Shape3DType>() is not { } bevelBottomShape3d ||
+                !PptxShape3DCodec.TryReadBevelBottomWidth(bevelBottomShape3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D bottom-bevel width is outside the bounded source-preserving profile.");
+            var bevelBottom = bevelBottomShape3d.GetFirstChild<A.BevelBottom>();
+            if (bevelBottom is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D bottom-bevel owner is outside the bounded source-preserving profile.");
+            bevelBottom.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "w",
+                string.Empty,
+                requested.Image.Shape3DBevelBottomWidthEmu.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (currentImage.HasShape3DBevelBottomHeightEmu != requested.Image.HasShape3DBevelBottomHeightEmu ||
+            currentImage.HasShape3DBevelBottomHeightEmu && currentImage.Shape3DBevelBottomHeightEmu != requested.Image.Shape3DBevelBottomHeightEmu)
+        {
+            if (!currentImage.HasShape3DBevelBottomHeightEmu || !requested.Image.HasShape3DBevelBottomHeightEmu ||
+                properties.GetFirstChild<A.Shape3DType>() is not { } bevelBottomHeightShape3d ||
+                !PptxShape3DCodec.TryReadBevelBottomHeight(bevelBottomHeightShape3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D bottom-bevel height is outside the bounded source-preserving profile.");
+            var bevelBottom = bevelBottomHeightShape3d.GetFirstChild<A.BevelBottom>();
+            if (bevelBottom is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D bottom-bevel owner is outside the bounded source-preserving profile.");
+            bevelBottom.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "h",
+                string.Empty,
+                requested.Image.Shape3DBevelBottomHeightEmu.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (!string.Equals(currentImage.Shape3DBevelBottomPreset, requested.Image.Shape3DBevelBottomPreset, StringComparison.Ordinal))
+        {
+            if (string.IsNullOrEmpty(currentImage.Shape3DBevelBottomPreset) ||
+                string.IsNullOrEmpty(requested.Image.Shape3DBevelBottomPreset) ||
+                properties.GetFirstChild<A.Shape3DType>() is not { } bevelBottomPresetShape3d ||
+                !PptxShape3DCodec.TryReadBevelBottomPreset(bevelBottomPresetShape3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D bottom-bevel preset is outside the bounded source-preserving profile.");
+            var bevelBottom = bevelBottomPresetShape3d.GetFirstChild<A.BevelBottom>();
+            if (bevelBottom is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D bottom-bevel owner is outside the bounded source-preserving profile.");
+            bevelBottom.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "prst",
+                string.Empty,
+                requested.Image.Shape3DBevelBottomPreset));
+        }
+        if (!string.Equals(currentImage.Shape3DContourRgb, requested.Image.Shape3DContourRgb, StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrEmpty(currentImage.Shape3DContourRgb) ||
+                string.IsNullOrEmpty(requested.Image.Shape3DContourRgb) ||
+                properties.GetFirstChild<A.Shape3DType>() is not { } contourRgbShape3d ||
+                !PptxShape3DCodec.TryReadContourRgb(contourRgbShape3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D contour color is outside the bounded source-preserving profile.");
+            var contourColor = contourRgbShape3d.GetFirstChild<A.ContourColor>();
+            var contourRgb = contourColor?.GetFirstChild<A.RgbColorModelHex>();
+            if (contourRgb is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D contour color owner is outside the bounded source-preserving profile.");
+            contourRgb.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "val",
+                string.Empty,
+                PptxColor.Normalize(requested.Image.Shape3DContourRgb)));
+        }
+        if (!string.Equals(currentImage.Shape3DContourColorScheme, requested.Image.Shape3DContourColorScheme, StringComparison.Ordinal))
+        {
+            if (string.IsNullOrEmpty(currentImage.Shape3DContourColorScheme) ||
+                string.IsNullOrEmpty(requested.Image.Shape3DContourColorScheme) ||
+                properties.GetFirstChild<A.Shape3DType>() is not { } contourColorSchemeShape3d ||
+                !PptxShape3DCodec.TryReadContourColorScheme(contourColorSchemeShape3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D contour theme color is outside the bounded source-preserving profile.");
+            var contourColor = contourColorSchemeShape3d.GetFirstChild<A.ContourColor>();
+            var contourScheme = contourColor?.GetFirstChild<A.SchemeColor>();
+            if (contourScheme is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D contour theme color owner is outside the bounded source-preserving profile.");
+            contourScheme.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "val",
+                string.Empty,
+                PptxColor.NormalizeScheme(requested.Image.Shape3DContourColorScheme)));
+        }
+        if (!string.Equals(currentImage.Shape3DExtrusionColorScheme, requested.Image.Shape3DExtrusionColorScheme, StringComparison.Ordinal))
+        {
+            if (string.IsNullOrEmpty(currentImage.Shape3DExtrusionColorScheme) ||
+                string.IsNullOrEmpty(requested.Image.Shape3DExtrusionColorScheme) ||
+                properties.GetFirstChild<A.Shape3DType>() is not { } extrusionColorSchemeShape3d ||
+                !PptxShape3DCodec.TryReadExtrusionColorScheme(extrusionColorSchemeShape3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D extrusion theme color is outside the bounded source-preserving profile.");
+            var extrusionColor = extrusionColorSchemeShape3d.GetFirstChild<A.ExtrusionColor>();
+            var extrusionScheme = extrusionColor?.GetFirstChild<A.SchemeColor>();
+            if (extrusionScheme is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D extrusion theme color owner is outside the bounded source-preserving profile.");
+            extrusionScheme.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "val",
+                string.Empty,
+                PptxColor.NormalizeScheme(requested.Image.Shape3DExtrusionColorScheme)));
+        }
+        if (!string.Equals(currentImage.Shape3DExtrusionRgb, requested.Image.Shape3DExtrusionRgb, StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrEmpty(currentImage.Shape3DExtrusionRgb) ||
+                string.IsNullOrEmpty(requested.Image.Shape3DExtrusionRgb) ||
+                properties.GetFirstChild<A.Shape3DType>() is not { } extrusionRgbShape3d ||
+                !PptxShape3DCodec.TryReadExtrusionRgb(extrusionRgbShape3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D extrusion color is outside the bounded source-preserving profile.");
+            var extrusionColor = extrusionRgbShape3d.GetFirstChild<A.ExtrusionColor>();
+            var extrusionRgb = extrusionColor?.GetFirstChild<A.RgbColorModelHex>();
+            if (extrusionRgb is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D extrusion color owner is outside the bounded source-preserving profile.");
+            extrusionRgb.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "val",
+                string.Empty,
+                PptxColor.Normalize(requested.Image.Shape3DExtrusionRgb)));
+        }
+        if (!string.Equals(currentImage.Shape3DSceneCameraPreset, requested.Image.Shape3DSceneCameraPreset, StringComparison.Ordinal))
+        {
+            if (string.IsNullOrEmpty(currentImage.Shape3DSceneCameraPreset) ||
+                string.IsNullOrEmpty(requested.Image.Shape3DSceneCameraPreset) ||
+                properties.Elements<A.Scene3DType>().Count() != 1 ||
+                properties.GetFirstChild<A.Scene3DType>() is not { } scene3d ||
+                !PptxShape3DCodec.TryReadSceneCameraPreset(scene3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene camera preset is outside the bounded source-preserving profile.");
+            var camera = scene3d.GetFirstChild<A.Camera>();
+            if (camera is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene camera owner is outside the bounded source-preserving profile.");
+            camera.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "prst",
+                string.Empty,
+                requested.Image.Shape3DSceneCameraPreset));
+        }
+        if (currentImage.HasShape3DSceneCameraZoomThousandthPercent != requested.Image.HasShape3DSceneCameraZoomThousandthPercent ||
+            currentImage.Shape3DSceneCameraZoomThousandthPercent != requested.Image.Shape3DSceneCameraZoomThousandthPercent)
+        {
+            if (!currentImage.HasShape3DSceneCameraZoomThousandthPercent ||
+                !requested.Image.HasShape3DSceneCameraZoomThousandthPercent ||
+                properties.Elements<A.Scene3DType>().Count() != 1 ||
+                properties.GetFirstChild<A.Scene3DType>() is not { } scene3d ||
+                !PptxShape3DCodec.TryReadSceneCameraZoom(scene3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene camera zoom is outside the bounded source-preserving profile.");
+            var camera = scene3d.GetFirstChild<A.Camera>();
+            if (camera is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene camera owner is outside the bounded source-preserving profile.");
+            camera.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "zoom",
+                string.Empty,
+                requested.Image.Shape3DSceneCameraZoomThousandthPercent.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (currentImage.HasShape3DSceneCameraFov60000 != requested.Image.HasShape3DSceneCameraFov60000 ||
+            currentImage.Shape3DSceneCameraFov60000 != requested.Image.Shape3DSceneCameraFov60000)
+        {
+            if (!currentImage.HasShape3DSceneCameraFov60000 ||
+                !requested.Image.HasShape3DSceneCameraFov60000 ||
+                properties.Elements<A.Scene3DType>().Count() != 1 ||
+                properties.GetFirstChild<A.Scene3DType>() is not { } scene3d ||
+                !PptxShape3DCodec.TryReadSceneCameraFov(scene3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene camera FOV is outside the bounded source-preserving profile.");
+            var camera = scene3d.GetFirstChild<A.Camera>();
+            if (camera is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene camera owner is outside the bounded source-preserving profile.");
+            camera.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "fov",
+                string.Empty,
+                requested.Image.Shape3DSceneCameraFov60000.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (currentImage.HasShape3DSceneCameraRotationLatitude60000 != requested.Image.HasShape3DSceneCameraRotationLatitude60000 ||
+            currentImage.Shape3DSceneCameraRotationLatitude60000 != requested.Image.Shape3DSceneCameraRotationLatitude60000)
+        {
+            if (!currentImage.HasShape3DSceneCameraRotationLatitude60000 ||
+                !requested.Image.HasShape3DSceneCameraRotationLatitude60000 ||
+                properties.Elements<A.Scene3DType>().Count() != 1 ||
+                properties.GetFirstChild<A.Scene3DType>() is not { } scene3d ||
+                !PptxShape3DCodec.TryReadSceneCameraRotationLatitude(scene3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene camera rotation latitude is outside the bounded source-preserving profile.");
+            var camera = scene3d.GetFirstChild<A.Camera>();
+            var rotation = camera?.GetFirstChild<A.Rotation>();
+            if (rotation is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene camera rotation owner is outside the bounded source-preserving profile.");
+            rotation.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "lat",
+                string.Empty,
+                requested.Image.Shape3DSceneCameraRotationLatitude60000.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (currentImage.HasShape3DSceneCameraRotationLongitude60000 != requested.Image.HasShape3DSceneCameraRotationLongitude60000 ||
+            currentImage.Shape3DSceneCameraRotationLongitude60000 != requested.Image.Shape3DSceneCameraRotationLongitude60000)
+        {
+            if (!currentImage.HasShape3DSceneCameraRotationLongitude60000 ||
+                !requested.Image.HasShape3DSceneCameraRotationLongitude60000 ||
+                properties.Elements<A.Scene3DType>().Count() != 1 ||
+                properties.GetFirstChild<A.Scene3DType>() is not { } scene3d ||
+                !PptxShape3DCodec.TryReadSceneCameraRotationLongitude(scene3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene camera rotation longitude is outside the bounded source-preserving profile.");
+            var camera = scene3d.GetFirstChild<A.Camera>();
+            var rotation = camera?.GetFirstChild<A.Rotation>();
+            if (rotation is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene camera rotation owner is outside the bounded source-preserving profile.");
+            rotation.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "lon",
+                string.Empty,
+                requested.Image.Shape3DSceneCameraRotationLongitude60000.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (currentImage.HasShape3DSceneCameraRotationRevolution60000 != requested.Image.HasShape3DSceneCameraRotationRevolution60000 ||
+            currentImage.Shape3DSceneCameraRotationRevolution60000 != requested.Image.Shape3DSceneCameraRotationRevolution60000)
+        {
+            if (!currentImage.HasShape3DSceneCameraRotationRevolution60000 ||
+                !requested.Image.HasShape3DSceneCameraRotationRevolution60000 ||
+                properties.Elements<A.Scene3DType>().Count() != 1 ||
+                properties.GetFirstChild<A.Scene3DType>() is not { } scene3d ||
+                !PptxShape3DCodec.TryReadSceneCameraRotationRevolution(scene3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene camera rotation revolution is outside the bounded source-preserving profile.");
+            var camera = scene3d.GetFirstChild<A.Camera>();
+            var rotation = camera?.GetFirstChild<A.Rotation>();
+            if (rotation is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene camera rotation owner is outside the bounded source-preserving profile.");
+            rotation.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "rev",
+                string.Empty,
+                requested.Image.Shape3DSceneCameraRotationRevolution60000.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (!string.Equals(currentImage.Shape3DSceneLightRigPreset, requested.Image.Shape3DSceneLightRigPreset, StringComparison.Ordinal))
+        {
+            if (string.IsNullOrEmpty(currentImage.Shape3DSceneLightRigPreset) ||
+                string.IsNullOrEmpty(requested.Image.Shape3DSceneLightRigPreset) ||
+                properties.Elements<A.Scene3DType>().Count() != 1 ||
+                properties.GetFirstChild<A.Scene3DType>() is not { } scene3d ||
+                !PptxShape3DCodec.TryReadSceneLightRigPreset(scene3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene light-rig preset is outside the bounded source-preserving profile.");
+            var lightRig = scene3d.GetFirstChild<A.LightRig>();
+            if (lightRig is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene light-rig owner is outside the bounded source-preserving profile.");
+            lightRig.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "rig",
+                string.Empty,
+                requested.Image.Shape3DSceneLightRigPreset));
+        }
+        if (!string.Equals(currentImage.Shape3DSceneLightRigDirection, requested.Image.Shape3DSceneLightRigDirection, StringComparison.Ordinal))
+        {
+            if (string.IsNullOrEmpty(currentImage.Shape3DSceneLightRigDirection) ||
+                string.IsNullOrEmpty(requested.Image.Shape3DSceneLightRigDirection) ||
+                properties.Elements<A.Scene3DType>().Count() != 1 ||
+                properties.GetFirstChild<A.Scene3DType>() is not { } scene3d ||
+                !PptxShape3DCodec.TryReadSceneLightRigDirection(scene3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene light-rig direction is outside the bounded source-preserving profile.");
+            var lightRig = scene3d.GetFirstChild<A.LightRig>();
+            if (lightRig is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene light-rig owner is outside the bounded source-preserving profile.");
+            lightRig.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "dir",
+                string.Empty,
+                requested.Image.Shape3DSceneLightRigDirection));
+        }
+        if (currentImage.HasShape3DSceneLightRigRotationLatitude60000 != requested.Image.HasShape3DSceneLightRigRotationLatitude60000 ||
+            currentImage.Shape3DSceneLightRigRotationLatitude60000 != requested.Image.Shape3DSceneLightRigRotationLatitude60000)
+        {
+            if (!currentImage.HasShape3DSceneLightRigRotationLatitude60000 ||
+                !requested.Image.HasShape3DSceneLightRigRotationLatitude60000 ||
+                properties.Elements<A.Scene3DType>().Count() != 1 ||
+                properties.GetFirstChild<A.Scene3DType>() is not { } scene3d ||
+                !PptxShape3DCodec.TryReadSceneLightRigRotationLatitude(scene3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene light-rig rotation latitude is outside the bounded source-preserving profile.");
+            var lightRig = scene3d.GetFirstChild<A.LightRig>();
+            var rotation = lightRig?.GetFirstChild<A.Rotation>();
+            if (rotation is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene light-rig rotation owner is outside the bounded source-preserving profile.");
+            rotation.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "lat",
+                string.Empty,
+                requested.Image.Shape3DSceneLightRigRotationLatitude60000.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (currentImage.HasShape3DSceneLightRigRotationLongitude60000 != requested.Image.HasShape3DSceneLightRigRotationLongitude60000 ||
+            currentImage.Shape3DSceneLightRigRotationLongitude60000 != requested.Image.Shape3DSceneLightRigRotationLongitude60000)
+        {
+            if (!currentImage.HasShape3DSceneLightRigRotationLongitude60000 ||
+                !requested.Image.HasShape3DSceneLightRigRotationLongitude60000 ||
+                properties.Elements<A.Scene3DType>().Count() != 1 ||
+                properties.GetFirstChild<A.Scene3DType>() is not { } scene3d ||
+                !PptxShape3DCodec.TryReadSceneLightRigRotationLongitude(scene3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene light-rig rotation longitude is outside the bounded source-preserving profile.");
+            var lightRig = scene3d.GetFirstChild<A.LightRig>();
+            var rotation = lightRig?.GetFirstChild<A.Rotation>();
+            if (rotation is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene light-rig rotation owner is outside the bounded source-preserving profile.");
+            rotation.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "lon",
+                string.Empty,
+                requested.Image.Shape3DSceneLightRigRotationLongitude60000.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (currentImage.HasShape3DSceneLightRigRotationRevolution60000 != requested.Image.HasShape3DSceneLightRigRotationRevolution60000 ||
+            currentImage.Shape3DSceneLightRigRotationRevolution60000 != requested.Image.Shape3DSceneLightRigRotationRevolution60000)
+        {
+            if (!currentImage.HasShape3DSceneLightRigRotationRevolution60000 ||
+                !requested.Image.HasShape3DSceneLightRigRotationRevolution60000 ||
+                properties.Elements<A.Scene3DType>().Count() != 1 ||
+                properties.GetFirstChild<A.Scene3DType>() is not { } scene3d ||
+                !PptxShape3DCodec.TryReadSceneLightRigRotationRevolution(scene3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene light-rig rotation revolution is outside the bounded source-preserving profile.");
+            var lightRig = scene3d.GetFirstChild<A.LightRig>();
+            var rotation = lightRig?.GetFirstChild<A.Rotation>();
+            if (rotation is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene light-rig rotation owner is outside the bounded source-preserving profile.");
+            rotation.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "rev",
+                string.Empty,
+                requested.Image.Shape3DSceneLightRigRotationRevolution60000.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (currentImage.HasShape3DSceneBackdropAnchorXEmu != requested.Image.HasShape3DSceneBackdropAnchorXEmu ||
+            currentImage.Shape3DSceneBackdropAnchorXEmu != requested.Image.Shape3DSceneBackdropAnchorXEmu)
+        {
+            if (!currentImage.HasShape3DSceneBackdropAnchorXEmu ||
+                !requested.Image.HasShape3DSceneBackdropAnchorXEmu ||
+                properties.Elements<A.Scene3DType>().Count() != 1 ||
+                properties.GetFirstChild<A.Scene3DType>() is not { } scene3d ||
+                !PptxShape3DCodec.TryReadSceneBackdropAnchorX(scene3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene backdrop anchor X is outside the bounded source-preserving profile.");
+            var backdrop = scene3d.GetFirstChild<A.Backdrop>();
+            var anchor = backdrop?.GetFirstChild<A.Anchor>();
+            if (anchor is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene backdrop anchor owner is outside the bounded source-preserving profile.");
+            anchor.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "x",
+                string.Empty,
+                requested.Image.Shape3DSceneBackdropAnchorXEmu.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (currentImage.HasShape3DSceneBackdropAnchorYEmu != requested.Image.HasShape3DSceneBackdropAnchorYEmu ||
+            currentImage.Shape3DSceneBackdropAnchorYEmu != requested.Image.Shape3DSceneBackdropAnchorYEmu)
+        {
+            if (!currentImage.HasShape3DSceneBackdropAnchorYEmu ||
+                !requested.Image.HasShape3DSceneBackdropAnchorYEmu ||
+                properties.Elements<A.Scene3DType>().Count() != 1 ||
+                properties.GetFirstChild<A.Scene3DType>() is not { } scene3d ||
+                !PptxShape3DCodec.TryReadSceneBackdropAnchorY(scene3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene backdrop anchor Y is outside the bounded source-preserving profile.");
+            var backdrop = scene3d.GetFirstChild<A.Backdrop>();
+            var anchor = backdrop?.GetFirstChild<A.Anchor>();
+            if (anchor is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene backdrop anchor owner is outside the bounded source-preserving profile.");
+            anchor.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "y",
+                string.Empty,
+                requested.Image.Shape3DSceneBackdropAnchorYEmu.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (currentImage.HasShape3DSceneBackdropAnchorZEmu != requested.Image.HasShape3DSceneBackdropAnchorZEmu ||
+            currentImage.Shape3DSceneBackdropAnchorZEmu != requested.Image.Shape3DSceneBackdropAnchorZEmu)
+        {
+            if (!currentImage.HasShape3DSceneBackdropAnchorZEmu ||
+                !requested.Image.HasShape3DSceneBackdropAnchorZEmu ||
+                properties.Elements<A.Scene3DType>().Count() != 1 ||
+                properties.GetFirstChild<A.Scene3DType>() is not { } scene3d ||
+                !PptxShape3DCodec.TryReadSceneBackdropAnchorZ(scene3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene backdrop anchor Z is outside the bounded source-preserving profile.");
+            var backdrop = scene3d.GetFirstChild<A.Backdrop>();
+            var anchor = backdrop?.GetFirstChild<A.Anchor>();
+            if (anchor is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene backdrop anchor owner is outside the bounded source-preserving profile.");
+            anchor.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "z",
+                string.Empty,
+                requested.Image.Shape3DSceneBackdropAnchorZEmu.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (currentImage.HasShape3DSceneBackdropNormalDxEmu != requested.Image.HasShape3DSceneBackdropNormalDxEmu ||
+            currentImage.Shape3DSceneBackdropNormalDxEmu != requested.Image.Shape3DSceneBackdropNormalDxEmu)
+        {
+            if (!currentImage.HasShape3DSceneBackdropNormalDxEmu ||
+                !requested.Image.HasShape3DSceneBackdropNormalDxEmu ||
+                properties.Elements<A.Scene3DType>().Count() != 1 ||
+                properties.GetFirstChild<A.Scene3DType>() is not { } scene3d ||
+                !PptxShape3DCodec.TryReadSceneBackdropNormalDx(scene3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene backdrop normal X is outside the bounded source-preserving profile.");
+            var backdrop = scene3d.GetFirstChild<A.Backdrop>();
+            var normal = backdrop?.GetFirstChild<A.Normal>();
+            if (normal is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene backdrop normal owner is outside the bounded source-preserving profile.");
+            normal.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "dx",
+                string.Empty,
+                requested.Image.Shape3DSceneBackdropNormalDxEmu.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (currentImage.HasShape3DSceneBackdropNormalDyEmu != requested.Image.HasShape3DSceneBackdropNormalDyEmu ||
+            currentImage.Shape3DSceneBackdropNormalDyEmu != requested.Image.Shape3DSceneBackdropNormalDyEmu)
+        {
+            if (!currentImage.HasShape3DSceneBackdropNormalDyEmu ||
+                !requested.Image.HasShape3DSceneBackdropNormalDyEmu ||
+                properties.Elements<A.Scene3DType>().Count() != 1 ||
+                properties.GetFirstChild<A.Scene3DType>() is not { } scene3d ||
+                !PptxShape3DCodec.TryReadSceneBackdropNormalDy(scene3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene backdrop normal Y is outside the bounded source-preserving profile.");
+            var backdrop = scene3d.GetFirstChild<A.Backdrop>();
+            var normal = backdrop?.GetFirstChild<A.Normal>();
+            if (normal is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene backdrop normal owner is outside the bounded source-preserving profile.");
+            normal.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "dy",
+                string.Empty,
+                requested.Image.Shape3DSceneBackdropNormalDyEmu.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (currentImage.HasShape3DSceneBackdropNormalDzEmu != requested.Image.HasShape3DSceneBackdropNormalDzEmu ||
+            currentImage.Shape3DSceneBackdropNormalDzEmu != requested.Image.Shape3DSceneBackdropNormalDzEmu)
+        {
+            if (!currentImage.HasShape3DSceneBackdropNormalDzEmu ||
+                !requested.Image.HasShape3DSceneBackdropNormalDzEmu ||
+                properties.Elements<A.Scene3DType>().Count() != 1 ||
+                properties.GetFirstChild<A.Scene3DType>() is not { } scene3d ||
+                !PptxShape3DCodec.TryReadSceneBackdropNormalDz(scene3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene backdrop normal Z is outside the bounded source-preserving profile.");
+            var backdrop = scene3d.GetFirstChild<A.Backdrop>();
+            var normal = backdrop?.GetFirstChild<A.Normal>();
+            if (normal is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene backdrop normal owner is outside the bounded source-preserving profile.");
+            normal.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "dz",
+                string.Empty,
+                requested.Image.Shape3DSceneBackdropNormalDzEmu.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (currentImage.HasShape3DSceneBackdropUpDxEmu != requested.Image.HasShape3DSceneBackdropUpDxEmu ||
+            currentImage.Shape3DSceneBackdropUpDxEmu != requested.Image.Shape3DSceneBackdropUpDxEmu)
+        {
+            if (!currentImage.HasShape3DSceneBackdropUpDxEmu ||
+                !requested.Image.HasShape3DSceneBackdropUpDxEmu ||
+                properties.Elements<A.Scene3DType>().Count() != 1 ||
+                properties.GetFirstChild<A.Scene3DType>() is not { } scene3d ||
+                !PptxShape3DCodec.TryReadSceneBackdropUpDx(scene3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene backdrop up-vector X is outside the bounded source-preserving profile.");
+            var backdrop = scene3d.GetFirstChild<A.Backdrop>();
+            var up = backdrop?.GetFirstChild<A.UpVector>();
+            if (up is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene backdrop up-vector owner is outside the bounded source-preserving profile.");
+            up.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "dx",
+                string.Empty,
+                requested.Image.Shape3DSceneBackdropUpDxEmu.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (currentImage.HasShape3DSceneBackdropUpDyEmu != requested.Image.HasShape3DSceneBackdropUpDyEmu ||
+            currentImage.Shape3DSceneBackdropUpDyEmu != requested.Image.Shape3DSceneBackdropUpDyEmu)
+        {
+            if (!currentImage.HasShape3DSceneBackdropUpDyEmu ||
+                !requested.Image.HasShape3DSceneBackdropUpDyEmu ||
+                properties.Elements<A.Scene3DType>().Count() != 1 ||
+                properties.GetFirstChild<A.Scene3DType>() is not { } scene3d ||
+                !PptxShape3DCodec.TryReadSceneBackdropUpDy(scene3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene backdrop up-vector Y is outside the bounded source-preserving profile.");
+            var backdrop = scene3d.GetFirstChild<A.Backdrop>();
+            var up = backdrop?.GetFirstChild<A.UpVector>();
+            if (up is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene backdrop up-vector owner is outside the bounded source-preserving profile.");
+            up.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "dy",
+                string.Empty,
+                requested.Image.Shape3DSceneBackdropUpDyEmu.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (currentImage.HasShape3DSceneBackdropUpDzEmu != requested.Image.HasShape3DSceneBackdropUpDzEmu ||
+            currentImage.Shape3DSceneBackdropUpDzEmu != requested.Image.Shape3DSceneBackdropUpDzEmu)
+        {
+            if (!currentImage.HasShape3DSceneBackdropUpDzEmu ||
+                !requested.Image.HasShape3DSceneBackdropUpDzEmu ||
+                properties.Elements<A.Scene3DType>().Count() != 1 ||
+                properties.GetFirstChild<A.Scene3DType>() is not { } scene3d ||
+                !PptxShape3DCodec.TryReadSceneBackdropUpDz(scene3d, out _))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene backdrop up-vector Z is outside the bounded source-preserving profile.");
+            var backdrop = scene3d.GetFirstChild<A.Backdrop>();
+            var up = backdrop?.GetFirstChild<A.UpVector>();
+            if (up is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} 3-D scene backdrop up-vector owner is outside the bounded source-preserving profile.");
+            up.SetAttribute(new OpenXmlAttribute(
+                string.Empty,
+                "dz",
+                string.Empty,
+                requested.Image.Shape3DSceneBackdropUpDzEmu.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
         if (currentImage.HasOpacityThousandthPercent != requested.Image.HasOpacityThousandthPercent ||
             currentImage.OpacityThousandthPercent != requested.Image.OpacityThousandthPercent)
             ApplyOpacity(blip, requested.Image.HasOpacityThousandthPercent ? requested.Image.OpacityThousandthPercent : null);
@@ -258,6 +1509,10 @@ internal static class PptxPictureCodec
         }
         if (!Equals(currentImage.Border, requested.Image.Border)) ApplyBorder(properties, requested.Image.Border);
         if (!Equals(currentImage.Shadow, requested.Image.Shadow)) PptxShadowCodec.Apply(properties, requested.Image.Shadow);
+        if (!Equals(currentImage.Glow, requested.Image.Glow)) PptxGlowCodec.Apply(properties, requested.Image.Glow);
+        if (!Equals(currentImage.InnerShadow, requested.Image.InnerShadow)) PptxInnerShadowCodec.Apply(properties, requested.Image.InnerShadow);
+        if (!Equals(currentImage.Reflection, requested.Image.Reflection)) PptxReflectionCodec.Apply(properties, requested.Image.Reflection);
+        if (!Equals(currentImage.SoftEdge, requested.Image.SoftEdge)) PptxSoftEdgeCodec.Apply(properties, requested.Image.SoftEdge);
     }
 
     internal static void ScrubModeledContent(P.Picture source)
@@ -522,15 +1777,39 @@ internal static class PptxPictureCodec
     {
         var attributes = properties.GetAttributes().ToArray();
         if (attributes.Any(attribute => attribute.LocalName != "bwMode" || attribute.NamespaceUri.Length != 0 || attribute.Value is not ("auto" or "gray" or "ltGray" or "invGray" or "grayWhite" or "blackGray" or "blackWhite" or "clr"))) return false;
-        if (properties.ChildElements.Count < 2 || properties.ChildElements.Count > 6) return false;
+        if (properties.ChildElements.Count < 2 || properties.ChildElements.Count > 7) return false;
         if (properties.ChildElements.Count(child => child is A.Transform2D) != 1 ||
             properties.ChildElements.Count(child => child is A.PresetGeometry or A.CustomGeometry) != 1) return false;
         return properties.ChildElements.All(child => child switch
         {
             A.Transform2D or A.PresetGeometry or A.CustomGeometry => true,
+            A.Shape3DType shape3d => PptxShape3DCodec.TryReadDepth(shape3d, out _) ||
+                                     PptxShape3DCodec.TryReadExtrusionHeight(shape3d, out _) ||
+                                     PptxShape3DCodec.TryReadContourWidth(shape3d, out _) ||
+                                     PptxShape3DCodec.TryReadPresetMaterial(shape3d, out _) ||
+                                     PptxShape3DCodec.TryReadBevelTopWidth(shape3d, out _) ||
+                                     PptxShape3DCodec.TryReadBevelTopHeight(shape3d, out _) ||
+                                     PptxShape3DCodec.TryReadBevelTopPreset(shape3d, out _) ||
+                                     PptxShape3DCodec.TryReadBevelBottomWidth(shape3d, out _) ||
+                                     PptxShape3DCodec.TryReadBevelBottomHeight(shape3d, out _) ||
+                                     PptxShape3DCodec.TryReadBevelBottomPreset(shape3d, out _) ||
+                                     PptxShape3DCodec.TryReadContourRgb(shape3d, out _) ||
+                                     PptxShape3DCodec.TryReadExtrusionRgb(shape3d, out _) ||
+                                     PptxShape3DCodec.TryReadContourColorScheme(shape3d, out _) ||
+                                     PptxShape3DCodec.TryReadExtrusionColorScheme(shape3d, out _),
+            A.Scene3DType scene3d => PptxShape3DCodec.TryReadSceneCameraPreset(scene3d, out _) ||
+                                     PptxShape3DCodec.TryReadSceneCameraRotationLatitude(scene3d, out _) ||
+                                     PptxShape3DCodec.TryReadSceneLightRigRotationLatitude(scene3d, out _) ||
+                                     PptxShape3DCodec.TryReadSceneLightRigRotationLongitude(scene3d, out _) ||
+                                     PptxShape3DCodec.TryReadSceneLightRigRotationRevolution(scene3d, out _) ||
+                                     PptxShape3DCodec.TryReadSceneBackdropAnchorX(scene3d, out _),
             A.NoFill noFill => !noFill.HasAttributes && !noFill.HasChildren,
             A.Outline outline => TryReadBorder(outline, out _),
-            A.EffectList => PptxShadowCodec.TryRead(properties, out _),
+            A.EffectList => PptxShadowCodec.TryRead(properties, out _) ||
+                            PptxGlowCodec.TryRead(properties, out _) ||
+                            PptxInnerShadowCodec.TryRead(properties, out _) ||
+                            PptxReflectionCodec.TryRead(properties, out _) ||
+                            PptxSoftEdgeCodec.TryRead(properties, out _),
             A.ShapePropertiesExtensionList extensions => ShapeExtensionListSupported(extensions),
             _ => false,
         });

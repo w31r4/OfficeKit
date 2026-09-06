@@ -24,6 +24,8 @@ internal static class PptxMediaCodec
         if (media.HasStartAtMs && media.StartAtMs > MaxTrimMilliseconds ||
             media.HasEndAtMs && media.EndAtMs > MaxTrimMilliseconds)
             throw Invalid(elementId, $"trim offsets must be at most {MaxTrimMilliseconds} ms");
+        if (media.HasPlaybackTrigger && media.PlaybackTrigger is not ("onClick" or "onSlideStart"))
+            throw Invalid(elementId, "playback.trigger must be onClick or onSlideStart");
         if (media.Transform is { } transform)
         {
             if (!transform.HasRotationAngle60000 && !transform.HasFlipHorizontal && !transform.HasFlipVertical)

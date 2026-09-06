@@ -34,6 +34,9 @@ internal static class PptxDefaultRunStyleCodec
         if (latin is not null && ModeledLatinFont(latin)) style.FontFamily = latin.Typeface!.Value!;
         var eastAsianFonts = properties.Elements<A.EastAsianFont>().Take(2).ToArray();
         if (eastAsianFonts.Length == 1 && ModeledEastAsianFont(eastAsianFonts[0])) style.FontFamilyEastAsia = eastAsianFonts[0].Typeface!.Value!;
+        var complexScriptFonts = properties.Elements<A.ComplexScriptFont>().Take(2).ToArray();
+        if (complexScriptFonts.Length == 1 && ModeledComplexScriptFont(complexScriptFonts[0]))
+            style.FontFamilyComplexScript = complexScriptFonts[0].Typeface!.Value!;
         var colors = ColorChoices(properties).ToArray();
         if (colors.Length == 1 && ModeledFill(colors[0]))
         {
@@ -53,6 +56,10 @@ internal static class PptxDefaultRunStyleCodec
             }
         }
         if (PptxShadowCodec.TryRead(properties, out var shadow) && shadow is not null) style.Shadow = shadow;
+        if (PptxGlowCodec.TryRead(properties, out var glow) && glow is not null) style.Glow = glow;
+        if (PptxInnerShadowCodec.TryRead(properties, out var innerShadow) && innerShadow is not null) style.InnerShadow = innerShadow;
+        if (PptxReflectionCodec.TryRead(properties, out var reflection) && reflection is not null) style.Reflection = reflection;
+        if (PptxSoftEdgeCodec.TryRead(properties, out var softEdge) && softEdge is not null) style.SoftEdge = softEdge;
         if (HasFields(style)) target.DefaultRunProperties = style;
     }
 
@@ -122,6 +129,8 @@ internal static class PptxDefaultRunStyleCodec
             throw Invalid("Presentation default-run font family must contain 1 through 255 characters.");
         if (style.HasFontFamilyEastAsia && (string.IsNullOrWhiteSpace(style.FontFamilyEastAsia) || style.FontFamilyEastAsia.Length > 255))
             throw Invalid("Presentation default-run East Asian font family must contain 1 through 255 characters.");
+        if (style.HasFontFamilyComplexScript && (string.IsNullOrWhiteSpace(style.FontFamilyComplexScript) || style.FontFamilyComplexScript.Length > 255))
+            throw Invalid("Presentation default-run complex-script font family must contain 1 through 255 characters.");
         if (style.HasLanguage) _ = PptxLanguageTag.Validate(style.Language);
         if (style.HasFontKerningPoints && (!(style.FontKerningPoints >= 0) || style.FontKerningPoints > 768 || !double.IsFinite(style.FontKerningPoints)))
             throw Invalid("Presentation default-run font kerning must be finite and between 0 and 768 points.");
@@ -162,6 +171,10 @@ internal static class PptxDefaultRunStyleCodec
             throw Invalid("Presentation default run properties cannot specify both a solid color and a gradient.");
         PptxGradientFillCodec.Validate(style.GradientFill, "Presentation default-run gradient");
         PptxShadowCodec.Validate(style.Shadow, "default-run", "default text run");
+        PptxGlowCodec.Validate(style.Glow, "default-run", "default text run");
+        PptxInnerShadowCodec.Validate(style.InnerShadow, "default-run", "default text run");
+        PptxReflectionCodec.Validate(style.Reflection, "default-run", "default text run");
+        PptxSoftEdgeCodec.Validate(style.SoftEdge, "default-run", "default text run");
         if (style.HasColorOpacityThousandthPercent && style.ColorCase == PresentationTextStyle.ColorOneofCase.None)
             throw Invalid("Presentation default-run color opacity requires a modeled text color.");
         if (style.HasColorOpacityThousandthPercent && style.ColorOpacityThousandthPercent > 100_000)
@@ -169,8 +182,8 @@ internal static class PptxDefaultRunStyleCodec
     }
 
     private static bool HasFields(PresentationTextStyle style) =>
-        style.HasBold || style.HasItalic || style.HasFontSizePoints || style.HasFontFamily || style.HasFontFamilyEastAsia ||
-        style.HasFontKerningPoints || style.HasFontBaselinePercent || style.HasFontSpacingPoints || style.HasFontCaps || style.HasLanguage || style.HighlightCase != PresentationTextStyle.HighlightOneofCase.None || style.ColorCase != PresentationTextStyle.ColorOneofCase.None || style.GradientFill is not null || style.Shadow is not null || style.HasColorOpacityThousandthPercent || style.HasUnderline || style.HasStrike;
+        style.HasBold || style.HasItalic || style.HasFontSizePoints || style.HasFontFamily || style.HasFontFamilyEastAsia || style.HasFontFamilyComplexScript ||
+        style.HasFontKerningPoints || style.HasFontBaselinePercent || style.HasFontSpacingPoints || style.HasFontCaps || style.HasLanguage || style.HighlightCase != PresentationTextStyle.HighlightOneofCase.None || style.ColorCase != PresentationTextStyle.ColorOneofCase.None || style.GradientFill is not null || style.Shadow is not null || style.Glow is not null || style.InnerShadow is not null || style.Reflection is not null || style.SoftEdge is not null || style.HasColorOpacityThousandthPercent || style.HasUnderline || style.HasStrike;
 
     private static A.DefaultRunProperties Build(PresentationTextStyle source)
     {
@@ -208,8 +221,13 @@ internal static class PptxDefaultRunStyleCodec
         }
         ApplyLatinFont(target, source);
         ApplyEastAsianFont(target, source);
+        ApplyComplexScriptFont(target, source);
         ApplyFill(target, source);
         ApplyShadow(target, source);
+        PptxGlowCodec.Apply(target, source.Glow);
+        PptxInnerShadowCodec.Apply(target, source.InnerShadow);
+        PptxReflectionCodec.Apply(target, source.Reflection);
+        PptxSoftEdgeCodec.Apply(target, source.SoftEdge);
     }
 
     private static void ApplyEastAsianFont(A.DefaultRunProperties target, PresentationTextStyle source)
@@ -239,6 +257,22 @@ internal static class PptxDefaultRunStyleCodec
             target.AddChild(new A.LatinFont { Typeface = source.FontFamily }, true);
         }
         else if (fonts.Length == 1 && ModeledLatinFont(fonts[0]))
+        {
+            fonts[0].Remove();
+        }
+    }
+
+    private static void ApplyComplexScriptFont(A.DefaultRunProperties target, PresentationTextStyle source)
+    {
+        var fonts = target.Elements<A.ComplexScriptFont>().ToArray();
+        if (source.HasFontFamilyComplexScript)
+        {
+            if (fonts.Length > 1 || fonts.Any(font => !ModeledComplexScriptFont(font)))
+                throw Unsupported("Source-preserving PPTX export cannot replace unmodeled default-run complex-script font properties.");
+            foreach (var font in fonts) font.Remove();
+            target.AddChild(new A.ComplexScriptFont { Typeface = source.FontFamilyComplexScript }, true);
+        }
+        else if (fonts.Length == 1 && ModeledComplexScriptFont(fonts[0]))
         {
             fonts[0].Remove();
         }
@@ -301,6 +335,8 @@ internal static class PptxDefaultRunStyleCodec
         if (fonts.Length == 1 && ModeledLatinFont(fonts[0])) fonts[0].Remove();
         var eastAsianFonts = target.Elements<A.EastAsianFont>().ToArray();
         if (eastAsianFonts.Length == 1 && ModeledEastAsianFont(eastAsianFonts[0])) eastAsianFonts[0].Remove();
+        var complexScriptFonts = target.Elements<A.ComplexScriptFont>().ToArray();
+        if (complexScriptFonts.Length == 1 && ModeledComplexScriptFont(complexScriptFonts[0])) complexScriptFonts[0].Remove();
         var colors = ColorChoices(target).ToArray();
         if (colors.Length == 1 && ModeledFill(colors[0])) colors[0].Remove();
         if (PptxShadowCodec.TryRead(target, out var shadow) && shadow is not null) PptxShadowCodec.Apply(target, null);
@@ -321,6 +357,9 @@ internal static class PptxDefaultRunStyleCodec
         SimpleValue(source, "typeface") && !string.IsNullOrWhiteSpace(source.Typeface?.Value) && source.Typeface.Value.Length <= 255;
 
     private static bool ModeledEastAsianFont(A.EastAsianFont source) =>
+        SimpleValue(source, "typeface") && !string.IsNullOrWhiteSpace(source.Typeface?.Value) && source.Typeface.Value.Length <= 255;
+
+    private static bool ModeledComplexScriptFont(A.ComplexScriptFont source) =>
         SimpleValue(source, "typeface") && !string.IsNullOrWhiteSpace(source.Typeface?.Value) && source.Typeface.Value.Length <= 255;
 
     private static bool SimpleValue(OpenXmlElement source, string name)

@@ -16,6 +16,21 @@ internal static class PptxBodyPropertiesCodec
     private const int MaxFontScale1000 = 100_000;
     private const int MinLineSpacingReduction1000 = 0;
     private const int MaxLineSpacingReduction1000 = 13_200_000;
+    private const int MaxTextWarpAdjustments = 256;
+    private const long MinFlatTextZ = int.MinValue;
+    private const long MaxFlatTextZ = int.MaxValue;
+    private static readonly HashSet<string> TextWarpPresets = new(StringComparer.Ordinal)
+    {
+        "textNoShape", "textPlain", "textStop", "textTriangle", "textTriangleInverted",
+        "textChevron", "textChevronInverted", "textRingInside", "textRingOutside",
+        "textArchUp", "textArchDown", "textCircle", "textButton", "textArchUpPour",
+        "textArchDownPour", "textCirclePour", "textButtonPour", "textCurveUp",
+        "textCurveDown", "textCanUp", "textCanDown", "textWave1", "textWave2",
+        "textDoubleWave1", "textWave4", "textInflate", "textDeflate", "textInflateBottom",
+        "textDeflateBottom", "textInflateTop", "textDeflateTop", "textDeflateInflate",
+        "textDeflateInflateDeflate", "textFadeRight", "textFadeLeft", "textFadeUp",
+        "textFadeDown", "textSlantUp", "textSlantDown", "textCascadeUp", "textCascadeDown",
+    };
 
     internal static void Read(PresentationTextBody target, P.TextBody source)
     {
@@ -38,6 +53,17 @@ internal static class PptxBodyPropertiesCodec
         if (native.ColumnSpacing?.Value is >= 0) modeled.ColumnSpacingEmu = native.ColumnSpacing.Value;
         if (native.RightToLeftColumns?.Value is { } rightToLeft) modeled.RightToLeftColumns = rightToLeft;
         if (native.UpRight?.Value is { } upright) modeled.Upright = upright;
+        if (native.AnchorCenter?.Value is { } anchorCenter) modeled.AnchorCenter = anchorCenter;
+        if (native.ForceAntiAlias?.Value is { } forceAntiAlias) modeled.ForceAntiAlias = forceAntiAlias;
+        if (native.UseParagraphSpacing?.Value is { } spaceFirstLastParagraph) modeled.SpaceFirstLastParagraph = spaceFirstLastParagraph;
+        if (native.CompatibleLineSpacing?.Value is { } compatibleLineSpacing) modeled.CompatibleLineSpacing = compatibleLineSpacing;
+        if (native.FromWordArt?.Value is { } fromWordArt) modeled.FromWordArt = fromWordArt;
+        if (TryReadTextWarp(native, out var textWarpPreset, out var textWarpAdjustments))
+        {
+            modeled.TextWarpPreset = textWarpPreset;
+            modeled.TextWarpAdjustments.Add(textWarpAdjustments);
+        }
+        if (TryReadFlatTextZ(native, out var flatTextZ)) modeled.FlatTextZ = flatTextZ;
         if (HasModeledProperties(modeled)) target.BodyProperties = modeled;
     }
 
@@ -62,6 +88,10 @@ internal static class PptxBodyPropertiesCodec
         else if (properties.WrappingCase == PresentationTextBodyProperties.WrappingOneofCase.NoWrap && !properties.NoWrap) throw Invalid("Presentation no_wrap must be true when selected.");
         if (properties.AutoFitCase == PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode) _ = ParseAutoFit(properties.AutoFitMode);
         else if (properties.AutoFitCase == PresentationTextBodyProperties.AutoFitOneofCase.NoAutoFitMode && !properties.NoAutoFitMode) throw Invalid("Presentation no_auto_fit_mode must be true when selected.");
+        if (properties.HasTextWarpPreset) _ = ParseTextWarpPreset(properties.TextWarpPreset);
+        ValidateTextWarpAdjustments(properties);
+        if (properties.HasFlatTextZ && (properties.FlatTextZ < MinFlatTextZ || properties.FlatTextZ > MaxFlatTextZ))
+            throw Invalid("Presentation flat-text z coordinate must fit the bounded signed 32-bit range.");
         ValidateNormalAutoFit(properties);
         if (properties.RotationCase == PresentationTextBodyProperties.RotationOneofCase.RotationAngle60000 && Math.Abs((long)properties.RotationAngle60000) > MaxRotationAngle60000) throw Invalid("Presentation text body rotation must be between -360 and 360 degrees.");
         else if (properties.RotationCase == PresentationTextBodyProperties.RotationOneofCase.NoRotation && !properties.NoRotation) throw Invalid("Presentation no_rotation must be true when selected.");
@@ -94,7 +124,15 @@ internal static class PptxBodyPropertiesCodec
          source.ColumnCountCase != PresentationTextBodyProperties.ColumnCountOneofCase.None ||
          source.ColumnSpacingCase != PresentationTextBodyProperties.ColumnSpacingOneofCase.None ||
          source.ColumnDirectionCase != PresentationTextBodyProperties.ColumnDirectionOneofCase.None ||
-         source.UprightTextCase != PresentationTextBodyProperties.UprightTextOneofCase.None);
+         source.UprightTextCase != PresentationTextBodyProperties.UprightTextOneofCase.None ||
+         source.HasAnchorCenter ||
+         source.HasForceAntiAlias ||
+         source.HasSpaceFirstLastParagraph ||
+         source.HasCompatibleLineSpacing ||
+         source.HasFromWordArt ||
+         source.HasTextWarpPreset ||
+         source.TextWarpAdjustments.Count > 0 ||
+         source.HasFlatTextZ);
 
     // A source-bound text-body style may expose only direct bodyPr leaves with
     // a stable PPJ textBoxStyle spelling.  The bounded profile includes the
@@ -152,6 +190,22 @@ internal static class PptxBodyPropertiesCodec
         if (properties.ColumnSpacingCase == PresentationTextBodyProperties.ColumnSpacingOneofCase.ColumnSpacingEmu) target.ColumnSpacing = checked((int)properties.ColumnSpacingEmu);
         if (properties.ColumnDirectionCase == PresentationTextBodyProperties.ColumnDirectionOneofCase.RightToLeftColumns) target.RightToLeftColumns = properties.RightToLeftColumns;
         if (properties.UprightTextCase == PresentationTextBodyProperties.UprightTextOneofCase.Upright) target.UpRight = properties.Upright;
+        if (properties.HasAnchorCenter) target.AnchorCenter = properties.AnchorCenter;
+        if (properties.HasForceAntiAlias) target.ForceAntiAlias = properties.ForceAntiAlias;
+        if (properties.HasSpaceFirstLastParagraph) target.UseParagraphSpacing = properties.SpaceFirstLastParagraph;
+        if (properties.HasCompatibleLineSpacing) target.CompatibleLineSpacing = properties.CompatibleLineSpacing;
+        if (properties.HasFromWordArt) target.FromWordArt = properties.FromWordArt;
+        if (properties.HasTextWarpPreset)
+        {
+            var textWarp = new A.PresetTextWarp
+            {
+                Preset = new A.TextShapeValues(ParseTextWarpPreset(properties.TextWarpPreset)),
+            };
+            ApplyTextWarpAdjustments(textWarp, properties.TextWarpAdjustments);
+            target.AddChild(textWarp, true);
+        }
+        if (properties.HasFlatTextZ)
+            target.AddChild(new A.FlatText { Z = properties.FlatTextZ }, true);
         if (properties.AutoFitCase == PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode) target.AddChild(CreateAutoFit(properties.AutoFitMode, properties.NormalAutoFit), true);
     }
 
@@ -192,6 +246,49 @@ internal static class PptxBodyPropertiesCodec
         else if (properties.ColumnDirectionCase == PresentationTextBodyProperties.ColumnDirectionOneofCase.NoColumnDirection) native.RightToLeftColumns = null;
         if (properties.UprightTextCase == PresentationTextBodyProperties.UprightTextOneofCase.Upright) native.UpRight = properties.Upright;
         else if (properties.UprightTextCase == PresentationTextBodyProperties.UprightTextOneofCase.NoUpright) native.UpRight = null;
+        if (properties.HasAnchorCenter) native.AnchorCenter = properties.AnchorCenter;
+        if (properties.HasForceAntiAlias) native.ForceAntiAlias = properties.ForceAntiAlias;
+        if (properties.HasSpaceFirstLastParagraph) native.UseParagraphSpacing = properties.SpaceFirstLastParagraph;
+        if (properties.HasCompatibleLineSpacing) native.CompatibleLineSpacing = properties.CompatibleLineSpacing;
+        if (properties.HasFromWordArt) native.FromWordArt = properties.FromWordArt;
+        if (properties.HasTextWarpPreset)
+        {
+            var choices = native.ChildElements.OfType<A.PresetTextWarp>().ToArray();
+            if (choices.Length > 1)
+                throw Unsupported("Source-preserving PPTX export cannot edit duplicate text-warp presets.");
+            if (choices.Length == 1)
+            {
+                if (!TryReadTextWarp(choices[0], out _, out _))
+                    throw Unsupported("Source-preserving PPTX export cannot replace noncanonical text-warp preset markup.");
+                choices[0].Preset = new A.TextShapeValues(ParseTextWarpPreset(properties.TextWarpPreset));
+                ApplyTextWarpAdjustments(choices[0], properties.TextWarpAdjustments);
+            }
+            else
+            {
+                var textWarp = new A.PresetTextWarp
+                {
+                    Preset = new A.TextShapeValues(ParseTextWarpPreset(properties.TextWarpPreset)),
+                };
+                ApplyTextWarpAdjustments(textWarp, properties.TextWarpAdjustments);
+                native.AddChild(textWarp, true);
+            }
+        }
+        if (properties.HasFlatTextZ)
+        {
+            var flatTexts = native.ChildElements.OfType<A.FlatText>().ToArray();
+            if (flatTexts.Length > 1)
+                throw Unsupported("Source-preserving PPTX export cannot edit duplicate flat-text children.");
+            if (flatTexts.Length == 1)
+            {
+                if (!TryReadFlatTextZ(flatTexts[0], out _))
+                    throw Unsupported("Source-preserving PPTX export cannot replace noncanonical flat-text markup.");
+                flatTexts[0].Z = properties.FlatTextZ;
+            }
+            else
+            {
+                native.AddChild(new A.FlatText { Z = properties.FlatTextZ }, true);
+            }
+        }
         ApplyAutoFit(native, properties);
     }
 
@@ -213,9 +310,166 @@ internal static class PptxBodyPropertiesCodec
             if (native.ColumnSpacing?.Value is >= 0) native.ColumnSpacing = null;
             if (native.RightToLeftColumns is not null) native.RightToLeftColumns = null;
             if (native.UpRight is not null) native.UpRight = null;
+            if (native.AnchorCenter is not null) native.AnchorCenter = null;
+            if (native.ForceAntiAlias is not null) native.ForceAntiAlias = null;
+            if (native.UseParagraphSpacing is not null) native.UseParagraphSpacing = null;
+            if (native.CompatibleLineSpacing is not null) native.CompatibleLineSpacing = null;
+            if (native.FromWordArt is not null) native.FromWordArt = null;
+            foreach (var textWarp in native.ChildElements.OfType<A.PresetTextWarp>().Where(item => TryReadTextWarpPreset(item, out _)).ToArray()) textWarp.Remove();
+            foreach (var flatText in native.ChildElements.OfType<A.FlatText>().Where(item => TryReadFlatTextZ(item, out _)).ToArray()) flatText.Remove();
             foreach (var autoFit in native.ChildElements.Where(child => IsAutoFitChoice(child) && SupportsAutoFitChoice(child)).ToArray()) autoFit.Remove();
         }
     }
+
+    internal static bool TryReadTextWarpPreset(A.BodyProperties source, out string preset)
+    {
+        return TryReadTextWarp(source, out preset, out _);
+    }
+
+    internal static bool TryReadTextWarpPreset(A.PresetTextWarp source, out string preset)
+    {
+        return TryReadTextWarp(source, out preset, out _);
+    }
+
+    internal static bool TryReadTextWarp(
+        A.BodyProperties source,
+        out string preset,
+        out IReadOnlyList<PresentationTextWarpAdjustment> adjustments)
+    {
+        preset = string.Empty;
+        adjustments = [];
+        var choices = source.ChildElements.OfType<A.PresetTextWarp>().ToArray();
+        return choices.Length == 1 && TryReadTextWarp(choices[0], out preset, out adjustments);
+    }
+
+    internal static bool TryReadTextWarp(
+        A.PresetTextWarp source,
+        out string preset,
+        out IReadOnlyList<PresentationTextWarpAdjustment> adjustments)
+    {
+        preset = string.Empty;
+        adjustments = [];
+        var attributes = source.GetAttributes();
+        if (attributes.Count != 1 || attributes[0].NamespaceUri.Length != 0 || attributes[0].LocalName != "prst") return false;
+        if (attributes[0].Value is not { Length: > 0 } value || !TextWarpPresets.Contains(value)) return false;
+        preset = value;
+        if (source.ChildElements.Count == 0) return true;
+        if (source.ChildElements.Count != 1 || source.FirstChild is not A.AdjustValueList list || list.GetAttributes().Count != 0)
+        {
+            preset = string.Empty;
+            return false;
+        }
+        var nativeGuides = list.Elements<A.ShapeGuide>().ToArray();
+        if (nativeGuides.Length == 0 || nativeGuides.Length > MaxTextWarpAdjustments ||
+            list.ChildElements.Count != nativeGuides.Length)
+        {
+            preset = string.Empty;
+            return false;
+        }
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        var modeled = new List<PresentationTextWarpAdjustment>(nativeGuides.Length);
+        foreach (var native in nativeGuides)
+        {
+            var guideAttributes = native.GetAttributes();
+            if (native.ChildElements.Count != 0 || guideAttributes.Count != 2 ||
+                guideAttributes.Any(attribute => attribute.NamespaceUri.Length != 0 || attribute.LocalName is not ("name" or "fmla")) ||
+                native.Name?.Value is not { Length: > 0 } name || name.Length > 256 || name.Any(char.IsControl) || !names.Add(name) ||
+                native.Formula?.Value is not { Length: > 0 } formula ||
+                !TryLiteralTextWarpAdjustment(formula, out var adjustment))
+            {
+                preset = string.Empty;
+                adjustments = [];
+                return false;
+            }
+            modeled.Add(new PresentationTextWarpAdjustment { Name = name, Value = adjustment });
+        }
+        adjustments = modeled;
+        return true;
+    }
+
+    internal static bool TryLiteralTextWarpAdjustment(string formula, out int value)
+    {
+        value = 0;
+        var tokens = formula.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (tokens.Length != 2 || tokens[0] != "val" ||
+            !int.TryParse(tokens[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ||
+            parsed.ToString(CultureInfo.InvariantCulture) != tokens[1])
+            return false;
+        value = parsed;
+        return true;
+    }
+
+    internal static int ParseTextWarpAdjustment(string value) =>
+        int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) &&
+        parsed.ToString(CultureInfo.InvariantCulture) == value
+            ? parsed
+            : throw Invalid($"Unsupported Presentation text-warp adjustment {value}.");
+
+    internal static bool TryReadFlatTextZ(A.BodyProperties source, out long value)
+    {
+        value = 0;
+        var flatTexts = source.ChildElements.OfType<A.FlatText>().ToArray();
+        return flatTexts.Length == 1 && TryReadFlatTextZ(flatTexts[0], out value);
+    }
+
+    internal static bool TryReadFlatTextZ(A.FlatText source, out long value)
+    {
+        value = 0;
+        var attributes = source.GetAttributes();
+        if (source.ChildElements.Count != 0 || attributes.Count != 1 ||
+            attributes[0].NamespaceUri.Length != 0 || attributes[0].LocalName != "z" ||
+            !long.TryParse(attributes[0].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ||
+            parsed.ToString(CultureInfo.InvariantCulture) != attributes[0].Value ||
+            parsed < MinFlatTextZ || parsed > MaxFlatTextZ)
+            return false;
+        value = parsed;
+        return true;
+    }
+
+    internal static long ParseFlatTextZ(string value) =>
+        long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) &&
+        parsed.ToString(CultureInfo.InvariantCulture) == value &&
+        parsed >= MinFlatTextZ && parsed <= MaxFlatTextZ
+            ? parsed
+            : throw Invalid($"Unsupported Presentation flat-text z coordinate {value}.");
+
+    private static void ValidateTextWarpAdjustments(PresentationTextBodyProperties source)
+    {
+        if (source.TextWarpAdjustments.Count == 0) return;
+        if (!source.HasTextWarpPreset)
+            throw Invalid("Presentation text-warp adjustments require text_warp_preset.");
+        if (source.TextWarpAdjustments.Count > MaxTextWarpAdjustments)
+            throw Invalid($"Presentation text-warp adjustments cannot exceed {MaxTextWarpAdjustments} entries.");
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var adjustment in source.TextWarpAdjustments)
+        {
+            if (adjustment.Name.Length == 0 || adjustment.Name.Length > 256 || adjustment.Name.Any(char.IsControl) || !names.Add(adjustment.Name))
+                throw Invalid("Presentation text-warp adjustment names must be unique, non-empty, and free of control characters.");
+        }
+    }
+
+    private static void ApplyTextWarpAdjustments(
+        A.PresetTextWarp target,
+        IEnumerable<PresentationTextWarpAdjustment> source)
+    {
+        var adjustments = source.ToArray();
+        if (adjustments.Length == 0)
+        {
+            target.GetFirstChild<A.AdjustValueList>()?.Remove();
+            return;
+        }
+        target.GetFirstChild<A.AdjustValueList>()?.Remove();
+        target.AppendChild(new A.AdjustValueList(adjustments.Select(adjustment =>
+            new A.ShapeGuide
+            {
+                Name = adjustment.Name,
+                Formula = $"val {adjustment.Value.ToString(CultureInfo.InvariantCulture)}",
+            })));
+    }
+
+    internal static string ParseTextWarpPreset(string value) => TextWarpPresets.Contains(value)
+        ? value
+        : throw Invalid($"Unsupported Presentation text-warp preset {value}.");
 
     private static void ReadInset(int? value, Action<long> assign)
     {

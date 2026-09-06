@@ -19,7 +19,17 @@ internal static class PptxShadowCodec
         var lists = properties?.Elements<A.EffectList>().ToArray() ?? [];
         if (lists.Length == 0) return true;
         if (lists.Length != 1 || lists[0].ChildElements.Count != 1 || lists[0].FirstChild is not A.OuterShadow outer ||
-            !HasOnlyAttributes(outer, "blurRad", "dist", "dir", "algn", "rotWithShape") || outer.BlurRadius?.Value is < 0 || outer.Distance?.Value is < 0 ||
+            !TryReadOuterShadow(outer, out shadow)) return false;
+        return true;
+    }
+
+    // Effect-list owners such as text glow may need to prove an outer shadow
+    // sibling without treating the whole list as a shadow-only graph. Keep
+    // that proof separate so shape/image classification remains strict.
+    internal static bool TryReadOuterShadow(A.OuterShadow outer, out PresentationShadow? shadow)
+    {
+        shadow = null;
+        if (!HasOnlyAttributes(outer, "blurRad", "dist", "dir", "algn", "rotWithShape") || outer.BlurRadius?.Value is < 0 || outer.Distance?.Value is < 0 ||
             outer.Direction?.Value is < 0 or >= 21_600_000 || outer.Alignment?.Value is { } alignment && !Alignments.Contains(AlignmentName(alignment)) ||
             outer.ChildElements.Count != 1) return false;
 
