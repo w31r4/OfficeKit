@@ -10359,6 +10359,19 @@ public sealed partial class PptxCodecTests
 
         request = RichTextExportRequest();
         run = request.Artifact.Presentation.Slides[0].Elements[0].Shape.TextBody.Paragraphs[0].Runs[0];
+        run.Field = new PresentationTextField
+        {
+            Id = "{11111111-2222-4333-8444-555555555555}",
+            Type = "date",
+            Text = "2026-09-06",
+            Automatic = true,
+        };
+        var invalidAutomaticType = Invoke(request);
+        Assert.False(invalidAutomaticType.Ok);
+        Assert.Equal("invalid_presentation_text", Assert.Single(invalidAutomaticType.Diagnostics).Code);
+
+        request = RichTextExportRequest();
+        run = request.Artifact.Presentation.Slides[0].Elements[0].Shape.TextBody.Paragraphs[0].Runs[0];
         run.LineBreak = false;
         var invalidBreak = Invoke(request);
         Assert.False(invalidBreak.Ok);
@@ -14506,7 +14519,7 @@ public sealed partial class PptxCodecTests
     }
 
     [Fact]
-    public void PpjSourceBoundTableCellFieldPreservesIdentityAndEditsCachedText()
+    public void PpjSourceBoundTableCellFieldRefreshesAutomaticSlideNumber()
     {
         var request = ExportRequest();
         request.Artifact.Presentation.Slides[0].Elements.Clear();
@@ -14519,7 +14532,8 @@ public sealed partial class PptxCodecTests
             {
                 Id = "{11111111-2222-4333-8444-555555555555}",
                 Type = "slidenum",
-                Text = "1",
+                Text = "999",
+                Automatic = true,
             },
         });
         body.Paragraphs.Add(paragraph);
@@ -14536,7 +14550,7 @@ public sealed partial class PptxCodecTests
             HeightEmu = 1_800_000,
             Cells =
             {
-                new PresentationTableCell { Text = "Page 1", TextBody = body },
+                new PresentationTableCell { Text = "Page 999", TextBody = body },
                 new PresentationTableCell { Text = "Untouched" },
             },
         });
@@ -14568,6 +14582,7 @@ public sealed partial class PptxCodecTests
         var projectedField = projectedCell["text"]!["paragraphs"]![0]!["runs"]![1]!["field"]!.AsObject();
         Assert.Equal("slidenum", projectedField["type"]!.GetValue<string>());
         Assert.Equal("1", projectedField["text"]!.GetValue<string>());
+        Assert.True(projectedField["automatic"]!.GetValue<bool>());
 
         var edited = program.DeepClone().AsObject();
         var editedField = edited["pages"]!.AsArray()
@@ -14598,7 +14613,7 @@ public sealed partial class PptxCodecTests
                 .GetFirstChild<A.TextBody>()!.Elements<A.Paragraph>().Single()
                 .Elements<A.Field>().Single();
             Assert.Equal("slidenum", savedField.Type!.Value);
-            Assert.Equal("2", savedField.Text!.Text);
+            Assert.Equal("1", savedField.Text!.Text);
             Assert.Equal("{11111111-2222-4333-8444-555555555555}", savedField.Id!.Value);
         }
 
@@ -14616,14 +14631,16 @@ public sealed partial class PptxCodecTests
             .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
             .Select(item => item!.AsObject())
             .Single(item => item["type"]!.GetValue<string>() == "table")["rows"]![0]!["cells"]![0]!["text"]!["paragraphs"]![0]!["runs"]![1]!["field"]!.AsObject();
-        Assert.Equal("2", outputField["text"]!.GetValue<string>());
+        Assert.Equal("1", outputField["text"]!.GetValue<string>());
         Assert.Equal("slidenum", outputField["type"]!.GetValue<string>());
+        Assert.True(outputField["automatic"]!.GetValue<bool>());
 
         var invalid = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         var invalidField = invalid["pages"]!.AsArray()
             .SelectMany(page => page!.AsObject()["elements"]!.AsArray())
             .Select(item => item!.AsObject())
             .Single(item => item["type"]!.GetValue<string>() == "table")["rows"]![0]!["cells"]![0]!["text"]!["paragraphs"]![0]!["runs"]![1]!["field"]!.AsObject();
+        invalidField["automatic"] = false;
         invalidField["type"] = "date";
         var rejected = Invoke(new CodecRequest
         {
@@ -19405,7 +19422,8 @@ public sealed partial class PptxCodecTests
                         {
                             ["id"] = "{11111111-1111-1111-1111-111111111111}",
                             ["type"] = "slidenum",
-                            ["text"] = "1",
+                            ["text"] = "999",
+                            ["automatic"] = true,
                         },
                     }),
                 }),
@@ -19437,10 +19455,11 @@ public sealed partial class PptxCodecTests
         var field = output["pages"]![0]!["elements"]![0]!["text"]!["paragraphs"]![0]!["runs"]![0]!["field"]!;
         Assert.Equal("slidenum", field["type"]!.GetValue<string>());
         Assert.Equal("1", field["text"]!.GetValue<string>());
+        Assert.True(field["automatic"]!.GetValue<bool>());
         Assert.Equal("{11111111-1111-1111-1111-111111111111}", field["id"]!.GetValue<string>());
 
-        // A static field display value is editable source-bound text while
-        // its field id/type remain source-owned host semantics.
+        // The cached display is editable in PPJ, but an automatic slide-number
+        // field is refreshed from its owning slide during export.
         field["text"] = "2";
         var sourceBoundFieldEdit = Invoke(new CodecRequest
         {
@@ -19470,11 +19489,13 @@ public sealed partial class PptxCodecTests
                 .GetProperty("elements")[0].GetProperty("text")
                 .GetProperty("paragraphs")[0].GetProperty("runs")[0]
                 .GetProperty("field");
-            Assert.Equal("2", fieldAfterEdit.GetProperty("text").GetString());
+            Assert.Equal("1", fieldAfterEdit.GetProperty("text").GetString());
             Assert.Equal("slidenum", fieldAfterEdit.GetProperty("type").GetString());
+            Assert.True(fieldAfterEdit.GetProperty("automatic").GetBoolean());
         }
 
         var invalidFieldIdentity = JsonNode.Parse(fieldReprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        invalidFieldIdentity["pages"]![0]! ["elements"]![0]! ["text"]!["paragraphs"]![0]! ["runs"]![0]! ["field"]!["automatic"] = false;
         invalidFieldIdentity["pages"]![0]! ["elements"]![0]! ["text"]!["paragraphs"]![0]! ["runs"]![0]! ["field"]!["type"] = "date";
         var rejectedFieldIdentity = Invoke(new CodecRequest
         {
