@@ -3502,7 +3502,7 @@
         },
         "automatic": {
           "type": "boolean",
-          "description": "Whether this is a bounded automatic field. The current profile only supports type slidenum and refreshes its cached display value from the owning slide number."
+          "description": "Whether this is a bounded automatic field. The current profile supports type slidenum, which refreshes from the owning slide number, and type datetime, which preserves its cached display for the host to refresh."
         }
       }
     },

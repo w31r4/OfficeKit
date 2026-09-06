@@ -3628,9 +3628,10 @@ message PresentationTextField {
   string type = 2;
   // Cached display text retained when Office cannot recalculate the field.
   string text = 3;
-  // A bounded automatic field asks the native writer to refresh its cached
-  // display value from the owning slide context. The current profile only
-  // recognizes type "slidenum"; other field types remain cached values.
+  // A bounded automatic field identifies a host-refreshable field. The
+  // current profile refreshes type "slidenum" from the owning slide number;
+  // type "datetime" preserves its cached display for the host to refresh.
+  // Other field types remain cached values.
   optional bool automatic = 4;
 }
 

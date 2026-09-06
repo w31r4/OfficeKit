@@ -526,7 +526,7 @@ internal static class PptxTextCodec
                 if (!ValidFieldType(source.Field.Type))
                     throw new CodecException("invalid_presentation_text", "Presentation field type must contain 1 through 255 printable characters.");
                 if (source.Field.Automatic && !IsAutomaticFieldType(source.Field.Type))
-                    throw new CodecException("invalid_presentation_text", "The bounded automatic presentation field profile only supports type slidenum.");
+                    throw new CodecException("invalid_presentation_text", "The bounded automatic presentation field profile only supports type slidenum or datetime.");
                 return;
             case PresentationTextRun.ContentOneofCase.Formula:
                 PptxMathCodec.Validate(source);
@@ -542,10 +542,14 @@ internal static class PptxTextCodec
         !string.IsNullOrWhiteSpace(value) && value.Length <= 255 && !value.Any(char.IsControl);
 
     internal static bool IsAutomaticFieldType(string? value) =>
+        string.Equals(value, "slidenum", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(value, "datetime", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsSlideNumberFieldType(string? value) =>
         string.Equals(value, "slidenum", StringComparison.OrdinalIgnoreCase);
 
     private static string FieldText(PresentationTextField field, PptxPartContext? slideContext) =>
-        field.Automatic && IsAutomaticFieldType(field.Type) && slideContext?.SlideNumber is { } slideNumber
+        field.Automatic && IsSlideNumberFieldType(field.Type) && slideContext?.SlideNumber is { } slideNumber
             ? slideNumber.ToString(System.Globalization.CultureInfo.InvariantCulture)
             : field.Text;
 
