@@ -1115,6 +1115,7 @@ internal static partial class PpjPresentationProjector
                 ? chart.LegendPosition.Length == 0 ? "right" : chart.LegendPosition
                 : "none"),
         };
+        if (chart.HasLegendOverlay) style["legendOverlay"] = JsonValue.Create(chart.LegendOverlay);
         if (chart.Grouping.Length > 0) style["stacking"] = StringNode(chart.Grouping);
         if (chart.HasGapWidth) style["gapWidth"] = JsonValue.Create(chart.GapWidth);
         if (chart.HasFirstSliceAngle) style["startAngle"] = JsonValue.Create(chart.FirstSliceAngle);

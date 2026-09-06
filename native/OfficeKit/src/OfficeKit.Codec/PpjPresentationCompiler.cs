@@ -2527,6 +2527,7 @@ internal static class PpjSourceBoundPresentationCompiler
             newStyle,
             path + ".style",
             "legend",
+            "legendOverlay",
             "stacking",
             "gapWidth",
             "showCategoryAxis",
@@ -2554,6 +2555,19 @@ internal static class PpjSourceBoundPresentationCompiler
                 : "none";
             target.HasLegend = !string.Equals(legend, "none", StringComparison.Ordinal);
             target.LegendPosition = target.HasLegend ? legend : string.Empty;
+            changed = true;
+        }
+        if (PropertyChanged(oldStyle, newStyle, "legendOverlay"))
+        {
+            RequireCapability(after, "setChartPlot", path + ".style.legendOverlay");
+            if (newStyle is { } owner && owner.TryGetProperty("legendOverlay", out var value))
+            {
+                if (!target.HasLegend)
+                    throw Unsupported(path + ".style.legendOverlay", "legendOverlay requires a visible legend");
+                target.LegendOverlay = ResolveGrammarBooleanToken(grammarRoot, value, path + ".style.legendOverlay");
+            }
+            else
+                target.ClearLegendOverlay();
             changed = true;
         }
         if (PropertyChanged(oldStyle, newStyle, "stacking"))

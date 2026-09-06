@@ -1006,6 +1006,9 @@ message SpreadsheetChartArtifact {
   // Presence-aware ChartSpace blank-cell behavior. The bounded values map to
   // c:dispBlanksAs and are zero, gap, or span.
   optional string display_blanks_as = 31;
+  // Presence-aware c:legend/c:overlay behavior. The field is retained even
+  // when explicitly false so imported native legend topology is not erased.
+  optional bool legend_overlay = 32;
 }
 
 message SpreadsheetChartSeriesArtifact {
@@ -2787,6 +2790,9 @@ message PresentationChart {
   PresentationChartFrame frame = 35;
   // Presence-aware c:dispBlanksAs behavior mirrored from the native ChartPart.
   optional string display_blanks_as = 36;
+  // Presence-aware c:legend/c:overlay behavior mirrored from the native
+  // ChartPart.
+  optional bool legend_overlay = 37;
 }
 
 // Bounded literal c:chartSpace/c:spPr container paint for Presentation charts.

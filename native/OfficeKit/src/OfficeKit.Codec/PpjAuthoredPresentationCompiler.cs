@@ -3026,6 +3026,12 @@ internal static partial class PpjAuthoredPresentationCompiler
             : null;
         chart.HasLegend = legend is not null and not "none";
         if (chart.HasLegend) chart.LegendPosition = legend!;
+        if (catalog.PropertyByPrecedence("chart.legendOverlay", element, inline, named) is { } legendOverlay)
+        {
+            if (!chart.HasLegend)
+                throw Unsupported(elementId, "legendOverlay requires a visible legend");
+            chart.LegendOverlay = catalog.BooleanToken(legendOverlay, "boolean", "chart legendOverlay");
+        }
         if (catalog.PropertyByPrecedence("chart.stacking", element, inline, named) is { } stacking)
         {
             if (chart.Type is not (SpreadsheetChartType.Bar or SpreadsheetChartType.Line or SpreadsheetChartType.Area or SpreadsheetChartType.Combo))

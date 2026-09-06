@@ -307,6 +307,7 @@ internal static partial class PptxChartCodec
         if (source.HasBubbleScale) output.BubbleScale = source.BubbleScale;
         output.BubbleSizeMode = source.BubbleSizeMode;
         if (source.HasDisplayBlanksAs) output.DisplayBlanksAs = source.DisplayBlanksAs;
+        if (source.HasLegendOverlay) output.LegendOverlay = source.LegendOverlay;
         return output;
     }
 
@@ -344,6 +345,7 @@ internal static partial class PptxChartCodec
         if (source.HasBubbleScale) output.BubbleScale = source.BubbleScale;
         output.BubbleSizeMode = source.BubbleSizeMode;
         if (source.HasDisplayBlanksAs) output.DisplayBlanksAs = source.DisplayBlanksAs;
+        if (source.HasLegendOverlay) output.LegendOverlay = source.LegendOverlay;
         return output;
     }
 

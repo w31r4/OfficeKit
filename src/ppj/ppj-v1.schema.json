@@ -5540,6 +5540,10 @@
           ],
           "description": "Chart legend placement; a string grammar token is resolved and checked against the bounded placements."
         },
+        "legendOverlay": {
+          "$ref": "#/$defs/booleanOrToken",
+          "description": "Whether the chart legend may overlay the plot; a boolean grammar token is resolved and preserved as c:legend/c:overlay."
+        },
         "stacking": {
           "oneOf": [
             {
