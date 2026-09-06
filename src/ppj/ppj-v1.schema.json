@@ -6620,6 +6620,10 @@
         "textStyle": {
           "$ref": "#/$defs/chartTextStyle"
         },
+        "fill": {
+          "$ref": "#/$defs/fill",
+          "description": "Bounded direct point data-label fill; none, solid RGB, or literal gradient is emitted as c:dLbl/c:spPr."
+        },
         "numberFormat": {
           "$ref": "#/$defs/stringOrToken",
           "description": "Point data-label number format code; a token reference must declare kind string."
@@ -6633,6 +6637,7 @@
         { "required": ["showBubbleSize"] },
         { "required": ["position"] },
         { "required": ["textStyle"] },
+        { "required": ["fill"] },
         { "required": ["numberFormat"] }
       ]
     },

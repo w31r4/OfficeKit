@@ -7,15 +7,16 @@ namespace OfficeKit.Codec;
 // Owns one bounded c:ser/c:dLbls graph: presence-aware series defaults and
 // sparse c:dLbl overrides keyed by zero-based c:idx. Bubble-size visibility is
 // presence-aware for bubble-series labels, and leader-line visibility is
-// presence-aware without owning leader-line geometry. Unsupported label text,
-// layout, shape/effect, leader-line, extension, deletion, and source-linked
-// number-format graphs leave the containing chart source-owned.
+// presence-aware without owning leader-line geometry. Sparse point labels may
+// also own one bounded direct fill in c:spPr. Unsupported label text, layout,
+// line/effect, leader-line, extension, deletion, and source-linked number-format
+// graphs leave the containing chart source-owned.
 internal static class XlsxChartSeriesDataLabelsCodec
 {
     private static readonly XNamespace ChartNs = "http://schemas.openxmlformats.org/drawingml/2006/chart";
     private static readonly string[] OrderedFlags = ["showLegendKey", "showVal", "showCatName", "showSerName", "showPercent", "showBubbleSize", "showLeaderLines"];
     private static readonly HashSet<string> DefaultChildren = new(["dLbl", "numFmt", "txPr", "dLblPos", .. OrderedFlags], StringComparer.Ordinal);
-    private static readonly HashSet<string> PointChildren = new(["idx", "numFmt", "txPr", "dLblPos", "showLegendKey", "showVal", "showCatName", "showSerName", "showPercent", "showBubbleSize"], StringComparer.Ordinal);
+    private static readonly HashSet<string> PointChildren = new(["idx", "numFmt", "spPr", "txPr", "dLblPos", "showLegendKey", "showVal", "showCatName", "showSerName", "showPercent", "showBubbleSize"], StringComparer.Ordinal);
     private static readonly HashSet<string> BooleanValues = new(StringComparer.Ordinal) { "0", "1", "false", "true" };
     private static readonly HashSet<string> PositionValues = new(StringComparer.Ordinal) { "bestFit", "b", "ctr", "inBase", "inEnd", "l", "outEnd", "r", "t" };
 
@@ -76,7 +77,7 @@ internal static class XlsxChartSeriesDataLabelsCodec
     }
 
     internal static XElement? Element(SpreadsheetChartSeriesDataLabelsArtifact? labels) => labels is null ? null :
-        new XElement(ChartNs + "dLbls", labels.Points.OrderBy(point => point.Index).Select(PointElement), Fields(labels.Defaults, includeLeaderLines: true));
+        new XElement(ChartNs + "dLbls", labels.Points.OrderBy(point => point.Index).Select(PointElement), Fields(labels.Defaults, includeLeaderLines: true, includePointFill: false));
 
     internal static void Patch(XElement seriesElement, SpreadsheetChartSeriesArtifact target, SpreadsheetChartType chartType, string errorCode, string subject)
     {
@@ -138,13 +139,20 @@ internal static class XlsxChartSeriesDataLabelsCodec
         }
         if (!XlsxChartTextStyleCodec.TryReadTextProperties(owner, out var textStyle)) return false;
         if (textStyle is not null) { parsed.TextStyle = textStyle; present = true; }
+        if (owner.Element(ChartNs + "spPr") is { } properties)
+        {
+            if (!allowedChildren.Contains("spPr") || !TryReadPointFill(properties, out var fill)) return false;
+            parsed.Fill = fill;
+            present = true;
+        }
         return owner.Elements().All(child => allowedChildren.Contains(child.Name.LocalName));
     }
 
-    private static IEnumerable<XElement?> Fields(SpreadsheetChartDataLabelOverrideArtifact? value, bool includeLeaderLines)
+    private static IEnumerable<XElement?> Fields(SpreadsheetChartDataLabelOverrideArtifact? value, bool includeLeaderLines, bool includePointFill)
     {
         if (value is null) yield break;
         if (value.NumberFormatCode.Length > 0) yield return NumberFormat(value.NumberFormatCode);
+        if (includePointFill && value.Fill is not null) yield return XlsxChartSurfaceFillCodec.Element(value.Fill, "chart point data-label fill");
         if (value.TextStyle is not null) yield return XlsxChartTextStyleCodec.TextPropertiesElement(value.TextStyle);
         if (value.HasPosition) yield return new XElement(ChartNs + "dLblPos", new XAttribute("val", PositionValue(value.Position)));
         if (value.HasShowValue) yield return BooleanElement("showVal", value.ShowValue);
@@ -155,14 +163,14 @@ internal static class XlsxChartSeriesDataLabelsCodec
         if (includeLeaderLines && value.HasShowLeaderLines) yield return BooleanElement("showLeaderLines", value.ShowLeaderLines);
     }
 
-    private static XElement PointElement(SpreadsheetChartPointDataLabelArtifact point) => new(ChartNs + "dLbl", new XElement(ChartNs + "idx", new XAttribute("val", point.Index)), Fields(point.Override, includeLeaderLines: false));
-    private static string OverrideSemantics(SpreadsheetChartDataLabelOverrideArtifact? value) => value is null ? "-" : $"value:{Optional(value.HasShowValue, value.ShowValue)};category:{Optional(value.HasShowCategoryName, value.ShowCategoryName)};series:{Optional(value.HasShowSeriesName, value.ShowSeriesName)};percent:{Optional(value.HasShowPercent, value.ShowPercent)};bubbleSize:{Optional(value.HasShowBubbleSize, value.ShowBubbleSize)};leaderLines:{Optional(value.HasShowLeaderLines, value.ShowLeaderLines)};position:{(value.HasPosition ? PositionValue(value.Position) : "-")};format:{value.NumberFormatCode};text:{XlsxChartTextStyleCodec.Semantics(value.TextStyle)}";
+    private static XElement PointElement(SpreadsheetChartPointDataLabelArtifact point) => new(ChartNs + "dLbl", new XElement(ChartNs + "idx", new XAttribute("val", point.Index)), Fields(point.Override, includeLeaderLines: false, includePointFill: true));
+    private static string OverrideSemantics(SpreadsheetChartDataLabelOverrideArtifact? value) => value is null ? "-" : $"value:{Optional(value.HasShowValue, value.ShowValue)};category:{Optional(value.HasShowCategoryName, value.ShowCategoryName)};series:{Optional(value.HasShowSeriesName, value.ShowSeriesName)};percent:{Optional(value.HasShowPercent, value.ShowPercent)};bubbleSize:{Optional(value.HasShowBubbleSize, value.ShowBubbleSize)};leaderLines:{Optional(value.HasShowLeaderLines, value.ShowLeaderLines)};position:{(value.HasPosition ? PositionValue(value.Position) : "-")};format:{value.NumberFormatCode};text:{XlsxChartTextStyleCodec.Semantics(value.TextStyle)};fill:{XlsxChartSurfaceFillCodec.Semantics(value.Fill)}";
     private static string Optional(bool present, bool value) => present ? value ? "1" : "0" : "-";
 
     private static void ValidateOverride(SpreadsheetChartDataLabelOverrideArtifact? value, SpreadsheetChartType chartType, string worksheetId, string chartId, string series, string field)
     {
         if (value is null) return;
-        if (!value.HasShowValue && !value.HasShowCategoryName && !value.HasShowSeriesName && !value.HasShowPercent && !value.HasShowBubbleSize && !value.HasShowLeaderLines && !value.HasPosition && value.TextStyle is null && value.NumberFormatCode.Length == 0)
+        if (!value.HasShowValue && !value.HasShowCategoryName && !value.HasShowSeriesName && !value.HasShowPercent && !value.HasShowBubbleSize && !value.HasShowLeaderLines && !value.HasPosition && value.TextStyle is null && value.NumberFormatCode.Length == 0 && value.Fill is null)
             throw Invalid(worksheetId, chartId, series, $"{field} must declare at least one bounded property");
         if (value.NumberFormatCode.Length > 255 || value.NumberFormatCode.Any(char.IsControl))
             throw Invalid(worksheetId, chartId, series, $"{field} number format is invalid");
@@ -172,7 +180,17 @@ internal static class XlsxChartSeriesDataLabelsCodec
             throw Invalid(worksheetId, chartId, series, $"{field} bubble-size labels require a bubble chart");
         if (value.HasPosition && value.Position is not (SpreadsheetChartDataLabelPosition.BestFit or SpreadsheetChartDataLabelPosition.Bottom or SpreadsheetChartDataLabelPosition.Center or SpreadsheetChartDataLabelPosition.InsideBase or SpreadsheetChartDataLabelPosition.InsideEnd or SpreadsheetChartDataLabelPosition.Left or SpreadsheetChartDataLabelPosition.OutsideEnd or SpreadsheetChartDataLabelPosition.Right or SpreadsheetChartDataLabelPosition.Top))
             throw Invalid(worksheetId, chartId, series, $"{field} position is unsupported");
+        XlsxChartSurfaceFillCodec.Validate(value.Fill, $"{worksheetId} chart {chartId} series {series} {field} fill");
         XlsxChartTextStyleCodec.ValidateStyle(value.TextStyle, worksheetId, chartId, $"series {series} {field}.text_style");
+    }
+
+    private static bool TryReadPointFill(XElement properties, out SpreadsheetChartSurfaceFill? fill)
+    {
+        fill = null;
+        if (properties.HasAttributes || HasUnexpectedText(properties)) return false;
+        var paints = properties.Elements().ToArray();
+        if (paints.Length != 1) return false;
+        return XlsxChartSurfaceFillCodec.TryReadPaint(paints[0], out fill);
     }
 
     private static bool ReadOptionalBoolean(XElement owner, string name, Action<bool> assign, ref bool present)

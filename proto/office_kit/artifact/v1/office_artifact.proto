@@ -4832,6 +4832,10 @@ message SpreadsheetChartDataLabelOverrideArtifact {
   optional bool show_leader_lines = 9;
   SpreadsheetChartTextStyleArtifact text_style = 6;
   string number_format_code = 7;
+  // Bounded direct point-label c:dLbl/c:spPr paint. Series defaults do not
+  // expose this field; a sparse point may own none, solid RGB, or literal
+  // gradient fill without claiming the accompanying line/effect graph.
+  SpreadsheetChartSurfaceFill fill = 10;
 }
 
 // One zero-based c:dLbl/c:idx and its sparse inherited-field overrides.
