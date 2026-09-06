@@ -347,6 +347,12 @@ same bounded paragraph/run vocabulary as ordinary text:
 explicit run typography wins. Formula-backed titles, title hyperlinks,
 WordArt, effects, and unknown title containers remain source-owned.
 
+Chart title, legend, data-label, axis-title, and tick-label text styles may also
+set a bounded `underline` token such as `single`, `double`, or `wavy`.
+`single` and `double` are PPJ aliases for the native DrawingML `sng` and `dbl`
+attributes. Underline fill/line effects and unknown rich-text graphs stay
+source-owned and fail closed.
+
 `smooth` preserves an explicit true or false native value. For line charts,
 `varyColors: true` authors one direct native color-variation flag and false is
 canonical omission. Bar/column charts and categorical combos preserve
