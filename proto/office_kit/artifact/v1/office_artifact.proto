@@ -3634,7 +3634,7 @@ message PresentationTextField {
   // "datetime3", "datetime4",
   // "datetime5", "datetime6", "datetime7", "datetime8", "datetime9",
   // "datetime10", "datetime11", "datetime12", "datetime13", "uaqdatetime1",
-  // "uaqdatetime2", and "uaqdatetime3" preserve their cached
+  // "uaqdatetime2", "uaqdatetime3", and "uaqdatetime4" preserve their cached
   // display for the host to refresh.
   // "datetime1" requests MM/DD/YYYY; "datetime2" requests Day, Month DD,
   // YYYY; "datetime3" requests DD Month YYYY; "datetime4" requests Month
@@ -3646,7 +3646,8 @@ message PresentationTextField {
   // hh:mm AM/PM; "datetime13" requests hh:mm:ss AM/PM; "uaqdatetime1"
   // requests DD/MM/YYYY using the Umm al-Qura calendar; "uaqdatetime2"
   // requests Day, DD Month, YYYY using the Umm al-Qura calendar; "uaqdatetime3"
-  // requests DD Month, YYYY using the Umm al-Qura calendar.
+  // requests DD Month, YYYY using the Umm al-Qura calendar; "uaqdatetime4"
+  // requests DD/MM/YY using the Umm al-Qura calendar.
   // Other field types remain cached values.
   optional bool automatic = 4;
 }
