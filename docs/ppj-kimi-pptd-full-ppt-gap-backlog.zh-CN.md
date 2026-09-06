@@ -89,7 +89,7 @@ PPJ 表达
 | F-12 | 完整 PowerPoint 差距 | 有界：notes/comments/sections/custom shows（legacy 与 modern root/direct-reply） | source-free modern author/person/anchor 已由 PPJ 确定性生成；master/handout、复杂 thread/action topology 未完成 | 未验收 |
 | F-13 | 完整 PowerPoint 差距 | 部分：文本 hyperlink + typed click/hover shape action | URI、内部 slide、custom show、有限 action verb 已 authored/投影；安全形状的 click/hover source-bound 目标替换/移除已闭合并保留关系 changed-part 证据；trigger/声音/宏仍缺 | 未验收 |
 | F-14 | 完整 PowerPoint 差距 | 部分：accessibility metadata + explicit reading order | authored/投影显式 reading order 和 PPJ machine review 已有；shape、image、chart、table、connector、group 的 canonical `accessibility` 现在颁发独立 `setAccessibility` capability，可在 source-bound PPJ 中增改/清除 title、description、decorative，并只改所属 SlidePart、保留图片残余扩展、二次投影恢复；安全 source-bound reading-order 通过 shape-tree z-order 回写并二次投影验证；group direct-child readingOrder 也已在有界 profile 中回写为本地 shape-tree 顺序；Checker 等价、SmartArt 内部/表格宿主语义仍缺 | 未验收 |
-| F-15 | 完整 PowerPoint 差距 | 部分：theme color/font/style + bounded tint/shade/alpha/channel/discrete/hue transforms | grammar color token 的 tint/shade、authored `design.theme.accentColors` 六角色色板、`design.theme.accentTransforms` 六角色的直接 `a:tint`/`a:shade`/`a:lumMod`/`a:lumOff`/`a:alphaMod`/`a:alphaOff`/`a:satMod`/`a:satOff`/`a:redMod`/`a:redOff`/`a:greenMod`/`a:greenOff`/`a:blueMod`/`a:blueOff`/`a:hueMod`/`a:hueOff`/`a:gray`/`a:comp`/`a:inv`/`a:gamma`/`a:invGamma`、`design.theme.colorRoles` 六个 dark/light/hyperlink 角色（含有限 RGBA alpha）和 `design.theme.fontScheme.major/minor/majorEastAsia/minorEastAsia` 已有 bounded lowering；复杂脚本字体 direct `a:cs` owner 已有 authored/imported/source-bound 单叶闭环；完整 transform/effect/font scheme 未完成 | 未验收 |
+| F-15 | 完整 PowerPoint 差距 | 部分：theme color/font/style + bounded tint/shade/alpha/channel/discrete/hue transforms | grammar color token 的 tint/shade、authored `design.theme.accentColors` 六角色色板、`design.theme.accentTransforms` 六角色的直接 `a:tint`/`a:shade`/`a:lumMod`/`a:lumOff`/`a:alphaMod`/`a:alphaOff`/`a:satMod`/`a:satOff`/`a:redMod`/`a:redOff`/`a:greenMod`/`a:greenOff`/`a:blueMod`/`a:blueOff`/`a:hueMod`/`a:hueOff`/`a:gray`/`a:comp`/`a:inv`/`a:gamma`/`a:invGamma`、`design.theme.colorRoles` 六个 dark/light/hyperlink 角色（含有限 RGBA alpha）和 `design.theme.fontScheme.major/minor/majorEastAsia/minorEastAsia/majorComplexScript` 已有 bounded lowering；复杂脚本字体 direct `a:cs` owner 已有 authored/imported/source-bound 单叶闭环；完整 transform/effect/font scheme 未完成 | 未验收 |
 | F-16 | 共同产品缺口 | 部分：只读 review + authored grid/flow/anchor/weighted stack repeat | bounds/z-order/保守 visual bounds/文本估算和有限 grid/flow/anchor/weighted stack repeat 已有；真实测量、跨对象约束、通用 solver/apply 未完成 | 未验收 |
 | F-17 | 完整 PowerPoint 差距 | 未建模/只读为主 | 文档安全/签名/发布设置未完成 | 未验收 |
 | F-18 | 宿主证据记录（不计入 PPJ gap） | 不属于 PPJ 字段 | 结构和模型渲染已有，Windows lane 未启动 | 明确未验收；仅记录证据状态 |
@@ -764,7 +764,7 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 本轮又为六个 formal 文字标量增加直接 `design.theme.textStyle` authored fallback，其中包含 `text.fontFamilyEastAsia`；theme 命中与缺字段回落到 default token 均保持在 native run 并可由二次投影恢复，但不扩展为原生 `theme1.xml` 样式图编辑。
 
-本轮新增显式 `design.theme.fontScheme.major/minor` authored 字段；它们优先于 `design.fonts` 的位置约定，写入真实 `a:majorFont`/`a:minorFont`。其中 `major`、`minor` 分别提供各自的 Latin 和 complex-script 槽位；可选 `majorEastAsia`、`minorEastAsia` 只覆盖对应 role 的 East Asian 槽位，缺省时回落到各自 role family；缺少整个显式 scheme 时仍保留旧回退。source-bound 不把主题 XML 猜成可写能力。
+本轮新增显式 `design.theme.fontScheme.major/minor` authored 字段；它们优先于 `design.fonts` 的位置约定，写入真实 `a:majorFont`/`a:minorFont`。其中 `major`、`minor` 分别提供各自的 Latin 槽位；可选 `majorEastAsia`、`minorEastAsia` 只覆盖对应 role 的 East Asian 槽位，新增的 `majorComplexScript` 只覆盖 major 的 complex-script 槽位，缺省时回落到各自 role family；缺少整个显式 scheme 时仍保留旧回退。source-bound 不把主题 XML 猜成可写能力。
 
 本轮再增加显式 `design.theme.accentColors.accent1..accent6` authored 字段；它们优先于 `design.theme.colors` 的旧顺序约定，写入真实 `a:accent1Color`..`a:accent6Color`。该字段只声明六个 RGB/RGBA accent role，八位 `#RRGGBBAA` 后缀只降低为对应 `a:alpha`，source-bound 仍拒绝新主题 owner，不扩展为完整 `theme1.xml` 编辑。
 
@@ -786,9 +786,9 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 文字字体映射再补了一个窄的复杂脚本 owner：显式 `fontFamilyComplexScript` 直接写入/读取/编辑 `a:cs/@typeface`，覆盖 authored 普通/图表文本、imported native leaf 和 source-bound 单叶 token-splice；这只缩小语言/脚本映射残差，不引入宿主字体回退或完整 theme font cascade。
 
-**仍缺：** 完整 `theme1.xml` color/font/effect scheme、更多颜色变换、继承后的 effect style、更完整的逐脚本字体回退、字体嵌入/替换、复杂语言字体映射的其余组合、WordArt 和宿主字体回退差异；当前 color roles、alpha、tint/shade、major/minor East Asian slots 与复杂脚本 direct owner 都只覆盖 PPJ 的有限 authored/native lowering，不会改写任意 imported theme XML。
+**仍缺：** 完整 `theme1.xml` color/font/effect scheme、更多颜色变换、继承后的 effect style、minor complex-script 与更完整的逐脚本字体回退、字体嵌入/替换、复杂语言字体映射的其余组合、WordArt 和宿主字体回退差异；当前 color roles、alpha、tint/shade、major/minor East Asian slots、major complex-script slot 与复杂脚本 direct owner 都只覆盖 PPJ 的有限 authored/native lowering，不会改写任意 imported theme XML。
 
-**待实现与验收：** 在已有 grammar color transform、六角色 accent 色板、六角色 dark/light/hyperlink 色板（含 authored alpha）和 font scheme 之上建立更完整的 theme transform canonical profile；所有直接颜色和 theme token 的覆盖顺序可验证；未知 theme/effect 子树必须 source-preserved；导出时记录实际字体和缺失字体 warning。当前 focused acceptance 覆盖 token fallback、tint/shade、两组六角色颜色、六位 RGB 与八位 RGBA 的 native alpha、major/minor 及其 East Asian slot 结果和非法值拒绝。
+**待实现与验收：** 在已有 grammar color transform、六角色 accent 色板、六角色 dark/light/hyperlink 色板（含 authored alpha）和 font scheme 之上建立更完整的 theme transform canonical profile；所有直接颜色和 theme token 的覆盖顺序可验证；未知 theme/effect 子树必须 source-preserved；导出时记录实际字体和缺失字体 warning。当前 focused acceptance 覆盖 token fallback、tint/shade、两组六角色颜色、六位 RGB 与八位 RGBA 的 native alpha、major/minor 及其 East Asian/major complex-script slot 结果和非法值拒绝。
 
 ### F-16 通用布局、遮挡、重排和响应式页面
 
@@ -971,7 +971,7 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 | F-12 | notes/comments/custom shows | 有界完成（modern comments authored + source-bound root/direct-reply） | master/handout、复杂 thread/action topology | P1 |
 | F-13 | actions/interactivity | 部分完成（typed click/hover action authored/projection，以及 authored media `playback.trigger` 的 onClick/onSlideStart） | media/macro 的复杂/imported trigger、完整 action graph | P1 |
 | F-14 | accessibility/reading order | 部分完成（explicit page/group readingOrder + machine review + six typed-owner/source-bound media accessibility） | SmartArt/表格宿主 semantics、Checker 等价验证；安全 direct-element 和普通 group-child z-order 回写已完成；七类 owner（含保持 opaque 的 imported media）的 `setAccessibility` 已闭合 PPJ capability→SlidePart 写回→二次投影，剩余为 SmartArt 内部朗读顺序、宿主语义与 Checker 等价 | P1 |
-| F-15 | theme/effect/font scheme | 部分完成（bounded grammar tint/shade + authored `design.theme.fontScheme.major/minor/majorEastAsia/minorEastAsia` + `design.theme.accentColors`/`accentTransforms`（含 `tint`/`shade`/`lumMod`/`lumOff`/`alphaMod`/`alphaOff`/`satMod`/`satOff`/`redMod`/`redOff`/`greenMod`/`greenOff`/`blueMod`/`blueOff`/`hueMod`/`hueOff`/`gray`/`comp`/`inv`/`gamma`/`invGamma`）/`colorRoles`，含有限 alpha，以及复杂脚本 direct `a:cs` 字体 owner） | transform/inheritance/fallback/完整语言脚本字体回退 | P1 |
+| F-15 | theme/effect/font scheme | 部分完成（bounded grammar tint/shade + authored `design.theme.fontScheme.major/minor/majorEastAsia/minorEastAsia/majorComplexScript` + `design.theme.accentColors`/`accentTransforms`（含 `tint`/`shade`/`lumMod`/`lumOff`/`alphaMod`/`alphaOff`/`satMod`/`satOff`/`redMod`/`redOff`/`greenMod`/`greenOff`/`blueMod`/`blueOff`/`hueMod`/`hueOff`/`gray`/`comp`/`inv`/`gamma`/`invGamma`）/`colorRoles`，含有限 alpha，以及复杂脚本 direct `a:cs` 字体 owner） | transform/inheritance/fallback/完整语言脚本字体回退 | P1 |
 | F-16 | auto layout/occlusion | 部分完成（review + authored component grid/flow/anchor + 有限箭头 visual bounds） | 真实字体测量、mask 轮廓、solver 与显式 layoutApply | P1 |
 | F-17 | document/security settings | 未建模/只读 | 按真实需求拆分 | P2 |
 | F-18 | Windows host evidence（独立证据，不计入 gap） | 未验收 | 明确环境后另开验收 lane；不从 PPJ 完成度扣分 | P2 |
