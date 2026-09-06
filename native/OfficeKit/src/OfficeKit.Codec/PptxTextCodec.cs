@@ -526,7 +526,7 @@ internal static class PptxTextCodec
                 if (!ValidFieldType(source.Field.Type))
                     throw new CodecException("invalid_presentation_text", "Presentation field type must contain 1 through 255 printable characters.");
                 if (source.Field.Automatic && !IsAutomaticFieldType(source.Field.Type))
-                    throw new CodecException("invalid_presentation_text", "The bounded automatic presentation field profile only supports type slidenum, datetime, datetime1, datetime2, datetime3, datetime4, datetime5, datetime6, datetime7, datetime8, datetime9, datetime10, or datetime11.");
+                    throw new CodecException("invalid_presentation_text", "The bounded automatic presentation field profile only supports type slidenum, datetime, datetime1, datetime2, datetime3, datetime4, datetime5, datetime6, datetime7, datetime8, datetime9, datetime10, datetime11, or datetime12.");
                 return;
             case PresentationTextRun.ContentOneofCase.Formula:
                 PptxMathCodec.Validate(source);
@@ -554,7 +554,8 @@ internal static class PptxTextCodec
         string.Equals(value, "datetime8", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(value, "datetime9", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(value, "datetime10", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(value, "datetime11", StringComparison.OrdinalIgnoreCase);
+        string.Equals(value, "datetime11", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(value, "datetime12", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsSlideNumberFieldType(string? value) =>
         string.Equals(value, "slidenum", StringComparison.OrdinalIgnoreCase);
