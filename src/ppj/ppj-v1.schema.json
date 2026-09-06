@@ -4661,6 +4661,31 @@
               ],
               "description": "Built-in native ChartML style index; a size grammar token must resolve to an integer from 1 through 48. It applies only to bounded native ChartPart charts."
             },
+            "dataTable": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "showHorizontalBorder": {
+                  "$ref": "#/$defs/booleanOrToken"
+                },
+                "showVerticalBorder": {
+                  "$ref": "#/$defs/booleanOrToken"
+                },
+                "showOutlineBorder": {
+                  "$ref": "#/$defs/booleanOrToken"
+                },
+                "showLegendKey": {
+                  "$ref": "#/$defs/booleanOrToken"
+                },
+                "fill": {
+                  "$ref": "#/$defs/fill"
+                },
+                "stroke": {
+                  "$ref": "#/$defs/stroke"
+                }
+              },
+              "description": "Bounded native chart data table; the four border/key flags and direct fill/stroke map to c:plotArea/c:dTable."
+            },
             "style": {
               "$ref": "#/$defs/chartStyle"
             },

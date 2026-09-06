@@ -1030,6 +1030,7 @@ internal static partial class PpjPresentationProjector
                 : "aboveChart");
         if (chart.HasDisplayBlanksAs) output["displayBlanksAs"] = StringNode(chart.DisplayBlanksAs);
         if (chart.HasStyleIndex) output["styleIndex"] = JsonValue.Create(chart.StyleIndex);
+        if (chart.DataTable is not null) output["dataTable"] = ProjectChartDataTable(chart.DataTable);
         var categories = new JsonArray();
         foreach (var value in chart.Categories) categories.Add(StringNode(value));
         var seriesJson = new JsonArray();
@@ -1545,6 +1546,19 @@ internal static partial class PpjPresentationProjector
         if (line.Cap is "flat" or "round" or "square") output["cap"] = StringNode(line.Cap);
         if (line.Join is "miter" or "round" or "bevel") output["join"] = StringNode(line.Join);
         if (line.HasOpacityThousandthPercent) output["opacity"] = JsonValue.Create(Unit(line.OpacityThousandthPercent));
+        return output;
+    }
+
+    private static JsonObject ProjectChartDataTable(SpreadsheetChartDataTableArtifact source)
+    {
+        var output = new JsonObject();
+        if (source.HasShowHorizontalBorder) output["showHorizontalBorder"] = JsonValue.Create(source.ShowHorizontalBorder);
+        if (source.HasShowVerticalBorder) output["showVerticalBorder"] = JsonValue.Create(source.ShowVerticalBorder);
+        if (source.HasShowOutlineBorder) output["showOutlineBorder"] = JsonValue.Create(source.ShowOutlineBorder);
+        if (source.HasShowLegendKey) output["showLegendKey"] = JsonValue.Create(source.ShowLegendKey);
+        if (source.Fill is not null) output["fill"] = ProjectChartSurfaceFill(source.Fill);
+        if (source.Line is not null && !string.IsNullOrEmpty(source.Line.Color?.Rgb))
+            output["stroke"] = ProjectChartLine(source.Line);
         return output;
     }
 

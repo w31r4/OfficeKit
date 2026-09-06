@@ -75,6 +75,8 @@ internal static partial class PpjAuthoredPresentationCompiler
         chart.Categories.Add(element.Data.Categories.Select(CategoryText));
         if (raw.TryGetProperty("displayBlanksAs", out var displayBlanksAs))
             chart.DisplayBlanksAs = ChartEnumToken(displayBlanksAs, catalog, "chart displayBlanksAs", "zero", "gap", "span");
+        if (raw.TryGetProperty("dataTable", out var dataTable))
+            chart.DataTable = BuildChartDataTable(dataTable, catalog);
         var namedStyle = catalog.ChartStyle(element.StyleRef);
         var inlineStyle = Property(raw, "style");
         if (isWaterfall) ValidateWaterfallCompileProfile(element, raw, namedStyle, inlineStyle);
@@ -4344,6 +4346,24 @@ internal static partial class PpjAuthoredPresentationCompiler
         var opacity = OptionalOpacity(source, "opacity", catalog, "chart line opacity") ?? color.Alpha;
         if (opacity < 1) line.OpacityThousandthPercent = Opacity(opacity);
         return line;
+    }
+
+    private static SpreadsheetChartDataTableArtifact BuildChartDataTable(JsonElement source, Catalog catalog)
+    {
+        var dataTable = new SpreadsheetChartDataTableArtifact();
+        if (source.TryGetProperty("showHorizontalBorder", out var horizontal))
+            dataTable.ShowHorizontalBorder = catalog.BooleanToken(horizontal, "boolean", "chart dataTable showHorizontalBorder");
+        if (source.TryGetProperty("showVerticalBorder", out var vertical))
+            dataTable.ShowVerticalBorder = catalog.BooleanToken(vertical, "boolean", "chart dataTable showVerticalBorder");
+        if (source.TryGetProperty("showOutlineBorder", out var outline))
+            dataTable.ShowOutlineBorder = catalog.BooleanToken(outline, "boolean", "chart dataTable showOutlineBorder");
+        if (source.TryGetProperty("showLegendKey", out var legendKey))
+            dataTable.ShowLegendKey = catalog.BooleanToken(legendKey, "boolean", "chart dataTable showLegendKey");
+        if (source.TryGetProperty("fill", out var fill))
+            dataTable.Fill = BuildChartFill(fill, catalog, "chart data table fill");
+        if (source.TryGetProperty("stroke", out var stroke))
+            dataTable.Line = BuildChartLine(stroke, catalog);
+        return dataTable;
     }
 
     }

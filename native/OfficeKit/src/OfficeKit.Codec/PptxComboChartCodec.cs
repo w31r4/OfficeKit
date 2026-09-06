@@ -186,6 +186,7 @@ internal static partial class PptxChartCodec
         if (source.ChartAreaFill is not null) output.ChartAreaFill = source.ChartAreaFill.Clone();
         if (source.PlotAreaFill is not null) output.PlotAreaFill = source.PlotAreaFill.Clone();
         if (source.PlotAreaLine is not null) output.PlotAreaLine = source.PlotAreaLine.Clone();
+        if (source.DataTable is not null) output.DataTable = source.DataTable.Clone();
         if (source.DataLabels is not null) output.DataLabels = source.DataLabels.Clone();
         if (source.HasDisplayBlanksAs) output.DisplayBlanksAs = source.DisplayBlanksAs;
         if (source.HasLegendOverlay) output.LegendOverlay = source.LegendOverlay;
@@ -365,6 +366,9 @@ internal static partial class PptxChartCodec
             if (plotAreaFill is not null) chart.PlotAreaFill = plotAreaFill;
             if (plotAreaLine is not null) chart.PlotAreaLine = plotAreaLine;
         }
+        var dataTableProbe = new SpreadsheetChartArtifact();
+        if (!XlsxChartDataTableCodec.TryRead(plotArea, dataTableProbe)) editable = false;
+        else if (dataTableProbe.DataTable is not null) chart.DataTable = dataTableProbe.DataTable;
         return chart.Title.Length <= 32_767 && !HasControls(chart.Title);
     }
 
@@ -540,6 +544,7 @@ internal static partial class PptxChartCodec
         var plotArea = new XElement(ChartNs + "plotArea", new XElement(ChartNs + "layout"), plots);
         XlsxChartAxisCodec.AppendAuthored(plotArea, ComboAxisCarrier(chart, id, name));
         if (HasSecondaryComboPlot(chart)) XlsxChartAxisCodec.AppendAuthoredPresentationSecondary(plotArea, ComboAxisCarrier(chart, id, name, secondary: true));
+        if (XlsxChartDataTableCodec.Element(chart.DataTable, "Presentation combo chart data table") is { } dataTable) plotArea.Add(dataTable);
         if (XlsxChartPlotAreaStyleCodec.Element(chart.PlotAreaFill, chart.PlotAreaLine, "Presentation combo chart plot area") is { } plotStyle) plotArea.Add(plotStyle);
         var nativeChart = new XElement(ChartNs + "chart");
         if (chart.Title.Length > 0) nativeChart.Add(XlsxChartTextStyleCodec.TitleElement(chart.Title, chart.TitleTextStyle, chart.HasTitlePlacement ? chart.TitlePlacement : string.Empty));
@@ -623,6 +628,7 @@ internal static partial class PptxChartCodec
         foreach (var plot in plots) XlsxChartDataLabelsCodec.Patch(plot, target.DataLabels);
         XlsxChartAxisCodec.Patch(plotArea, primaryPlot, ComboAxisCarrier(target, id, name));
         if (secondaryPlot is not null) XlsxChartAxisCodec.PatchPresentationSecondary(plotArea, secondaryPlot, ComboAxisCarrier(target, id, name, secondary: true));
+        XlsxChartDataTableCodec.Patch(plotArea, target.DataTable, "unsupported_presentation_edit", "Presentation combo chart");
         XlsxChartSurfaceFillCodec.Patch(document.Root!, target.ChartAreaFill, "Presentation combo chart area", allowFrameDecorations: true);
         XlsxChartPlotAreaStyleCodec.Patch(plotArea, target.PlotAreaFill, target.PlotAreaLine, "Presentation combo chart plot area");
     }

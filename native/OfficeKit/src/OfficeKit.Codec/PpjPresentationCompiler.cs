@@ -2456,7 +2456,7 @@ internal static class PpjSourceBoundPresentationCompiler
     {
         RequireEqualExcept(before.Raw, after.Raw, path,
             "role", "tags", "hidden", "locked", "frame", "title", "data", "style",
-            "titlePlacement", "displayBlanksAs", "styleIndex", "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis", "spokeAxis", "accessibility");
+            "titlePlacement", "displayBlanksAs", "styleIndex", "dataTable", "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis", "spokeAxis", "accessibility");
         var changed = ApplyFrame(before, after, target, path);
         if (PropertyChanged(before.Raw, after.Raw, "displayBlanksAs"))
         {
@@ -2478,6 +2478,14 @@ internal static class PpjSourceBoundPresentationCompiler
                 target.StyleIndex = ResolveGrammarIntegerToken(program.Root, styleIndex, path + ".styleIndex", 1, 48);
             else
                 target.ClearStyleIndex();
+            changed = true;
+        }
+        if (PropertyChanged(before.Raw, after.Raw, "dataTable"))
+        {
+            RequireCapability(after, "setChartPlot", path + ".dataTable");
+            target.DataTable = after.Raw.TryGetProperty("dataTable", out var dataTable)
+                ? SourceBoundChartDataTable(dataTable, path + ".dataTable", program.Root)
+                : null;
             changed = true;
         }
         if (PropertyChanged(before.Raw, after.Raw, "title"))
@@ -3606,6 +3614,27 @@ internal static class PpjSourceBoundPresentationCompiler
         else if (colorAlpha < 1)
             output.OpacityThousandthPercent = Unit(colorAlpha);
         return output;
+    }
+
+    private static SpreadsheetChartDataTableArtifact SourceBoundChartDataTable(
+        JsonElement source,
+        string path,
+        JsonElement grammarRoot)
+    {
+        var dataTable = new SpreadsheetChartDataTableArtifact();
+        if (source.TryGetProperty("showHorizontalBorder", out var horizontal))
+            dataTable.ShowHorizontalBorder = ResolveGrammarBooleanToken(grammarRoot, horizontal, path + ".showHorizontalBorder");
+        if (source.TryGetProperty("showVerticalBorder", out var vertical))
+            dataTable.ShowVerticalBorder = ResolveGrammarBooleanToken(grammarRoot, vertical, path + ".showVerticalBorder");
+        if (source.TryGetProperty("showOutlineBorder", out var outline))
+            dataTable.ShowOutlineBorder = ResolveGrammarBooleanToken(grammarRoot, outline, path + ".showOutlineBorder");
+        if (source.TryGetProperty("showLegendKey", out var legendKey))
+            dataTable.ShowLegendKey = ResolveGrammarBooleanToken(grammarRoot, legendKey, path + ".showLegendKey");
+        if (source.TryGetProperty("fill", out var fill))
+            dataTable.Fill = SourceBoundChartFill(fill, path + ".fill", grammarRoot);
+        if (source.TryGetProperty("stroke", out var stroke))
+            dataTable.Line = SourceBoundChartLine(stroke, path + ".stroke", grammarRoot);
+        return dataTable;
     }
 
     private static SpreadsheetChartSurfaceFill? SourceBoundChartFill(

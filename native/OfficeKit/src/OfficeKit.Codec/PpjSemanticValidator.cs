@@ -1181,6 +1181,15 @@ internal static class PpjSemanticValidator
                     "styleIndex must be an integer or a size grammar token reference.",
                     path + ".styleIndex"));
         }
+        if (chart.Raw.TryGetProperty("dataTable", out _))
+        {
+            var supportsNativeDataTable = chart.ChartType is "bar" or "column" or "line" or "area" or "pie" or "doughnut" or "scatter" or "bubble" or "radar" or "combo" or "waterfall";
+            if (!supportsNativeDataTable || numericCombo)
+                diagnostics.Add(new(
+                    "ppj.chart.dataTableType",
+                    "dataTable applies only to bounded native ChartPart charts.",
+                    path + ".dataTable"));
+        }
         if (chart.Raw.TryGetProperty("style", out var plotAreaStyle) &&
             plotAreaStyle.TryGetProperty("plotAreaLine", out _))
         {

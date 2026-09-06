@@ -91,6 +91,7 @@ internal static class OpenXmlChartSpaceCodec
         editable &= XlsxChartDataLabelsCodec.TryRead(plot, chart);
         if (!XlsxChartAxisCodec.TryRead(plotArea, plot, chart, out var axesEditable)) editable = false;
         else editable &= axesEditable;
+        editable &= XlsxChartDataTableCodec.TryRead(plotArea, chart);
         var chartSpaceProperties = root.Element(ChartNs + "spPr");
         if (!XlsxChartSurfaceFillCodec.TryRead(chartSpaceProperties, out var chartAreaFill, allowChartFrameDecorations))
         {
@@ -128,6 +129,7 @@ internal static class OpenXmlChartSpaceCodec
         };
         var plotArea = new XElement(ChartNs + "plotArea", new XElement(ChartNs + "layout"), plot);
         XlsxChartAxisCodec.AppendAuthored(plotArea, chart);
+        if (XlsxChartDataTableCodec.Element(chart.DataTable, "Chart data table") is { } dataTable) plotArea.Add(dataTable);
         if (XlsxChartPlotAreaStyleCodec.Element(chart.PlotAreaFill, chart.PlotAreaLine, "Chart plot area") is { } plotStyle) plotArea.Add(plotStyle);
         var nativeChart = new XElement(ChartNs + "chart");
         if (chart.Title.Length > 0) nativeChart.Add(XlsxChartTextStyleCodec.TitleElement(chart.Title, chart.TitleTextStyle, chart.HasTitlePlacement ? chart.TitlePlacement : string.Empty));
@@ -175,6 +177,7 @@ internal static class OpenXmlChartSpaceCodec
         PatchPlotOptions(plot, target);
         XlsxChartDataLabelsCodec.Patch(plot, target.DataLabels);
         XlsxChartAxisCodec.Patch(plotArea, plot, target);
+        XlsxChartDataTableCodec.Patch(plotArea, target.DataTable, errorCode, subject);
         XlsxChartSurfaceFillCodec.Patch(document.Root!, target.ChartAreaFill, $"{subject} chart area", allowChartFrameDecorations);
         XlsxChartPlotAreaStyleCodec.Patch(plotArea, target.PlotAreaFill, target.PlotAreaLine, $"{subject} plot area");
     }

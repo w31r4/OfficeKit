@@ -1032,6 +1032,10 @@ message SpreadsheetChartArtifact {
   // Optional bounded c:chartSpace/c:style built-in chart style index. The
   // native profile accepts the PowerPoint 1..48 style catalog.
   optional uint32 style_index = 44;
+  // Optional bounded c:plotArea/c:dTable data-table state. The four boolean
+  // flags retain native presence, while fill and line share the direct
+  // surface/outline profiles used by other ChartSpace containers.
+  SpreadsheetChartDataTableArtifact data_table = 45;
 }
 
 message SpreadsheetChartSeriesArtifact {
@@ -1158,6 +1162,19 @@ message SpreadsheetChartSurfaceFill {
 // Drawing and chart hashes bind editable semantics to one imported package.
 // Relationship IDs, non-visual IDs, anchor ordinals, and part paths are source
 // locators only; none are durable artifact identity.
+// Bounded native c:plotArea/c:dTable configuration. Optional boolean fields
+// distinguish omitted defaults from explicit false values; fill and line are
+// the same direct literal profiles used by chart, legend, and plot-area
+// containers.
+message SpreadsheetChartDataTableArtifact {
+  optional bool show_horizontal_border = 1;
+  optional bool show_vertical_border = 2;
+  optional bool show_outline_border = 3;
+  optional bool show_legend_key = 4;
+  SpreadsheetChartSurfaceFill fill = 5;
+  SpreadsheetChartLineStyleArtifact line = 6;
+}
+
 message SpreadsheetChartSourceBinding {
   string drawing_part_path = 1;
   string drawing_xml_sha256 = 2;
@@ -2850,6 +2867,9 @@ message PresentationChart {
   // Optional bounded c:chartSpace/c:style built-in chart style index mirrored
   // from the native ChartPart. The native profile accepts 1..48.
   optional uint32 style_index = 44;
+  // Optional bounded c:plotArea/c:dTable data-table state mirrored from the
+  // native ChartPart.
+  SpreadsheetChartDataTableArtifact data_table = 45;
 }
 
 // Bounded literal c:chartSpace/c:spPr container paint for Presentation charts.
