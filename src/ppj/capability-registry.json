@@ -186,6 +186,13 @@
       "reason": "PPJ owns the Kimi `ChartConfig.dataTable` profile: four presence-aware border/key flags, direct none/solid/gradient fill, and direct RGB/preset-dash stroke. Text-property and extension children, theme/effect paint graphs, unsupported chart families, and irregular c:dTable topology remain source-owned and fail closed."
     },
     {
+      "feature": "native scatter chart style",
+      "ppjPath": "pages[].elements[].style.scatterStyle",
+      "behavior": "partial",
+      "sourceBound": "Recognized imported ordinary scatter ChartParts project `style.scatterStyle` from direct c:scatterChart/c:scatterStyle/@val. A source-bound setChartPlot edit changes only the target ChartPart and reprojects the selected style.",
+      "reason": "PPJ owns the five Kimi `scatterOptions.style` values (`line`, `lineWithMarkers`, `marker`, `smooth`, `smoothWithMarkers`) through native `line`, `lineMarker`, `marker`, `smooth`, and `smoothMarker` tokens. Scatter series line styling remains a separate marker/stroke capability; numeric combo/vector fallback, 3D/effect/extension graphs, invalid topology, and XLSX's marker-only editable profile remain source-owned or fail closed."
+    },
+    {
       "feature": "native sparse chart point styles",
       "ppjPath": "pages[].elements[].data.series[].pointStyles",
       "behavior": "partial",
