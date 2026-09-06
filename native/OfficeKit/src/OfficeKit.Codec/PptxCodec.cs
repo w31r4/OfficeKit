@@ -3236,6 +3236,7 @@ internal static class PptxCodec
             ?? new Dictionary<string, PresentationThemeColorTransform>(StringComparer.Ordinal);
         var majorFont = authored?.HasMajorFontFamily == true ? authored.MajorFontFamily : "Arial";
         var majorFontEastAsia = authored?.HasMajorFontFamilyEastAsia == true ? authored.MajorFontFamilyEastAsia : majorFont;
+        var majorFontComplexScript = authored?.HasMajorFontFamilyComplexScript == true ? authored.MajorFontFamilyComplexScript : majorFont;
         var minorFont = authored?.HasMinorFontFamily == true ? authored.MinorFontFamily : majorFont;
         var minorFontEastAsia = authored?.HasMinorFontFamilyEastAsia == true ? authored.MinorFontFamilyEastAsia : minorFont;
         var themeName = authored?.HasName == true ? authored.Name : "Office Clean Room";
@@ -3265,7 +3266,7 @@ internal static class PptxCodec
                 new A.Hyperlink(ThemeRgb(hyperlink)),
                 new A.FollowedHyperlinkColor(ThemeRgb(followedHyperlink))) { Name = "Office" },
             new A.FontScheme(
-                new A.MajorFont(new A.LatinFont { Typeface = majorFont }, new A.EastAsianFont { Typeface = majorFontEastAsia }, new A.ComplexScriptFont { Typeface = majorFont }),
+                new A.MajorFont(new A.LatinFont { Typeface = majorFont }, new A.EastAsianFont { Typeface = majorFontEastAsia }, new A.ComplexScriptFont { Typeface = majorFontComplexScript }),
                 new A.MinorFont(new A.LatinFont { Typeface = minorFont }, new A.EastAsianFont { Typeface = minorFontEastAsia }, new A.ComplexScriptFont { Typeface = minorFont })) { Name = themeName },
             new A.FormatScheme(
                 new A.FillStyleList(
