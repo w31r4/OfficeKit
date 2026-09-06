@@ -251,6 +251,7 @@ internal sealed class PpjMediaElementModel : PpjElementModel
     internal ulong? EndAtMs { get; init; }
     internal bool? Loop { get; init; }
     internal bool? Mute { get; init; }
+    internal string? PlaybackTrigger { get; init; }
 }
 
 internal sealed class PpjPlaceholderElementModel : PpjElementModel
@@ -442,7 +443,8 @@ internal sealed record PpjRepeatModel(
     double Gap,
     int? Columns,
     double? RowGap,
-    string? Anchor);
+    string? Anchor,
+    IReadOnlyList<double>? Weights);
 
 internal sealed record PpjRepeatItemModel(
     string Key,
@@ -828,6 +830,9 @@ internal static class PpjProgramParser
                 EndAtMs = element.TryGetProperty("endAtMs", out var endAtMs) ? endAtMs.GetUInt64() : null,
                 Loop = element.TryGetProperty("loop", out var loop) ? loop.GetBoolean() : null,
                 Mute = element.TryGetProperty("mute", out var mute) ? mute.GetBoolean() : null,
+                PlaybackTrigger = element.TryGetProperty("playback", out var playback)
+                    ? playback.GetProperty("trigger").GetString()
+                    : null,
             },
             "placeholder" => new PpjPlaceholderElementModel
             {
@@ -1558,7 +1563,10 @@ internal static class PpjProgramParser
             layout.ValueKind == JsonValueKind.Object && layout.TryGetProperty("gap", out var gap) ? gap.GetDouble() : 0,
             layout.ValueKind == JsonValueKind.Object && layout.TryGetProperty("columns", out var columns) ? columns.GetInt32() : null,
             layout.ValueKind == JsonValueKind.Object && layout.TryGetProperty("rowGap", out var rowGap) ? rowGap.GetDouble() : null,
-            layout.ValueKind == JsonValueKind.Object ? OptionalString(layout, "anchor") : null);
+            layout.ValueKind == JsonValueKind.Object ? OptionalString(layout, "anchor") : null,
+            layout.ValueKind == JsonValueKind.Object && layout.TryGetProperty("weights", out var weights)
+                ? weights.EnumerateArray().Select(value => value.GetDouble()).ToArray()
+                : null);
     }
 
     private static PpjConditionModel ParseCondition(JsonElement condition) => new(

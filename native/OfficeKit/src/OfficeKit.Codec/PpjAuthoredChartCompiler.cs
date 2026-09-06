@@ -2007,6 +2007,7 @@ internal static partial class PpjAuthoredPresentationCompiler
             if (!run.HasFontSizePoints && defaults.HasFontSizePoints) run.FontSizePoints = defaults.FontSizePoints;
             if (!run.HasFontFamily && defaults.FontFamily.Length > 0) run.FontFamily = defaults.FontFamily;
             if (!run.HasFontFamilyEastAsia && defaults.FontFamilyEastAsia.Length > 0) run.FontFamilyEastAsia = defaults.FontFamilyEastAsia;
+            if (!run.HasFontFamilyComplexScript && defaults.FontFamilyComplexScript.Length > 0) run.FontFamilyComplexScript = defaults.FontFamilyComplexScript;
             if (!run.HasBold && defaults.HasBold) run.Bold = defaults.Bold;
             if (!run.HasItalic && defaults.HasItalic) run.Italic = defaults.Italic;
             if (!run.HasColorRgb && !run.HasColorScheme && run.GradientFill is null && defaults.ColorRgb.Length > 0)
@@ -2035,6 +2036,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (value.TryGetProperty("fontFamily", out var fontFamily)) run.FontFamily = fontFamily.GetString()!;
         if (value.TryGetProperty("fontFamilyEastAsia", out var eastAsia)) run.FontFamilyEastAsia = eastAsia.GetString()!;
         else if (run.HasFontFamily) run.FontFamilyEastAsia = run.FontFamily;
+        if (value.TryGetProperty("fontFamilyComplexScript", out var complexScript)) run.FontFamilyComplexScript = complexScript.GetString()!;
         if (value.TryGetProperty("bold", out var bold)) run.Bold = bold.GetBoolean();
         if (value.TryGetProperty("italic", out var italic)) run.Italic = italic.GetBoolean();
         if (value.TryGetProperty("color", out var color))

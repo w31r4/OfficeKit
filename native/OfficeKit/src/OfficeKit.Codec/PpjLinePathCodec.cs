@@ -297,7 +297,10 @@ internal static class PpjLinePathCodec
         };
     }
 
-    private const int MaxSmoothProjectionPoints = 24;
+    // Compact reverse projection remains a bounded numeric proof. 48 points
+    // closes the next Kimi residual without making arbitrary high-degree
+    // geometry or unbounded interpolation part of the compact profile.
+    private const int MaxSmoothProjectionPoints = 48;
 
     private static bool TryProjectSmooth(
         IReadOnlyList<PresentationCustomGeometryCommand> commands,
@@ -524,16 +527,7 @@ internal static class PpjLinePathCodec
             samples.Add(axis == 0 ? commands[index + 1].CubicBezierTo.Control2.X : commands[index + 1].CubicBezierTo.Control2.Y);
         }
 
-        var normal = new double[count, count + 1];
-        for (var row = 0; row < rows.Count; row++)
-            for (var column = 0; column < count; column++)
-            {
-                var coefficient = rows[row][column];
-                if (!double.IsFinite(coefficient)) return false;
-                for (var target = 0; target < count; target++) normal[column, target] += coefficient * rows[row][target];
-                normal[column, count] += coefficient * samples[row];
-            }
-        if (!SolveLinearSystem(normal, count, out controls)) return false;
+        if (!SolveLeastSquares(rows, samples, count, out controls)) return false;
         return controls.All(double.IsFinite);
     }
 
@@ -565,30 +559,71 @@ internal static class PpjLinePathCodec
         return basis;
     }
 
-    private static bool SolveLinearSystem(double[,] matrix, int count, out double[] result)
+    private static bool SolveLeastSquares(
+        IReadOnlyList<double[]> rows,
+        IReadOnlyList<double> samples,
+        int count,
+        out double[] result)
     {
         result = [];
-        for (var column = 0; column < count; column++)
+        if (rows.Count < count || samples.Count != rows.Count) return false;
+        var matrix = new double[rows.Count, count];
+        var rightHandSide = samples.ToArray();
+        for (var row = 0; row < rows.Count; row++)
         {
-            var pivot = column;
-            for (var row = column + 1; row < count; row++)
-                if (Math.Abs(matrix[row, column]) > Math.Abs(matrix[pivot, column])) pivot = row;
-            if (!double.IsFinite(matrix[pivot, column]) || Math.Abs(matrix[pivot, column]) < 1e-12)
-                return false;
-            if (pivot != column)
-                for (var index = column; index <= count; index++)
-                    (matrix[column, index], matrix[pivot, index]) = (matrix[pivot, index], matrix[column, index]);
-            var divisor = matrix[column, column];
-            for (var index = column; index <= count; index++) matrix[column, index] /= divisor;
-            for (var row = 0; row < count; row++)
+            if (rows[row].Length != count || !double.IsFinite(rightHandSide[row])) return false;
+            for (var column = 0; column < count; column++)
             {
-                if (row == column) continue;
-                var factor = matrix[row, column];
-                if (Math.Abs(factor) < 1e-15) continue;
-                for (var index = column; index <= count; index++) matrix[row, index] -= factor * matrix[column, index];
+                if (!double.IsFinite(rows[row][column])) return false;
+                matrix[row, column] = rows[row][column];
             }
         }
-        result = Enumerable.Range(0, count).Select(index => matrix[index, count]).ToArray();
+
+        // Householder QR avoids squaring the condition number of the
+        // high-degree Bernstein interpolation basis. The row count is at
+        // most 95 for the bounded 48-point profile.
+        for (var column = 0; column < count; column++)
+        {
+            var normSquared = 0d;
+            for (var row = column; row < rows.Count; row++)
+                normSquared += matrix[row, column] * matrix[row, column];
+            var norm = Math.Sqrt(normSquared);
+            if (!double.IsFinite(norm) || norm < 1e-12)
+                return false;
+
+            var reflector = new double[rows.Count - column];
+            for (var row = column; row < rows.Count; row++) reflector[row - column] = matrix[row, column];
+            reflector[0] -= reflector[0] >= 0 ? norm : -norm;
+            var reflectorNormSquared = reflector.Sum(value => value * value);
+            if (!double.IsFinite(reflectorNormSquared) || reflectorNormSquared < 1e-24)
+                return false;
+
+            for (var target = column; target < count; target++)
+            {
+                var dot = 0d;
+                for (var row = column; row < rows.Count; row++)
+                    dot += reflector[row - column] * matrix[row, target];
+                var factor = 2d * dot / reflectorNormSquared;
+                for (var row = column; row < rows.Count; row++)
+                    matrix[row, target] -= factor * reflector[row - column];
+            }
+            var rightDot = 0d;
+            for (var row = column; row < rows.Count; row++)
+                rightDot += reflector[row - column] * rightHandSide[row];
+            var rightFactor = 2d * rightDot / reflectorNormSquared;
+            for (var row = column; row < rows.Count; row++)
+                rightHandSide[row] -= rightFactor * reflector[row - column];
+        }
+
+        result = new double[count];
+        for (var row = count - 1; row >= 0; row--)
+        {
+            var value = rightHandSide[row];
+            for (var column = row + 1; column < count; column++) value -= matrix[row, column] * result[column];
+            var divisor = matrix[row, row];
+            if (!double.IsFinite(divisor) || Math.Abs(divisor) < 1e-12) return false;
+            result[row] = value / divisor;
+        }
         return result.All(double.IsFinite);
     }
 

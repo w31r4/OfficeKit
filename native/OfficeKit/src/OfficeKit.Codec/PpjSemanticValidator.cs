@@ -1,12 +1,18 @@
 using System.Text;
 using System.Text.Json;
+using OfficeKit.Artifact.Wire.V1;
 
 namespace OfficeKit.Codec;
 
 internal static class PpjSemanticValidator
 {
+    private const double EmuPerPoint = 12_700d;
     private static readonly IReadOnlySet<string> AuthoredVideoMimeTypes = Set("video/mp4");
     private static readonly IReadOnlySet<string> AuthoredAudioMimeTypes = Set("audio/mpeg", "audio/mp4", "audio/wav", "audio/x-wav");
+    private static readonly IReadOnlySet<string> FormalTextPrecedenceTargets = Set(
+        "text.size", "text.bold", "text.italic", "text.font", "text.fontFamily", "text.fontFamilyEastAsia", "text.fontFamilyComplexScript", "text.language");
+    private static readonly IReadOnlySet<string> FormalTextPrecedenceSources = Set(
+        "layout", "element", "paragraph", "run");
 
     private static readonly IReadOnlyDictionary<string, IReadOnlySet<string>> CapabilityFields =
         new Dictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal)
@@ -17,8 +23,8 @@ internal static class PpjSemanticValidator
             ["setStroke"] = Set("stroke"),
             ["setLinePath"] = Set("line.path"),
             ["setTextBodyStyle"] = Set("text.style", "textStyle"),
-            ["setShapeEffects"] = Set("shape.shadow"),
-            ["setOpacity"] = Set("opacity"),
+            ["setShapeEffects"] = Set("shape.shadow", "shape.glow", "shape.innerShadow", "shape.reflection", "shape.softEdge"),
+            ["setOpacity"] = Set("opacity", "compositing.opacity"),
             ["setFrame"] = Set("frame.x", "frame.y", "frame.width", "frame.height", "frame.rotation", "frame.flipH", "frame.flipV"),
             ["setGeometry"] = Set("geometry.adjustments", "geometry.paths"),
             ["setCanvas"] = Set("canvas.width", "canvas.height"),
@@ -30,7 +36,7 @@ internal static class PpjSemanticValidator
             ["setImageCrop"] = Set("image.crop"),
             ["setImageFit"] = Set("image.fit"),
             ["setImageMask"] = Set("image.mask.preset", "image.mask.adjustments", "image.mask.paths"),
-            ["setImageEffects"] = Set("image.border", "image.shadow"),
+            ["setImageEffects"] = Set("image.border", "image.shadow", "image.glow", "image.innerShadow", "image.reflection", "image.softEdge"),
             ["setTableStyle"] = Set("table.style"),
             ["setTableGeometry"] = Set("table.geometry"),
             ["setTableCellStyle"] = Set("table.cell.fill", "table.cell.borders", "table.cell.textStyle"),
@@ -99,6 +105,7 @@ internal static class PpjSemanticValidator
         }
         ValidateResourceReferences(program.Root, new StringBuilder("$"), assetIds, colorIds, program.Design.FontIds, grammarTokenKinds, diagnostics);
         ValidateDesignGrammar(program.Root.GetProperty("design"), "$.design.grammar", diagnostics);
+        ValidateFormalTextStyleBoundary(program, diagnostics);
         ValidateTextEffects(program.Root, new StringBuilder("$"), diagnostics);
         ValidateFormulaRuns(program.Root, new StringBuilder("$"), diagnostics);
         ValidateMasterLayoutState(program, masters, layouts, diagnostics);
@@ -379,6 +386,18 @@ internal static class PpjSemanticValidator
                     var values = sources.EnumerateArray().Select(item => item.GetString()!).ToArray();
                     if (values.Length == 0 || values.Distinct(StringComparer.Ordinal).Count() != values.Length)
                         diagnostics.Add(new("ppj.grammar.precedenceSources", "Style-precedence sources must be non-empty and unique.", $"{rulePath}.sources"));
+                    var targetName = rule.TryGetProperty("target", out var targetValue)
+                        ? targetValue.GetString()
+                        : null;
+                    foreach (var source in values)
+                    {
+                        if (!FormalTextPrecedenceSources.Contains(source)) continue;
+                        if (targetName is null || !FormalTextPrecedenceTargets.Contains(targetName))
+                            diagnostics.Add(new(
+                                "ppj.grammar.precedenceSourceTarget",
+                                $"Style-precedence source {source} is only supported for the bounded text scalar targets.",
+                                $"{rulePath}.sources"));
+                    }
                 }
             }
         }
@@ -400,6 +419,112 @@ internal static class PpjSemanticValidator
                 if (op is "gt" or "gte" or "lt" or "lte" && values.Any(item => item.ValueKind != JsonValueKind.Number || !item.TryGetDouble(out var number) || !double.IsFinite(number)))
                     diagnostics.Add(new("ppj.grammar.predicateNumber", $"Predicate operator {op} requires finite numeric values.", $"{predicatePath}.value"));
             }
+        }
+    }
+
+    private static void ValidateFormalTextStyleBoundary(
+        PpjProgramModel program,
+        List<PpjDiagnostic> diagnostics)
+    {
+        if (program.Source is null) return;
+
+        if (program.Root.GetProperty("design").TryGetProperty("grammar", out var grammar) &&
+            grammar.TryGetProperty("stylePrecedence", out var precedence) &&
+            precedence.ValueKind == JsonValueKind.Array)
+        {
+            for (var index = 0; index < precedence.GetArrayLength(); index++)
+            {
+                var rule = precedence[index];
+                var target = rule.TryGetProperty("target", out var targetValue) ? targetValue.GetString() : null;
+                if (target is null || !target.StartsWith("text.", StringComparison.Ordinal) ||
+                    !rule.TryGetProperty("sources", out var sources) || sources.ValueKind != JsonValueKind.Array)
+                    continue;
+                if (sources.EnumerateArray().Any(source => source.GetString() is "layout" or "master" or "element" or "paragraph" or "run"))
+                    diagnostics.Add(new(
+                        "ppj.sourceBound.formalTextPrecedence",
+                        "Source-bound PPJ cannot declare formal layout, master, element, paragraph, or run text precedence owners.",
+                        $"$.design.grammar.stylePrecedence[{index}].sources"));
+            }
+        }
+
+        var design = program.Root.GetProperty("design");
+        RejectSourceBoundOwnerField(design, "masters", "style", "$.design.masters", diagnostics);
+        RejectSourceBoundOwnerField(design, "layouts", "style", "$.design.layouts", diagnostics);
+        if (design.TryGetProperty("theme", out var theme) &&
+            theme.ValueKind == JsonValueKind.Object &&
+            theme.TryGetProperty("textStyle", out _))
+        {
+            diagnostics.Add(new(
+                "ppj.sourceBound.formalTextOwner",
+                "Source-bound PPJ cannot declare design.theme.textStyle as a new formal text owner.",
+                "$.design.theme.textStyle"));
+        }
+        if (design.TryGetProperty("theme", out theme) &&
+            theme.ValueKind == JsonValueKind.Object &&
+            theme.TryGetProperty("fontScheme", out _))
+        {
+            diagnostics.Add(new(
+                "ppj.sourceBound.themeFontScheme",
+                "Source-bound PPJ cannot declare a new authored design.theme.fontScheme over the preserved native theme graph.",
+                "$.design.theme.fontScheme"));
+        }
+        if (design.TryGetProperty("theme", out theme) &&
+            theme.ValueKind == JsonValueKind.Object &&
+            theme.TryGetProperty("accentColors", out _))
+        {
+            diagnostics.Add(new(
+                "ppj.sourceBound.themeAccentColors",
+                "Source-bound PPJ cannot declare new authored design.theme.accentColors over the preserved native theme graph.",
+                "$.design.theme.accentColors"));
+        }
+        if (design.TryGetProperty("theme", out theme) &&
+            theme.ValueKind == JsonValueKind.Object &&
+            theme.TryGetProperty("colorRoles", out _))
+        {
+            diagnostics.Add(new(
+                "ppj.sourceBound.themeColorRoles",
+                "Source-bound PPJ cannot declare new authored design.theme.colorRoles over the preserved native theme graph.",
+                "$.design.theme.colorRoles"));
+        }
+        foreach (var page in program.Pages.Select((value, index) => (value, index)))
+        {
+            foreach (var (element, path) in WalkElements(page.value.Elements, $"$.pages[{page.index}].elements"))
+            {
+                if (element.Type is not ("text" or "placeholder") || !element.Raw.TryGetProperty("textStyle", out _)) continue;
+                diagnostics.Add(new(
+                    "ppj.sourceBound.formalTextOwner",
+                    "Source-bound PPJ cannot declare a new direct textStyle owner on text or placeholder elements.",
+                    path + ".textStyle"));
+            }
+        }
+        foreach (var component in program.Components.Select((value, index) => (value, index)))
+        {
+            foreach (var (element, path) in WalkElements(component.value.Elements, $"$.components[{component.index}].elements"))
+            {
+                if (element.Type is not ("text" or "placeholder") || !element.Raw.TryGetProperty("textStyle", out _)) continue;
+                diagnostics.Add(new(
+                    "ppj.sourceBound.formalTextOwner",
+                    "Source-bound PPJ cannot declare a new direct textStyle owner on text or placeholder elements.",
+                    path + ".textStyle"));
+            }
+        }
+    }
+
+    private static void RejectSourceBoundOwnerField(
+        JsonElement design,
+        string collection,
+        string property,
+        string path,
+        List<PpjDiagnostic> diagnostics)
+    {
+        if (!design.TryGetProperty(collection, out var definitions) || definitions.ValueKind != JsonValueKind.Array) return;
+        for (var index = 0; index < definitions.GetArrayLength(); index++)
+        {
+            if (!definitions[index].TryGetProperty(property, out _)) continue;
+            diagnostics.Add(new(
+                "ppj.sourceBound.formalTextOwner",
+                $"Source-bound PPJ cannot declare design.{collection}[].{property} as a new formal text owner.",
+                $"{path}[{index}].{property}"));
         }
     }
 
@@ -822,13 +947,14 @@ internal static class PpjSemanticValidator
                 "ppj.compositing.isolationUnsupported",
                 "Group/layer isolation is not represented by DrawingML in the bounded profile.",
                 path + ".compositing.isolation"));
-        if (compositing.TryGetProperty("clipStack", out var clipStack) && clipStack.GetArrayLength() > 0)
+        if (compositing.TryGetProperty("clipStack", out var clipStack) && clipStack.GetArrayLength() > 0 &&
+            !TryValidateSingleImageClip(element, compositing, out var clipReason))
             diagnostics.Add(new(
                 "ppj.compositing.clipUnsupported",
-                "A compositing clip stack is reserved for a future explicit native closure; it is not silently flattened.",
+                $"The compositing clip stack is outside the bounded single-image mask profile: {clipReason}",
                 path + ".compositing.clipStack"));
         if (!compositing.TryGetProperty("opacity", out _)) return;
-        if (element is not (PpjTextElementModel or PpjShapeElementModel or PpjImageElementModel))
+        if (element is not (PpjTextElementModel or PpjShapeElementModel or PpjIconElementModel or PpjImageElementModel or PpjPlaceholderElementModel or PpjConnectorElementModel))
             diagnostics.Add(new(
                 "ppj.compositing.opacityUnsupported",
                 $"Element type {element.Type} has no bounded native element-opacity owner.",
@@ -838,6 +964,83 @@ internal static class PpjSemanticValidator
                 "ppj.compositing.opacityConflict",
                 "Use either the element-specific opacity field or compositing.opacity, not both.",
                 path + ".compositing.opacity"));
+    }
+
+    private static bool TryValidateSingleImageClip(
+        PpjElementModel element,
+        JsonElement compositing,
+        out string reason)
+    {
+        if (element is not PpjImageElementModel)
+        {
+            reason = "only image elements have a bounded native clip owner";
+            return false;
+        }
+        if (element.Raw.TryGetProperty("mask", out _))
+        {
+            reason = "an image mask cannot be combined with a compositing clip";
+            return false;
+        }
+        var clipStack = compositing.GetProperty("clipStack");
+        if (clipStack.GetArrayLength() != 1)
+        {
+            reason = "exactly one clip entry is supported";
+            return false;
+        }
+        var clip = clipStack[0];
+        if (clip.TryGetProperty("inverse", out var inverse) && inverse.GetBoolean())
+        {
+            reason = "inverse clips have no bounded native owner";
+            return false;
+        }
+        var geometry = clip.GetProperty("geometry");
+        var geometryKind = geometry.GetProperty("kind").GetString();
+        if (geometryKind == "custom")
+        {
+            var customMask = new PresentationShape
+            {
+                Geometry = "custom",
+                WidthEmu = checked((long)Math.Round(element.Frame.Width * EmuPerPoint)),
+                HeightEmu = checked((long)Math.Round(element.Frame.Height * EmuPerPoint)),
+            };
+            try
+            {
+                PpjAuthoredPresentationCompiler.ApplyCustomGeometry(customMask, geometry, element.Id + " compositing clip");
+                PptxCustomGeometryCodec.Validate(customMask, element.Id + " compositing clip");
+            }
+            catch (CodecException exception)
+            {
+                reason = exception.Message;
+                return false;
+            }
+            reason = string.Empty;
+            return true;
+        }
+        if (geometryKind != "preset")
+        {
+            reason = "only bounded preset or custom clip geometry is supported";
+            return false;
+        }
+        var preset = geometry.GetProperty("preset").GetString();
+        if (preset is null || !PptxPresetGeometryAdjustmentCodec.HasProfile(preset))
+        {
+            reason = $"preset geometry {preset ?? "(missing)"} has no native mask profile";
+            return false;
+        }
+        var adjustments = geometry.TryGetProperty("adjustments", out var rawAdjustments)
+            ? rawAdjustments.EnumerateArray().Select(item => item.GetInt32()).ToArray()
+            : [];
+        try
+        {
+            PptxPresetGeometryAdjustmentCodec.Validate(preset, adjustments, element.Id + " compositing clip");
+        }
+        catch (CodecException exception)
+        {
+            reason = exception.Message;
+            return false;
+        }
+        reason = string.Empty;
+        return true;
     }
 
     private static void ValidateLineElement(JsonElement raw, PpjFrameModel frame, string path, List<PpjDiagnostic> diagnostics)
@@ -2800,6 +3003,21 @@ internal static class PpjSemanticValidator
                 diagnostics.Add(new("ppj.component.repeatAnchor", "Repeat layout anchor must be start, center, or end.", $"{path}.repeat.layout.anchor"));
             if (layoutDirection is not ("grid" or "flow") && instance.Repeat.RowGap is not null)
                 diagnostics.Add(new("ppj.component.repeatRowGap", "Repeat layout rowGap is only valid for grid or flow direction.", $"{path}.repeat.layout.rowGap"));
+            if (instance.Repeat.Weights is not null)
+            {
+                if (layoutDirection is not ("horizontal" or "vertical"))
+                    diagnostics.Add(new("ppj.component.repeatStackWeightsDirection", "Repeat layout weights are only valid for horizontal or vertical direction.", $"{path}.repeat.layout.weights"));
+                if (instance.Repeat.Anchor is not null)
+                    diagnostics.Add(new("ppj.component.repeatStackAnchor", "Repeat layout anchor cannot be combined with weighted stack allocation.", $"{path}.repeat.layout.anchor"));
+                if (instance.Repeat.Weights.Count != instance.Repeat.Items.Count)
+                    diagnostics.Add(new("ppj.component.repeatStackWeightsCount", "Repeat layout weights must contain exactly one value per repeat item.", $"{path}.repeat.layout.weights"));
+                for (var index = 0; index < instance.Repeat.Weights.Count; index++)
+                {
+                    var weight = instance.Repeat.Weights[index];
+                    if (!double.IsFinite(weight) || weight <= 0 || weight > 100000)
+                        diagnostics.Add(new("ppj.component.repeatStackWeight", "Repeat stack weights must be finite, positive, and no greater than 100000.", $"{path}.repeat.layout.weights[{index}]"));
+                }
+            }
             var keys = new HashSet<string>(StringComparer.Ordinal);
             for (var index = 0; index < instance.Repeat.Items.Count; index++)
             {

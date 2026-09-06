@@ -740,9 +740,16 @@ internal static partial class PpjPresentationProjector
             if (Arrow(shape.StartArrow) is { } startArrow) common["startArrow"] = startArrow;
             if (Arrow(shape.EndArrow) is { } endArrow) common["endArrow"] = endArrow;
             if (shape.Shadow is not null) common["shadow"] = Shadow(shape.Shadow);
+            if (shape.Glow is not null) common["glow"] = Glow(shape.Glow);
+            if (shape.InnerShadow is not null) common["innerShadow"] = InnerShadow(shape.InnerShadow);
+            if (shape.Reflection is not null) common["reflection"] = Reflection(shape.Reflection);
+            if (shape.SoftEdge is not null) common["softEdge"] = SoftEdge(shape.SoftEdge);
             return common;
         }
         common["type"] = StringNode("shape");
+        var compoundOpacity = 1d;
+        var hasCompoundOpacity = element.Source?.Editable == true &&
+            TryGetCompoundShapeOpacity(shape, out compoundOpacity);
         if (shape.Geometry == "custom")
             common["geometry"] = CanProjectCustomGeometry(shape)
                 ? ProjectCustomGeometry(shape)
@@ -765,9 +772,44 @@ internal static partial class PpjPresentationProjector
         }
         if (hasText) common["text"] = text;
         if (TextBoxStyle(shape.TextBody) is { Count: > 0 } shapeTextStyle) common["textStyle"] = shapeTextStyle;
-        var style = ShapeStyle(shape, context);
+        var style = ShapeStyle(shape, context, omitOwnerOpacity: hasCompoundOpacity);
         if (style.Count > 0) common["style"] = style;
+        if (hasCompoundOpacity)
+            common["compositing"] = new JsonObject { ["opacity"] = JsonValue.Create(compoundOpacity) };
         return common;
+    }
+
+    internal static bool TryGetCompoundShapeOpacity(PresentationShape shape, out double opacity)
+    {
+        opacity = 1;
+        if (shape.Placeholder is not null || !string.IsNullOrEmpty(shape.Text) ||
+            shape.Geometry is "line" or "custom" or "textbox" or "none" ||
+            string.IsNullOrEmpty(shape.Geometry))
+            return false;
+        if (!string.IsNullOrEmpty(shape.FillRgb) && !string.IsNullOrEmpty(shape.FillScheme))
+            return false;
+        if (!string.IsNullOrWhiteSpace(shape.ImageFillAssetId) && shape.ImageFill is null)
+            return false;
+
+        var values = new List<double>();
+        if (shape.FillRgb.Length > 0 || shape.FillScheme.Length > 0)
+            values.Add(shape.HasFillOpacityThousandthPercent ? Unit(shape.FillOpacityThousandthPercent) : 1);
+        if (shape.GradientFill is not null)
+        {
+            if (shape.GradientFill.Stops.Count == 0) return false;
+            values.AddRange(shape.GradientFill.Stops.Select(stop =>
+                stop.HasOpacityThousandthPercent ? Unit(stop.OpacityThousandthPercent) : 1));
+        }
+        if (shape.ImageFill is not null)
+            values.Add(shape.ImageFill.HasOpacityThousandthPercent ? Unit(shape.ImageFill.OpacityThousandthPercent) : 1);
+        if (shape.LineStyle != "none" && (shape.LineRgb.Length > 0 || shape.LineScheme.Length > 0))
+            values.Add(shape.HasLineOpacityThousandthPercent ? Unit(shape.LineOpacityThousandthPercent) : 1);
+        if (shape.Shadow is not null)
+            values.Add(shape.Shadow.HasOpacityThousandthPercent ? Unit(shape.Shadow.OpacityThousandthPercent) : 1);
+        if (values.Count == 0) return false;
+        var candidate = values[0];
+        opacity = candidate;
+        return values.All(value => Math.Abs(value - candidate) < 0.000005);
     }
 
     private static bool CanProjectCustomGeometry(PresentationShape shape)
@@ -930,6 +972,14 @@ internal static partial class PpjPresentationProjector
                 image.Border.ColorScheme);
         if (image.Shadow is not null && (!string.IsNullOrEmpty(image.Shadow.ColorRgb) || !string.IsNullOrEmpty(image.Shadow.ColorScheme)))
             output["shadow"] = Shadow(image.Shadow);
+        if (image.Glow is not null && (!string.IsNullOrEmpty(image.Glow.ColorRgb) || !string.IsNullOrEmpty(image.Glow.ColorScheme)))
+            output["glow"] = Glow(image.Glow);
+        if (image.InnerShadow is not null && (!string.IsNullOrEmpty(image.InnerShadow.ColorRgb) || !string.IsNullOrEmpty(image.InnerShadow.ColorScheme)))
+            output["innerShadow"] = InnerShadow(image.InnerShadow);
+        if (image.Reflection is not null)
+            output["reflection"] = Reflection(image.Reflection);
+        if (image.SoftEdge is not null)
+            output["softEdge"] = SoftEdge(image.SoftEdge);
         return output;
     }
 
@@ -1428,6 +1478,7 @@ internal static partial class PpjPresentationProjector
         if (source.HasFontSizePoints) output["fontSize"] = JsonValue.Create(source.FontSizePoints);
         if (source.FontFamily.Length > 0) output["fontFamily"] = StringNode(source.FontFamily);
         if (source.FontFamilyEastAsia.Length > 0) output["fontFamilyEastAsia"] = StringNode(source.FontFamilyEastAsia);
+        if (source.FontFamilyComplexScript.Length > 0) output["fontFamilyComplexScript"] = StringNode(source.FontFamilyComplexScript);
         if (source.HasBold) output["bold"] = JsonValue.Create(source.Bold);
         if (source.HasItalic) output["italic"] = JsonValue.Create(source.Italic);
         if (source.ColorRgb.Length > 0)
@@ -1488,6 +1539,7 @@ internal static partial class PpjPresentationProjector
         if (table.HasBandedColumns) style["bandedColumns"] = JsonValue.Create(table.BandedColumns);
         if (table.HasFirstColumn) style["firstColumnEmphasis"] = JsonValue.Create(table.FirstColumn);
         if (table.HasLastColumn) style["lastColumnEmphasis"] = JsonValue.Create(table.LastColumn);
+        if (table.HasLastRow) style["lastRow"] = JsonValue.Create(table.LastRow);
         if (style.Count > 0) output["style"] = style;
         return output;
     }
@@ -1585,6 +1637,9 @@ internal static partial class PpjPresentationProjector
         output["connectorType"] = StringNode(connector.ConnectorType is "elbow" or "curved" ? connector.ConnectorType : "straight");
         output["from"] = ConnectorEndpoint(connector.StartTargetId, connector.StartXEmu, connector.StartYEmu, pageId, context);
         output["to"] = ConnectorEndpoint(connector.EndTargetId, connector.EndXEmu, connector.EndYEmu, pageId, context);
+        // A connector has one native line-alpha owner. Authored
+        // compositing.opacity is therefore projected as the effective stroke
+        // opacity rather than as a second, unrecoverable field.
         output["stroke"] = Stroke(
             connector.LineRgb,
             connector.LineWidthEmu,
@@ -1654,7 +1709,7 @@ internal static partial class PpjPresentationProjector
         var opaque = element.ContentCase == PresentationElement.ContentOneofCase.Opaque ? element.Opaque : null;
         var nativeKind = kind ?? opaque?.NativeKind;
         if (string.IsNullOrWhiteSpace(nativeKind)) nativeKind = element.ContentCase.ToString();
-        var output = ElementBase(id, element.Name, ElementFrame(element), null, nativeRef);
+        var output = ElementBase(id, element.Name, ElementFrame(element), Accessibility(opaque?.Accessibility), nativeRef);
         output["type"] = StringNode("opaque");
         output["nativeKind"] = StringNode(nativeKind);
         output["summary"] = StringNode(summary ?? $"Preserved source-owned {nativeKind} object; only issued nativeRef capabilities are editable.");
@@ -1904,20 +1959,24 @@ internal static partial class PpjPresentationProjector
         return output;
     }
 
-    private static JsonObject ShapeStyle(PresentationShape shape, ProjectionContext context)
+    private static JsonObject ShapeStyle(
+        PresentationShape shape,
+        ProjectionContext context,
+        bool omitOwnerOpacity = false)
     {
         var style = new JsonObject();
         if (!string.IsNullOrEmpty(shape.FillRgb))
         {
             var fill = new JsonObject { ["type"] = StringNode("solid"), ["color"] = StringNode(Color(shape.FillRgb)) };
-            if (shape.HasFillOpacityThousandthPercent) fill["opacity"] = JsonValue.Create(Unit(shape.FillOpacityThousandthPercent));
+            if (!omitOwnerOpacity && shape.HasFillOpacityThousandthPercent)
+                fill["opacity"] = JsonValue.Create(Unit(shape.FillOpacityThousandthPercent));
             style["fill"] = fill;
         }
         else if (shape.GradientFill is not null)
         {
-            style["fill"] = Gradient(shape.GradientFill);
+            style["fill"] = Gradient(shape.GradientFill, includeOpacity: !omitOwnerOpacity);
         }
-        else if (shape.ImageFill is not null && ProjectImagePaint(shape.ImageFill, context) is { } imageFill)
+        else if (shape.ImageFill is not null && ProjectImagePaint(shape.ImageFill, context, includeOpacity: !omitOwnerOpacity) is { } imageFill)
         {
             style["fill"] = imageFill;
         }
@@ -1933,10 +1992,18 @@ internal static partial class PpjPresentationProjector
         }
         if ((!string.IsNullOrEmpty(shape.LineRgb) || !string.IsNullOrEmpty(shape.LineScheme)) && shape.LineStyle != "none")
             style["stroke"] = Stroke(shape.LineRgb, shape.LineWidthEmu, shape.LineStyle, shape.LineCap, shape.LineJoin,
-                shape.HasLineOpacityThousandthPercent ? Unit(shape.LineOpacityThousandthPercent) : null,
+                !omitOwnerOpacity && shape.HasLineOpacityThousandthPercent ? Unit(shape.LineOpacityThousandthPercent) : null,
                 shape.LineScheme);
         if (shape.Shadow is not null && (!string.IsNullOrEmpty(shape.Shadow.ColorRgb) || !string.IsNullOrEmpty(shape.Shadow.ColorScheme)))
-            style["shadow"] = Shadow(shape.Shadow);
+            style["shadow"] = Shadow(shape.Shadow, includeOpacity: !omitOwnerOpacity);
+        if (shape.Glow is not null && (!string.IsNullOrEmpty(shape.Glow.ColorRgb) || !string.IsNullOrEmpty(shape.Glow.ColorScheme)))
+            style["glow"] = Glow(shape.Glow);
+        if (shape.InnerShadow is not null && (!string.IsNullOrEmpty(shape.InnerShadow.ColorRgb) || !string.IsNullOrEmpty(shape.InnerShadow.ColorScheme)))
+            style["innerShadow"] = InnerShadow(shape.InnerShadow);
+        if (shape.Reflection is not null)
+            style["reflection"] = Reflection(shape.Reflection);
+        if (shape.SoftEdge is not null)
+            style["softEdge"] = SoftEdge(shape.SoftEdge);
         return style;
     }
 
@@ -2038,6 +2105,7 @@ internal static partial class PpjPresentationProjector
         var style = new JsonObject();
         if (run.HasFontFamily) style["fontFamily"] = StringNode(run.FontFamily);
         if (run.HasFontFamilyEastAsia) style["fontFamilyEastAsia"] = StringNode(run.FontFamilyEastAsia);
+        if (run.HasFontFamilyComplexScript) style["fontFamilyComplexScript"] = StringNode(run.FontFamilyComplexScript);
         if (run.HasFontSizePoints && run.FontSizePoints > 0) style["size"] = JsonValue.Create(run.FontSizePoints);
         if (run.HasBold) style["bold"] = JsonValue.Create(run.Bold);
         if (run.HasItalic) style["italic"] = JsonValue.Create(run.Italic);
@@ -2048,6 +2116,10 @@ internal static partial class PpjPresentationProjector
         else if (run.GradientFill is not null)
             style["gradient"] = TextGradient(run.GradientFill);
         if (run.Shadow is not null) style["shadow"] = Shadow(run.Shadow);
+        if (run.Glow is not null) style["glow"] = Glow(run.Glow);
+        if (run.InnerShadow is not null) style["innerShadow"] = InnerShadow(run.InnerShadow);
+        if (run.Reflection is not null) style["reflection"] = Reflection(run.Reflection);
+        if (run.SoftEdge is not null) style["softEdge"] = SoftEdge(run.SoftEdge);
         if (run.HighlightCase == PresentationTextRun.HighlightOneofCase.HighlightRgb && !string.IsNullOrEmpty(run.HighlightRgb))
             style["highlight"] = StringNode(Color(run.HighlightRgb));
         if (run.HasUnderline) style["underline"] = StringNode(run.Underline switch { "sng" => "single", "dbl" => "double", _ => run.Underline });
@@ -2065,6 +2137,7 @@ internal static partial class PpjPresentationProjector
         var style = new JsonObject();
         if (source.HasFontFamily) style["fontFamily"] = StringNode(source.FontFamily);
         if (source.HasFontFamilyEastAsia) style["fontFamilyEastAsia"] = StringNode(source.FontFamilyEastAsia);
+        if (source.HasFontFamilyComplexScript) style["fontFamilyComplexScript"] = StringNode(source.FontFamilyComplexScript);
         if (source.HasFontSizePoints && source.FontSizePoints > 0) style["size"] = JsonValue.Create(source.FontSizePoints);
         if (source.HasBold) style["bold"] = JsonValue.Create(source.Bold);
         if (source.HasItalic) style["italic"] = JsonValue.Create(source.Italic);
@@ -2075,6 +2148,10 @@ internal static partial class PpjPresentationProjector
         else if (source.GradientFill is not null)
             style["gradient"] = TextGradient(source.GradientFill);
         if (source.Shadow is not null) style["shadow"] = Shadow(source.Shadow);
+        if (source.Glow is not null) style["glow"] = Glow(source.Glow);
+        if (source.InnerShadow is not null) style["innerShadow"] = InnerShadow(source.InnerShadow);
+        if (source.Reflection is not null) style["reflection"] = Reflection(source.Reflection);
+        if (source.SoftEdge is not null) style["softEdge"] = SoftEdge(source.SoftEdge);
         if (source.HighlightCase == PresentationTextStyle.HighlightOneofCase.HighlightRgb && !string.IsNullOrEmpty(source.HighlightRgb))
             style["highlight"] = StringNode(Color(source.HighlightRgb));
         if (source.HasUnderline) style["underline"] = StringNode(source.Underline switch { "sng" => "single", "dbl" => "double", _ => source.Underline });
@@ -2188,6 +2265,29 @@ internal static partial class PpjPresentationProjector
         if (properties is null) return output;
         if (properties.AnchorCase == PresentationTextBodyProperties.AnchorOneofCase.VerticalAnchor)
             output["verticalAlignment"] = StringNode(properties.VerticalAnchor == "center" ? "middle" : properties.VerticalAnchor);
+        if (properties.HasAnchorCenter)
+            output["anchorCenter"] = JsonValue.Create(properties.AnchorCenter);
+        if (properties.HasForceAntiAlias)
+            output["forceAntiAlias"] = JsonValue.Create(properties.ForceAntiAlias);
+        if (properties.HasSpaceFirstLastParagraph)
+            output["spaceFirstLastParagraph"] = JsonValue.Create(properties.SpaceFirstLastParagraph);
+        if (properties.HasCompatibleLineSpacing)
+            output["compatibleLineSpacing"] = JsonValue.Create(properties.CompatibleLineSpacing);
+        if (properties.HasFromWordArt)
+            output["fromWordArt"] = JsonValue.Create(properties.FromWordArt);
+        if (properties.HasTextWarpPreset)
+            output["textWarpPreset"] = StringNode(properties.TextWarpPreset);
+        if (properties.TextWarpAdjustments.Count > 0)
+        {
+            output["textWarpAdjustments"] = new JsonArray(properties.TextWarpAdjustments.Select(adjustment =>
+                new JsonObject
+                {
+                    ["name"] = StringNode(adjustment.Name),
+                    ["value"] = JsonValue.Create(adjustment.Value),
+                }).ToArray());
+        }
+        if (properties.HasFlatTextZ)
+            output["flatTextZ"] = JsonValue.Create(properties.FlatTextZ);
         if (properties.WrappingCase == PresentationTextBodyProperties.WrappingOneofCase.Wrap)
             output["wrap"] = StringNode(properties.Wrap);
         if (properties.AutoFitCase == PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode)
@@ -2280,7 +2380,10 @@ internal static partial class PpjPresentationProjector
         return null;
     }
 
-    private static JsonObject? ProjectImagePaint(PresentationImagePaint paint, ProjectionContext context)
+    private static JsonObject? ProjectImagePaint(
+        PresentationImagePaint paint,
+        ProjectionContext context,
+        bool includeOpacity = true)
     {
         if (!context.TryMaterializeAsset(paint.AssetId, out var assetId)) return null;
         var output = new JsonObject
@@ -2299,12 +2402,12 @@ internal static partial class PpjPresentationProjector
                 ["bottom"] = JsonValue.Create(Crop(paint.Crop.BottomThousandthPercent)),
             };
         }
-        if (paint.HasOpacityThousandthPercent)
+        if (includeOpacity && paint.HasOpacityThousandthPercent)
             output["opacity"] = JsonValue.Create(Unit(paint.OpacityThousandthPercent));
         return output;
     }
 
-    private static JsonObject Gradient(PresentationGradientFill source)
+    private static JsonObject Gradient(PresentationGradientFill source, bool includeOpacity = true)
     {
         var stops = new JsonArray();
         foreach (var stop in source.Stops)
@@ -2314,7 +2417,7 @@ internal static partial class PpjPresentationProjector
                 ["offset"] = JsonValue.Create(Unit(stop.PositionThousandthPercent)),
                 ["color"] = StringNode(Color(stop.ColorRgb)),
             };
-            if (stop.HasOpacityThousandthPercent)
+            if (includeOpacity && stop.HasOpacityThousandthPercent)
                 item["opacity"] = JsonValue.Create(Unit(stop.OpacityThousandthPercent));
             stops.Add(item);
         }
@@ -2680,10 +2783,14 @@ internal static partial class PpjPresentationProjector
                     {
                         output.Add(new("setLinePath", ["line.path"]));
                         output.Add(new("setStroke", ["stroke"]));
-                        output.Add(new("setShapeEffects", ["shape.shadow"]));
+                        output.Add(new("setShapeEffects", ["shape.shadow", "shape.glow", "shape.innerShadow", "shape.reflection", "shape.softEdge"]));
                         output.Add(new("setFrame", EditableFrameFields));
                         break;
                     }
+                    if (element.Shape.Placeholder is null &&
+                        element.Shape.Geometry is not ("textbox" or "none" or "" or "custom") &&
+                        TryGetCompoundShapeOpacity(element.Shape, out _))
+                        output.Add(new("setOpacity", ["compositing.opacity"]));
                     // Source-bound image-filled custom geometry is projected
                     // for discovery and frame/stroke edits, but its native
                     // fill graph is not represented by a lossless PPJ
@@ -2695,7 +2802,7 @@ internal static partial class PpjPresentationProjector
                     output.Add(new("setStroke", ["stroke"]));
                     if (element.Shape.Placeholder is null &&
                         element.Shape.Geometry is not ("textbox" or "none" or ""))
-                        output.Add(new("setShapeEffects", ["shape.shadow"]));
+                        output.Add(new("setShapeEffects", ["shape.shadow", "shape.glow", "shape.innerShadow", "shape.reflection", "shape.softEdge"]));
                     output.Add(new("setFrame", element.Shape.Placeholder is null ? EditableFrameFields : PositionFrameFields));
                     if (element.Shape.Placeholder is null &&
                         element.Shape.Geometry is not ("textbox" or "none" or "custom") &&
@@ -2716,7 +2823,7 @@ internal static partial class PpjPresentationProjector
                 output.Add(new("setImageFit", ["image.fit"]));
                 output.Add(new("setFrame", EditableFrameFields));
                 output.Add(new("setOpacity", ["opacity"]));
-                output.Add(new("setImageEffects", ["image.border", "image.shadow"]));
+                output.Add(new("setImageEffects", ["image.border", "image.shadow", "image.glow", "image.innerShadow", "image.reflection", "image.softEdge"]));
                 if (element.Image.CustomMaskPaths.Count == 0 ||
                     CanProjectCustomGeometry(ImageMaskShape(element.Image)))
                 {
@@ -2857,6 +2964,7 @@ internal static partial class PpjPresentationProjector
         if (source.Editable) output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
         if (source.VisibilityEditable) output.Add(new("setHidden", ["hidden"]));
         if (source.LockingEditable) output.Add(new("setLocked", ["locked"]));
+        if (source.AccessibilityEditable) output.Add(new("setAccessibility", ["accessibility"]));
         // OLE and source-owned chart payloads stay opaque until the
         // corresponding PPJ typed state is projected. Proven diagram text is
         // handled by ProjectSourceSmartArt before this fallback is selected.
@@ -3024,22 +3132,71 @@ internal static partial class PpjPresentationProjector
         return output;
     }
 
-    private static JsonObject Shadow(PresentationShadow shadow)
+    private static JsonObject Shadow(PresentationShadow shadow, bool includeOpacity = true)
     {
         var output = new JsonObject
         {
             ["color"] = !string.IsNullOrEmpty(shadow.ColorScheme)
                 ? new JsonObject { ["token"] = StringNode(shadow.ColorScheme) }
                 : StringNode(Color(string.IsNullOrEmpty(shadow.ColorRgb) ? "000000" : shadow.ColorRgb)),
-            ["opacity"] = JsonValue.Create(shadow.HasOpacityThousandthPercent ? Unit(shadow.OpacityThousandthPercent) : 1),
             ["blur"] = JsonValue.Create(Math.Max(0, Points(shadow.HasBlurRadiusEmu ? shadow.BlurRadiusEmu : 0))),
             ["distance"] = JsonValue.Create(Math.Max(0, Points(shadow.HasDistanceEmu ? shadow.DistanceEmu : 0))),
             ["angle"] = JsonValue.Create((shadow.HasDirectionAngle60000 ? shadow.DirectionAngle60000 : 0) / 60_000d),
         };
+        if (includeOpacity)
+            output["opacity"] = JsonValue.Create(shadow.HasOpacityThousandthPercent ? Unit(shadow.OpacityThousandthPercent) : 1);
         if (shadow.HasAlignment) output["alignment"] = StringNode(shadow.Alignment);
         if (shadow.HasRotateWithShape) output["rotateWithShape"] = JsonValue.Create(shadow.RotateWithShape);
         return output;
     }
+
+    private static JsonObject Glow(PresentationGlow glow)
+    {
+        var output = new JsonObject
+        {
+            ["color"] = !string.IsNullOrEmpty(glow.ColorScheme)
+                ? new JsonObject { ["token"] = StringNode(glow.ColorScheme) }
+                : StringNode(Color(string.IsNullOrEmpty(glow.ColorRgb) ? "000000" : glow.ColorRgb)),
+            ["radius"] = JsonValue.Create(Math.Max(0, Points(glow.HasRadiusEmu ? glow.RadiusEmu : 0))),
+        };
+        if (glow.HasOpacityThousandthPercent)
+            output["opacity"] = JsonValue.Create(Unit(glow.OpacityThousandthPercent));
+        return output;
+    }
+
+    private static JsonObject InnerShadow(PresentationInnerShadow shadow)
+    {
+        var output = new JsonObject
+        {
+            ["color"] = !string.IsNullOrEmpty(shadow.ColorScheme)
+                ? new JsonObject { ["token"] = StringNode(shadow.ColorScheme) }
+                : StringNode(Color(string.IsNullOrEmpty(shadow.ColorRgb) ? "000000" : shadow.ColorRgb)),
+            ["blur"] = JsonValue.Create(Math.Max(0, Points(shadow.HasBlurRadiusEmu ? shadow.BlurRadiusEmu : 0))),
+            ["distance"] = JsonValue.Create(Math.Max(0, Points(shadow.HasDistanceEmu ? shadow.DistanceEmu : 0))),
+            ["angle"] = JsonValue.Create((shadow.HasDirectionAngle60000 ? shadow.DirectionAngle60000 : 0) / 60_000d),
+        };
+        if (shadow.HasOpacityThousandthPercent)
+            output["opacity"] = JsonValue.Create(Unit(shadow.OpacityThousandthPercent));
+        return output;
+    }
+
+    private static JsonObject Reflection(PresentationReflection reflection)
+    {
+        var output = new JsonObject
+        {
+            ["blur"] = JsonValue.Create(Math.Max(0, Points(reflection.HasBlurRadiusEmu ? reflection.BlurRadiusEmu : 0))),
+            ["startOpacity"] = JsonValue.Create(Unit(reflection.HasStartOpacityThousandthPercent ? reflection.StartOpacityThousandthPercent : 100_000)),
+            ["endOpacity"] = JsonValue.Create(Unit(reflection.HasEndOpacityThousandthPercent ? reflection.EndOpacityThousandthPercent : 0)),
+            ["distance"] = JsonValue.Create(Math.Max(0, Points(reflection.HasDistanceEmu ? reflection.DistanceEmu : 0))),
+            ["angle"] = JsonValue.Create((reflection.HasDirectionAngle60000 ? reflection.DirectionAngle60000 : 0) / 60_000d),
+        };
+        return output;
+    }
+
+    private static JsonObject SoftEdge(PresentationSoftEdge softEdge) => new()
+    {
+        ["radius"] = JsonValue.Create(Math.Max(0, Points(softEdge.HasRadiusEmu ? softEdge.RadiusEmu : 0))),
+    };
 
     private static JsonObject? Accessibility(PresentationNonVisualAccessibility? value)
     {

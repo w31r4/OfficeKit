@@ -546,6 +546,32 @@ internal static class PpjComponentExpander
         }
 
         var direction = repeat.Direction ?? "vertical";
+        if (repeat.Weights is { } weights)
+        {
+            var available = direction == "horizontal"
+                ? Math.Max(0.01, instance.Width - repeat.Gap * Math.Max(0, repeat.Items.Count - 1))
+                : Math.Max(0.01, instance.Height - repeat.Gap * Math.Max(0, repeat.Items.Count - 1));
+            var totalWeight = weights.Sum();
+            var offset = repeat.Gap * repeatIndex;
+            for (var index = 0; index < repeatIndex; index++)
+                offset += available * weights[index] / totalWeight;
+            var slot = available * weights[repeatIndex] / totalWeight;
+            if (direction == "horizontal")
+            {
+                var scaleY = instance.Height / definition.Height;
+                return new(
+                    instance.X + offset - definition.X * (slot / definition.Width),
+                    instance.Y - definition.Y * scaleY,
+                    slot / definition.Width,
+                    scaleY);
+            }
+            var scaleX = instance.Width / definition.Width;
+            return new(
+                instance.X - definition.X * scaleX,
+                instance.Y + offset - definition.Y * (slot / definition.Height),
+                scaleX,
+                slot / definition.Height);
+        }
         if (direction is "grid" or "flow")
         {
             // `grid` requires an explicit column count. `flow` is the

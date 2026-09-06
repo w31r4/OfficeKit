@@ -1864,6 +1864,9 @@ internal static class PpjSourceBoundPresentationCompiler
             case PresentationElement.ContentOneofCase.Diagram:
                 target.Diagram.Accessibility = SourceBoundAccessibility(source);
                 return;
+            case PresentationElement.ContentOneofCase.Opaque when target.Opaque.NativeKind == "media":
+                target.Opaque.Accessibility = SourceBoundAccessibility(source);
+                return;
             default:
                 throw Unsupported(path, "source-bound accessibility requires a recognized presentation owner");
         }
@@ -1962,7 +1965,11 @@ internal static class PpjSourceBoundPresentationCompiler
         if (before.Type == "line")
             return ApplyLineElement(program, before, after, element, mutations, path);
         var target = element.Shape;
-        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "geometry", "text", "style", "textStyle", "action", "hoverAction", "accessibility");
+        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "geometry", "text", "style", "textStyle", "compositing", "action", "hoverAction", "accessibility");
+        var styleChanged = PropertyChanged(before.Raw, after.Raw, "style");
+        var compositingChanged = PropertyChanged(before.Raw, after.Raw, "compositing");
+        if (styleChanged && compositingChanged)
+            throw Unsupported(path + ".compositing", "source-bound shape style and compound opacity cannot be changed together");
         var semanticChanged = ApplyFrame(before, after, target, path);
         var changed = semanticChanged;
         if (PropertyChanged(before.Raw, after.Raw, "textStyle"))
@@ -2009,9 +2016,42 @@ internal static class PpjSourceBoundPresentationCompiler
             semanticChanged = true;
         }
         semanticChanged |= ApplyShapeStyle(before, after, target, assets, assetDimensions, program.Root, path);
+        semanticChanged |= ApplySourceBoundShapeCompositing(before, after, target, program.Root, path);
         mutations.SemanticChanges |= semanticChanged;
         changed |= semanticChanged;
         return changed;
+    }
+
+    private static bool ApplySourceBoundShapeCompositing(
+        PpjShapeElementModel before,
+        PpjShapeElementModel after,
+        PresentationShape target,
+        JsonElement grammarRoot,
+        string path)
+    {
+        if (!PropertyChanged(before.Raw, after.Raw, "compositing")) return false;
+        var beforeCompositing = OptionalProperty(before.Raw, "compositing");
+        var afterCompositing = OptionalProperty(after.Raw, "compositing");
+        if (beforeCompositing is { } oldValue && afterCompositing is { } newValue)
+            RequireEqualExcept(oldValue, newValue, path + ".compositing", "opacity");
+        else
+        {
+            var present = beforeCompositing ?? afterCompositing;
+            if (present is { } presentValue)
+                foreach (var property in presentValue.EnumerateObject())
+                    if (property.Name != "opacity")
+                        throw Unsupported(path + ".compositing", $"changing {property.Name}");
+        }
+        if (afterCompositing is { } requested && !requested.TryGetProperty("opacity", out _))
+            throw Unsupported(path + ".compositing.opacity", "source-bound shape opacity must remain explicit");
+        if (!PpjPresentationProjector.TryGetCompoundShapeOpacity(target, out _))
+            throw Unsupported(path + ".compositing.opacity", "source-bound shape is outside the compound opacity owner profile");
+        RequireCapabilityField(after.NativeRef, "setOpacity", "compositing.opacity", path + ".compositing.opacity");
+        var opacity = afterCompositing is { } compositing && compositing.TryGetProperty("opacity", out var value)
+            ? ResolveGrammarOpacityToken(grammarRoot, value, path + ".compositing.opacity")
+            : 1d;
+        PpjAuthoredPresentationCompiler.SetCompoundShapeOpacity(target, opacity, after.Id);
+        return true;
     }
 
     private static bool IsLiteralCustomGeometry(PresentationShape shape)
@@ -2055,7 +2095,7 @@ internal static class PpjSourceBoundPresentationCompiler
         string path)
     {
         var target = element.Shape;
-        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "path", "points", "viewBox", "curve", "stroke", "shadow", "startArrow", "endArrow", "action", "hoverAction", "accessibility");
+        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "path", "points", "viewBox", "curve", "stroke", "shadow", "glow", "innerShadow", "reflection", "softEdge", "startArrow", "endArrow", "action", "hoverAction", "accessibility");
         var semanticChanged = ApplyFrame(before, after, target, path);
         var changed = semanticChanged;
         var pathChanged = PropertyChanged(before.Raw, after.Raw, "path") ||
@@ -2092,6 +2132,38 @@ internal static class PpjSourceBoundPresentationCompiler
             RequireCapabilityField(after.NativeRef, "setShapeEffects", "shape.shadow", path + ".shadow");
             target.Shadow = after.Raw.TryGetProperty("shadow", out var shadow)
                 ? SourceBoundShadow(shadow, path + ".shadow", "shape", program.Root)
+                : null;
+            semanticChanged = true;
+        }
+        if (PropertyChanged(before.Raw, after.Raw, "glow"))
+        {
+            RequireCapabilityField(after.NativeRef, "setShapeEffects", "shape.glow", path + ".glow");
+            target.Glow = after.Raw.TryGetProperty("glow", out var glow)
+                ? SourceBoundGlow(glow, path + ".glow", "shape", program.Root)
+                : null;
+            semanticChanged = true;
+        }
+        if (PropertyChanged(before.Raw, after.Raw, "innerShadow"))
+        {
+            RequireCapabilityField(after.NativeRef, "setShapeEffects", "shape.innerShadow", path + ".innerShadow");
+            target.InnerShadow = after.Raw.TryGetProperty("innerShadow", out var innerShadow)
+                ? SourceBoundInnerShadow(innerShadow, path + ".innerShadow", "shape", program.Root)
+                : null;
+            semanticChanged = true;
+        }
+        if (PropertyChanged(before.Raw, after.Raw, "reflection"))
+        {
+            RequireCapabilityField(after.NativeRef, "setShapeEffects", "shape.reflection", path + ".reflection");
+            target.Reflection = after.Raw.TryGetProperty("reflection", out var reflection)
+                ? SourceBoundReflection(reflection, path + ".reflection", "shape", program.Root)
+                : null;
+            semanticChanged = true;
+        }
+        if (PropertyChanged(before.Raw, after.Raw, "softEdge"))
+        {
+            RequireCapabilityField(after.NativeRef, "setShapeEffects", "shape.softEdge", path + ".softEdge");
+            target.SoftEdge = after.Raw.TryGetProperty("softEdge", out var softEdge)
+                ? SourceBoundSoftEdge(softEdge, path + ".softEdge", "shape", program.Root)
                 : null;
             semanticChanged = true;
         }
@@ -2146,7 +2218,7 @@ internal static class PpjSourceBoundPresentationCompiler
         IReadOnlyDictionary<string, (double Width, double Height)> assetDimensions,
         string path)
     {
-        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "asset", "svgAsset", "styleRef", "style", "fit", "crop", "focus", "opacity", "mask", "border", "shadow", "accessibility");
+        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "asset", "svgAsset", "styleRef", "style", "fit", "crop", "focus", "opacity", "mask", "border", "shadow", "glow", "innerShadow", "reflection", "softEdge", "accessibility");
         var changed = ApplyFrame(before, after, target, path);
         var catalog = new PpjAuthoredPresentationCompiler.Catalog(program.Root);
         if (!before.AssetId.Equals(after.AssetId, StringComparison.Ordinal))
@@ -2311,6 +2383,46 @@ internal static class PpjSourceBoundPresentationCompiler
             RequireCapabilityField(after.NativeRef, "setImageEffects", "image.shadow", path + ".shadow");
             target.Shadow = afterShadow is { } shadow
                 ? SourceBoundShadow(shadow, path + ".shadow", "image", program.Root)
+                : null;
+            changed = true;
+        }
+        var beforeGlow = EffectiveImageProperty(before.Raw, beforeInlineStyle, beforeNamedStyle, catalog, "glow");
+        var afterGlow = EffectiveImageProperty(after.Raw, afterInlineStyle, afterNamedStyle, catalog, "glow");
+        if (!JsonEqual(beforeGlow, afterGlow))
+        {
+            RequireCapabilityField(after.NativeRef, "setImageEffects", "image.glow", path + ".glow");
+            target.Glow = afterGlow is { } glow
+                ? SourceBoundGlow(glow, path + ".glow", "image", program.Root)
+                : null;
+            changed = true;
+        }
+        var beforeInnerShadow = EffectiveImageProperty(before.Raw, beforeInlineStyle, beforeNamedStyle, catalog, "innerShadow");
+        var afterInnerShadow = EffectiveImageProperty(after.Raw, afterInlineStyle, afterNamedStyle, catalog, "innerShadow");
+        if (!JsonEqual(beforeInnerShadow, afterInnerShadow))
+        {
+            RequireCapabilityField(after.NativeRef, "setImageEffects", "image.innerShadow", path + ".innerShadow");
+            target.InnerShadow = afterInnerShadow is { } innerShadow
+                ? SourceBoundInnerShadow(innerShadow, path + ".innerShadow", "image", program.Root)
+                : null;
+            changed = true;
+        }
+        var beforeReflection = EffectiveImageProperty(before.Raw, beforeInlineStyle, beforeNamedStyle, catalog, "reflection");
+        var afterReflection = EffectiveImageProperty(after.Raw, afterInlineStyle, afterNamedStyle, catalog, "reflection");
+        if (!JsonEqual(beforeReflection, afterReflection))
+        {
+            RequireCapabilityField(after.NativeRef, "setImageEffects", "image.reflection", path + ".reflection");
+            target.Reflection = afterReflection is { } reflection
+                ? SourceBoundReflection(reflection, path + ".reflection", "image", program.Root)
+                : null;
+            changed = true;
+        }
+        var beforeSoftEdge = EffectiveImageProperty(before.Raw, beforeInlineStyle, beforeNamedStyle, catalog, "softEdge");
+        var afterSoftEdge = EffectiveImageProperty(after.Raw, afterInlineStyle, afterNamedStyle, catalog, "softEdge");
+        if (!JsonEqual(beforeSoftEdge, afterSoftEdge))
+        {
+            RequireCapabilityField(after.NativeRef, "setImageEffects", "image.softEdge", path + ".softEdge");
+            target.SoftEdge = afterSoftEdge is { } softEdge
+                ? SourceBoundSoftEdge(softEdge, path + ".softEdge", "image", program.Root)
                 : null;
             changed = true;
         }
@@ -3151,6 +3263,10 @@ internal static class PpjSourceBoundPresentationCompiler
             output.FontFamilyEastAsia = grammarRoot is { } root
                 ? ResolveGrammarStringToken(root, eastAsia, path + ".fontFamilyEastAsia")
                 : eastAsia.GetString()!;
+        if (source.TryGetProperty("fontFamilyComplexScript", out var complexScript))
+            output.FontFamilyComplexScript = grammarRoot is { } root
+                ? ResolveGrammarStringToken(root, complexScript, path + ".fontFamilyComplexScript")
+                : complexScript.GetString()!;
         if (source.TryGetProperty("bold", out var bold))
             output.Bold = grammarRoot is { } root
                 ? ResolveGrammarBooleanToken(root, bold, path + ".bold")
@@ -3436,6 +3552,146 @@ internal static class PpjSourceBoundPresentationCompiler
         return output;
     }
 
+    private static PresentationGlow SourceBoundGlow(
+        JsonElement source,
+        string path,
+        string subject = "shape",
+        JsonElement? grammarRoot = null)
+    {
+        if (source.ValueKind != JsonValueKind.Object)
+            throw Unsupported(path, $"{subject} glow must be an object");
+        var color = source.GetProperty("color");
+        var colorAlpha = 1d;
+        var radius = grammarRoot is { } radiusRoot
+            ? ResolveGrammarSizeToken(radiusRoot, source.GetProperty("radius"), path + ".radius")
+            : source.GetProperty("radius").GetDouble();
+        var output = new PresentationGlow { RadiusEmu = Emu(radius) };
+        if (color.ValueKind == JsonValueKind.Object && color.TryGetProperty("token", out var token) &&
+            token.ValueKind == JsonValueKind.String)
+        {
+            var tokenName = token.GetString()!;
+            if (grammarRoot is { } colorRoot && TryDeclaredGrammarToken(colorRoot, tokenName, out var definition))
+            {
+                if (!definition.TryGetProperty("kind", out var kind) || kind.GetString() != "color")
+                    throw new CodecException("ppj.grammar.tokenKind", $"PPJ grammar token {tokenName} for {path}.color must declare kind color.", path + ".color");
+                var resolved = ResolveGrammarColorValue(colorRoot, color, path + ".color");
+                output.ColorRgb = resolved.Rgb;
+                colorAlpha = resolved.Alpha;
+            }
+            else
+            {
+                output.ColorScheme = PptxColor.NormalizeScheme(tokenName);
+            }
+        }
+        else
+        {
+            var resolved = grammarRoot is { } literalRoot
+                ? ResolveGrammarColorValue(literalRoot, color, path + ".color")
+                : ParseSourceBoundColor(color, path + ".color");
+            output.ColorRgb = resolved.Rgb;
+            colorAlpha = resolved.Alpha;
+        }
+        if (source.TryGetProperty("opacity", out var opacity))
+            output.OpacityThousandthPercent = Unit(grammarRoot is { } opacityRoot
+                ? ResolveGrammarOpacityToken(opacityRoot, opacity, path + ".opacity")
+                : opacity.GetDouble());
+        else if (colorAlpha < 1)
+            output.OpacityThousandthPercent = Unit(colorAlpha);
+        PptxGlowCodec.Validate(output, path, subject);
+        return output;
+    }
+
+    private static PresentationInnerShadow SourceBoundInnerShadow(
+        JsonElement source,
+        string path,
+        string subject = "shape",
+        JsonElement? grammarRoot = null)
+    {
+        if (source.ValueKind != JsonValueKind.Object)
+            throw Unsupported(path, $"{subject} innerShadow must be an object");
+        var color = source.GetProperty("color");
+        var colorAlpha = 1d;
+        var output = new PresentationInnerShadow
+        {
+            BlurRadiusEmu = Emu(source.GetProperty("blur").GetDouble()),
+            DistanceEmu = Emu(source.GetProperty("distance").GetDouble()),
+            DirectionAngle60000 = RotationAngle(NormalizeAngle(source.GetProperty("angle").GetDouble())),
+        };
+        if (color.ValueKind == JsonValueKind.Object && color.TryGetProperty("token", out var token) &&
+            token.ValueKind == JsonValueKind.String)
+        {
+            var tokenName = token.GetString()!;
+            if (grammarRoot is { } root && TryDeclaredGrammarToken(root, tokenName, out var definition))
+            {
+                if (!definition.TryGetProperty("kind", out var kind) || kind.GetString() != "color")
+                    throw new CodecException("ppj.grammar.tokenKind", $"PPJ grammar token {tokenName} for {path}.color must declare kind color.", path + ".color");
+                var resolved = ResolveGrammarColorValue(root, color, path + ".color");
+                output.ColorRgb = resolved.Rgb;
+                colorAlpha = resolved.Alpha;
+            }
+            else
+            {
+                output.ColorScheme = PptxColor.NormalizeScheme(tokenName);
+            }
+        }
+        else
+        {
+            var resolved = grammarRoot is { } root
+                ? ResolveGrammarColorValue(root, color, path + ".color")
+                : ParseSourceBoundColor(color, path + ".color");
+            output.ColorRgb = resolved.Rgb;
+            colorAlpha = resolved.Alpha;
+        }
+        if (source.TryGetProperty("opacity", out var opacity))
+            output.OpacityThousandthPercent = Unit(grammarRoot is { } root
+                ? ResolveGrammarOpacityToken(root, opacity, path + ".opacity")
+                : opacity.GetDouble());
+        else if (colorAlpha < 1)
+            output.OpacityThousandthPercent = Unit(colorAlpha);
+        PptxInnerShadowCodec.Validate(output, path, subject);
+        return output;
+    }
+
+    private static PresentationReflection SourceBoundReflection(
+        JsonElement source,
+        string path,
+        string subject = "shape",
+        JsonElement? grammarRoot = null)
+    {
+        if (source.ValueKind != JsonValueKind.Object)
+            throw Unsupported(path, $"{subject} reflection must be an object");
+        var output = new PresentationReflection
+        {
+            BlurRadiusEmu = Emu(source.GetProperty("blur").GetDouble()),
+            StartOpacityThousandthPercent = Unit(grammarRoot is { } startRoot
+                ? ResolveGrammarOpacityToken(startRoot, source.GetProperty("startOpacity"), path + ".startOpacity")
+                : source.GetProperty("startOpacity").GetDouble()),
+            EndOpacityThousandthPercent = Unit(grammarRoot is { } endRoot
+                ? ResolveGrammarOpacityToken(endRoot, source.GetProperty("endOpacity"), path + ".endOpacity")
+                : source.GetProperty("endOpacity").GetDouble()),
+            DistanceEmu = Emu(source.GetProperty("distance").GetDouble()),
+            DirectionAngle60000 = RotationAngle(NormalizeAngle(source.GetProperty("angle").GetDouble())),
+        };
+        PptxReflectionCodec.Validate(output, path, subject);
+        return output;
+    }
+
+    private static PresentationSoftEdge SourceBoundSoftEdge(
+        JsonElement source,
+        string path,
+        string subject = "shape",
+        JsonElement? grammarRoot = null)
+    {
+        if (source.ValueKind != JsonValueKind.Object)
+            throw Unsupported(path, $"{subject} softEdge must be an object");
+        var radius = grammarRoot is { } root
+            ? ResolveGrammarSizeToken(root, source.GetProperty("radius"), path + ".radius")
+            : source.GetProperty("radius").GetDouble();
+        var output = new PresentationSoftEdge { RadiusEmu = Emu(radius) };
+        PptxSoftEdgeCodec.Validate(output, path, subject);
+        return output;
+    }
+
     private static double NormalizeAngle(double degrees)
     {
         var normalized = degrees % 360;
@@ -3666,7 +3922,7 @@ internal static class PpjSourceBoundPresentationCompiler
             throw Unsupported(path, "table cell textStyle.defaultText must be an object");
         var allowed = new HashSet<string>(StringComparer.Ordinal)
         {
-            "bold", "italic", "size", "fontFamily", "font", "fontFamilyEastAsia", "color", "underline", "strike",
+            "bold", "italic", "size", "fontFamily", "font", "fontFamilyEastAsia", "fontFamilyComplexScript", "color", "underline", "strike",
         };
         foreach (var property in value.EnumerateObject())
             if (!allowed.Contains(property.Name))
@@ -3699,6 +3955,10 @@ internal static class PpjSourceBoundPresentationCompiler
             output.FontFamilyEastAsia = grammarRoot is { } root
                 ? ResolveGrammarStringToken(root, eastAsia, path + ".defaultText.fontFamilyEastAsia")
                 : eastAsia.GetString()!;
+        if (value.TryGetProperty("fontFamilyComplexScript", out var complexScript))
+            output.FontFamilyComplexScript = grammarRoot is { } root
+                ? ResolveGrammarStringToken(root, complexScript, path + ".defaultText.fontFamilyComplexScript")
+                : complexScript.GetString()!;
         if (value.TryGetProperty("color", out var color))
         {
             if (grammarRoot is { } root)
@@ -3731,6 +3991,7 @@ internal static class PpjSourceBoundPresentationCompiler
             "bandedColumns",
             "firstColumnEmphasis",
             "lastColumnEmphasis",
+            "lastRow",
         };
         if (style is { } objectValue)
         {
@@ -3763,6 +4024,11 @@ internal static class PpjSourceBoundPresentationCompiler
         {
             if (value is { } flag) target.LastColumn = flag;
             else target.ClearLastColumn();
+        });
+        ApplyTableStyleBool(style, "lastRow", target, path, value =>
+        {
+            if (value is { } flag) target.LastRow = flag;
+            else target.ClearLastRow();
         });
     }
 
@@ -3888,7 +4154,7 @@ internal static class PpjSourceBoundPresentationCompiler
         MutationState mutations,
         string path)
     {
-        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "visibleText");
+        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "visibleText", "accessibility");
         var changed = false;
         if (FrameChanged(before, after))
         {
@@ -4858,12 +5124,12 @@ internal static class PpjSourceBoundPresentationCompiler
         var newStyle = OptionalProperty(after.Raw, "style");
         if (JsonEqual(oldStyle, newStyle)) return false;
         if (oldStyle is { } oldValue && newStyle is { } newValue)
-            RequireEqualExcept(oldValue, newValue, path + ".style", "fill", "stroke", "shadow");
+            RequireEqualExcept(oldValue, newValue, path + ".style", "fill", "stroke", "shadow", "glow", "innerShadow", "reflection", "softEdge");
         else
         {
             var present = oldStyle ?? newStyle!.Value;
             foreach (var property in present.EnumerateObject())
-                if (property.Name is not ("fill" or "stroke" or "shadow"))
+                if (property.Name is not ("fill" or "stroke" or "shadow" or "glow" or "innerShadow" or "reflection" or "softEdge"))
                     throw Unsupported(path + ".style", $"changing {property.Name}");
         }
         var changed = false;
@@ -4885,6 +5151,38 @@ internal static class PpjSourceBoundPresentationCompiler
             RequireCapabilityField(after.NativeRef, "setShapeEffects", "shape.shadow", path + ".style.shadow");
             target.Shadow = newStyle is { } style && style.TryGetProperty("shadow", out var shadow)
                 ? SourceBoundShadow(shadow, path + ".style.shadow", "shape", grammarRoot)
+                : null;
+            changed = true;
+        }
+        if (PropertyChanged(oldStyle, newStyle, "glow"))
+        {
+            RequireCapabilityField(after.NativeRef, "setShapeEffects", "shape.glow", path + ".style.glow");
+            target.Glow = newStyle is { } style && style.TryGetProperty("glow", out var glow)
+                ? SourceBoundGlow(glow, path + ".style.glow", "shape", grammarRoot)
+                : null;
+            changed = true;
+        }
+        if (PropertyChanged(oldStyle, newStyle, "innerShadow"))
+        {
+            RequireCapabilityField(after.NativeRef, "setShapeEffects", "shape.innerShadow", path + ".style.innerShadow");
+            target.InnerShadow = newStyle is { } style && style.TryGetProperty("innerShadow", out var innerShadow)
+                ? SourceBoundInnerShadow(innerShadow, path + ".style.innerShadow", "shape", grammarRoot)
+                : null;
+            changed = true;
+        }
+        if (PropertyChanged(oldStyle, newStyle, "reflection"))
+        {
+            RequireCapabilityField(after.NativeRef, "setShapeEffects", "shape.reflection", path + ".style.reflection");
+            target.Reflection = newStyle is { } style && style.TryGetProperty("reflection", out var reflection)
+                ? SourceBoundReflection(reflection, path + ".style.reflection", "shape", grammarRoot)
+                : null;
+            changed = true;
+        }
+        if (PropertyChanged(oldStyle, newStyle, "softEdge"))
+        {
+            RequireCapabilityField(after.NativeRef, "setShapeEffects", "shape.softEdge", path + ".style.softEdge");
+            target.SoftEdge = newStyle is { } style && style.TryGetProperty("softEdge", out var softEdge)
+                ? SourceBoundSoftEdge(softEdge, path + ".style.softEdge", "shape", grammarRoot)
                 : null;
             changed = true;
         }
