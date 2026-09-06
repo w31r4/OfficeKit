@@ -342,10 +342,12 @@ same bounded paragraph/run vocabulary as ordinary text:
 explicit run typography wins. Formula-backed titles, title hyperlinks,
 WordArt, effects, and unknown title containers remain source-owned.
 
-`smooth` preserves an explicit true or false native value. `varyColors: true`
-authors one direct native color-variation flag; false is canonical omission.
-Both line-behavior fields are line-chart-only. Structured chart titles compile
-to bounded native DrawingML paragraphs and runs on ordinary and combo charts.
+`smooth` preserves an explicit true or false native value. For line charts,
+`varyColors: true` authors one direct native color-variation flag and false is
+canonical omission. Bar/column charts and categorical combos preserve
+`varyColors` as the presence-aware native `c:varyColors` value, including an
+explicit false. Structured chart titles compile to bounded native DrawingML
+paragraphs and runs on ordinary and combo charts.
 A projected imported chart may issue `setChartTitle` for that title content and
 `setChartTextStyle` for uniform title defaults, legend, data labels, axis titles
 and tick labels. Each capability authorizes only its declared field. Theme
