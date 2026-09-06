@@ -11253,6 +11253,54 @@ public sealed partial class PptxCodecTests
     }
 
     [Fact]
+    public void PpjUaqDateTime4FieldAuthorsAndProjectsWithRequestedHostFormat()
+    {
+        var request = RichTextExportRequest();
+        var shape = request.Artifact.Presentation.Slides[0].Elements[0].Shape;
+        shape.TextBody.Paragraphs.Clear();
+        var paragraph = new PresentationTextParagraph();
+        paragraph.Runs.Add(new PresentationTextRun
+        {
+            Field = new PresentationTextField
+            {
+                Id = "{99999999-9999-4333-8444-AAAAAAAAAAAA}",
+                Type = "uaqdatetime4",
+                Text = "01/01/48",
+                Automatic = true,
+            },
+        });
+        shape.TextBody.Paragraphs.Add(paragraph);
+        shape.Text = PptxTextCodec.Flatten(shape.TextBody);
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var field = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.Field>().Single();
+            Assert.Equal("uaqdatetime4", field.Type!.Value);
+            Assert.Equal("01/01/48", field.Text!.Text);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        }
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(authored.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "uaqdatetime4-field/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var output = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var fieldJson = output["pages"]![0]!["elements"]![0]!["text"]!["paragraphs"]![0]!["runs"]![0]!["field"]!.AsObject();
+        Assert.Equal("uaqdatetime4", fieldJson["type"]!.GetValue<string>());
+        Assert.Equal("01/01/48", fieldJson["text"]!.GetValue<string>());
+        Assert.True(fieldJson["automatic"]!.GetValue<bool>());
+        Assert.Equal("{99999999-9999-4333-8444-AAAAAAAAAAAA}", fieldJson["id"]!.GetValue<string>());
+    }
+
+    [Fact]
     public void InvalidFieldsBreaksAndTabStopsFailClosed()
     {
         var request = RichTextExportRequest();
