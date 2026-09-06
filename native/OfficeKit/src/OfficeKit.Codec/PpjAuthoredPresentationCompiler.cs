@@ -3931,6 +3931,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             {
                 output.MajorFontFamily = fontScheme.GetProperty("major").GetString()!;
                 output.MinorFontFamily = fontScheme.GetProperty("minor").GetString()!;
+                if (fontScheme.TryGetProperty("majorEastAsia", out var majorEastAsia))
+                    output.MajorFontFamilyEastAsia = majorEastAsia.GetString()!;
             }
             else
             {

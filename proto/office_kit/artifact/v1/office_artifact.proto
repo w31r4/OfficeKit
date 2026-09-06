@@ -1660,6 +1660,10 @@ message PresentationThemeArtifact {
   repeated string accent_rgb = 2;
   optional string major_font_family = 3;
   optional string minor_font_family = 4;
+  // Optional authored East Asian typeface for the major theme role. When
+  // omitted, the major Latin family remains the bounded fallback for the
+  // East Asian and complex-script slots.
+  optional string major_font_family_east_asia = 12;
   // Authored RGB values for the remaining bounded clrScheme roles. Omitted
   // roles retain the canonical Office clean-room defaults.
   optional string dark1_rgb = 5;
