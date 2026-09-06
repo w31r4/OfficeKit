@@ -3513,6 +3513,14 @@ internal static class PptxCodec
         // request for that default as equivalent to an omitted tickLblPos.
         if (axis?.HasTickLabelsVisible == true && axis.TickLabelsVisible)
             axis.ClearTickLabelsVisible();
+
+        // A direct c:spPr line implies visibility. The native reader records
+        // that implication explicitly, while the authored/source-bound
+        // semantic request may omit the redundant presence bit.
+        if (axis?.MajorGridlineStyle is not null && axis.HasMajorGridlineVisible && axis.MajorGridlineVisible)
+            axis.ClearMajorGridlineVisible();
+        if (axis?.MinorGridlineStyle is not null && axis.HasMinorGridlineVisible && axis.MinorGridlineVisible)
+            axis.ClearMinorGridlineVisible();
     }
 
     private static void ClearElementIdentity(PresentationElement element)
