@@ -5063,6 +5063,14 @@
             "secondary"
           ]
         },
+        "nullHandling": {
+          "enum": [
+            "zero",
+            "gap",
+            "connect"
+          ],
+          "description": "Optional missing-value behavior for line, area, or radar series. All declared values in one chart must agree; connect maps to the native span mode."
+        },
         "xAxisIndex": {
           "type": "integer",
           "minimum": 0,
@@ -5161,6 +5169,14 @@
             "primary",
             "secondary"
           ]
+        },
+        "nullHandling": {
+          "enum": [
+            "zero",
+            "gap",
+            "connect"
+          ],
+          "description": "Optional missing-value behavior for line, area, or radar series. All declared values in one chart must agree; connect maps to the native span mode."
         },
         "fill": {
           "$ref": "#/$defs/fill"
@@ -5508,6 +5524,14 @@
           "minimum": 0,
           "maximum": 1,
           "description": "Optional bounded combo-axis index emitted by projection; 0 is primary and 1 is secondary."
+        },
+        "nullHandling": {
+          "enum": [
+            "zero",
+            "gap",
+            "connect"
+          ],
+          "description": "Optional missing-value behavior for line, area, or radar series. All declared values in one chart must agree; connect maps to the native span mode."
         },
         "color": {
           "$ref": "#/$defs/color"

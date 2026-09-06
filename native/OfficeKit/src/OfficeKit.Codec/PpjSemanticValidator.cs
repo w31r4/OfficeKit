@@ -1201,6 +1201,7 @@ internal static class PpjSemanticValidator
                     path + ".style.plotAreaLine"));
         }
         var seriesIds = new HashSet<string>(StringComparer.Ordinal);
+        var nullHandlingValues = new List<(string Value, string Path)>();
         for (var index = 0; index < chart.Data.Series.Count; index++)
         {
             var series = chart.Data.Series[index];
@@ -1208,6 +1209,22 @@ internal static class PpjSemanticValidator
             var seriesType = chart.ChartType == "combo" ? series.ChartType : chart.ChartType;
             if (!seriesIds.Add(series.Id))
                 diagnostics.Add(new("ppj.id.duplicate", $"Chart series ID {series.Id} is duplicated.", $"{seriesPath}.id"));
+            if (series.Raw.TryGetProperty("nullHandling", out var nullHandling))
+            {
+                if (chart.ChartType is not ("line" or "area" or "radar"))
+                    diagnostics.Add(new(
+                        "ppj.chart.nullHandlingType",
+                        "nullHandling applies only to bounded line, area, or radar charts.",
+                        $"{seriesPath}.nullHandling"));
+                else if (nullHandling.ValueKind != JsonValueKind.String ||
+                         nullHandling.GetString() is not ("zero" or "gap" or "connect"))
+                    diagnostics.Add(new(
+                        "ppj.chart.nullHandlingValue",
+                        "nullHandling must be zero, gap, or connect.",
+                        $"{seriesPath}.nullHandling"));
+                else
+                    nullHandlingValues.Add((nullHandling.GetString()!, $"{seriesPath}.nullHandling"));
+            }
             if (!numericCombo && seriesType is not ("scatter" or "bubble" or "sankey") && series.Values.Count != chart.Data.Categories.Count)
                 diagnostics.Add(new("ppj.chart.lengthMismatch", $"Series {series.Id} has {series.Values.Count} values for {chart.Data.Categories.Count} categories.", $"{seriesPath}.values"));
             if (chart.ChartType != "waterfall" && series.PointRoles.Count != 0)
@@ -1300,6 +1317,23 @@ internal static class PpjSemanticValidator
                 ValidateSeriesDataLabels(chart, series, dataLabels, seriesPath, diagnostics);
             if (series.Raw.TryGetProperty("pointStyles", out var pointStyles))
                 ValidatePointStyles(chart, series, pointStyles, seriesPath, diagnostics);
+        }
+        var distinctNullHandling = nullHandlingValues.Select(item => item.Value).Distinct(StringComparer.Ordinal).ToArray();
+        if (distinctNullHandling.Length > 1)
+            diagnostics.Add(new(
+                "ppj.chart.nullHandlingConsistency",
+                "Declared nullHandling values must agree across line, area, or radar series in one chart.",
+                nullHandlingValues[1].Path));
+        if (distinctNullHandling.Length == 1 &&
+            chart.Raw.TryGetProperty("displayBlanksAs", out var chartDisplayBlanksAs) &&
+            chartDisplayBlanksAs.ValueKind == JsonValueKind.String)
+        {
+            var seriesDisplayBlanksAs = distinctNullHandling[0] == "connect" ? "span" : distinctNullHandling[0];
+            if (!string.Equals(chartDisplayBlanksAs.GetString(), seriesDisplayBlanksAs, StringComparison.Ordinal))
+                diagnostics.Add(new(
+                    "ppj.chart.nullHandlingConflict",
+                    "nullHandling must agree with displayBlanksAs when both fields are present.",
+                    path + ".displayBlanksAs"));
         }
 
         if (chart.ChartType == "waterfall") ValidateWaterfall(chart, path, diagnostics);

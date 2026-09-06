@@ -5707,6 +5707,15 @@ internal static class PpjSourceBoundPresentationCompiler
                 !pair.First.XValueFormula.Equals(pair.Second.XValueFormula, StringComparison.Ordinal) ||
                 !pair.First.ValueFormula.Equals(pair.Second.ValueFormula, StringComparison.Ordinal) ||
                 !pair.First.BubbleSizeFormula.Equals(pair.Second.BubbleSizeFormula, StringComparison.Ordinal));
+        var nullHandlingChanged = before.Data.Series.Zip(after.Data.Series)
+            .Any(pair => !string.Equals(pair.First.NullHandling, pair.Second.NullHandling, StringComparison.Ordinal));
+        if (nullHandlingChanged)
+        {
+            RequireCapability(after, "setChartPlot", path + ".series[].nullHandling");
+            var displayBlanksAs = ResolveChartDisplayBlanksAs(after, target.Type, grammarRoot, path);
+            if (displayBlanksAs is null) target.ClearDisplayBlanksAs();
+            else target.DisplayBlanksAs = displayBlanksAs;
+        }
         var fillChanged = before.Data.Series.Zip(after.Data.Series)
             .Any(pair => PropertyChanged(pair.First.Raw, pair.Second.Raw, "fill") ||
                 PropertyChanged(pair.First.Raw, pair.Second.Raw, "pointStyles"));
@@ -5751,6 +5760,33 @@ internal static class PpjSourceBoundPresentationCompiler
         }
     }
 
+    private static string? ResolveChartDisplayBlanksAs(
+        PpjChartElementModel chart,
+        SpreadsheetChartType chartType,
+        JsonElement grammarRoot,
+        string path)
+    {
+        if (chartType is not (SpreadsheetChartType.Line or SpreadsheetChartType.Area or SpreadsheetChartType.Radar))
+            throw Unsupported(path + ".series[].nullHandling", "nullHandling requires a bounded line, area, or radar ChartPart");
+        var nullHandling = chart.Data.Series
+            .Select(series => series.NullHandling)
+            .Where(value => value is not null)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (nullHandling.Length > 1)
+            throw Unsupported(path + ".series[].nullHandling", "line, area, or radar series must use one shared nullHandling mode");
+        var seriesDisplayBlanksAs = nullHandling.Length == 0
+            ? null
+            : nullHandling[0] == "connect" ? "span" : nullHandling[0];
+        var chartDisplayBlanksAs = chart.Raw.TryGetProperty("displayBlanksAs", out var displayBlanksAs)
+            ? ResolveGrammarEnumToken(grammarRoot, displayBlanksAs, path + ".displayBlanksAs", "zero", "gap", "span")
+            : null;
+        if (seriesDisplayBlanksAs is not null && chartDisplayBlanksAs is not null &&
+            !string.Equals(seriesDisplayBlanksAs, chartDisplayBlanksAs, StringComparison.Ordinal))
+            throw Unsupported(path + ".series[].nullHandling", "nullHandling conflicts with chart displayBlanksAs");
+        return seriesDisplayBlanksAs ?? chartDisplayBlanksAs;
+    }
+
     private static void ApplyChartSeries(
         PpjChartSeriesModel before,
         PpjChartSeriesModel after,
@@ -5760,7 +5796,7 @@ internal static class PpjSourceBoundPresentationCompiler
         JsonElement grammarRoot,
         string path)
     {
-        RequireEqualExcept(before.Raw, after.Raw, path, "name", "values", "categoryFormula", "xValueFormula", "valueFormula", "bubbleSizeFormula", "fill", "stroke", "marker", "pointStyles", "dataLabels", "trendlines", "errorBars");
+        RequireEqualExcept(before.Raw, after.Raw, path, "name", "values", "categoryFormula", "xValueFormula", "valueFormula", "bubbleSizeFormula", "fill", "stroke", "marker", "pointStyles", "dataLabels", "trendlines", "errorBars", "nullHandling");
         if (before.Id != after.Id || before.ChartType != after.ChartType || before.Axis != after.Axis || before.Values.Count != after.Values.Count)
             throw Unsupported(path, "chart-series identity or topology change");
         var formulaChanged = !before.CategoryFormula.Equals(after.CategoryFormula, StringComparison.Ordinal) ||

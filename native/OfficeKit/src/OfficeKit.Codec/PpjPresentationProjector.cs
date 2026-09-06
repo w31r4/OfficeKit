@@ -1028,7 +1028,10 @@ internal static partial class PpjPresentationProjector
             : chart.HasTitlePlacement && chart.TitlePlacement.Length > 0
                 ? chart.TitlePlacement
                 : "aboveChart");
-        if (chart.HasDisplayBlanksAs) output["displayBlanksAs"] = StringNode(chart.DisplayBlanksAs);
+        var projectSeriesNullHandling = (chart.Type is SpreadsheetChartType.Line or SpreadsheetChartType.Area or SpreadsheetChartType.Radar) &&
+            chart.HasDisplayBlanksAs && chart.DisplayBlanksAs is ("zero" or "gap" or "span");
+        if (chart.HasDisplayBlanksAs && !projectSeriesNullHandling)
+            output["displayBlanksAs"] = StringNode(chart.DisplayBlanksAs);
         if (chart.HasStyleIndex) output["styleIndex"] = JsonValue.Create(chart.StyleIndex);
         if (chart.DataTable is not null) output["dataTable"] = ProjectChartDataTable(chart.DataTable);
         var categories = new JsonArray();
@@ -1047,6 +1050,8 @@ internal static partial class PpjPresentationProjector
                 ["name"] = StringNode(item.Name ?? string.Empty),
                 ["values"] = values,
             };
+            if (projectSeriesNullHandling)
+                entry["nullHandling"] = StringNode(chart.DisplayBlanksAs == "span" ? "connect" : chart.DisplayBlanksAs);
             if (!string.IsNullOrWhiteSpace(item.CategoryFormula)) entry["categoryFormula"] = StringNode(item.CategoryFormula);
             if (!string.IsNullOrWhiteSpace(item.XValueFormula)) entry["xValueFormula"] = StringNode(item.XValueFormula);
             if (!string.IsNullOrWhiteSpace(item.ValueFormula)) entry["valueFormula"] = StringNode(item.ValueFormula);

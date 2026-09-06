@@ -19,6 +19,17 @@ internal static partial class PpjAuthoredPresentationCompiler
             JsonElement raw,
             Catalog catalog)
         {
+            var nullHandling = chart.Data.Series
+                .Select(series => series.NullHandling)
+                .Where(value => value is not null)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            if (nullHandling.Length > 0 &&
+                (chart.ChartType is not ("line" or "area" or "radar") ||
+                 chart.ChartType == "area" && IsStreamgraph(chart, raw, catalog)))
+                throw Unsupported(chart.Id, "nullHandling requires a bounded native line, area, or radar ChartPart");
+            if (nullHandling.Length > 1)
+                throw Unsupported(chart.Id, "line, area, or radar series must use one shared nullHandling mode");
             if (chart.Data.Series.Any(series => series.Levels is not null) &&
                 chart.ChartType is not ("treemap" or "sunburst"))
                 throw Unsupported(chart.Id, "levels applies only to treemap and sunburst charts");
@@ -75,6 +86,18 @@ internal static partial class PpjAuthoredPresentationCompiler
         chart.Categories.Add(element.Data.Categories.Select(CategoryText));
         if (raw.TryGetProperty("displayBlanksAs", out var displayBlanksAs))
             chart.DisplayBlanksAs = ChartEnumToken(displayBlanksAs, catalog, "chart displayBlanksAs", "zero", "gap", "span");
+        var seriesNullHandling = element.Data.Series
+            .Select(series => series.NullHandling)
+            .Where(value => value is not null)
+            .Distinct(StringComparer.Ordinal)
+            .SingleOrDefault();
+        if (seriesNullHandling is not null)
+        {
+            var nativeDisplayBlanksAs = seriesNullHandling == "connect" ? "span" : seriesNullHandling;
+            if (chart.HasDisplayBlanksAs && !string.Equals(chart.DisplayBlanksAs, nativeDisplayBlanksAs, StringComparison.Ordinal))
+                throw Unsupported(element.Id, "nullHandling conflicts with chart displayBlanksAs");
+            chart.DisplayBlanksAs = nativeDisplayBlanksAs;
+        }
         if (raw.TryGetProperty("dataTable", out var dataTable))
             chart.DataTable = BuildChartDataTable(dataTable, catalog);
         var namedStyle = catalog.ChartStyle(element.StyleRef);

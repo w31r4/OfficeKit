@@ -202,6 +202,7 @@ internal sealed record PpjChartSeriesModel(
     string? Axis,
     int? XAxisIndex,
     int? YAxisIndex,
+    string? NullHandling,
     JsonElement Raw);
 
 internal sealed class PpjTableElementModel : PpjElementModel
@@ -1007,6 +1008,7 @@ internal static class PpjProgramParser
             OptionalString(series, "axis"),
             series.TryGetProperty("xAxisIndex", out var xAxisIndex) ? xAxisIndex.GetInt32() : null,
             series.TryGetProperty("yAxisIndex", out var yAxisIndex) ? yAxisIndex.GetInt32() : null,
+            OptionalString(series, "nullHandling"),
             series.Clone())).ToArray());
 
     private static JsonElement CanonicalDataset(JsonElement data, string chartType)
@@ -1223,7 +1225,7 @@ internal static class PpjProgramParser
             if (chartType == "combo" || (chartType == "candlestick" && definitionIndex > 0)) item["chartType"] = effectiveType;
             if (indexedSecondary) item["axis"] = "secondary";
             else if (definition.TryGetProperty("axis", out var axis)) item["axis"] = axis.GetString();
-            foreach (var property in new[] { "fill", "stroke", "color", "marker", "trendlines", "errorBars", "dataLabels" })
+            foreach (var property in new[] { "fill", "stroke", "color", "marker", "trendlines", "errorBars", "dataLabels", "nullHandling" })
                 if (definition.TryGetProperty(property, out var value)) item[property] = ToNode(value);
             ApplySeriesDefaults(
                 item,
