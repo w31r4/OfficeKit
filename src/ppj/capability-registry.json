@@ -306,10 +306,10 @@
     },
     {
       "feature": "structured chart titles and other chart typography",
-      "ppjPath": "chart.title, chart.style.titleTextStyle.underline/alignment, chart.style.legendTextStyle.underline/alignment, chart.style.dataLabels.textStyle.underline/alignment and chart axes textStyle.underline/alignment/titleTextStyle.underline/alignment",
+      "ppjPath": "chart.title, chart.style.titleTextStyle.fill/underline/alignment, chart.style.legendTextStyle.fill/underline/alignment, chart.style.dataLabels.textStyle.fill/underline/alignment and chart axes textStyle.fill/underline/alignment/titleTextStyle.fill/underline/alignment",
       "behavior": "partial",
-      "sourceBound": "Bounded multi-paragraph/run chart titles are projected and editable through setChartTitle; canonical legend, data-label, axis-title and axis tick-label typography, including bounded underline and paragraph-alignment tokens, remains editable through setChartTextStyle. Unsupported title containers remain source-preserved.",
-      "reason": "Authored ordinary and combo charts own structured title runs plus Latin/East Asian typefaces, size, bold, italic, bounded underline tokens, paragraph alignment and direct RGB/alpha. Formula-backed titles, hyperlinks, theme transforms, WordArt, shadows, effects and unknown title topology remain outside the bounded profile."
+      "sourceBound": "Bounded multi-paragraph/run chart titles are projected and editable through setChartTitle; canonical legend, data-label, axis-title and axis tick-label typography, including bounded direct none/solid/gradient text paint, underline and paragraph-alignment tokens, remains editable through setChartTextStyle. Unsupported title containers remain source-preserved.",
+      "reason": "Authored ordinary and combo charts own structured title runs plus Latin/East Asian typefaces, size, bold, italic, bounded direct none/solid/gradient text paint, underline tokens, paragraph alignment and direct RGB/alpha. Solid text paint remains compatible with the existing color representation; formula-backed titles, hyperlinks, theme transforms, WordArt, shadows, effects and unknown title topology remain outside the bounded profile."
     },
     {
       "feature": "third-party media playback graphs",
