@@ -18155,6 +18155,7 @@ public sealed partial class PptxCodecTests
         {
             ["major"] = "Aptos Display",
             ["majorEastAsia"] = "Noto Sans CJK SC",
+            ["majorComplexScript"] = "Noto Sans Arabic",
             ["minor"] = "Aptos",
             ["minorEastAsia"] = "Noto Sans CJK TC",
         };
@@ -18196,7 +18197,7 @@ public sealed partial class PptxCodecTests
             var fontScheme = theme.ThemeElements!.FontScheme!;
             Assert.Equal("Aptos Display", fontScheme.MajorFont!.LatinFont!.Typeface!.Value);
             Assert.Equal("Noto Sans CJK SC", fontScheme.MajorFont.EastAsianFont!.Typeface!.Value);
-            Assert.Equal("Aptos Display", fontScheme.MajorFont.ComplexScriptFont!.Typeface!.Value);
+            Assert.Equal("Noto Sans Arabic", fontScheme.MajorFont.ComplexScriptFont!.Typeface!.Value);
             Assert.Equal("Aptos", fontScheme.MinorFont!.LatinFont!.Typeface!.Value);
             Assert.Equal("Noto Sans CJK TC", fontScheme.MinorFont.EastAsianFont!.Typeface!.Value);
             Assert.Equal("Aptos", fontScheme.MinorFont.ComplexScriptFont!.Typeface!.Value);
@@ -18214,6 +18215,7 @@ public sealed partial class PptxCodecTests
         var recovered = JsonNode.Parse(embeddedProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         Assert.Equal("Aptos Display", recovered["design"]!["theme"]!["fontScheme"]!["major"]!.GetValue<string>());
         Assert.Equal("Noto Sans CJK SC", recovered["design"]!["theme"]!["fontScheme"]!["majorEastAsia"]!.GetValue<string>());
+        Assert.Equal("Noto Sans Arabic", recovered["design"]!["theme"]!["fontScheme"]!["majorComplexScript"]!.GetValue<string>());
         Assert.Equal("Aptos", recovered["design"]!["theme"]!["fontScheme"]!["minor"]!.GetValue<string>());
         Assert.Equal("Noto Sans CJK TC", recovered["design"]!["theme"]!["fontScheme"]!["minorEastAsia"]!.GetValue<string>());
 
@@ -18232,6 +18234,7 @@ public sealed partial class PptxCodecTests
         {
             ["major"] = "Changed Major",
             ["majorEastAsia"] = "Changed CJK",
+            ["majorComplexScript"] = "Changed Arabic",
             ["minor"] = "Changed Minor",
             ["minorEastAsia"] = "Changed CJK Minor",
         };
