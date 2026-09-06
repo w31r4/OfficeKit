@@ -353,6 +353,12 @@ set a bounded `underline` token such as `single`, `double`, or `wavy`.
 attributes. Underline fill/line effects and unknown rich-text graphs stay
 source-owned and fail closed.
 
+The same chart text owners may set a bounded paragraph `alignment` of `left`,
+`center`, `right`, or `justify`. PPJ maps these values to the direct DrawingML
+paragraph owner and preserves them through authored and source-bound
+`setChartTextStyle` edits. Unknown rich-text paragraph graphs and vector
+fallback remain source-owned and fail closed.
+
 `smooth` preserves an explicit true or false native value. For line charts,
 `varyColors: true` authors one direct native color-variation flag and false is
 canonical omission. Bar/column charts and categorical combos preserve
