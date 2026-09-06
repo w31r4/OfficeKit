@@ -120,10 +120,10 @@ The authored chart compiler owns these native visual controls:
   and arbitrary image/effect extensions stay source-bound;
 - editable series line width, dash, opacity, cap, join, and bounded markers;
 - category/value-axis titles, number formats, label interval, bounded
-  tick-label placement (`nextTo`, `high`, `low`, `none`), bounded major tick-mark
-  placement (`cross`, `in`, `out`, `none`), typeface, size, bold, italic and
-  direct RGB/alpha, value bounds and major unit; bounded combo charts may
-  declare the matching secondary pair;
+  tick-label placement (`nextTo`, `high`, `low`, `none`), bounded major and
+  minor tick-mark placement (`cross`, `in`, `out`, `none`), typeface, size,
+  bold, italic and direct RGB/alpha, value bounds and major unit; bounded combo
+  charts may declare the matching secondary pair;
 - chart-title Latin/East Asian typeface, size, bold, italic and direct
   RGB/alpha plus canonical line-chart smoothing and direct color variation;
 - structured data labels for value, category, series, percentage, native
