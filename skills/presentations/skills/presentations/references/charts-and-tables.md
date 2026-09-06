@@ -57,6 +57,15 @@ families, including numeric scatter/bubble Y values. Numeric `xValues` and
 values around an existing gap, but do not add or remove gaps: missing-point
 topology remains tied to the exact source cache.
 
+`displayBlanksAs` is a chart-level policy for blank cells, not a replacement for
+missing-point data. Use `"gap"` when the evidence must show an interruption,
+`"zero"` only when a blank means zero, and `"span"` only when bridging the blank
+is part of the source meaning. The bounded values map to ChartML
+`c:dispBlanksAs`; a declared string grammar token is also accepted. Authored
+and recognized ordinary or combo ChartParts preserve its presence, and a
+source-bound change uses `setChartPlot` while leaving series and workbook data
+unchanged. Unsupported chart topology remains source-owned.
+
 Lines, markers, labels, confidence intervals, error bars, and decision
 thresholds are protected foreground evidence. Bars, areas, fills, masks, and
 annotations may not hide them. For truthful combo charts, first keep the real
@@ -96,6 +105,8 @@ The authored chart compiler owns these native visual controls:
   doughnut center-hole size from 10 through 90 percent;
 - bubble scale from 0 through 300 percent and native size interpretation by
   bubble area or width;
+- chart-level blank-cell policy through `displayBlanksAs`: `zero`, `gap`, or
+  `span`, with optional string grammar-token resolution;
 - bar direction, gap width, category/value-axis visibility, major gridlines,
   data-label visibility and bounded label position;
 - presence-aware axis reversal plus direct RGB/no-fill axis and major-grid
