@@ -193,6 +193,13 @@
       "reason": "PPJ owns the five Kimi `scatterOptions.style` values (`line`, `lineWithMarkers`, `marker`, `smooth`, `smoothWithMarkers`) through native `line`, `lineMarker`, `marker`, `smooth`, and `smoothMarker` tokens. Scatter series line styling remains a separate marker/stroke capability; numeric combo/vector fallback, 3D/effect/extension graphs, invalid topology, and XLSX's marker-only editable profile remain source-owned or fail closed."
     },
     {
+      "feature": "native chart series null handling",
+      "ppjPath": "pages[].elements[].data.series[].nullHandling",
+      "behavior": "partial",
+      "sourceBound": "Recognized ordinary line, area, and radar ChartParts project series `nullHandling` from the chart-level c:dispBlanksAs owner. A source-bound setChartPlot edit changes only that ChartPart and reprojects `zero`, `gap`, or `connect`.",
+      "reason": "PPJ owns Kimi `LinearSeriesBase.nullHandling` as a bounded series field. Declared values in one chart must agree; `zero` and `gap` map directly to native modes and `connect` maps to native `span`. Omitted series follow the chart mode. Combo, scatter/bubble, candlestick, streamgraph/vector fallback, extension, and irregular ChartML remain source-owned and fail closed."
+    },
+    {
       "feature": "native sparse chart point styles",
       "ppjPath": "pages[].elements[].data.series[].pointStyles",
       "behavior": "partial",
