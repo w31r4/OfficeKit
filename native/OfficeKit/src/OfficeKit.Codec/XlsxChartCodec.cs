@@ -103,8 +103,8 @@ internal sealed class XlsxChartCodec
             if (string.IsNullOrWhiteSpace(chart.Name) || chart.Name.Length > 255 || HasControls(chart.Name)) throw InvalidChart(worksheetId, chart.Id, "name must contain 1 through 255 characters without controls.");
             if (chart.Title.Length > 32_767 || HasControls(chart.Title)) throw InvalidChart(worksheetId, chart.Id, "title must contain at most 32767 characters without controls.");
             if (!chart.HasLegend && chart.LegendPosition.Length > 0 ||
-                chart.HasLegend && chart.LegendPosition is not ("" or "top" or "bottom" or "left" or "right"))
-                throw InvalidChart(worksheetId, chart.Id, "legend position must be top, bottom, left, or right when a legend is enabled.");
+                chart.HasLegend && chart.LegendPosition is not ("" or "top" or "topRight" or "bottom" or "left" or "right"))
+                throw InvalidChart(worksheetId, chart.Id, "legend position must be top, topRight, bottom, left, or right when a legend is enabled.");
             XlsxNonVisualAccessibilityCodec.Validate(AccessibilityTitle(chart), AccessibilityDescription(chart), AccessibilityDecorative(chart), worksheetId, chart.Id, "chart");
             if (chart.Type is not (SpreadsheetChartType.Bar or SpreadsheetChartType.Line or SpreadsheetChartType.Pie or SpreadsheetChartType.Area or SpreadsheetChartType.Doughnut or SpreadsheetChartType.Scatter or SpreadsheetChartType.Bubble) &&
                 !(allowStandardRadar && chart.Type == SpreadsheetChartType.Radar))

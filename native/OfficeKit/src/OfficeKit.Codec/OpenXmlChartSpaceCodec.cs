@@ -379,6 +379,7 @@ internal static class OpenXmlChartSpaceCodec
         position = native switch
         {
             "t" => "top",
+            "tr" => "topRight",
             "b" => "bottom",
             "l" => "left",
             "r" => "right",
@@ -391,6 +392,7 @@ internal static class OpenXmlChartSpaceCodec
     {
         "" or "right" => "r",
         "top" => "t",
+        "topRight" => "tr",
         "bottom" => "b",
         "left" => "l",
         _ => throw new CodecException("invalid_chart_legend", $"Unsupported chart legend position {position}."),

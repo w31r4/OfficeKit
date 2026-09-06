@@ -3022,7 +3022,7 @@ internal static partial class PpjAuthoredPresentationCompiler
     {
         var legendValue = catalog.PropertyByPrecedence("chart.legend", element, inline, named);
         var legend = legendValue is { } explicitLegend
-            ? ChartEnumToken(explicitLegend, catalog, "chart legend", "none", "top", "bottom", "left", "right")
+            ? ChartEnumToken(explicitLegend, catalog, "chart legend", "none", "top", "topRight", "bottom", "left", "right")
             : null;
         chart.HasLegend = legend is not null and not "none";
         if (chart.HasLegend) chart.LegendPosition = legend!;

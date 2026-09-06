@@ -5530,7 +5530,8 @@
                 "top",
                 "bottom",
                 "left",
-                "right"
+                "right",
+                "topRight"
               ]
             },
             {

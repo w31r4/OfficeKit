@@ -2550,7 +2550,7 @@ internal static class PpjSourceBoundPresentationCompiler
         {
             RequireCapability(after, "setChartPlot", path + ".style.legend");
             var legend = newStyle is { } owner && owner.TryGetProperty("legend", out var value)
-                ? ResolveGrammarEnumToken(grammarRoot, value, path + ".style.legend", "none", "top", "bottom", "left", "right")
+                ? ResolveGrammarEnumToken(grammarRoot, value, path + ".style.legend", "none", "top", "topRight", "bottom", "left", "right")
                 : "none";
             target.HasLegend = !string.Equals(legend, "none", StringComparison.Ordinal);
             target.LegendPosition = target.HasLegend ? legend : string.Empty;
