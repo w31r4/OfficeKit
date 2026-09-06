@@ -102,6 +102,16 @@
       "maxLength": 63,
       "pattern": "^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$"
     },
+    "languageTagOrToken": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/languageTag"
+        },
+        {
+          "$ref": "#/$defs/grammarTokenRef"
+        }
+      ]
+    },
     "timestamp": {
       "type": "string",
       "format": "date-time"
@@ -477,6 +487,10 @@
         "textStyles": {
           "$ref": "#/$defs/masterTextStyles"
         },
+        "style": {
+          "$ref": "#/$defs/textStyle",
+          "description": "Optional direct text-style fallback used by the bounded authored style-precedence profile. It is not a source-bound native style owner."
+        },
         "placeholders": {
           "type": "array",
           "maxItems": 256,
@@ -520,6 +534,10 @@
         },
         "background": {
           "$ref": "#/$defs/fill"
+        },
+        "style": {
+          "$ref": "#/$defs/textStyle",
+          "description": "Optional direct text-style fallback used by the bounded authored style-precedence profile. It is not a source-bound native style owner."
         },
         "placeholders": {
           "type": "array",
@@ -654,6 +672,22 @@
           "type": "string",
           "maxLength": 256
         },
+        "fontScheme": {
+          "$ref": "#/$defs/themeFontScheme",
+          "description": "Bounded authored major/minor theme font families lowered to the native a:fontScheme. It does not model imported theme XML or host font fallback."
+        },
+        "accentColors": {
+          "$ref": "#/$defs/themeAccentColors",
+          "description": "Bounded authored accent1 through accent6 theme colors lowered to the native a:clrScheme. It does not model the remaining theme color roles or imported theme XML."
+        },
+        "accentTransforms": {
+          "$ref": "#/$defs/themeAccentTransforms",
+          "description": "Bounded authored a:tint/a:shade/a:lumMod/a:lumOff/a:alphaMod/a:alphaOff/a:satMod/a:satOff/a:redMod/a:redOff/a:greenMod/a:greenOff/a:blueMod/a:blueOff/a:hueMod/a:hueOff/a:gray/a:comp/a:inv/a:gamma/a:invGamma transforms for accent1 through accent6. Transforms remain separate from the base accentColors and do not model imported theme XML."
+        },
+        "colorRoles": {
+          "$ref": "#/$defs/themeColorRoles",
+          "description": "Bounded authored dark/light and hyperlink theme color roles lowered to the native a:clrScheme. Values accept RGB or RGBA; only the alpha suffix is lowered, while tint/shade, effect schemes, and imported theme XML remain outside the profile."
+        },
         "colors": {
           "type": "array",
           "minItems": 1,
@@ -678,8 +712,249 @@
               }
             }
           }
+        },
+        "textStyle": {
+          "$ref": "#/$defs/textStyle",
+          "description": "Optional direct text-style fallback used by the bounded authored style-precedence profile. It is not a source-bound native theme style owner."
         }
       }
+    },
+    "themeFontScheme": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "major",
+        "minor"
+      ],
+      "properties": {
+        "major": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "minor": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      "description": "The two bounded OOXML theme font roles. OfficeKit writes the same family into the Latin, East Asian, and complex-script slots for each role."
+    },
+    "themeAccentColors": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "accent1",
+        "accent2",
+        "accent3",
+        "accent4",
+        "accent5",
+        "accent6"
+      ],
+      "properties": {
+        "accent1": {
+          "$ref": "#/$defs/themeAccentColor"
+        },
+        "accent2": {
+          "$ref": "#/$defs/themeAccentColor"
+        },
+        "accent3": {
+          "$ref": "#/$defs/themeAccentColor"
+        },
+        "accent4": {
+          "$ref": "#/$defs/themeAccentColor"
+        },
+        "accent5": {
+          "$ref": "#/$defs/themeAccentColor"
+        },
+        "accent6": {
+          "$ref": "#/$defs/themeAccentColor"
+        }
+      },
+      "description": "The six bounded OOXML accent color roles. Values are six- or eight-digit RGB/RGBA colors; only the alpha suffix is lowered, while hyperlink, followed-hyperlink, dark/light, tint/shade, and effect schemes remain outside this profile."
+    },
+    "themeAccentColor": {
+      "type": "string",
+      "pattern": "^#[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?$"
+    },
+    "themeAccentTransforms": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "accent1": { "$ref": "#/$defs/themeColorTransform" },
+        "accent2": { "$ref": "#/$defs/themeColorTransform" },
+        "accent3": { "$ref": "#/$defs/themeColorTransform" },
+        "accent4": { "$ref": "#/$defs/themeColorTransform" },
+        "accent5": { "$ref": "#/$defs/themeColorTransform" },
+        "accent6": { "$ref": "#/$defs/themeColorTransform" }
+      },
+      "description": "Optional direct DrawingML color transforms for the six authored accent roles."
+    },
+    "themeColorTransform": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "tint": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Mix the accent toward white by this fraction."
+        },
+        "shade": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Mix the accent toward black by this fraction after tint."
+        },
+        "lumMod": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Multiply the accent luminance by this fraction."
+        },
+        "lumOff": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1,
+          "description": "Add this signed fraction to the accent luminance."
+        },
+        "alphaMod": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Multiply the accent alpha by this fraction."
+        },
+        "alphaOff": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1,
+          "description": "Add this signed fraction to the accent alpha."
+        },
+        "satMod": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Multiply the accent saturation by this fraction."
+        },
+        "satOff": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1,
+          "description": "Add this signed fraction to the accent saturation."
+        },
+        "redMod": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Multiply the accent red channel by this fraction."
+        },
+        "redOff": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1,
+          "description": "Add this signed fraction to the accent red channel."
+        },
+        "greenMod": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Multiply the accent green channel by this fraction."
+        },
+        "greenOff": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1,
+          "description": "Add this signed fraction to the accent green channel."
+        },
+        "blueMod": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Multiply the accent blue channel by this fraction."
+        },
+        "blueOff": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1,
+          "description": "Add this signed fraction to the accent blue channel."
+        },
+        "hueMod": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Multiply the accent hue by this fraction."
+        },
+        "hueOff": {
+          "type": "number",
+          "minimum": -360,
+          "maximum": 360,
+          "description": "Add this signed degree offset to the accent hue."
+        },
+        "gray": {
+          "type": "boolean",
+          "const": true,
+          "description": "Convert the accent color to grayscale."
+        },
+        "comp": {
+          "type": "boolean",
+          "const": true,
+          "description": "Apply the accent color complement operation."
+        },
+        "inv": {
+          "type": "boolean",
+          "const": true,
+          "description": "Invert the accent color."
+        },
+        "gamma": {
+          "type": "boolean",
+          "const": true,
+          "description": "Apply gamma correction to the accent color."
+        },
+        "invGamma": {
+          "type": "boolean",
+          "const": true,
+          "description": "Apply inverse gamma correction to the accent color."
+        }
+      }
+    },
+    "themeColorRoles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dark1",
+        "light1",
+        "dark2",
+        "light2",
+        "hyperlink",
+        "followedHyperlink"
+      ],
+      "properties": {
+        "dark1": {
+          "$ref": "#/$defs/themeColorRole"
+        },
+        "light1": {
+          "$ref": "#/$defs/themeColorRole"
+        },
+        "dark2": {
+          "$ref": "#/$defs/themeColorRole"
+        },
+        "light2": {
+          "$ref": "#/$defs/themeColorRole"
+        },
+        "hyperlink": {
+          "$ref": "#/$defs/themeColorRole"
+        },
+        "followedHyperlink": {
+          "$ref": "#/$defs/themeColorRole"
+        }
+      },
+      "description": "The six bounded OOXML theme color roles outside accent1 through accent6. Values are six- or eight-digit RGB/RGBA colors; only the alpha suffix is lowered."
+    },
+    "themeColorRole": {
+      "type": "string",
+      "pattern": "^#[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?$"
     },
     "hexColor": {
       "type": "string",
@@ -1027,7 +1302,11 @@
             "items": {
               "enum": [
                 "inline",
+                "element",
+                "paragraph",
+                "run",
                 "styleRef",
+                "layout",
                 "theme",
                 "master",
                 "default"
@@ -1636,7 +1915,12 @@
               "stroke",
               "line.path",
               "shape.shadow",
+              "shape.glow",
+              "shape.innerShadow",
+              "shape.reflection",
+              "shape.softEdge",
               "opacity",
+              "compositing.opacity",
               "frame.x",
               "frame.y",
               "frame.width",
@@ -1663,6 +1947,10 @@
               "image.mask.paths",
               "image.border",
               "image.shadow",
+              "image.glow",
+              "image.innerShadow",
+              "image.reflection",
+              "image.softEdge",
               "table.style",
               "table.geometry",
               "table.cell.fill",
@@ -1720,6 +2008,12 @@
           "enum": [
             "text",
             "tableCellText",
+            "tableHeaderRows",
+            "tableBandedRows",
+            "tableBandedColumns",
+            "tableFirstColumnEmphasis",
+            "tableLastColumnEmphasis",
+            "tableLastRow",
             "nativeText",
             "chartDataCategory",
             "chartDataValue",
@@ -1745,12 +2039,25 @@
             "paragraphBulletSizePercent",
             "paragraphLevel",
             "verticalAnchor",
+            "textBodyAnchorCenter",
+            "textBodyForceAntiAlias",
+            "textBodySpaceFirstLastParagraph",
+            "textBodyCompatibleLineSpacing",
+            "textBodyFromWordArt",
+            "textBodyWarpPreset",
+            "textBodyWarpAdjustment",
+            "textBodyFlatTextZ",
             "textBodyInsetLeftEmu",
             "textBodyInsetTopEmu",
             "textBodyInsetRightEmu",
             "textBodyInsetBottomEmu",
             "textBodyWrap",
             "textBodyColumnCount",
+            "textBodyColumnGapEmu",
+            "textBodyRotationDegrees",
+            "textBodyVerticalOverflow",
+            "textBodyHorizontalOverflow",
+            "textBodyUpright",
             "textBodyAutoFit",
             "textBodyNormalAutoFitFontScale",
             "textBodyNormalAutoFitLineSpacingReduction",
@@ -1759,6 +2066,7 @@
             "fontSizePoints",
             "fontFamily",
             "fontFamilyEastAsia",
+            "fontFamilyComplexScript",
             "fontLanguage",
             "fontBold",
             "fontItalic",
@@ -1772,6 +2080,78 @@
             "fontCaps",
             "fontHighlightRgb",
             "fontHighlightScheme",
+            "textGlowRadiusEmu",
+            "textDefaultGlowRadiusEmu",
+            "textDefaultGlowColorRgb",
+            "textDefaultGlowColorScheme",
+            "textDefaultGlowOpacityThousandthPercent",
+            "textDefaultShadowBlurRadiusEmu",
+            "textDefaultShadowDistanceEmu",
+            "textDefaultShadowDirectionDegrees",
+            "textDefaultShadowAlignment",
+            "textDefaultShadowColorRgb",
+            "textDefaultShadowColorScheme",
+            "textDefaultShadowOpacityThousandthPercent",
+            "textDefaultShadowRotateWithShape",
+            "textGlowColorRgb",
+            "textGlowColorScheme",
+            "textGlowOpacityThousandthPercent",
+            "textInnerShadowBlurRadiusEmu",
+            "textDefaultInnerShadowBlurRadiusEmu",
+            "textInnerShadowDistanceEmu",
+            "textDefaultInnerShadowDistanceEmu",
+            "textInnerShadowDirectionDegrees",
+            "textDefaultInnerShadowDirectionDegrees",
+            "textDefaultInnerShadowColorRgb",
+            "textDefaultInnerShadowColorScheme",
+            "textDefaultInnerShadowOpacityThousandthPercent",
+            "textInnerShadowColorRgb",
+            "textInnerShadowColorScheme",
+            "textInnerShadowOpacityThousandthPercent",
+            "textReflectionBlurRadiusEmu",
+            "textDefaultReflectionBlurRadiusEmu",
+            "textReflectionStartOpacityThousandthPercent",
+            "textDefaultReflectionStartOpacityThousandthPercent",
+            "textReflectionEndOpacityThousandthPercent",
+            "textDefaultReflectionEndOpacityThousandthPercent",
+            "textReflectionDistanceEmu",
+            "textDefaultReflectionDistanceEmu",
+            "textReflectionDirectionDegrees",
+            "textDefaultReflectionDirectionDegrees",
+            "textSoftEdgeRadiusEmu",
+            "textDefaultSoftEdgeRadiusEmu",
+            "shapeGlowRadiusEmu",
+            "shapeGlowColorRgb",
+            "shapeGlowColorScheme",
+            "shapeGlowOpacityThousandthPercent",
+            "imageGlowRadiusEmu",
+            "imageGlowColorRgb",
+            "imageGlowColorScheme",
+            "imageGlowOpacityThousandthPercent",
+            "shapeInnerShadowBlurRadiusEmu",
+            "shapeInnerShadowDistanceEmu",
+            "shapeInnerShadowDirectionDegrees",
+            "shapeInnerShadowColorRgb",
+            "shapeInnerShadowColorScheme",
+            "shapeInnerShadowOpacityThousandthPercent",
+            "imageInnerShadowBlurRadiusEmu",
+            "imageInnerShadowDistanceEmu",
+            "imageInnerShadowDirectionDegrees",
+            "imageInnerShadowColorRgb",
+            "imageInnerShadowColorScheme",
+            "imageInnerShadowOpacityThousandthPercent",
+            "shapeReflectionBlurRadiusEmu",
+            "shapeReflectionStartOpacityThousandthPercent",
+            "shapeReflectionEndOpacityThousandthPercent",
+            "shapeReflectionDistanceEmu",
+            "shapeReflectionDirectionDegrees",
+            "imageReflectionBlurRadiusEmu",
+            "imageReflectionStartOpacityThousandthPercent",
+            "imageReflectionEndOpacityThousandthPercent",
+            "imageReflectionDistanceEmu",
+            "imageReflectionDirectionDegrees",
+            "shapeSoftEdgeRadiusEmu",
+            "imageSoftEdgeRadiusEmu",
             "fillRgb",
             "fillOpacityThousandthPercent",
             "fillScheme",
@@ -1782,13 +2162,27 @@
             "shadowColorRgb",
             "shadowColorScheme",
             "shadowOpacityThousandthPercent",
+            "shadowRotateWithShape",
+            "imageShadowRotateWithShape",
+            "imageShadowBlurRadiusEmu",
+            "imageShadowOpacityThousandthPercent",
+            "imageShadowDistanceEmu",
+            "imageShadowDirectionDegrees",
+            "imageShadowAlignment",
+            "imageShadowColorRgb",
+            "imageShadowColorScheme",
             "lineRgb",
             "lineScheme",
+            "lineOpacityThousandthPercent",
             "lineStyle",
             "lineCap",
             "lineJoin",
             "lineStartArrow",
             "lineEndArrow",
+            "lineStartArrowWidth",
+            "lineStartArrowLength",
+            "lineEndArrowWidth",
+            "lineEndArrowLength",
             "lineWidthEmu",
             "leftEmu",
             "topEmu",
@@ -1804,6 +2198,85 @@
             "imageOpacityThousandthPercent",
             "imageMaskPreset",
             "customGeometryAdjustment",
+            "customGeometryAdjustmentFormula",
+            "customGeometryGuide",
+            "customGeometryGuideFormula",
+            "customGeometryPathWidth",
+            "customGeometryPathHeight",
+            "customGeometryPathArcWidthRadius",
+            "customGeometryPathArcHeightRadius",
+            "customGeometryPathArcStartAngle60000",
+            "customGeometryPathArcSweepAngle60000",
+            "customGeometryPathLineToX",
+            "customGeometryPathLineToY",
+            "customGeometryPathMoveToX",
+            "customGeometryPathMoveToY",
+            "customGeometryPathQuadraticEndX",
+            "customGeometryPathQuadraticEndY",
+            "customGeometryPathQuadraticControlX",
+            "customGeometryPathQuadraticControlY",
+            "customGeometryPathCubicEndX",
+            "customGeometryPathCubicEndY",
+            "customGeometryPathCubicControl1X",
+            "customGeometryPathCubicControl1Y",
+            "customGeometryPathCubicControl2X",
+            "customGeometryPathCubicControl2Y",
+            "customGeometryPathFill",
+            "customGeometryPathStroke",
+            "customGeometryPathExtrusionAllowed",
+            "shape3dExtrusionHeightEmu",
+            "shape3dDepthEmu",
+            "shape3dContourWidthEmu",
+            "shape3dPresetMaterial",
+            "shape3dBevelTopWidthEmu",
+            "shape3dBevelTopHeightEmu",
+            "shape3dBevelTopPreset",
+            "shape3dBevelBottomWidthEmu",
+"shape3dBevelBottomHeightEmu",
+"shape3dBevelBottomPreset",
+"shape3dContourRgb",
+"shape3dContourColorScheme",
+"shape3dExtrusionRgb",
+"shape3dExtrusionColorScheme",
+"shape3dSceneCameraPreset",
+"shape3dSceneCameraZoomThousandthPercent",
+"shape3dSceneCameraFov60000",
+"shape3dSceneCameraRotationLatitude60000",
+"shape3dSceneCameraRotationLongitude60000",
+"shape3dSceneCameraRotationRevolution60000",
+"shape3dSceneBackdropAnchorXEmu",
+"shape3dSceneBackdropAnchorYEmu",
+"shape3dSceneBackdropAnchorZEmu",
+"shape3dSceneBackdropNormalDxEmu",
+"shape3dSceneBackdropNormalDyEmu",
+"shape3dSceneBackdropNormalDzEmu",
+"shape3dSceneBackdropUpDxEmu",
+"shape3dSceneBackdropUpDyEmu",
+"shape3dSceneBackdropUpDzEmu",
+"shape3dSceneLightRigPreset",
+"shape3dSceneLightRigDirection",
+"shape3dSceneLightRigRotationLatitude60000",
+"shape3dSceneLightRigRotationLongitude60000",
+"shape3dSceneLightRigRotationRevolution60000",
+"customGeometryConnectionSiteAngle60000",
+            "customGeometryConnectionSiteXEmu",
+            "customGeometryConnectionSiteYEmu",
+            "customGeometryAdjustmentHandleXEmu",
+            "customGeometryAdjustmentHandleYEmu",
+            "customGeometryAdjustmentHandleMinXEmu",
+            "customGeometryAdjustmentHandleMaxXEmu",
+            "customGeometryAdjustmentHandleMinYEmu",
+            "customGeometryAdjustmentHandleMaxYEmu",
+            "customGeometryAdjustmentHandlePolarMinRadiusEmu",
+            "customGeometryAdjustmentHandlePolarMaxRadiusEmu",
+            "customGeometryAdjustmentHandlePolarMinAngle60000",
+            "customGeometryAdjustmentHandlePolarMaxAngle60000",
+            "customGeometryAdjustmentHandlePolarXEmu",
+            "customGeometryAdjustmentHandlePolarYEmu",
+            "customGeometryTextRectangleLeftEmu",
+            "customGeometryTextRectangleTopEmu",
+            "customGeometryTextRectangleRightEmu",
+            "customGeometryTextRectangleBottomEmu",
             "imageMaskAdjustment",
             "presetGeometryAdjustment"
           ]
@@ -2203,6 +2676,135 @@
         }
       }
     },
+    "glow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "color",
+        "radius"
+      ],
+      "properties": {
+        "color": {
+          "$ref": "#/$defs/color"
+        },
+        "opacity": {
+          "$ref": "#/$defs/numberOrToken",
+          "description": "Glow opacity; a token reference must declare kind opacity."
+        },
+        "radius": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000,
+          "description": "Glow radius in points."
+        }
+      }
+    },
+    "softEdge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "radius"
+      ],
+      "properties": {
+        "radius": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000,
+          "description": "Soft-edge radius in points."
+        }
+      }
+    },
+    "innerShadow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "color",
+        "blur",
+        "distance",
+        "angle"
+      ],
+      "properties": {
+        "color": {
+          "$ref": "#/$defs/color"
+        },
+        "opacity": {
+          "$ref": "#/$defs/numberOrToken",
+          "description": "Inner-shadow opacity; a token reference must declare kind opacity."
+        },
+        "blur": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "distance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100000
+        },
+        "angle": {
+          "type": "number",
+          "minimum": -360,
+          "maximum": 360
+        }
+      }
+    },
+    "reflection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blur",
+        "startOpacity",
+        "endOpacity",
+        "distance",
+        "angle"
+      ],
+      "properties": {
+        "blur": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000,
+          "description": "Reflection blur radius in points."
+        },
+        "startOpacity": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ],
+          "description": "Reflection start opacity; a token reference must declare kind opacity."
+        },
+        "endOpacity": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ],
+          "description": "Reflection end opacity; a token reference must declare kind opacity."
+        },
+        "distance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100000,
+          "description": "Reflection distance in points."
+        },
+        "angle": {
+          "type": "number",
+          "minimum": -360,
+          "maximum": 360,
+          "description": "Reflection direction in degrees."
+        }
+      }
+    },
     "shapeStyle": {
       "type": "object",
       "additionalProperties": false,
@@ -2215,6 +2817,18 @@
         },
         "shadow": {
           "$ref": "#/$defs/shadow"
+        },
+        "glow": {
+          "$ref": "#/$defs/glow"
+        },
+        "softEdge": {
+          "$ref": "#/$defs/softEdge"
+        },
+        "innerShadow": {
+          "$ref": "#/$defs/innerShadow"
+        },
+        "reflection": {
+          "$ref": "#/$defs/reflection"
         },
         "opacity": {
           "oneOf": [
@@ -2266,6 +2880,18 @@
         },
         "shadow": {
           "$ref": "#/$defs/shadow"
+        },
+        "glow": {
+          "$ref": "#/$defs/glow"
+        },
+        "softEdge": {
+          "$ref": "#/$defs/softEdge"
+        },
+        "innerShadow": {
+          "$ref": "#/$defs/innerShadow"
+        },
+        "reflection": {
+          "$ref": "#/$defs/reflection"
         }
       }
     },
@@ -2316,6 +2942,19 @@
               "$ref": "#/$defs/grammarTokenRef"
             }
           ]
+        },
+        "fontFamilyComplexScript": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ],
+          "description": "Direct DrawingML a:cs typeface for complex-script text; no host font fallback is inferred."
         },
         "size": {
           "$ref": "#/$defs/positiveNumberOrToken"
@@ -2373,11 +3012,23 @@
         "shadow": {
           "$ref": "#/$defs/shadow"
         },
+        "glow": {
+          "$ref": "#/$defs/glow"
+        },
+        "innerShadow": {
+          "$ref": "#/$defs/innerShadow"
+        },
+        "reflection": {
+          "$ref": "#/$defs/reflection"
+        },
+        "softEdge": {
+          "$ref": "#/$defs/softEdge"
+        },
         "highlight": {
           "$ref": "#/$defs/color"
         },
         "language": {
-          "$ref": "#/$defs/languageTag"
+          "$ref": "#/$defs/languageTagOrToken"
         },
         "letterSpacing": {
           "type": "number",
@@ -2851,6 +3502,27 @@
         }
       }
     },
+    "textWarpAdjustment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "value"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[^\\u0000-\\u001F\\u007F]*$"
+        },
+        "value": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        }
+      }
+    },
     "textBoxStyle": {
       "type": "object",
       "additionalProperties": false,
@@ -2867,6 +3539,87 @@
             "middle",
             "bottom"
           ]
+        },
+        "anchorCenter": {
+          "type": "boolean",
+          "description": "Whether the text body is anchored at the center of its shape; distinct from verticalAlignment."
+        },
+        "forceAntiAlias": {
+          "type": "boolean",
+          "description": "Whether the direct text-body forceAA rendering hint is enabled; this does not claim host-specific anti-aliasing output."
+        },
+        "spaceFirstLastParagraph": {
+          "type": "boolean",
+          "description": "Whether the direct text-body spcFirstLastPara spacing hint is enabled; this does not infer paragraph metrics."
+        },
+        "compatibleLineSpacing": {
+          "type": "boolean",
+          "description": "Whether the direct text-body compatLnSpc hint is enabled; this does not infer host line metrics."
+        },
+        "fromWordArt": {
+          "type": "boolean",
+          "description": "Whether the direct text-body fromWordArt marker is enabled; this does not claim WordArt transform or effects support."
+        },
+        "textWarpPreset": {
+          "enum": [
+            "textNoShape",
+            "textPlain",
+            "textStop",
+            "textTriangle",
+            "textTriangleInverted",
+            "textChevron",
+            "textChevronInverted",
+            "textRingInside",
+            "textRingOutside",
+            "textArchUp",
+            "textArchDown",
+            "textCircle",
+            "textButton",
+            "textArchUpPour",
+            "textArchDownPour",
+            "textCirclePour",
+            "textButtonPour",
+            "textCurveUp",
+            "textCurveDown",
+            "textCanUp",
+            "textCanDown",
+            "textWave1",
+            "textWave2",
+            "textDoubleWave1",
+            "textWave4",
+            "textInflate",
+            "textDeflate",
+            "textInflateBottom",
+            "textDeflateBottom",
+            "textInflateTop",
+            "textDeflateTop",
+            "textDeflateInflate",
+            "textDeflateInflateDeflate",
+            "textFadeRight",
+            "textFadeLeft",
+            "textFadeUp",
+            "textFadeDown",
+            "textSlantUp",
+            "textSlantDown",
+            "textCascadeUp",
+            "textCascadeDown"
+          ],
+          "description": "Direct a:prstTxWarp preset; only the paired literal textWarpAdjustments profile is modeled."
+        },
+        "textWarpAdjustments": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/textWarpAdjustment"
+          },
+          "description": "Ordered direct a:prstTxWarp adjustment guides; each value is a literal fmla=val N and names must be unique."
+        },
+        "flatTextZ": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647,
+          "description": "Signed bounded z coordinate for direct a:flatTx in the 3D scene; this does not model the surrounding 3D scene or effects."
         },
         "wrap": {
           "enum": [
@@ -3057,6 +3810,10 @@
             "styleRef": {
               "$ref": "#/$defs/id"
             },
+            "textStyle": {
+              "$ref": "#/$defs/textStyle",
+              "description": "Direct element text style, distinct from the text-container style."
+            },
             "style": {
               "$ref": "#/$defs/textBoxStyle"
             },
@@ -3172,6 +3929,18 @@
             },
             "shadow": {
               "$ref": "#/$defs/shadow"
+            },
+            "glow": {
+              "$ref": "#/$defs/glow"
+            },
+            "softEdge": {
+              "$ref": "#/$defs/softEdge"
+            },
+            "innerShadow": {
+              "$ref": "#/$defs/innerShadow"
+            },
+            "reflection": {
+              "$ref": "#/$defs/reflection"
             }
           }
         }
@@ -3758,6 +4527,18 @@
             },
             "shadow": {
               "$ref": "#/$defs/shadow"
+            },
+            "glow": {
+              "$ref": "#/$defs/glow"
+            },
+            "softEdge": {
+              "$ref": "#/$defs/softEdge"
+            },
+            "innerShadow": {
+              "$ref": "#/$defs/innerShadow"
+            },
+            "reflection": {
+              "$ref": "#/$defs/reflection"
             }
           }
         }
@@ -5244,6 +6025,10 @@
         "fontFamilyEastAsia": {
           "$ref": "#/$defs/stringOrToken"
         },
+        "fontFamilyComplexScript": {
+          "$ref": "#/$defs/stringOrToken",
+          "description": "Direct DrawingML a:cs typeface for complex-script chart text."
+        },
         "bold": {
           "$ref": "#/$defs/booleanOrToken"
         },
@@ -5417,6 +6202,10 @@
         },
         "fontFamilyEastAsia": {
           "$ref": "#/$defs/stringOrToken"
+        },
+        "fontFamilyComplexScript": {
+          "$ref": "#/$defs/stringOrToken",
+          "description": "Direct DrawingML a:cs typeface for complex-script radar labels."
         },
         "bold": {
           "$ref": "#/$defs/booleanOrToken"
@@ -5950,6 +6739,9 @@
         "lastColumnEmphasis": {
           "$ref": "#/$defs/booleanOrToken"
         },
+        "lastRow": {
+          "$ref": "#/$defs/booleanOrToken"
+        },
         "defaultCellFill": {
           "$ref": "#/$defs/fill"
         },
@@ -6163,11 +6955,31 @@
             },
             "mute": {
               "type": "boolean"
+            },
+            "playback": {
+              "$ref": "#/$defs/mediaPlayback",
+              "description": "Bounded authored start trigger. Omission preserves click-start behavior; imported media timing remains source-owned."
             }
           }
         }
       ],
       "unevaluatedProperties": false
+    },
+    "mediaPlayback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trigger"
+      ],
+      "properties": {
+        "trigger": {
+          "enum": [
+            "onClick",
+            "onSlideStart"
+          ]
+        }
+      },
+      "description": "Bounded authored media start trigger. It does not model imported timing graphs or host playback behavior."
     },
     "placeholderElement": {
       "allOf": [
@@ -6208,6 +7020,10 @@
             },
             "styleRef": {
               "$ref": "#/$defs/id"
+            },
+            "textStyle": {
+              "$ref": "#/$defs/textStyle",
+              "description": "Direct element text style, distinct from the text-container style."
             },
             "style": {
               "$ref": "#/$defs/textBoxStyle"
@@ -7574,6 +8390,17 @@
                 "end"
               ],
               "description": "Align the finite repeated layout within the instance frame on both axes when the bounded profile leaves slack space."
+            },
+            "weights": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1024,
+              "items": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 100000
+              },
+              "description": "Positive slot weights for authored horizontal or vertical stack repeats; provide exactly one value per item."
             }
           }
         }

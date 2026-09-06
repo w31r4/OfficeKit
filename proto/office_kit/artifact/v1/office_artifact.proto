@@ -208,7 +208,7 @@ message PresentationEditOperation {
   // textBodyInsetLeftEmu, textBodyInsetTopEmu, textBodyInsetRightEmu, textBodyInsetBottomEmu,
   // textBodyWrap, textBodyColumnCount,
   // fontSizePoints, fontFamily,
-  // fontFamilyEastAsia, fontBold, fontItalic, fontUnderline, fontStrike,
+  // fontFamilyEastAsia, fontFamilyComplexScript, fontBold, fontItalic, fontUnderline, fontStrike,
   // fontKerningPoints, fontBaselinePercent, fontSpacingPoints, fontCaps,
   // fontHighlightRgb, fontHighlightScheme,
   // fontColorRgb, fontColorScheme, fillRgb, fillScheme,
@@ -1660,6 +1660,42 @@ message PresentationThemeArtifact {
   repeated string accent_rgb = 2;
   optional string major_font_family = 3;
   optional string minor_font_family = 4;
+  // Authored RGB values for the remaining bounded clrScheme roles. Omitted
+  // roles retain the canonical Office clean-room defaults.
+  optional string dark1_rgb = 5;
+  optional string light1_rgb = 6;
+  optional string dark2_rgb = 7;
+  optional string light2_rgb = 8;
+  optional string hyperlink_rgb = 9;
+  optional string followed_hyperlink_rgb = 10;
+  // Authored direct color transforms for accent1..accent6. Each entry
+  // identifies one role; values are thousandths of a percentage.
+  repeated PresentationThemeColorTransform accent_transforms = 11;
+}
+
+message PresentationThemeColorTransform {
+  string role = 1;
+  optional uint32 tint_thousandth = 2;
+  optional uint32 shade_thousandth = 3;
+  optional uint32 luminance_modulation_thousandth = 4;
+  optional int32 luminance_offset_thousandth = 5;
+  optional uint32 alpha_modulation_thousandth = 6;
+  optional int32 alpha_offset_thousandth = 7;
+  optional uint32 saturation_modulation_thousandth = 8;
+  optional int32 saturation_offset_thousandth = 9;
+  optional uint32 red_modulation_thousandth = 10;
+  optional int32 red_offset_thousandth = 11;
+  optional uint32 green_modulation_thousandth = 12;
+  optional int32 green_offset_thousandth = 13;
+  optional uint32 blue_modulation_thousandth = 14;
+  optional int32 blue_offset_thousandth = 15;
+  optional uint32 hue_modulation_thousandth = 21;
+  optional int32 hue_offset_angle_thousandth = 22;
+  optional bool gray = 16;
+  optional bool comp = 17;
+  optional bool inv = 18;
+  optional bool gamma = 19;
+  optional bool inv_gamma = 20;
 }
 
 message PresentationViewProperties {
@@ -2313,6 +2349,22 @@ message PresentationShape {
   // guide formulas use the closed ECMA-376 operator grammar; handles remain
   // source-bound.
   repeated PresentationCustomGeometryPath custom_paths = 15;
+  // Authored direct a:effectLst/a:glow. Imported effect graphs remain
+  // source-owned; this field carries only the bounded color/radius/opacity
+  // profile used by source-free PPJ lowering.
+  PresentationGlow glow = 44;
+  // Authored direct a:effectLst/a:softEdge. Imported effect graphs remain
+  // source-owned; this field carries only the bounded radius profile used by
+  // source-free PPJ lowering.
+  PresentationSoftEdge soft_edge = 45;
+  // Authored direct a:effectLst/a:innerShdw. Imported effect graphs remain
+  // source-owned; this field carries only the bounded shadow profile used by
+  // source-free PPJ lowering.
+  PresentationInnerShadow inner_shadow = 46;
+  // Authored direct a:effectLst/a:reflection. Imported effect graphs remain
+  // source-owned; this field carries only the bounded reflection profile used
+  // by source-free PPJ lowering.
+  PresentationReflection reflection = 47;
   // Presence-aware imported p:sp/@useBgFill. This affects preview paint but is
   // read-only and source-bound: source-free authoring and value/presence edits
   // fail closed rather than flattening slide-background inheritance.
@@ -2394,6 +2446,123 @@ message PresentationShape {
   // lineStyle leaf only when this bit is present and true. It is not an
   // authored styling control and is never required for source-free shapes.
   optional bool line_style_explicit = 41;
+  // Source-projection-only direct a:sp3d/@extrusionH. This scalar is carried
+  // through the native shape model so source-bound leaf projection can retain
+  // one proven 3-D owner without authoring or reconstructing the surrounding
+  // scene, bevel, or effect graph.
+  optional int64 shape_extrusion_height_emu = 48;
+  // Source-projection-only direct a:sp3d/@z. This signed shape-depth
+  // coordinate is carried through the native shape model so source-bound leaf
+  // projection can retain a second scalar without reconstructing the
+  // surrounding scene, bevel, or effect graph.
+  optional int64 shape_depth_emu = 49;
+  // Source-projection-only direct a:sp3d/@contourW. This bounded contour
+  // width is carried through the native shape model without reconstructing
+  // the surrounding scene, bevel, or effect graph.
+  optional int64 shape_contour_width_emu = 50;
+  // Source-projection-only direct a:sp3d/@prstMaterial. The PPJ/native leaf
+  // names the 3-D owner explicitly; this wire string carries only the
+  // bounded material token and never reconstructs the surrounding graph.
+  string shape_preset_material = 51;
+  // Source-projection-only direct a:sp3d/a:bevelT/@w. This carries one
+  // bounded top-bevel width without reconstructing the surrounding 3-D graph.
+  optional int64 shape_3d_bevel_top_width_emu = 52;
+  // Source-projection-only direct a:sp3d/a:bevelT/@h. This carries one
+  // bounded top-bevel height without reconstructing the surrounding 3-D graph.
+  optional int64 shape_3d_bevel_top_height_emu = 53;
+  // Source-projection-only direct a:sp3d/a:bevelT/@prst. This carries one
+  // bounded top-bevel preset without reconstructing the surrounding 3-D graph.
+  string shape_3d_bevel_top_preset = 54;
+  // Source-projection-only direct a:sp3d/a:bevelB/@w. This carries one
+  // bounded bottom-bevel width without reconstructing the surrounding 3-D graph.
+  optional int64 shape_3d_bevel_bottom_width_emu = 55;
+  // Source-projection-only direct a:sp3d/a:bevelB/@h. This carries one
+  // bounded bottom-bevel height without reconstructing the surrounding 3-D graph.
+  optional int64 shape_3d_bevel_bottom_height_emu = 56;
+  // Source-projection-only direct a:sp3d/a:bevelB/@prst. This carries one
+  // bounded bottom-bevel preset without reconstructing the surrounding 3-D graph.
+  string shape_3d_bevel_bottom_preset = 57;
+  // Source-projection-only direct a:sp3d/a:contourClr/a:srgbClr/@val. This
+  // carries one bare contour RGB token without reconstructing the 3-D scene.
+  string shape_3d_contour_rgb = 58;
+  // Source-projection-only direct a:sp3d/a:extrusionClr/a:srgbClr/@val. This
+  // carries one bare extrusion RGB token without reconstructing the 3-D scene.
+  string shape_3d_extrusion_rgb = 59;
+  // Source-projection-only direct a:sp3d/a:contourClr/a:schemeClr/@val. This
+  // carries one bare contour theme token without reconstructing the 3-D scene.
+  string shape_3d_contour_color_scheme = 80;
+  // Source-projection-only direct a:sp3d/a:extrusionClr/a:schemeClr/@val. This
+  // carries one bare extrusion theme token without reconstructing the 3-D scene.
+  string shape_3d_extrusion_color_scheme = 81;
+  // Source-projection-only direct a:scene3d/a:camera/@prst. This
+  // carries one bounded camera preset without reconstructing the 3-D scene.
+  string shape_3d_scene_camera_preset = 60;
+  // Source-projection-only direct a:scene3d/a:lightRig/@rig. This carries one
+  // bounded light-rig preset without reconstructing the 3-D scene.
+  string shape_3d_scene_light_rig_preset = 61;
+  // Source-projection-only direct a:scene3d/a:lightRig/@dir. This carries one
+  // bounded light-rig direction without reconstructing the 3-D scene.
+  string shape_3d_scene_light_rig_direction = 62;
+  // Source-projection-only direct a:scene3d/a:camera/@zoom. This carries one
+  // explicit bounded camera zoom override without reconstructing the 3-D scene.
+  optional int64 shape_3d_scene_camera_zoom_thousandth_percent = 63;
+  // Source-projection-only direct a:scene3d/a:camera/@fov. This carries one
+  // explicit bounded camera field-of-view override without reconstructing the 3-D scene.
+  optional int64 shape_3d_scene_camera_fov_60000 = 64;
+  // Source-projection-only direct a:scene3d/a:lightRig/a:rot/@lat. This carries
+  // one bounded light-rig rotation latitude without reconstructing the 3-D scene.
+  optional int64 shape_3d_scene_light_rig_rotation_latitude_60000 = 65;
+  // Source-projection-only direct a:scene3d/a:lightRig/a:rot/@lon. This carries
+  // one bounded light-rig rotation longitude without reconstructing the 3-D scene.
+  optional int64 shape_3d_scene_light_rig_rotation_longitude_60000 = 66;
+  // Source-projection-only direct a:scene3d/a:lightRig/a:rot/@rev. This carries
+  // one bounded light-rig rotation revolution without reconstructing the 3-D scene.
+  optional int64 shape_3d_scene_light_rig_rotation_revolution_60000 = 67;
+  // Source-projection-only direct a:scene3d/a:camera/a:rot/@lat. This carries
+  // one bounded camera rotation latitude without reconstructing the 3-D scene.
+  optional int64 shape_3d_scene_camera_rotation_latitude_60000 = 68;
+  // Source-projection-only direct a:scene3d/a:camera/a:rot/@lon. This carries
+  // one bounded camera rotation longitude without reconstructing the 3-D scene.
+  optional int64 shape_3d_scene_camera_rotation_longitude_60000 = 69;
+  // Source-projection-only direct a:scene3d/a:camera/a:rot/@rev. This carries
+  // one bounded camera rotation revolution without reconstructing the 3-D scene.
+  optional int64 shape_3d_scene_camera_rotation_revolution_60000 = 70;
+  // Source-projection-only direct a:scene3d/a:backdrop/a:anchor/@x. This
+  // carries one bounded backdrop anchor X coordinate without reconstructing
+  // the surrounding 3-D scene.
+  optional int64 shape_3d_scene_backdrop_anchor_x_emu = 71;
+  // Source-projection-only direct a:scene3d/a:backdrop/a:anchor/@y. This
+  // carries one bounded backdrop anchor Y coordinate without reconstructing
+  // the surrounding 3-D scene.
+  optional int64 shape_3d_scene_backdrop_anchor_y_emu = 72;
+  // Source-projection-only direct a:scene3d/a:backdrop/a:anchor/@z. This
+  // carries one bounded backdrop anchor Z coordinate without reconstructing
+  // the surrounding 3-D scene.
+  optional int64 shape_3d_scene_backdrop_anchor_z_emu = 73;
+  // Source-projection-only direct a:scene3d/a:backdrop/a:norm/@dx. This
+  // carries one bounded backdrop normal X coordinate without reconstructing
+  // the surrounding 3-D scene.
+  optional int64 shape_3d_scene_backdrop_normal_dx_emu = 74;
+  // Source-projection-only direct a:scene3d/a:backdrop/a:norm/@dy. This
+  // carries one bounded backdrop normal Y coordinate without reconstructing
+  // the surrounding 3-D scene.
+  optional int64 shape_3d_scene_backdrop_normal_dy_emu = 75;
+  // Source-projection-only direct a:scene3d/a:backdrop/a:norm/@dz. This
+  // carries one bounded backdrop normal Z coordinate without reconstructing
+  // the surrounding 3-D scene.
+  optional int64 shape_3d_scene_backdrop_normal_dz_emu = 76;
+  // Source-projection-only direct a:scene3d/a:backdrop/a:up/@dx. This
+  // carries one bounded backdrop up-vector X coordinate without reconstructing
+  // the surrounding 3-D scene.
+  optional int64 shape_3d_scene_backdrop_up_dx_emu = 77;
+  // Source-projection-only direct a:scene3d/a:backdrop/a:up/@dy. This
+  // carries one bounded backdrop up-vector Y coordinate without reconstructing
+  // the surrounding 3-D scene.
+  optional int64 shape_3d_scene_backdrop_up_dy_emu = 78;
+  // Source-projection-only direct a:scene3d/a:backdrop/a:up/@dz. This
+  // carries one bounded backdrop up-vector Z coordinate without reconstructing
+  // the surrounding 3-D scene.
+  optional int64 shape_3d_scene_backdrop_up_dz_emu = 79;
 }
 
 message PresentationCustomGeometryPath {
@@ -2456,6 +2625,45 @@ message PresentationShadow {
   // DrawingML outer-shadow alignment (tl, t, tr, l, ctr, r, bl, b, br).
   optional string alignment = 7;
   optional bool rotate_with_shape = 8;
+}
+
+message PresentationGlow {
+  // Mutually exclusive with color_scheme. Authored glow colors are direct
+  // RGB or a bounded direct theme token.
+  string color_rgb = 1;
+  // Optional for wire compatibility, but authored PPJ requires this value.
+  // It is a positive DrawingML radius expressed in EMUs.
+  optional int64 radius_emu = 2;
+  optional uint32 opacity_thousandth_percent = 3;
+  optional string color_scheme = 4;
+}
+
+message PresentationSoftEdge {
+  // Optional for wire compatibility, but authored PPJ requires this value.
+  // It is a positive DrawingML radius expressed in EMUs.
+  optional int64 radius_emu = 1;
+}
+
+message PresentationInnerShadow {
+  // Mutually exclusive with color_scheme. Authored inner shadows are direct
+  // RGB or a bounded direct theme token.
+  string color_rgb = 1;
+  optional int64 blur_radius_emu = 2;
+  optional int64 distance_emu = 3;
+  optional int64 direction_angle_60000 = 4;
+  optional uint32 opacity_thousandth_percent = 5;
+  optional string color_scheme = 6;
+}
+
+message PresentationReflection {
+  // Native values use DrawingML EMUs, 1/60000 degrees, and thousandth-percent
+  // alpha. The authored profile writes a full-span reflection (stPos=0 and
+  // endPos=100000) and leaves the wider transform attributes unspecified.
+  optional int64 blur_radius_emu = 1;
+  optional uint32 start_opacity_thousandth_percent = 2;
+  optional uint32 end_opacity_thousandth_percent = 3;
+  optional int64 distance_emu = 4;
+  optional int64 direction_angle_60000 = 5;
 }
 
 message PresentationConnector {
@@ -2652,6 +2860,163 @@ message PresentationImage {
   // exclusive with mask_preset/mask_preset_adjustments and reuses the same
   // ordered path vocabulary as authored custom shapes.
   repeated PresentationCustomGeometryPath custom_mask_paths = 18;
+  // Authored direct a:effectLst/a:glow. Imported effect graphs remain
+  // source-owned; this field is independent from the outer shadow.
+  PresentationGlow glow = 19;
+  // Authored direct a:effectLst/a:softEdge. Imported effect graphs remain
+  // source-owned; this field is independent from the other bounded effects.
+  PresentationSoftEdge soft_edge = 20;
+  // Authored direct a:effectLst/a:innerShdw. Imported effect graphs remain
+  // source-owned; this field is independent from the other bounded effects.
+  PresentationInnerShadow inner_shadow = 21;
+  // Authored direct a:effectLst/a:reflection. Imported effect graphs remain
+  // source-owned; this field is independent from the other bounded effects.
+  PresentationReflection reflection = 22;
+  // Source-projection-only direct p:pic/p:spPr/a:sp3d/@z. This carries one
+  // bounded picture shape-depth scalar without authoring or reconstructing
+  // the surrounding 3-D graph.
+  optional int64 shape_3d_depth_emu = 23;
+
+  // Source-projection-only direct p:pic/p:spPr/a:sp3d/@extrusionH. This
+  // carries one bounded picture extrusion-height scalar without authoring or
+  // reconstructing the surrounding 3-D graph.
+  optional int64 shape_3d_extrusion_height_emu = 24;
+
+  // Source-projection-only direct p:pic/p:spPr/a:sp3d/@contourW. This carries
+  // one bounded picture contour-width scalar without authoring or
+  // reconstructing the surrounding 3-D graph.
+  optional int64 shape_3d_contour_width_emu = 25;
+
+  // Source-projection-only direct p:pic/p:spPr/a:sp3d/@prstMaterial. This
+  // carries one bounded picture preset-material token without authoring or
+  // reconstructing the surrounding 3-D graph.
+  string shape_3d_preset_material = 26;
+
+  // Source-projection-only direct p:pic/p:spPr/a:sp3d/a:bevelT/@w. This
+  // carries one bounded picture top-bevel width without authoring or
+  // reconstructing the surrounding 3-D graph.
+  optional int64 shape_3d_bevel_top_width_emu = 27;
+
+  // Source-projection-only direct p:pic/p:spPr/a:sp3d/a:bevelT/@h. This
+  // carries one bounded picture top-bevel height without authoring or
+  // reconstructing the surrounding 3-D graph.
+  optional int64 shape_3d_bevel_top_height_emu = 28;
+
+  // Source-projection-only direct p:pic/p:spPr/a:sp3d/a:bevelT/@prst. This
+  // carries one bounded picture top-bevel preset without authoring or
+  // reconstructing the surrounding 3-D graph.
+  string shape_3d_bevel_top_preset = 29;
+
+  // Source-projection-only direct p:pic/p:spPr/a:sp3d/a:bevelB/@w. This
+  // carries one bounded picture bottom-bevel width without authoring or
+  // reconstructing the surrounding 3-D graph.
+  optional int64 shape_3d_bevel_bottom_width_emu = 30;
+
+  // Source-projection-only direct p:pic/p:spPr/a:sp3d/a:bevelB/@h. This
+  // carries one bounded picture bottom-bevel height without authoring or
+  // reconstructing the surrounding 3-D graph.
+  optional int64 shape_3d_bevel_bottom_height_emu = 31;
+
+  // Source-projection-only direct p:pic/p:spPr/a:sp3d/a:bevelB/@prst. This
+  // carries one bounded picture bottom-bevel preset without authoring or
+  // reconstructing the surrounding 3-D graph.
+  string shape_3d_bevel_bottom_preset = 32;
+  // Source-projection-only direct p:pic/p:spPr/a:sp3d/a:contourClr/
+  // a:srgbClr/@val. This carries one bare picture contour RGB token without
+  // authoring or reconstructing the surrounding 3-D graph.
+  string shape_3d_contour_rgb = 33;
+  // Source-projection-only direct p:pic/p:spPr/a:sp3d/a:extrusionClr/
+  // a:srgbClr/@val. This carries one bare picture extrusion RGB token without
+  // authoring or reconstructing the surrounding 3-D graph.
+  string shape_3d_extrusion_rgb = 34;
+  // Source-projection-only direct p:pic/p:spPr/a:sp3d/a:contourClr/
+  // a:schemeClr/@val. This carries one bare picture contour theme token
+  // without authoring or reconstructing the surrounding 3-D graph.
+  string shape_3d_contour_color_scheme = 55;
+  // Source-projection-only direct p:pic/p:spPr/a:sp3d/a:extrusionClr/
+  // a:schemeClr/@val. This carries one bare picture extrusion theme token
+  // without authoring or reconstructing the surrounding 3-D graph.
+  string shape_3d_extrusion_color_scheme = 56;
+  // Source-projection-only direct p:pic/p:spPr/a:scene3d/a:camera/@prst.
+  // This carries one bounded picture camera-preset token without authoring or
+  // reconstructing the surrounding 3-D scene.
+  string shape_3d_scene_camera_preset = 35;
+  // Source-projection-only direct p:pic/p:spPr/a:scene3d/a:camera/@zoom.
+  // This carries one bounded picture camera-zoom override without authoring
+  // or reconstructing the surrounding 3-D scene.
+  optional int64 shape_3d_scene_camera_zoom_thousandth_percent = 36;
+  // Source-projection-only direct p:pic/p:spPr/a:scene3d/a:camera/@fov.
+  // This carries one bounded picture camera field-of-view token without
+  // authoring or reconstructing the surrounding 3-D scene.
+  optional int64 shape_3d_scene_camera_fov_60000 = 37;
+  // Source-projection-only direct p:pic/p:spPr/a:scene3d/a:camera/a:rot/@lat.
+  // This carries one bounded picture camera rotation latitude without
+  // authoring or reconstructing the surrounding 3-D scene.
+  optional int64 shape_3d_scene_camera_rotation_latitude_60000 = 38;
+  // Source-projection-only direct p:pic/p:spPr/a:scene3d/a:camera/a:rot/@lon.
+  // This carries one bounded picture camera rotation longitude without
+  // authoring or reconstructing the surrounding 3-D scene.
+  optional int64 shape_3d_scene_camera_rotation_longitude_60000 = 39;
+  // Source-projection-only direct p:pic/p:spPr/a:scene3d/a:camera/a:rot/@rev.
+  // This carries one bounded picture camera rotation revolution without
+  // authoring or reconstructing the surrounding 3-D scene.
+  optional int64 shape_3d_scene_camera_rotation_revolution_60000 = 40;
+  // Source-projection-only direct p:pic/p:spPr/a:scene3d/a:lightRig/@rig.
+  // This carries one bounded picture light-rig preset without authoring or
+  // reconstructing the surrounding 3-D scene.
+  string shape_3d_scene_light_rig_preset = 41;
+  // Source-projection-only direct p:pic/p:spPr/a:scene3d/a:lightRig/@dir.
+  // This carries one bounded picture light-rig direction without authoring or
+  // reconstructing the surrounding 3-D scene.
+  string shape_3d_scene_light_rig_direction = 42;
+  // Source-projection-only direct p:pic/p:spPr/a:scene3d/a:lightRig/a:rot/@lat.
+  // This carries one bounded picture light-rig rotation latitude without
+  // authoring or reconstructing the surrounding 3-D scene.
+  optional int64 shape_3d_scene_light_rig_rotation_latitude_60000 = 43;
+  // Source-projection-only direct p:pic/p:spPr/a:scene3d/a:lightRig/a:rot/@lon.
+  // This carries one bounded picture light-rig rotation longitude without
+  // authoring or reconstructing the surrounding 3-D scene.
+  optional int64 shape_3d_scene_light_rig_rotation_longitude_60000 = 44;
+  // Source-projection-only direct p:pic/p:spPr/a:scene3d/a:lightRig/a:rot/@rev.
+  // This carries one bounded picture light-rig rotation revolution without
+  // authoring or reconstructing the surrounding 3-D scene.
+  optional int64 shape_3d_scene_light_rig_rotation_revolution_60000 = 45;
+  // Source-projection-only direct p:pic/p:spPr/a:scene3d/a:backdrop/a:anchor/@x.
+  // This carries one bounded picture backdrop anchor X coordinate without
+  // authoring or reconstructing the surrounding 3-D scene.
+  optional int64 shape_3d_scene_backdrop_anchor_x_emu = 46;
+  // Source-projection-only direct p:pic/p:spPr/a:scene3d/a:backdrop/a:anchor/@y.
+  // This carries one bounded picture backdrop anchor Y coordinate without
+  // authoring or reconstructing the surrounding 3-D scene.
+  optional int64 shape_3d_scene_backdrop_anchor_y_emu = 47;
+  // Source-projection-only direct p:pic/p:spPr/a:scene3d/a:backdrop/a:anchor/@z.
+  // This carries one bounded picture backdrop anchor Z coordinate without
+  // authoring or reconstructing the surrounding 3-D scene.
+  optional int64 shape_3d_scene_backdrop_anchor_z_emu = 48;
+  // Source-projection-only direct p:pic/p:spPr/a:scene3d/a:backdrop/a:norm/@dx.
+  // This carries one bounded picture backdrop normal X coordinate without
+  // authoring or reconstructing the surrounding 3-D scene.
+  optional int64 shape_3d_scene_backdrop_normal_dx_emu = 49;
+  // Source-projection-only direct p:pic/p:spPr/a:scene3d/a:backdrop/a:norm/@dy.
+  // This carries one bounded picture backdrop normal Y coordinate without
+  // authoring or reconstructing the surrounding 3-D scene.
+  optional int64 shape_3d_scene_backdrop_normal_dy_emu = 50;
+  // Source-projection-only direct p:pic/p:spPr/a:scene3d/a:backdrop/a:norm/@dz.
+  // This carries one bounded picture backdrop normal Z coordinate without
+  // authoring or reconstructing the surrounding 3-D scene.
+  optional int64 shape_3d_scene_backdrop_normal_dz_emu = 51;
+  // Source-projection-only direct p:pic/p:spPr/a:scene3d/a:backdrop/a:up/@dx.
+  // This carries one bounded picture backdrop up-vector X coordinate without
+  // authoring or reconstructing the surrounding 3-D scene.
+  optional int64 shape_3d_scene_backdrop_up_dx_emu = 52;
+  // Source-projection-only direct p:pic/p:spPr/a:scene3d/a:backdrop/a:up/@dy.
+  // This carries one bounded picture backdrop up-vector Y coordinate without
+  // authoring or reconstructing the surrounding 3-D scene.
+  optional int64 shape_3d_scene_backdrop_up_dy_emu = 53;
+  // Source-projection-only direct p:pic/p:spPr/a:scene3d/a:backdrop/a:up/@dz.
+  // This carries one bounded picture backdrop up-vector Z coordinate without
+  // authoring or reconstructing the surrounding 3-D scene.
+  optional int64 shape_3d_scene_backdrop_up_dz_emu = 54;
 }
 
 // Source-free embedded audio/video lowered from PPJ. The media asset and its
@@ -2673,6 +3038,10 @@ message PresentationMedia {
   optional uint64 end_at_ms = 11;
   optional bool loop = 12;
   optional bool mute = 13;
+  // Authored playback start trigger. Omitted preserves the historical
+  // click-start profile; the bounded alternative is onSlideStart. Imported
+  // media timing graphs remain source-owned.
+  optional string playback_trigger = 14;
 }
 
 message PresentationImageBorder {
@@ -2761,6 +3130,10 @@ message PresentationTable {
   // independent from cell_style_editable so a complex text body does not
   // withdraw safe fill/border edits.
   bool cell_text_style_editable = 19;
+  // Presence-aware direct a:tblPr/@lastRow. This is an additive table-style
+  // flag; omission preserves the distinction between an absent native
+  // attribute and an explicit false value for source-bound projection.
+  optional bool last_row = 20;
 }
 
 message PresentationTableRow {
@@ -2849,11 +3222,19 @@ message PresentationTextBody {
   PresentationTextBodyProperties body_properties = 4;
 }
 
+// One literal DrawingML text-warp adjustment. The name and ordered position
+// identify a direct a:prstTxWarp/a:avLst/a:gd entry; value is the integer in
+// its canonical `fmla="val N"` formula.
+message PresentationTextWarpAdjustment {
+  string name = 1;
+  sint32 value = 2;
+}
+
 // Bounded a:bodyPr semantics. Each unset choice preserves source state; each
 // explicit no_* choice removes only the modeled attribute or AutoFit child.
 // Insets and column spacing use DrawingML EMUs; rotation retains native
 // 1/60000-degree units. WordArt vertical modes, paragraph compatibility flags,
-// warp/3D and noncanonical AutoFit markup remain source-bound. Direct bare
+// warp 3D and noncanonical AutoFit markup remain source-bound. Direct bare
 // noAutofit, normAutofit, and spAutoFit children may be exposed as a
 // source-bound textBodyAutoFit leaf. Normal AutoFit
 // percentages retain native thousandths-of-a-percent units and attribute
@@ -2924,6 +3305,32 @@ message PresentationTextBodyProperties {
     bool no_upright = 30;
   }
   PresentationNormalAutoFit normal_auto_fit = 31;
+  // Direct DrawingML anchorCtr state. This is separate from the vertical
+  // anchor enum: it records whether the text body is anchored at the shape's
+  // center. The source-bound profile only exposes one existing canonical
+  // a:bodyPr/@anchorCtr token.
+  optional bool anchor_center = 32;
+  // Direct DrawingML forceAA state. This preserves the explicit text-body
+  // anti-aliasing hint without claiming a host-specific rendering result.
+  optional bool force_anti_alias = 33;
+  // Direct DrawingML spcFirstLastPara state. This preserves the explicit
+  // first/last paragraph spacing hint without inferring paragraph metrics.
+  optional bool space_first_last_paragraph = 34;
+  // Direct DrawingML compatLnSpc state. This preserves the explicit
+  // compatible-line-spacing hint without inferring host line metrics.
+  optional bool compatible_line_spacing = 35;
+  // Direct DrawingML fromWordArt state. This preserves the explicit WordArt
+  // marker without claiming support for its transform or effects.
+  optional bool from_word_art = 36;
+  // Direct DrawingML prstTxWarp preset. This preserves one supported text-warp
+  // preset token and may be paired with canonical literal adjustments.
+  optional string text_warp_preset = 37;
+  // Ordered direct DrawingML prstTxWarp adjustment values. Only literal
+  // `fmla="val N"` guides in a canonical adjustment list are modeled.
+  repeated PresentationTextWarpAdjustment text_warp_adjustments = 38;
+  // Direct DrawingML flatTx z coordinate. The bounded PPJ profile preserves a
+  // signed coordinate without claiming support for the surrounding 3D scene.
+  optional int64 flat_text_z = 39;
 }
 
 message PresentationTextStyle {
@@ -2975,6 +3382,26 @@ message PresentationTextStyle {
   // Canonical direct a:effectLst/a:outerShdw. Broader effect graphs remain
   // source-owned.
   PresentationShadow shadow = 19;
+  // Canonical direct a:effectLst/a:glow. Broader text effect graphs remain
+  // source-owned; this field carries the bounded authored color/radius/
+  // opacity profile used by the PresentationML writer.
+  PresentationGlow glow = 27;
+  // Canonical direct a:effectLst/a:innerShdw. Broader text effect graphs
+  // remain source-owned; this field carries the bounded authored geometry/
+  // color/opacity profile used by the PresentationML writer.
+  PresentationInnerShadow inner_shadow = 28;
+  // Canonical direct a:effectLst/a:reflection. Broader text effect graphs
+  // remain source-owned; this field carries the bounded authored geometry/
+  // opacity profile used by the PresentationML writer.
+  PresentationReflection reflection = 29;
+  // Canonical direct a:effectLst/a:softEdge. Broader text effect graphs
+  // remain source-owned; this field carries the bounded authored radius
+  // profile used by the PresentationML writer.
+  PresentationSoftEdge soft_edge = 30;
+  // Direct DrawingML a:cs typeface for complex-script glyph runs. It is kept
+  // separate from Latin and East Asian owners; omission preserves inherited
+  // native typography and does not request host font fallback.
+  optional string font_family_complex_script = 25;
 }
 
 message PresentationTextParagraph {
@@ -3139,6 +3566,26 @@ message PresentationTextRun {
   // Canonical direct a:effectLst/a:outerShdw. Broader effect graphs remain
   // source-owned.
   PresentationShadow shadow = 24;
+  // Canonical direct a:effectLst/a:glow. Broader text effect graphs remain
+  // source-owned; this field carries the bounded authored color/radius/
+  // opacity profile used by the PresentationML writer.
+  PresentationGlow glow = 27;
+  // Canonical direct a:effectLst/a:innerShdw. Broader text effect graphs
+  // remain source-owned; this field carries the bounded authored geometry/
+  // color/opacity profile used by the PresentationML writer.
+  PresentationInnerShadow inner_shadow = 28;
+  // Canonical direct a:effectLst/a:reflection. Broader text effect graphs
+  // remain source-owned; this field carries the bounded authored geometry/
+  // opacity profile used by the PresentationML writer.
+  PresentationReflection reflection = 29;
+  // Canonical direct a:effectLst/a:softEdge. Broader text effect graphs
+  // remain source-owned; this field carries the bounded authored radius
+  // profile used by the PresentationML writer.
+  PresentationSoftEdge soft_edge = 30;
+  // Direct DrawingML a:cs typeface for complex-script glyph runs. It is kept
+  // separate from Latin and East Asian owners; omission preserves inherited
+  // native typography and does not request host font fallback.
+  optional string font_family_complex_script = 26;
 }
 
 message PresentationMathFormula {
@@ -3253,6 +3700,10 @@ message PresentationOpaqueElement {
   // a bar, line, or area plot when its local embedded worksheet cell is
   // uniquely proven.
   PresentationNativeChart native_chart = 14;
+  // Bounded non-visual metadata for an otherwise opaque owner. Imported media
+  // may expose this field when its cNvPr residual profile is unambiguous;
+  // payload, relationships, and playback topology remain source-owned.
+  PresentationNonVisualAccessibility accessibility = 15;
 }
 
 message PresentationNativeChart {
@@ -4143,6 +4594,9 @@ message SpreadsheetChartTextStyleArtifact {
   optional bool italic = 5;
   string color_rgb = 6;
   optional uint32 opacity_thousandth_percent = 7;
+  // Direct DrawingML a:cs typeface; omission keeps the native inherited
+  // complex-script owner unchanged.
+  string font_family_complex_script = 8;
 }
 
 enum SpreadsheetChartLineDashStyle {
