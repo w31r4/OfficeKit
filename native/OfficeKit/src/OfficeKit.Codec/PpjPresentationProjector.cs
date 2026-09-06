@@ -1400,6 +1400,7 @@ internal static partial class PpjPresentationProjector
         if (axis.HasTickLabelsVisible) output["tickLabelsVisible"] = JsonValue.Create(axis.TickLabelsVisible);
         if (axis.HasTickLabelPosition) output["tickLabelPosition"] = StringNode(axis.TickLabelPosition);
         if (axis.HasMajorTickMark) output["majorTickMark"] = StringNode(axis.MajorTickMark);
+        if (axis.HasMinorTickMark) output["minorTickMark"] = StringNode(axis.MinorTickMark);
         if (axis.AxisLine is not null && !string.IsNullOrEmpty(axis.AxisLine.Color?.Rgb))
             output["axisLine"] = ProjectChartLine(axis.AxisLine);
         else if (axis.HasAxisLineVisible)

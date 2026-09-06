@@ -2975,7 +2975,7 @@ internal static class PpjSourceBoundPresentationCompiler
             throw Unsupported(path + "." + axisName, "source-bound chart-axis topology change");
         RequireEqualExcept(oldAxis.Value, newAxis.Value, path + "." + axisName,
             "textStyle", "title", "titleTextStyle", "visible", "numberFormat", "tickLabelInterval",
-            "min", "max", "majorUnit", "minorUnit", "majorTickMark", "tickLabelsVisible", "tickLabelPosition", "reverse", "axisLine", "axisLineArrow", "gridLine");
+            "min", "max", "majorUnit", "minorUnit", "majorTickMark", "minorTickMark", "tickLabelsVisible", "tickLabelPosition", "reverse", "axisLine", "axisLineArrow", "gridLine");
         var changed = false;
         if (PropertyChanged(oldAxis, newAxis, "title"))
         {
@@ -3095,6 +3095,19 @@ internal static class PpjSourceBoundPresentationCompiler
                     "cross", "in", "out", "none");
             else
                 target.ClearMajorTickMark();
+            changed = true;
+        }
+        if (PropertyChanged(oldAxis, newAxis, "minorTickMark"))
+        {
+            RequireCapability(after, "setChartAxis", path + "." + axisName + ".minorTickMark");
+            if (newAxis.Value.TryGetProperty("minorTickMark", out var minorTickMark))
+                target.MinorTickMark = ResolveGrammarEnumToken(
+                    grammarRoot,
+                    minorTickMark,
+                    path + "." + axisName + ".minorTickMark",
+                    "cross", "in", "out", "none");
+            else
+                target.ClearMinorTickMark();
             changed = true;
         }
         if (PropertyChanged(oldAxis, newAxis, "tickLabelsVisible"))

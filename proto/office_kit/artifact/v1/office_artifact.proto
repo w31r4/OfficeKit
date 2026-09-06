@@ -1120,6 +1120,9 @@ message SpreadsheetChartAxisArtifact {
   // Presence-aware native c:majorTickMark value. The bounded profile accepts
   // cross, in, out, and none; omission retains the native default.
   optional string major_tick_mark = 19;
+  // Presence-aware native c:minorTickMark value. The bounded profile accepts
+  // cross, in, out, and none; omission retains the native default.
+  optional string minor_tick_mark = 20;
 }
 
 message SpreadsheetChartSurfaceFill {

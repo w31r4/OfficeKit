@@ -6180,6 +6180,22 @@
           ],
           "description": "Native major tick-mark position; a token reference must declare kind string."
         },
+        "minorTickMark": {
+          "oneOf": [
+            {
+              "enum": [
+                "cross",
+                "in",
+                "out",
+                "none"
+              ]
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ],
+          "description": "Native minor tick-mark position; a token reference must declare kind string."
+        },
         "textStyle": {
           "$ref": "#/$defs/chartTextStyle"
         },
