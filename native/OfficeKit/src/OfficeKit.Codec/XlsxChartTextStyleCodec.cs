@@ -13,6 +13,11 @@ internal static class XlsxChartTextStyleCodec
     private const double MaximumFontSizePoints = 4_000;
     private static readonly XNamespace ChartNs = "http://schemas.openxmlformats.org/drawingml/2006/chart";
     private static readonly XNamespace DrawingNs = "http://schemas.openxmlformats.org/drawingml/2006/main";
+    private static readonly HashSet<string> UnderlineValues = new(StringComparer.Ordinal)
+    {
+        "none", "words", "sng", "dbl", "heavy", "dotted", "dottedHeavy", "dash", "dashHeavy", "dashLong", "dashLongHeavy",
+        "dotDash", "dotDashHeavy", "dotDotDash", "dotDotDashHeavy", "wavy", "wavyHeavy", "wavyDbl",
+    };
 
     internal static void Validate(SpreadsheetChartArtifact chart, string worksheetId)
     {
@@ -129,6 +134,7 @@ internal static class XlsxChartTextStyleCodec
             style.FontFamilyComplexScript.Length > 0 ? style.FontFamilyComplexScript : "default-complexScript",
             style.HasBold ? style.Bold.ToString(CultureInfo.InvariantCulture) : "default-bold",
             style.HasItalic ? style.Italic.ToString(CultureInfo.InvariantCulture) : "default-italic",
+            style.Underline.Length > 0 ? style.Underline : "default-underline",
             style.ColorRgb.Length > 0 ? style.ColorRgb.ToUpperInvariant() : "default-color",
             style.HasOpacityThousandthPercent ? style.OpacityThousandthPercent.ToString(CultureInfo.InvariantCulture) : "default-alpha");
     }
@@ -211,7 +217,7 @@ internal static class XlsxChartTextStyleCodec
     private static bool TryExactStyleProperties(XElement properties, out SpreadsheetChartTextStyleArtifact style)
     {
         style = new SpreadsheetChartTextStyleArtifact();
-        var allowedAttributes = new HashSet<XName> { "sz", "b", "i" };
+        var allowedAttributes = new HashSet<XName> { "sz", "b", "i", "u" };
         var attributes = properties.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration).ToArray();
         if (attributes.Any(attribute => !allowedAttributes.Contains(attribute.Name))) return false;
         if (properties.Attribute("sz") is { } size)
@@ -228,6 +234,11 @@ internal static class XlsxChartTextStyleCodec
         {
             if (!TryBoolean(italic.Value, out var value)) return false;
             style.Italic = value;
+        }
+        if (properties.Attribute("u") is { } underline)
+        {
+            if (!UnderlineValues.Contains(underline.Value)) return false;
+            style.Underline = underline.Value;
         }
         var children = properties.Elements().ToArray();
         var index = 0;
@@ -252,7 +263,7 @@ internal static class XlsxChartTextStyleCodec
         }
         return index == children.Length &&
             (style.HasFontSizePoints || style.FontFamily.Length > 0 || style.FontFamilyEastAsia.Length > 0 || style.FontFamilyComplexScript.Length > 0 ||
-             style.HasBold || style.HasItalic || style.ColorRgb.Length > 0);
+             style.HasBold || style.HasItalic || style.Underline.Length > 0 || style.ColorRgb.Length > 0);
     }
 
     private static bool TryColor(XElement fill, SpreadsheetChartTextStyleArtifact style)
@@ -294,6 +305,7 @@ internal static class XlsxChartTextStyleCodec
         if (style.HasFontSizePoints) output.SetAttributeValue("sz", Size(style.FontSizePoints));
         if (style.HasBold) output.SetAttributeValue("b", style.Bold ? "1" : "0");
         if (style.HasItalic) output.SetAttributeValue("i", style.Italic ? "1" : "0");
+        if (style.Underline.Length > 0) output.SetAttributeValue("u", style.Underline);
         if (style.ColorRgb.Length > 0)
         {
             var color = new XElement(DrawingNs + "srgbClr", new XAttribute("val", style.ColorRgb.ToUpperInvariant()));

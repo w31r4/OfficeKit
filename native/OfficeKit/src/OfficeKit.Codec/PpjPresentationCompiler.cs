@@ -3489,6 +3489,8 @@ internal static class PpjSourceBoundPresentationCompiler
             output.Italic = grammarRoot is { } root
                 ? ResolveGrammarBooleanToken(root, italic, path + ".italic")
                 : italic.GetBoolean();
+        if (source.TryGetProperty("underline", out var underline))
+            output.Underline = PpjAuthoredPresentationCompiler.NativeUnderline(underline.GetString()!);
         if (source.TryGetProperty("color", out var color))
         {
             var resolved = grammarRoot is { } root

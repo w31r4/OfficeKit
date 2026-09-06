@@ -6099,6 +6099,31 @@
           "$ref": "#/$defs/stringOrToken",
           "description": "Direct DrawingML a:cs typeface for complex-script chart text."
         },
+        "underline": {
+          "enum": [
+            "none",
+            "single",
+            "double",
+            "words",
+            "sng",
+            "dbl",
+            "heavy",
+            "dotted",
+            "dottedHeavy",
+            "dash",
+            "dashHeavy",
+            "dashLong",
+            "dashLongHeavy",
+            "dotDash",
+            "dotDashHeavy",
+            "dotDotDash",
+            "dotDotDashHeavy",
+            "wavy",
+            "wavyHeavy",
+            "wavyDbl"
+          ],
+          "description": "Direct DrawingML chart-text underline token."
+        },
         "bold": {
           "$ref": "#/$defs/booleanOrToken"
         },

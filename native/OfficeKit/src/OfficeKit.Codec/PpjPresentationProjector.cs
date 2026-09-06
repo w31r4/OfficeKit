@@ -1510,6 +1510,8 @@ internal static partial class PpjPresentationProjector
         if (source.FontFamilyComplexScript.Length > 0) output["fontFamilyComplexScript"] = StringNode(source.FontFamilyComplexScript);
         if (source.HasBold) output["bold"] = JsonValue.Create(source.Bold);
         if (source.HasItalic) output["italic"] = JsonValue.Create(source.Italic);
+        if (source.Underline.Length > 0)
+            output["underline"] = StringNode(source.Underline switch { "sng" => "single", "dbl" => "double", _ => source.Underline });
         if (source.ColorRgb.Length > 0)
             output["color"] = TextColor(source.ColorRgb, null,
                 source.HasOpacityThousandthPercent, source.OpacityThousandthPercent);

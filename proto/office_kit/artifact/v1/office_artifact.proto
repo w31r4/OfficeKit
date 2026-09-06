@@ -4688,6 +4688,9 @@ message SpreadsheetChartTextStyleArtifact {
   // Direct DrawingML a:cs typeface; omission keeps the native inherited
   // complex-script owner unchanged.
   string font_family_complex_script = 8;
+  // Direct DrawingML a:rPr/@u or a:defRPr/@u underline token. The bounded
+  // chart profile uses the same native token vocabulary as presentation text.
+  string underline = 9;
 }
 
 enum SpreadsheetChartLineDashStyle {

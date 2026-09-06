@@ -3278,6 +3278,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (source.TryGetProperty("fontFamilyComplexScript", out var complexScript)) output.FontFamilyComplexScript = catalog.StringToken(complexScript, "string", "chart text fontFamilyComplexScript");
         if (source.TryGetProperty("bold", out var bold)) output.Bold = catalog.BooleanToken(bold, "boolean", "chart text bold");
         if (source.TryGetProperty("italic", out var italic)) output.Italic = catalog.BooleanToken(italic, "boolean", "chart text italic");
+        if (source.TryGetProperty("underline", out var underline)) output.Underline = NativeUnderline(underline.GetString()!);
         if (source.TryGetProperty("color", out var color))
         {
             var resolved = catalog.Color(color);
@@ -3313,7 +3314,7 @@ internal static partial class PpjAuthoredPresentationCompiler
     }
 
     private static readonly string[] ChartTextStyleFields =
-    ["fontSize", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "bold", "italic", "color"];
+    ["fontSize", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "bold", "italic", "underline", "color"];
 
     private static void ApplyChartTextStyleProperty(
         SpreadsheetChartTextStyleArtifact output,
@@ -3340,6 +3341,9 @@ internal static partial class PpjAuthoredPresentationCompiler
                 break;
             case "italic":
                 output.Italic = catalog.BooleanToken(value, "boolean", "chart text italic");
+                break;
+            case "underline":
+                output.Underline = NativeUnderline(value.GetString()!);
                 break;
             case "color":
                 var resolved = catalog.Color(value);
@@ -3653,7 +3657,7 @@ internal static partial class PpjAuthoredPresentationCompiler
                 throw Unsupported(elementId, $"{name} is valid PPJ but not yet compiler-owned for this element");
     }
 
-    private static string NativeUnderline(string value) => value switch
+    internal static string NativeUnderline(string value) => value switch
     {
         "single" => "sng",
         "double" => "dbl",
