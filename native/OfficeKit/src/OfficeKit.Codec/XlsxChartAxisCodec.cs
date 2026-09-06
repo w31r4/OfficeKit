@@ -112,6 +112,10 @@ internal static class XlsxChartAxisCodec
             throw Invalid(worksheetId, chartId, $"{axisName}-axis grid-line style requires visible major gridlines.");
         if (axis.MajorGridlineStyle is not null && axis.HasMajorGridlineVisible && !axis.MajorGridlineVisible)
             throw Invalid(worksheetId, chartId, $"{axisName}-axis cannot combine a hidden major gridline with a line style.");
+        if (axis.MinorGridlineStyle is not null && (!axis.HasShowMinorGridlines || !axis.ShowMinorGridlines))
+            throw Invalid(worksheetId, chartId, $"{axisName}-axis minor gridline style requires visible minor gridlines.");
+        if (axis.MinorGridlineStyle is not null && axis.HasMinorGridlineVisible && !axis.MinorGridlineVisible)
+            throw Invalid(worksheetId, chartId, $"{axisName}-axis cannot combine a hidden minor gridline with a line style.");
         if (axis.HasTickLabelPosition && !TickLabelPositions.Contains(axis.TickLabelPosition, StringComparer.Ordinal))
             throw Invalid(worksheetId, chartId, $"{axisName}-axis tick label position must be nextTo, high, low, or none.");
         if (axis.HasMajorTickMark && !TickMarkValues.Contains(axis.MajorTickMark, StringComparer.Ordinal))
@@ -123,6 +127,7 @@ internal static class XlsxChartAxisCodec
             throw Invalid(worksheetId, chartId, $"{axisName}-axis tick label position may accompany tick label visibility only as none plus false.");
         XlsxChartSeriesLineStyleCodec.ValidateLine(axis.AxisLine, worksheetId, chartId, axisName, "axis line", allowArrowheads: true);
         XlsxChartSeriesLineStyleCodec.ValidateLine(axis.MajorGridlineStyle, worksheetId, chartId, axisName, "major gridline");
+        XlsxChartSeriesLineStyleCodec.ValidateLine(axis.MinorGridlineStyle, worksheetId, chartId, axisName, "minor gridline");
         if (category)
         {
             if (axis.HasMinimum || axis.HasMaximum || axis.HasMajorUnit || axis.HasMinorUnit) throw Invalid(worksheetId, chartId, $"{axisName}-axis cannot carry numeric minimum, maximum, major unit, or minor unit.");
@@ -221,6 +226,17 @@ internal static class XlsxChartAxisCodec
             if (gridLine is not null) axis.MajorGridlineStyle = gridLine;
             editable &= gridEditable;
         }
+        if (!Singleton(source, "minorGridlines", out var minorGridlines)) return false;
+        if (minorGridlines is not null)
+        {
+            axis.ShowMinorGridlines = true;
+            if (minorGridlines.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration)) editable = false;
+            if (!TryReadLineContainer(minorGridlines.Element(ChartNs + "spPr"), out var gridVisible, out var gridLine, out var gridEditable, allowArrowheads: false)) return false;
+            if (minorGridlines.Elements().Any(element => element.Name != ChartNs + "spPr")) editable = false;
+            if (gridVisible is { } gridLineVisible) axis.MinorGridlineVisible = gridLineVisible;
+            if (gridLine is not null) axis.MinorGridlineStyle = gridLine;
+            editable &= gridEditable;
+        }
         if (category)
         {
             if (scaling.Element(ChartNs + "min") is not null || scaling.Element(ChartNs + "max") is not null) editable = false;
@@ -279,6 +295,9 @@ internal static class XlsxChartAxisCodec
         if (axis.HasShowMajorGridlines && axis.ShowMajorGridlines)
             output.Add(new XElement(ChartNs + "majorGridlines",
                 GridLineProperties(axis)));
+        if (axis.HasShowMinorGridlines && axis.ShowMinorGridlines)
+            output.Add(new XElement(ChartNs + "minorGridlines",
+                MinorGridLineProperties(axis)));
         AppendTitleAndNumberFormat(output, axis);
         AppendMajorTickMark(output, axis);
         AppendMinorTickMark(output, axis);
@@ -302,6 +321,9 @@ internal static class XlsxChartAxisCodec
         if (axis.HasShowMajorGridlines && axis.ShowMajorGridlines)
             output.Add(new XElement(ChartNs + "majorGridlines",
                 GridLineProperties(axis)));
+        if (axis.HasShowMinorGridlines && axis.ShowMinorGridlines)
+            output.Add(new XElement(ChartNs + "minorGridlines",
+                MinorGridLineProperties(axis)));
         AppendTitleAndNumberFormat(output, axis);
         AppendMajorTickMark(output, axis);
         AppendMinorTickMark(output, axis);
@@ -325,8 +347,9 @@ internal static class XlsxChartAxisCodec
     {
         var scaling = native.Element(ChartNs + "scaling")!;
         SetRequiredOrientation(scaling, target.HasReverse && target.Reverse ? "maxMin" : "minMax");
-        PatchValue(native, "delete", target.HasVisible, target.Visible ? 0 : 1, ["axPos", "majorGridlines", "title", "numFmt", "majorTickMark", "minorTickMark", "tickLblPos", "spPr", "txPr", "crossAx", "crosses", "crossesAt", "extLst"]);
+        PatchValue(native, "delete", target.HasVisible, target.Visible ? 0 : 1, ["axPos", "majorGridlines", "minorGridlines", "title", "numFmt", "majorTickMark", "minorTickMark", "tickLblPos", "spPr", "txPr", "crossAx", "crosses", "crossesAt", "extLst"]);
         PatchMajorGridlines(native, target);
+        PatchMinorGridlines(native, target);
         PatchTitle(native, target.Title, target.TitleTextStyle);
         PatchNumberFormat(native, target.NumberFormatCode);
         PatchValue(native, "majorTickMark", target.HasMajorTickMark, target.MajorTickMark,
@@ -366,7 +389,29 @@ internal static class XlsxChartAxisCodec
             return;
         }
         InsertBefore(axis, new XElement(ChartNs + "majorGridlines",
-            GridLineProperties(target)), ["title", "numFmt", "majorTickMark", "minorTickMark", "tickLblPos", "spPr", "txPr", "crossAx", "crosses", "crossesAt", "extLst"]);
+            GridLineProperties(target)), ["minorGridlines", "title", "numFmt", "majorTickMark", "minorTickMark", "tickLblPos", "spPr", "txPr", "crossAx", "crosses", "crossesAt", "extLst"]);
+    }
+
+    private static void PatchMinorGridlines(XElement axis, SpreadsheetChartAxisArtifact target)
+    {
+        var existing = axis.Element(ChartNs + "minorGridlines");
+        if (!target.HasShowMinorGridlines || !target.ShowMinorGridlines)
+        {
+            existing?.Remove();
+            return;
+        }
+        if (existing is not null)
+        {
+            if (existing.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration) ||
+                existing.Elements().Any(element => element.Name != ChartNs + "spPr"))
+                throw new CodecException("unsupported_spreadsheet_chart_edit", "Chart minor gridlines use an unmodeled style graph.");
+            PatchLineContainer(existing, target.MinorGridlineStyle,
+                !target.HasMinorGridlineVisible || target.MinorGridlineVisible,
+                allowArrowheads: false);
+            return;
+        }
+        InsertBefore(axis, new XElement(ChartNs + "minorGridlines",
+            MinorGridLineProperties(target)), ["title", "numFmt", "majorTickMark", "minorTickMark", "tickLblPos", "spPr", "txPr", "crossAx", "crosses", "crossesAt", "extLst"]);
     }
 
     private static bool TryReadTickLabelPosition(
@@ -510,6 +555,13 @@ internal static class XlsxChartAxisCodec
     {
         if (axis.MajorGridlineStyle is not null) return LineProperties(axis.MajorGridlineStyle);
         if (axis.HasMajorGridlineVisible && !axis.MajorGridlineVisible) return HiddenLineProperties();
+        return null;
+    }
+
+    private static XElement? MinorGridLineProperties(SpreadsheetChartAxisArtifact axis)
+    {
+        if (axis.MinorGridlineStyle is not null) return LineProperties(axis.MinorGridlineStyle);
+        if (axis.HasMinorGridlineVisible && !axis.MinorGridlineVisible) return HiddenLineProperties();
         return null;
     }
 
@@ -657,6 +709,9 @@ internal static class XlsxChartAxisCodec
             : axis.HasTickLabelsVisible && !axis.TickLabelsVisible ? "none" : "-",
         axis.HasMajorTickMark ? axis.MajorTickMark : "-",
         axis.HasMinorTickMark ? axis.MinorTickMark : "-",
+        axis.HasShowMinorGridlines ? (axis.ShowMinorGridlines ? "minor-gridlines" : "no-minor-gridlines") : "default-minor-gridlines",
+        axis.HasMinorGridlineVisible ? (axis.MinorGridlineVisible ? "visible-minor-gridline" : "hidden-minor-gridline") : "default-minor-gridline-visibility",
+        XlsxChartSeriesLineStyleCodec.Semantics(axis.MinorGridlineStyle),
         TickLabelSemantics(axis),
         XlsxChartTextStyleCodec.Semantics(axis.TextStyle),
         XlsxChartTextStyleCodec.Semantics(axis.TitleTextStyle));

@@ -2975,7 +2975,7 @@ internal static class PpjSourceBoundPresentationCompiler
             throw Unsupported(path + "." + axisName, "source-bound chart-axis topology change");
         RequireEqualExcept(oldAxis.Value, newAxis.Value, path + "." + axisName,
             "textStyle", "title", "titleTextStyle", "visible", "numberFormat", "tickLabelInterval",
-            "min", "max", "majorUnit", "minorUnit", "majorTickMark", "minorTickMark", "tickLabelsVisible", "tickLabelPosition", "reverse", "axisLine", "axisLineArrow", "gridLine");
+            "min", "max", "majorUnit", "minorUnit", "majorTickMark", "minorTickMark", "tickLabelsVisible", "tickLabelPosition", "reverse", "axisLine", "axisLineArrow", "gridLine", "minorGridLine");
         var changed = false;
         if (PropertyChanged(oldAxis, newAxis, "title"))
         {
@@ -3197,6 +3197,36 @@ internal static class PpjSourceBoundPresentationCompiler
                 target.MajorGridlineStyle = SourceBoundChartLine(
                     gridLine,
                     path + "." + axisName + ".gridLine",
+                    grammarRoot);
+            }
+            changed = true;
+        }
+        if (PropertyChanged(oldAxis, newAxis, "minorGridLine"))
+        {
+            RequireCapability(after, "setChartAxis", path + "." + axisName + ".minorGridLine");
+            target.MinorGridlineStyle = null;
+            if (!newAxis.Value.TryGetProperty("minorGridLine", out var minorGridLine))
+            {
+                target.ClearShowMinorGridlines();
+                target.ClearMinorGridlineVisible();
+            }
+            else if (minorGridLine.ValueKind is JsonValueKind.True or JsonValueKind.False || IsGrammarTokenReference(minorGridLine))
+            {
+                target.ShowMinorGridlines = true;
+                var visible = ResolveGrammarBooleanToken(
+                    grammarRoot,
+                    minorGridLine,
+                    path + "." + axisName + ".minorGridLine");
+                if (visible) target.ClearMinorGridlineVisible();
+                else target.MinorGridlineVisible = false;
+            }
+            else
+            {
+                target.ShowMinorGridlines = true;
+                target.ClearMinorGridlineVisible();
+                target.MinorGridlineStyle = SourceBoundChartLine(
+                    minorGridLine,
+                    path + "." + axisName + ".minorGridLine",
                     grammarRoot);
             }
             changed = true;

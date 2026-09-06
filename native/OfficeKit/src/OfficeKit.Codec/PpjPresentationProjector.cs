@@ -1419,6 +1419,12 @@ internal static partial class PpjPresentationProjector
             output["gridLine"] = JsonValue.Create(axis.MajorGridlineVisible);
         else if (axis.HasShowMajorGridlines)
             output["gridLine"] = JsonValue.Create(axis.ShowMajorGridlines);
+        if (axis.MinorGridlineStyle is not null && !string.IsNullOrEmpty(axis.MinorGridlineStyle.Color?.Rgb))
+            output["minorGridLine"] = ProjectChartLine(axis.MinorGridlineStyle);
+        else if (axis.HasMinorGridlineVisible)
+            output["minorGridLine"] = JsonValue.Create(axis.MinorGridlineVisible);
+        else if (axis.HasShowMinorGridlines)
+            output["minorGridLine"] = JsonValue.Create(axis.ShowMinorGridlines);
         if (axis.TextStyle is not null)
             output["textStyle"] = ProjectChartTextStyle(axis.TextStyle);
         if (axis.TitleTextStyle is not null)
@@ -1436,9 +1442,11 @@ internal static partial class PpjPresentationProjector
             xAxis.HasMinimum || xAxis.HasMaximum || xAxis.HasMajorUnit || xAxis.HasMinorUnit || xAxis.HasReverse && xAxis.Reverse ||
             xAxis.AxisLine is not null || xAxis.HasAxisLineVisible || xAxis.TextStyle is not null || xAxis.TitleTextStyle is not null ||
             xAxis.HasTickLabelsVisible || xAxis.HasTickLabelPosition ||
+            xAxis.HasShowMinorGridlines || xAxis.HasMinorGridlineVisible || xAxis.MinorGridlineStyle is not null ||
             yAxis.Title.Length > 0 || yAxis.HasTickLabelInterval || yAxis.HasReverse && yAxis.Reverse ||
             yAxis.AxisLine is not null || yAxis.HasAxisLineVisible || yAxis.TitleTextStyle is not null ||
-            yAxis.HasTickLabelPosition)
+            yAxis.HasTickLabelPosition ||
+            yAxis.HasShowMinorGridlines || yAxis.HasMinorGridlineVisible || yAxis.MinorGridlineStyle is not null)
             return false;
 
         if (xAxis.HasVisible != yAxis.HasVisible ||

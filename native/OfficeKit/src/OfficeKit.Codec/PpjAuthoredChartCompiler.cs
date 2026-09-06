@@ -4158,6 +4158,20 @@ internal static partial class PpjAuthoredPresentationCompiler
                 axis.MajorGridlineStyle = BuildChartLine(gridLine, catalog);
             }
         }
+        if (source.TryGetProperty("minorGridLine", out var minorGridLine))
+        {
+            if (minorGridLine.ValueKind is JsonValueKind.True or JsonValueKind.False || IsTokenReference(minorGridLine))
+            {
+                axis.ShowMinorGridlines = true;
+                if (!catalog.BooleanToken(minorGridLine, "boolean", "chart axis minorGridLine"))
+                    axis.MinorGridlineVisible = false;
+            }
+            else
+            {
+                axis.ShowMinorGridlines = true;
+                axis.MinorGridlineStyle = BuildChartLine(minorGridLine, catalog);
+            }
+        }
         if (source.TryGetProperty("textStyle", out var textStyle))
             axis.TextStyle = BuildChartTextStyle(textStyle, catalog);
         if (source.TryGetProperty("titleTextStyle", out var titleTextStyle))

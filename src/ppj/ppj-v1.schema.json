@@ -6229,6 +6229,17 @@
             }
           ]
         },
+        "minorGridLine": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/booleanOrToken"
+            },
+            {
+              "$ref": "#/$defs/stroke"
+            }
+          ],
+          "description": "Native minor gridline visibility or bounded direct stroke; a token reference must declare kind boolean."
+        },
         "tickLabelsVisible": {
           "$ref": "#/$defs/booleanOrToken",
           "description": "Tick-label visibility; a token reference must declare kind boolean."

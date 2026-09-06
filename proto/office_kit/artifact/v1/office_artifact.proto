@@ -1123,6 +1123,11 @@ message SpreadsheetChartAxisArtifact {
   // Presence-aware native c:minorTickMark value. The bounded profile accepts
   // cross, in, out, and none; omission retains the native default.
   optional string minor_tick_mark = 20;
+  // Presence-aware native c:minorGridlines container. A direct style or an
+  // explicit visibility flag is valid only when the container is present.
+  optional bool show_minor_gridlines = 21;
+  SpreadsheetChartLineStyleArtifact minor_gridline_style = 22;
+  optional bool minor_gridline_visible = 23;
 }
 
 message SpreadsheetChartSurfaceFill {
