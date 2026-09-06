@@ -3502,7 +3502,7 @@
         },
         "automatic": {
           "type": "boolean",
-          "description": "Whether this is a bounded automatic field. The current profile supports type slidenum, which refreshes from the owning slide number, and types datetime, datetime1, datetime2, datetime3, datetime4, datetime5, datetime6, datetime7, datetime8, datetime9, and datetime10, which preserve their cached display for the host to refresh. datetime1 requests MM/DD/YYYY, datetime2 requests Day, Month DD, YYYY, datetime3 requests DD Month YYYY, datetime4 requests Month DD, YYYY, datetime5 requests DD-Mon-YY, datetime6 requests Month YY, datetime7 requests Mon-YY, datetime8 requests MM/DD/YYYY hh:mm AM/PM, datetime9 requests MM/DD/YYYY hh:mm:ss AM/PM, and datetime10 requests hh:mm."
+          "description": "Whether this is a bounded automatic field. The current profile supports type slidenum, which refreshes from the owning slide number, and types datetime, datetime1, datetime2, datetime3, datetime4, datetime5, datetime6, datetime7, datetime8, datetime9, datetime10, and datetime11, which preserve their cached display for the host to refresh. datetime1 requests MM/DD/YYYY, datetime2 requests Day, Month DD, YYYY, datetime3 requests DD Month YYYY, datetime4 requests Month DD, YYYY, datetime5 requests DD-Mon-YY, datetime6 requests Month YY, datetime7 requests Mon-YY, datetime8 requests MM/DD/YYYY hh:mm AM/PM, datetime9 requests MM/DD/YYYY hh:mm:ss AM/PM, datetime10 requests hh:mm, and datetime11 requests hh:mm:ss."
         }
       }
     },
