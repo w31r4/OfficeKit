@@ -107,9 +107,10 @@ The authored chart compiler owns these native visual controls:
   and supports crop, `stretch`/`tile`, and direct opacity; replacing the asset
   and arbitrary image/effect extensions stay source-bound;
 - editable series line width, dash, opacity, cap, join, and bounded markers;
-- category/value-axis titles, number formats, label interval, tick-label
-  typeface, size, bold, italic and direct RGB/alpha, value bounds and major
-  unit; bounded combo charts may declare the matching secondary pair;
+- category/value-axis titles, number formats, label interval, bounded
+  tick-label placement (`nextTo`, `high`, `low`, `none`), typeface, size, bold,
+  italic and direct RGB/alpha, value bounds and major unit; bounded combo
+  charts may declare the matching secondary pair;
 - chart-title Latin/East Asian typeface, size, bold, italic and direct
   RGB/alpha plus canonical line-chart smoothing and direct color variation;
 - structured data labels for value, category, series, percentage, native
@@ -131,6 +132,7 @@ shapes:
   "xAxis": {
     "title": "Quarter",
     "tickLabelInterval": 1,
+    "tickLabelPosition": "nextTo",
     "axisLine": { "color": "#16697A", "width": 1 }
   },
   "yAxis": {
