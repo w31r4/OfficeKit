@@ -7676,6 +7676,100 @@ public sealed partial class PptxCodecTests
     }
 
     [Fact]
+    public void SourceBoundOpaqueMediaAccessibilityEditsOnlyMediaSlideAndReprojects()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(AddCloneableEmbeddedMp4(authored.File.ToByteArray()));
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "media-accessibility/source.pptx",
+                AssetRootUri = "media-accessibility/assets",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var media = program["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "opaque" && item["nativeKind"]!.GetValue<string>() == "media");
+        Assert.False(media.ContainsKey("accessibility"));
+        var capabilities = media["nativeRef"]!["capabilities"]!.AsArray();
+        Assert.Contains(capabilities, capability => capability!["operation"]!.GetValue<string>() == "setAccessibility");
+
+        media["accessibility"] = new JsonObject
+        {
+            ["decorative"] = false,
+            ["title"] = "Imported field video",
+            ["description"] = "A source-bound media accessibility proof.",
+        };
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+
+        var sourceSlideXml = Encoding.UTF8.GetString(ZipBytes(source, "ppt/slides/slide1.xml"));
+        var output = edited.File.ToByteArray();
+        var outputSlideXml = Encoding.UTF8.GetString(ZipBytes(output, "ppt/slides/slide1.xml"));
+        Assert.Contains("title=\"Imported field video\"", outputSlideXml, StringComparison.Ordinal);
+        Assert.Contains("descr=\"A source-bound media accessibility proof.\"", outputSlideXml, StringComparison.Ordinal);
+        Assert.DoesNotContain("title=\"Imported field video\"", sourceSlideXml, StringComparison.Ordinal);
+        Assert.Equal(ZipBytes(source, "ppt/slides/_rels/slide1.xml.rels"), ZipBytes(output, "ppt/slides/_rels/slide1.xml.rels"));
+        Assert.Equal(ZipBytes(source, "ppt/media/clone-video.mp4"), ZipBytes(output, "ppt/media/clone-video.mp4"));
+        using (var stream = new MemoryStream(output, writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var mediaPicture = Assert.Single(package.PresentationPart!.SlideParts.Single().Slide!.CommonSlideData!.ShapeTree!.Elements<P.Picture>(), PptxNativeObjectCatalog.IsMediaPicture);
+            var nonVisual = mediaPicture.NonVisualPictureProperties!.NonVisualDrawingProperties!;
+            Assert.Equal("ppaction://media", nonVisual.GetFirstChild<A.HyperlinkOnClick>()!.Action!.Value);
+            Assert.Equal("Imported field video", nonVisual.GetAttribute("title", string.Empty).Value);
+            Assert.Equal("A source-bound media accessibility proof.", nonVisual.GetAttribute("descr", string.Empty).Value);
+            var mediaProperties = mediaPicture.NonVisualPictureProperties.ApplicationNonVisualDrawingProperties!;
+            Assert.Equal("rIdCloneVideo", mediaProperties.GetFirstChild<A.VideoFromFile>()!.Link!.Value);
+            Assert.Equal("rIdCloneMedia", mediaProperties.Descendants<P14.Media>().Single().Embed!.Value);
+        }
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(output),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "media-accessibility/edited.pptx",
+                AssetRootUri = "media-accessibility/assets",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var secondProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var secondMedia = secondProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "opaque" && item["nativeKind"]!.GetValue<string>() == "media");
+        Assert.Equal("Imported field video", secondMedia["accessibility"]!["title"]!.GetValue<string>());
+        Assert.Equal("A source-bound media accessibility proof.", secondMedia["accessibility"]!["description"]!.GetValue<string>());
+        Assert.False(secondMedia["accessibility"]!["decorative"]!.GetValue<bool>());
+        Assert.Contains(secondMedia["nativeRef"]!["capabilities"]!.AsArray(), capability => capability!["operation"]!.GetValue<string>() == "setAccessibility");
+    }
+
+    [Fact]
     public void ClosedEmbeddedMp4MediaCloneCopiesIndependentPayloadAndSharesPoster()
     {
         var source = AddCloneableEmbeddedMp4(Invoke(ExportRequest()).File.ToByteArray());
@@ -15191,6 +15285,69 @@ public sealed partial class PptxCodecTests
     }
 
     [Fact]
+    public void PpjKimiSmoothLineWithThirtyThreePointsPreservesCompactProjection()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        program["assets"] = new JsonArray();
+        program["components"] = new JsonArray();
+        program["sections"] = new JsonArray();
+        program["customShows"] = new JsonArray();
+        program["comments"] = new JsonArray();
+        var page = program["pages"]![0]!.AsObject();
+        page.Remove("animations");
+        page.Remove("timing");
+        page["readingOrder"] = new JsonArray("smooth-33");
+        var points = string.Join(" ", Enumerable.Range(0, 33).Select(index => $"{index * 3},{96 - index * 3}"));
+        page["elements"] = new JsonArray(new JsonObject
+        {
+            ["id"] = "smooth-33",
+            ["type"] = "line",
+            ["frame"] = new JsonObject { ["x"] = 80, ["y"] = 80, ["width"] = 240, ["height"] = 100 },
+            ["viewBox"] = new JsonArray(240, 100),
+            ["points"] = points,
+            ["curve"] = "smooth",
+            ["stroke"] = new JsonObject { ["color"] = "#16324F", ["width"] = 2 },
+        });
+        program["pages"] = new JsonArray(page.DeepClone());
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var validation = PpjProgramValidator.Validate(bytes);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest { ProgramJson = ByteString.CopyFrom(bytes) },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "line-smooth-33/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var output = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var line = output["pages"]![0]!["elements"]![0]!.AsObject();
+        Assert.Equal("line", line["type"]!.GetValue<string>());
+        Assert.Null(line["path"]);
+        Assert.Equal(points, line["points"]!.GetValue<string>());
+        Assert.Equal("smooth", line["curve"]!.GetValue<string>());
+    }
+
+    [Fact]
     public void PpjKimiArbitraryMultiSegmentBezierStaysTypedPath()
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
@@ -16640,6 +16797,619 @@ public sealed partial class PptxCodecTests
     }
 
     [Fact]
+    public void PpjThemeAccentColorsAuthorsExplicitSixRolePalette()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "examples",
+            "ppj",
+            "minimum.ppj")))!.AsObject();
+        program["design"]!["theme"]!["accentColors"] = new JsonObject
+        {
+            ["accent1"] = "#102030",
+            ["accent2"] = "#203040",
+            ["accent3"] = "#304050",
+            ["accent4"] = "#405060",
+            ["accent5"] = "#506070",
+            ["accent6"] = "#607080",
+        };
+        program["design"]!["theme"]!["colors"]![0]!["value"] = "#A0B0C0";
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        using (var validation = PpjProgramValidator.Validate(bytes))
+            Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFrom(bytes),
+            },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var theme = Assert.Single(package.PresentationPart!.SlideMasterParts).ThemePart!.Theme!;
+            var colorScheme = theme.ThemeElements!.ColorScheme!;
+            Assert.Equal(
+                new[] { "102030", "203040", "304050", "405060", "506070", "607080" },
+                new[]
+                {
+                    colorScheme.Accent1Color!.RgbColorModelHex!.Val!.Value,
+                    colorScheme.Accent2Color!.RgbColorModelHex!.Val!.Value,
+                    colorScheme.Accent3Color!.RgbColorModelHex!.Val!.Value,
+                    colorScheme.Accent4Color!.RgbColorModelHex!.Val!.Value,
+                    colorScheme.Accent5Color!.RgbColorModelHex!.Val!.Value,
+                    colorScheme.Accent6Color!.RgbColorModelHex!.Val!.Value,
+                });
+        }
+
+        var embeddedProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(authored.File.ToByteArray()),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "theme-accent-colors/embedded.pptx" },
+        });
+        Assert.True(embeddedProjection.Ok, Diagnostics(embeddedProjection));
+        var recovered = JsonNode.Parse(embeddedProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var recoveredAccentColors = recovered["design"]!["theme"]!["accentColors"]!.AsObject();
+        Assert.Equal("#102030", recoveredAccentColors["accent1"]!.GetValue<string>());
+        Assert.Equal("#203040", recoveredAccentColors["accent2"]!.GetValue<string>());
+        Assert.Equal("#304050", recoveredAccentColors["accent3"]!.GetValue<string>());
+        Assert.Equal("#405060", recoveredAccentColors["accent4"]!.GetValue<string>());
+        Assert.Equal("#506070", recoveredAccentColors["accent5"]!.GetValue<string>());
+        Assert.Equal("#607080", recoveredAccentColors["accent6"]!.GetValue<string>());
+
+        var nativeSource = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var sourceProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(nativeSource),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "theme-accent-colors/source.pptx" },
+        });
+        Assert.True(sourceProjection.Ok, Diagnostics(sourceProjection));
+        var sourceBoundProgram = JsonNode.Parse(sourceProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        sourceBoundProgram["design"]!["theme"]!["accentColors"] = new JsonObject
+        {
+            ["accent1"] = "#102030",
+            ["accent2"] = "#203040",
+            ["accent3"] = "#304050",
+            ["accent4"] = "#405060",
+            ["accent5"] = "#506070",
+            ["accent6"] = "#607080",
+        };
+        var rejected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(nativeSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(sourceBoundProgram.ToJsonString()),
+            },
+        });
+        Assert.False(rejected.Ok);
+        Assert.Contains(rejected.Diagnostics, diagnostic =>
+            diagnostic.Code == "ppj.sourceBound.themeAccentColors" &&
+            diagnostic.SourcePath == "$.design.theme.accentColors");
+    }
+
+    [Fact]
+    public void PpjThemeColorRolesAuthorsRemainingColorSchemeRoles()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "examples",
+            "ppj",
+            "minimum.ppj")))!.AsObject();
+        program["design"]!["theme"]!["colorRoles"] = new JsonObject
+        {
+            ["dark1"] = "#101112",
+            ["light1"] = "#202122",
+            ["dark2"] = "#303132",
+            ["light2"] = "#404142",
+            ["hyperlink"] = "#505152",
+            ["followedHyperlink"] = "#606162",
+        };
+        program["design"]!["theme"]!["colors"]![0]!["value"] = "#A0B0C0";
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        using (var validation = PpjProgramValidator.Validate(bytes))
+            Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFrom(bytes),
+            },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var theme = Assert.Single(package.PresentationPart!.SlideMasterParts).ThemePart!.Theme!;
+            var colorScheme = theme.ThemeElements!.ColorScheme!;
+            Assert.Equal(
+                new[] { "101112", "202122", "303132", "404142", "505152", "606162" },
+                new[]
+                {
+                    colorScheme.Dark1Color!.RgbColorModelHex!.Val!.Value,
+                    colorScheme.Light1Color!.RgbColorModelHex!.Val!.Value,
+                    colorScheme.Dark2Color!.RgbColorModelHex!.Val!.Value,
+                    colorScheme.Light2Color!.RgbColorModelHex!.Val!.Value,
+                    colorScheme.Hyperlink!.RgbColorModelHex!.Val!.Value,
+                    colorScheme.FollowedHyperlinkColor!.RgbColorModelHex!.Val!.Value,
+                });
+        }
+
+        var embeddedProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(authored.File.ToByteArray()),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "theme-color-roles/embedded.pptx" },
+        });
+        Assert.True(embeddedProjection.Ok, Diagnostics(embeddedProjection));
+        var recovered = JsonNode.Parse(embeddedProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var recoveredRoles = recovered["design"]!["theme"]!["colorRoles"]!.AsObject();
+        Assert.Equal("#101112", recoveredRoles["dark1"]!.GetValue<string>());
+        Assert.Equal("#202122", recoveredRoles["light1"]!.GetValue<string>());
+        Assert.Equal("#303132", recoveredRoles["dark2"]!.GetValue<string>());
+        Assert.Equal("#404142", recoveredRoles["light2"]!.GetValue<string>());
+        Assert.Equal("#505152", recoveredRoles["hyperlink"]!.GetValue<string>());
+        Assert.Equal("#606162", recoveredRoles["followedHyperlink"]!.GetValue<string>());
+
+        var nativeSource = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var sourceProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(nativeSource),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "theme-color-roles/source.pptx" },
+        });
+        Assert.True(sourceProjection.Ok, Diagnostics(sourceProjection));
+        var sourceBoundProgram = JsonNode.Parse(sourceProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        sourceBoundProgram["design"]!["theme"]!["colorRoles"] = new JsonObject
+        {
+            ["dark1"] = "#101112",
+            ["light1"] = "#202122",
+            ["dark2"] = "#303132",
+            ["light2"] = "#404142",
+            ["hyperlink"] = "#505152",
+            ["followedHyperlink"] = "#606162",
+        };
+        var rejected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(nativeSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(sourceBoundProgram.ToJsonString()),
+            },
+        });
+        Assert.False(rejected.Ok);
+        Assert.Contains(rejected.Diagnostics, diagnostic =>
+            diagnostic.Code == "ppj.sourceBound.themeColorRoles" &&
+            diagnostic.SourcePath == "$.design.theme.colorRoles");
+    }
+
+    [Fact]
+    public void PpjThemeFontSchemeAuthorsExplicitMajorAndMinorRoles()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "examples",
+            "ppj",
+            "minimum.ppj")))!.AsObject();
+        program["design"]!["theme"]!["fontScheme"] = new JsonObject
+        {
+            ["major"] = "Aptos Display",
+            ["minor"] = "Aptos",
+        };
+        program["design"]!["fonts"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["id"] = "body",
+                ["family"] = "Legacy Major",
+                ["language"] = "en-US",
+            },
+            new JsonObject
+            {
+                ["id"] = "legacy-minor",
+                ["family"] = "Legacy Minor",
+                ["language"] = "en-US",
+            },
+        };
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        using (var validation = PpjProgramValidator.Validate(bytes))
+            Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFrom(bytes),
+            },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var theme = Assert.Single(package.PresentationPart!.SlideMasterParts).ThemePart!.Theme!;
+            var fontScheme = theme.ThemeElements!.FontScheme!;
+            Assert.Equal("Aptos Display", fontScheme.MajorFont!.LatinFont!.Typeface!.Value);
+            Assert.Equal("Aptos Display", fontScheme.MajorFont.EastAsianFont!.Typeface!.Value);
+            Assert.Equal("Aptos Display", fontScheme.MajorFont.ComplexScriptFont!.Typeface!.Value);
+            Assert.Equal("Aptos", fontScheme.MinorFont!.LatinFont!.Typeface!.Value);
+            Assert.Equal("Aptos", fontScheme.MinorFont.EastAsianFont!.Typeface!.Value);
+            Assert.Equal("Aptos", fontScheme.MinorFont.ComplexScriptFont!.Typeface!.Value);
+        }
+
+        var embeddedProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(authored.File.ToByteArray()),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "theme-font-scheme/embedded.pptx" },
+        });
+        Assert.True(embeddedProjection.Ok, Diagnostics(embeddedProjection));
+        var recovered = JsonNode.Parse(embeddedProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        Assert.Equal("Aptos Display", recovered["design"]!["theme"]!["fontScheme"]!["major"]!.GetValue<string>());
+        Assert.Equal("Aptos", recovered["design"]!["theme"]!["fontScheme"]!["minor"]!.GetValue<string>());
+
+        var nativeSource = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var sourceProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(nativeSource),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "theme-font-scheme/source.pptx" },
+        });
+        Assert.True(sourceProjection.Ok, Diagnostics(sourceProjection));
+        var sourceBoundProgram = JsonNode.Parse(sourceProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        sourceBoundProgram["design"]!["theme"]!["fontScheme"] = new JsonObject
+        {
+            ["major"] = "Changed Major",
+            ["minor"] = "Changed Minor",
+        };
+        var rejected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(nativeSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(sourceBoundProgram.ToJsonString()),
+            },
+        });
+        Assert.False(rejected.Ok);
+        Assert.Contains(rejected.Diagnostics, diagnostic =>
+            diagnostic.Code == "ppj.sourceBound.themeFontScheme" &&
+            diagnostic.SourcePath == "$.design.theme.fontScheme");
+    }
+
+    [Fact]
+    public void PpjFormalTextStylePrecedenceAuthorsAndReprojectsEffectiveRunSizes()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        program["assets"] = new JsonArray();
+        program["components"] = new JsonArray();
+        program["sections"] = new JsonArray();
+        program["customShows"] = new JsonArray();
+        program["comments"] = new JsonArray();
+        program["design"]!["styles"] = new JsonObject
+        {
+            ["text"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["id"] = "formal-named",
+                    ["style"] = new JsonObject
+                    {
+                        ["defaultText"] = new JsonObject { ["size"] = 16 },
+                    },
+                },
+            },
+        };
+        program["design"]!["grammar"]!["tokens"] = new JsonObject
+        {
+            ["size"] = new JsonObject { ["kind"] = "size", ["value"] = 9 },
+            ["bold"] = new JsonObject { ["kind"] = "boolean", ["value"] = false },
+            ["fontFamilyEastAsia"] = new JsonObject { ["kind"] = "string", ["value"] = "Source Han Sans SC" },
+            ["language"] = new JsonObject { ["kind"] = "string", ["value"] = "ar-SA" },
+        };
+        program["design"]!["grammar"]!["stylePrecedence"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["target"] = "text.size",
+                ["sources"] = new JsonArray("run", "paragraph", "element", "styleRef", "layout", "master", "theme", "default"),
+            },
+            new JsonObject
+            {
+                ["target"] = "text.bold",
+                ["sources"] = new JsonArray("run", "paragraph", "element", "styleRef", "layout", "master", "theme", "default"),
+            },
+            new JsonObject
+            {
+                ["target"] = "text.fontFamilyEastAsia",
+                ["sources"] = new JsonArray("run", "paragraph", "element", "styleRef", "layout", "master", "theme", "default"),
+            },
+            new JsonObject
+            {
+                ["target"] = "text.language",
+                ["sources"] = new JsonArray("run", "paragraph", "element", "styleRef", "layout", "master", "theme", "default"),
+            },
+        };
+        program["design"]!["theme"]!["textStyle"] = new JsonObject
+        {
+            ["bold"] = true,
+            ["fontFamilyEastAsia"] = "Noto Sans CJK SC",
+            ["language"] = new JsonObject { ["token"] = "language" },
+        };
+        program["design"]!["masters"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["id"] = "formal-master",
+                ["name"] = "Formal master",
+                ["style"] = new JsonObject { ["size"] = 12 },
+            },
+            new JsonObject
+            {
+                ["id"] = "empty-master",
+                ["name"] = "Empty master",
+            },
+        };
+        program["design"]!["layouts"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["id"] = "formal-layout",
+                ["name"] = "Formal layout",
+                ["master"] = "formal-master",
+                ["layoutType"] = "blank",
+                ["style"] = new JsonObject { ["size"] = 14 },
+            },
+            new JsonObject
+            {
+                ["id"] = "master-only-layout",
+                ["name"] = "Master-only layout",
+                ["master"] = "formal-master",
+                ["layoutType"] = "blank",
+            },
+            new JsonObject
+            {
+                ["id"] = "default-layout",
+                ["name"] = "Default layout",
+                ["master"] = "empty-master",
+                ["layoutType"] = "blank",
+            },
+        };
+
+        static JsonObject TextElement(string id, string text) => new()
+            {
+                ["id"] = id,
+                ["type"] = "text",
+                ["frame"] = new JsonObject { ["x"] = 40, ["y"] = 40, ["width"] = 420, ["height"] = 60 },
+                ["text"] = new JsonObject
+                {
+                    ["paragraphs"] = new JsonArray
+                    {
+                        new JsonObject
+                        {
+                            ["runs"] = new JsonArray
+                            {
+                                new JsonObject { ["text"] = text },
+                            },
+                        },
+                    },
+                },
+            };
+
+        static JsonObject BuildTextElement(
+            string id,
+            string text,
+            int? elementSize = null,
+            int? paragraphSize = null,
+            int? runSize = null,
+            bool named = false,
+            bool bodyStyle = false)
+        {
+            var element = TextElement(id, text);
+            if (named) element["styleRef"] = "formal-named";
+            if (elementSize is { } directSize)
+                element["textStyle"] = new JsonObject { ["size"] = directSize };
+            if (bodyStyle)
+                element["style"] = new JsonObject
+                {
+                    ["autoFit"] = "shrink-text",
+                    ["margins"] = new JsonObject { ["left"] = 4, ["right"] = 4 },
+                };
+            var paragraph = element["text"]!["paragraphs"]!.AsArray()[0]!.AsObject();
+            if (paragraphSize is { } paragraphValue)
+                paragraph["style"] = new JsonObject
+                {
+                    ["defaultText"] = new JsonObject { ["size"] = paragraphValue },
+                };
+            if (runSize is { } directRunSize)
+                paragraph["runs"]!.AsArray()[0]!["style"] = new JsonObject { ["size"] = directRunSize };
+            return element;
+        }
+
+        static JsonObject Page(string id, string layout, params JsonObject[] elements)
+        {
+            var page = new JsonObject
+            {
+                ["id"] = id,
+                ["role"] = id,
+                ["layout"] = layout,
+                ["elements"] = new JsonArray(elements),
+            };
+            var readingOrder = new JsonArray();
+            foreach (var element in elements)
+                readingOrder.Add(element["id"]!.GetValue<string>());
+            page["readingOrder"] = readingOrder;
+            return page;
+        }
+
+        program["pages"] = new JsonArray
+        {
+            Page(
+                "specificity",
+                "formal-layout",
+                BuildTextElement("run-wins", "run", 18, 20, 22, named: true, bodyStyle: true),
+                BuildTextElement("paragraph-wins", "paragraph", 18, 20, named: true),
+                BuildTextElement("element-wins", "element", 18, named: true),
+                BuildTextElement("named-wins", "named", named: true),
+                BuildTextElement("layout-wins", "layout")),
+            Page("master", "master-only-layout", BuildTextElement("master-wins", "master")),
+            Page("default", "default-layout", BuildTextElement("default-wins", "default")),
+        };
+
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var validation = PpjProgramValidator.Validate(bytes);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest { ProgramJson = ByteString.CopyFrom(bytes) },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(authored.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "formal-precedence/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var output = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+
+        static double RunSize(JsonObject page, string id) => page["elements"]!.AsArray()
+            .Single(element => element!["name"]!.GetValue<string>() == id)!["text"]!["paragraphs"]![0]!["runs"]![0]!["style"]!["size"]!.GetValue<double>();
+        static bool RunBold(JsonObject page, string id) => page["elements"]!.AsArray()
+            .Single(element => element!["name"]!.GetValue<string>() == id)!["text"]!["paragraphs"]![0]!["runs"]![0]!["style"]!["bold"]!.GetValue<bool>();
+        static string RunEastAsia(JsonObject page, string id) => page["elements"]!.AsArray()
+            .Single(element => element!["name"]!.GetValue<string>() == id)!["text"]!["paragraphs"]![0]!["runs"]![0]!["style"]!["fontFamilyEastAsia"]!.GetValue<string>();
+        static string RunLanguage(JsonObject page, string id) => page["elements"]!.AsArray()
+            .Single(element => element!["name"]!.GetValue<string>() == id)!["text"]!["paragraphs"]![0]!["runs"]![0]!["style"]!["language"]!.GetValue<string>();
+
+        Assert.Equal(22, RunSize(output["pages"]!.AsArray()[0]!.AsObject(), "run-wins"));
+        Assert.Equal(20, RunSize(output["pages"]!.AsArray()[0]!.AsObject(), "paragraph-wins"));
+        Assert.Equal(18, RunSize(output["pages"]!.AsArray()[0]!.AsObject(), "element-wins"));
+        Assert.Equal(16, RunSize(output["pages"]!.AsArray()[0]!.AsObject(), "named-wins"));
+        Assert.Equal(14, RunSize(output["pages"]!.AsArray()[0]!.AsObject(), "layout-wins"));
+        Assert.Equal(12, RunSize(output["pages"]!.AsArray()[1]!.AsObject(), "master-wins"));
+        Assert.Equal(9, RunSize(output["pages"]!.AsArray()[2]!.AsObject(), "default-wins"));
+        Assert.True(RunBold(output["pages"]!.AsArray()[2]!.AsObject(), "default-wins"));
+        Assert.Equal("Noto Sans CJK SC", RunEastAsia(output["pages"]!.AsArray()[2]!.AsObject(), "default-wins"));
+        Assert.Equal("ar-SA", RunLanguage(output["pages"]!.AsArray()[2]!.AsObject(), "default-wins"));
+        Assert.Equal("shrink-text", output["pages"]!.AsArray()[0]!["elements"]![0]!["style"]!["autoFit"]!.GetValue<string>());
+
+        var defaultFallbackProgram = program.DeepClone().AsObject();
+        defaultFallbackProgram["design"]!["theme"]!["textStyle"] = new JsonObject { ["bold"] = true };
+        var defaultFallbackBytes = Encoding.UTF8.GetBytes(defaultFallbackProgram.ToJsonString());
+        var defaultFallbackAuthored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest { ProgramJson = ByteString.CopyFrom(defaultFallbackBytes) },
+        });
+        Assert.True(defaultFallbackAuthored.Ok, Diagnostics(defaultFallbackAuthored));
+        var defaultFallbackProjected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(defaultFallbackAuthored.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "formal-precedence/default-fallback.pptx" },
+        });
+        Assert.True(defaultFallbackProjected.Ok, Diagnostics(defaultFallbackProjected));
+        var defaultFallbackOutput = JsonNode.Parse(defaultFallbackProjected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        Assert.Equal("Source Han Sans SC", RunEastAsia(defaultFallbackOutput["pages"]!.AsArray()[2]!.AsObject(), "default-wins"));
+
+        var sourceBoundOwnerEdit = output.DeepClone().AsObject();
+        sourceBoundOwnerEdit["pages"]!.AsArray()[0]!["elements"]![0]!["textStyle"] = new JsonObject
+        {
+            ["size"] = 30,
+        };
+        sourceBoundOwnerEdit["design"]!["theme"]!["textStyle"] = new JsonObject
+        {
+            ["bold"] = true,
+        };
+        var rejected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(authored.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(sourceBoundOwnerEdit.ToJsonString()),
+            },
+        });
+        Assert.False(rejected.Ok);
+        Assert.Contains(rejected.Diagnostics, diagnostic =>
+            diagnostic.Code == "ppj.sourceBound.formalTextOwner" &&
+            diagnostic.SourcePath == "$.design.theme.textStyle");
+    }
+
+    [Fact]
     public void PpjImageOpacityGrammarTokenAuthorsAndReprojects()
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
@@ -17395,6 +18165,570 @@ public sealed partial class PptxCodecTests
             .Single(item => item["type"]!.GetValue<string>() == "connector");
         Assert.Equal("connector", projectedConnector["type"]!.GetValue<string>());
         Assert.Equal(0.58, projectedConnector["stroke"]!["opacity"]!.GetValue<double>(), precision: 6);
+    }
+
+    [Fact]
+    public void PpjConnectorCompositingOpacityAuthorsAndReprojects()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        program["design"]!["grammar"]!["tokens"] = new JsonObject
+        {
+            ["connectorCompositingOpacity"] = new JsonObject { ["kind"] = "opacity", ["value"] = 0.5 },
+        };
+        program["assets"] = new JsonArray();
+        program["components"] = new JsonArray();
+        foreach (var pageNode in program["pages"]!.AsArray())
+        {
+            var page = pageNode!.AsObject();
+            page.Remove("animations");
+            page.Remove("timing");
+            page["elements"] = new JsonArray(page["elements"]!.AsArray()
+                .Where(item => item!["type"]!.GetValue<string>() is not ("image" or "component"))
+                .Select(item => item!.DeepClone())
+                .ToArray());
+        }
+        var connector = program["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["id"]!.GetValue<string>() == "decision-flow-link");
+        connector["stroke"]!["opacity"] = 0.8;
+        connector["compositing"] = new JsonObject
+        {
+            ["opacity"] = new JsonObject { ["token"] = "connectorCompositingOpacity" },
+        };
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var validation = PpjProgramValidator.Validate(bytes);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest { ProgramJson = ByteString.CopyFrom(bytes) },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(authored.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "connector-compositing-opacity/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var output = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedConnector = output["pages"]!.AsArray().SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "connector");
+        Assert.Equal("connector", projectedConnector["type"]!.GetValue<string>());
+        Assert.Equal(0.4, projectedConnector["stroke"]!["opacity"]!.GetValue<double>(), precision: 6);
+        Assert.Null(projectedConnector["compositing"]);
+    }
+
+    [Fact]
+    public void PpjShapeBackedCompositingOpacityAuthorsAndReprojects()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        program["assets"] = new JsonArray();
+        program["components"] = new JsonArray();
+        program["sections"] = new JsonArray();
+        program["comments"] = new JsonArray();
+        program["customShows"] = new JsonArray();
+        program["design"]!["masters"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["id"] = "master-opacity",
+                ["name"] = "Opacity master",
+            },
+        };
+        program["design"]!["layouts"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["id"] = "layout-opacity",
+                ["name"] = "Opacity layout",
+                ["master"] = "master-opacity",
+                ["layoutType"] = "titleOnly",
+                ["placeholders"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "layout-opacity-placeholder",
+                        ["name"] = "Opacity placeholder slot",
+                        ["placeholderType"] = "title",
+                        ["index"] = 1,
+                        ["frame"] = new JsonObject { ["x"] = 160, ["y"] = 80, ["width"] = 180, ["height"] = 48 },
+                    },
+                },
+            },
+        };
+        var page = program["pages"]!.AsArray()[0]!.AsObject();
+        page["layout"] = "layout-opacity";
+        page.Remove("animations");
+        page.Remove("timing");
+        page["elements"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["id"] = "opacity-icon",
+                ["name"] = "Opacity icon",
+                ["type"] = "icon",
+                ["frame"] = new JsonObject { ["x"] = 80, ["y"] = 80, ["width"] = 48, ["height"] = 48 },
+                ["iconName"] = "fas:lightbulb",
+                ["style"] = new JsonObject
+                {
+                    ["fill"] = new JsonObject { ["type"] = "solid", ["color"] = "#F2C14E" },
+                },
+                ["compositing"] = new JsonObject { ["opacity"] = 0.5 },
+            },
+            new JsonObject
+            {
+                ["id"] = "opacity-placeholder",
+                ["name"] = "Opacity placeholder",
+                ["type"] = "placeholder",
+                ["placeholderType"] = "title",
+                ["index"] = 1,
+                ["frame"] = new JsonObject { ["x"] = 160, ["y"] = 80, ["width"] = 180, ["height"] = 48 },
+                ["text"] = new JsonObject
+                {
+                    ["paragraphs"] = new JsonArray
+                    {
+                        new JsonObject
+                        {
+                            ["id"] = "opacity-placeholder-paragraph",
+                            ["runs"] = new JsonArray
+                            {
+                                new JsonObject
+                                {
+                                    ["id"] = "opacity-placeholder-run",
+                                    ["text"] = "Placeholder",
+                                    ["style"] = new JsonObject { ["color"] = "#336699" },
+                                },
+                            },
+                        },
+                    },
+                },
+                ["compositing"] = new JsonObject { ["opacity"] = 0.5 },
+            },
+        };
+        page["readingOrder"] = new JsonArray("opacity-icon", "opacity-placeholder");
+        program["pages"] = new JsonArray(page.DeepClone());
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var validation = PpjProgramValidator.Validate(bytes);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest { ProgramJson = ByteString.CopyFrom(bytes) },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var shapes = package.PresentationPart!.SlideParts.Single().Slide!.CommonSlideData!.ShapeTree!
+                .Elements<P.Shape>()
+                .ToDictionary(shape => shape.NonVisualShapeProperties!.NonVisualDrawingProperties!.Name!.Value!);
+            Assert.Equal(50_000, shapes["Opacity icon"].ShapeProperties!.GetFirstChild<A.SolidFill>()!
+                .GetFirstChild<A.RgbColorModelHex>()!.GetFirstChild<A.Alpha>()!.Val!.Value);
+            Assert.Equal(50_000, shapes["Opacity placeholder"].TextBody!
+                .Descendants<A.RunProperties>().Single()
+                .GetFirstChild<A.SolidFill>()!.GetFirstChild<A.RgbColorModelHex>()!
+                .GetFirstChild<A.Alpha>()!.Val!.Value);
+        }
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(authored.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "shape-backed-compositing-opacity/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var output = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedElements = output["pages"]![0]!["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .ToDictionary(item => item["name"]!.GetValue<string>());
+        Assert.Equal("shape", projectedElements["Opacity icon"]["type"]!.GetValue<string>());
+        Assert.Equal(0.5, projectedElements["Opacity icon"]["style"]!["fill"]!["opacity"]!.GetValue<double>(), precision: 6);
+        Assert.Equal("placeholder", projectedElements["Opacity placeholder"]["type"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void SourceBoundShapeCompositingOpacityEditsCompoundPaintAndReprojects()
+    {
+        var request = ExportRequest();
+        var shape = Assert.Single(request.Artifact.Presentation.Slides[0].Elements).Shape;
+        shape.Text = string.Empty;
+        shape.TextBody = null;
+        shape.FillRgb = "0F172A";
+        shape.LineRgb = "FFFFFF";
+        shape.LineStyle = "solid";
+        shape.LineWidthEmu = 12_700;
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "shape-opacity/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = Assert.Single(program["pages"]![0]!["elements"]!.AsArray())!.AsObject();
+        Assert.Equal("shape", element["type"]!.GetValue<string>());
+        Assert.True(element["compositing"] is not null);
+        Assert.Equal(1, element["compositing"]!["opacity"]!.GetValue<double>(), precision: 6);
+        Assert.Null(element["style"]!["fill"]!["opacity"]);
+        Assert.Null(element["style"]!["stroke"]!["opacity"]);
+        var setOpacity = element["nativeRef"]!["capabilities"]!.AsArray()
+            .Single(item => item!["operation"]!.GetValue<string>() == "setOpacity");
+        Assert.Contains("compositing.opacity", setOpacity["fields"]!.AsArray().Select(item => item!.GetValue<string>()));
+
+        element["compositing"]!["opacity"] = 0.4;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var native = Assert.Single(package.PresentationPart!.SlideParts).Slide!.CommonSlideData!.ShapeTree!
+                .Elements<P.Shape>().Single();
+            Assert.Equal(40_000, native.ShapeProperties!.GetFirstChild<A.SolidFill>()!
+                .GetFirstChild<A.RgbColorModelHex>()!.GetFirstChild<A.Alpha>()!.Val!.Value);
+            Assert.Equal(40_000, native.ShapeProperties.GetFirstChild<A.Outline>()!
+                .GetFirstChild<A.SolidFill>()!.GetFirstChild<A.RgbColorModelHex>()!
+                .GetFirstChild<A.Alpha>()!.Val!.Value);
+        }
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "shape-opacity/edited.pptx" },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var roundTrip = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var roundTripElement = Assert.Single(roundTrip["pages"]![0]!["elements"]!.AsArray())!.AsObject();
+        Assert.Equal(0.4, roundTripElement["compositing"]!["opacity"]!.GetValue<double>(), precision: 6);
+        Assert.Null(roundTripElement["style"]!["fill"]!["opacity"]);
+        Assert.Null(roundTripElement["style"]!["stroke"]!["opacity"]);
+
+        var mixedRequest = ExportRequest();
+        var mixedShape = Assert.Single(mixedRequest.Artifact.Presentation.Slides[0].Elements).Shape;
+        mixedShape.Text = string.Empty;
+        mixedShape.TextBody = null;
+        mixedShape.FillRgb = "0F172A";
+        mixedShape.FillOpacityThousandthPercent = 40_000;
+        mixedShape.LineRgb = "FFFFFF";
+        mixedShape.LineStyle = "solid";
+        mixedShape.LineWidthEmu = 12_700;
+        mixedShape.LineOpacityThousandthPercent = 60_000;
+        var mixedAuthored = Invoke(mixedRequest);
+        Assert.True(mixedAuthored.Ok, Diagnostics(mixedAuthored));
+        var mixedProjected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(mixedAuthored.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "shape-opacity/mixed.pptx" },
+        });
+        Assert.True(mixedProjected.Ok, Diagnostics(mixedProjected));
+        var mixedProgram = JsonNode.Parse(mixedProjected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var mixedElement = Assert.Single(mixedProgram["pages"]![0]!["elements"]!.AsArray())!.AsObject();
+        Assert.Null(mixedElement["compositing"]);
+        Assert.DoesNotContain(
+            mixedElement["nativeRef"]!["capabilities"]!.AsArray(),
+            item => item!["operation"]!.GetValue<string>() == "setOpacity");
+    }
+
+    [Fact]
+    public void PpjSingleImageCompositingClipAuthorsAndProjectsAsCanonicalMask()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        program["components"] = new JsonArray();
+        program["sections"] = new JsonArray();
+        program["comments"] = new JsonArray();
+        program["customShows"] = new JsonArray();
+        var page = program["pages"]!.AsArray()[0]!.AsObject();
+        page.Remove("animations");
+        page.Remove("timing");
+        page.Remove("readingOrder");
+        var image = page["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["id"]!.GetValue<string>() == "claim-mark");
+        image.Remove("opacity");
+        image.Remove("mask");
+        image["compositing"] = new JsonObject
+        {
+            ["opacity"] = 0.64,
+            ["clipStack"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["geometry"] = new JsonObject
+                    {
+                        ["kind"] = "preset",
+                        ["preset"] = "roundRect",
+                        ["adjustments"] = new JsonArray(24000),
+                    },
+                },
+            },
+        };
+        page["elements"] = new JsonArray(image.DeepClone());
+        program["pages"] = new JsonArray(page.DeepClone());
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var assetBytes = File.ReadAllBytes(Path.Combine(
+            root.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "ppj-assets",
+            "evidence-mark.svg"));
+        var assetSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(assetBytes)).ToLowerInvariant();
+        var validation = PpjProgramValidator.Validate(bytes);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFrom(bytes),
+                Assets =
+                {
+                    new Asset
+                    {
+                        Id = "evidence-mark",
+                        FileName = "evidence-mark.svg",
+                        ContentType = "image/svg+xml",
+                        Data = ByteString.CopyFrom(assetBytes),
+                        Sha256 = assetSha256,
+                    },
+                },
+            },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var picture = Assert.Single(package.PresentationPart!.SlideParts.Single().Slide!.Descendants<P.Picture>());
+            var geometry = picture.ShapeProperties!.GetFirstChild<A.PresetGeometry>();
+            Assert.Equal(new A.ShapeTypeValues("roundRect"), geometry!.Preset!.Value);
+            Assert.Equal("val 24000", geometry.GetFirstChild<A.AdjustValueList>()!
+                .GetFirstChild<A.ShapeGuide>()!.Formula!.Value);
+            Assert.Equal(64_000, picture.BlipFill!.GetFirstChild<A.Blip>()!
+                .GetFirstChild<A.AlphaModulationFixed>()!.Amount!.Value);
+        }
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(authored.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "single-image-clip/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var output = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedImage = output["pages"]!.AsArray().SelectMany(item => item!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "image");
+        Assert.Equal("preset", projectedImage["mask"]!["kind"]!.GetValue<string>());
+        Assert.Equal("roundRect", projectedImage["mask"]!["preset"]!.GetValue<string>());
+        Assert.Equal(24000, projectedImage["mask"]!["adjustments"]![0]!.GetValue<int>());
+        Assert.Equal(0.64, projectedImage["opacity"]!.GetValue<double>(), precision: 6);
+        Assert.Null(projectedImage["compositing"]);
+
+        var invalidProgram = program.DeepClone().AsObject();
+        var invalidImage = invalidProgram["pages"]![0]!["elements"]![0]!.AsObject();
+        invalidImage["compositing"]!["clipStack"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["geometry"] = new JsonObject { ["kind"] = "preset", ["preset"] = "roundRect" },
+            },
+            new JsonObject
+            {
+                ["geometry"] = new JsonObject { ["kind"] = "preset", ["preset"] = "ellipse" },
+            },
+        };
+        var invalid = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidProgram.ToJsonString()));
+        Assert.False(invalid.IsValid);
+        Assert.Contains(invalid.Diagnostics, diagnostic => diagnostic.Code == "ppj.compositing.clipUnsupported");
+    }
+
+    [Fact]
+    public void PpjCustomImageCompositingClipAuthorsAndProjectsAsCanonicalMask()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        program["components"] = new JsonArray();
+        program["sections"] = new JsonArray();
+        program["comments"] = new JsonArray();
+        program["customShows"] = new JsonArray();
+        var page = program["pages"]!.AsArray()[0]!.AsObject();
+        page.Remove("animations");
+        page.Remove("timing");
+        page.Remove("readingOrder");
+        var image = page["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["id"]!.GetValue<string>() == "claim-mark");
+        image.Remove("opacity");
+        image.Remove("mask");
+        image["compositing"] = new JsonObject
+        {
+            ["clipStack"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["geometry"] = new JsonObject
+                    {
+                        ["kind"] = "custom",
+                        ["viewBox"] = new JsonObject { ["x"] = 0, ["y"] = 0, ["width"] = 160, ["height"] = 160 },
+                        ["paths"] = new JsonArray
+                        {
+                            new JsonObject
+                            {
+                                ["fill"] = true,
+                                ["stroke"] = false,
+                                ["commands"] = new JsonArray
+                                {
+                                    new JsonObject { ["op"] = "moveTo", ["x"] = 20, ["y"] = 0 },
+                                    new JsonObject { ["op"] = "lineTo", ["x"] = 160, ["y"] = 0 },
+                                    new JsonObject { ["op"] = "lineTo", ["x"] = 140, ["y"] = 160 },
+                                    new JsonObject { ["op"] = "lineTo", ["x"] = 0, ["y"] = 120 },
+                                    new JsonObject { ["op"] = "close" },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+        page["elements"] = new JsonArray(image.DeepClone());
+        program["pages"] = new JsonArray(page.DeepClone());
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var assetBytes = File.ReadAllBytes(Path.Combine(
+            root.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "ppj-assets",
+            "evidence-mark.svg"));
+        var assetSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(assetBytes)).ToLowerInvariant();
+        var validation = PpjProgramValidator.Validate(bytes);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFrom(bytes),
+                Assets =
+                {
+                    new Asset
+                    {
+                        Id = "evidence-mark",
+                        FileName = "evidence-mark.svg",
+                        ContentType = "image/svg+xml",
+                        Data = ByteString.CopyFrom(assetBytes),
+                        Sha256 = assetSha256,
+                    },
+                },
+            },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var picture = Assert.Single(package.PresentationPart!.SlideParts.Single().Slide!.Descendants<P.Picture>());
+            var geometry = picture.ShapeProperties!.GetFirstChild<A.CustomGeometry>();
+            Assert.NotNull(geometry);
+            var path = Assert.Single(geometry!.GetFirstChild<A.PathList>()!.Elements<A.Path>());
+            Assert.Equal(5, path.ChildElements.Count);
+        }
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(authored.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "custom-image-clip/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var output = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedImage = output["pages"]![0]!["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "image");
+        Assert.Equal("custom", projectedImage["mask"]!["kind"]!.GetValue<string>());
+        Assert.Equal(5, projectedImage["mask"]!["paths"]![0]!["commands"]!.AsArray().Count);
+        Assert.Null(projectedImage["compositing"]);
+
+        var invalidProgram = program.DeepClone().AsObject();
+        var invalidImage = invalidProgram["pages"]![0]!["elements"]![0]!.AsObject();
+        invalidImage["mask"] = new JsonObject { ["kind"] = "preset", ["preset"] = "ellipse" };
+        var invalid = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidProgram.ToJsonString()));
+        Assert.False(invalid.IsValid);
+        Assert.Contains(invalid.Diagnostics, diagnostic => diagnostic.Code == "ppj.compositing.clipUnsupported");
     }
 
     [Fact]
@@ -18796,6 +20130,138 @@ public sealed partial class PptxCodecTests
     }
 
     [Fact]
+    public void PpjComponentWeightedStackAuthorsAndReprojectsDeterministicFrames()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        program["assets"] = new JsonArray();
+        program["sections"] = new JsonArray();
+        program["customShows"] = new JsonArray();
+        program["comments"] = new JsonArray();
+        var component = new JsonObject
+        {
+            ["id"] = "evidence-rows-weighted",
+            ["type"] = "component",
+            ["component"] = "evidence-row",
+            ["frame"] = new JsonObject { ["x"] = 40, ["y"] = 40, ["width"] = 600, ["height"] = 100 },
+            ["repeat"] = new JsonObject
+            {
+                ["items"] = new JsonArray(
+                    new JsonObject { ["key"] = "one", ["arguments"] = new JsonObject { ["label"] = "One", ["value"] = "1" } },
+                    new JsonObject { ["key"] = "two", ["arguments"] = new JsonObject { ["label"] = "Two", ["value"] = "2" } },
+                    new JsonObject { ["key"] = "three", ["arguments"] = new JsonObject { ["label"] = "Three", ["value"] = "3" } }),
+                ["layout"] = new JsonObject { ["direction"] = "horizontal", ["gap"] = 12, ["weights"] = new JsonArray(1, 2, 1) },
+            },
+        };
+        program["pages"] = new JsonArray(new JsonObject
+        {
+            ["id"] = "weighted-page",
+            ["role"] = "weighted repeat",
+            ["elements"] = new JsonArray(component),
+        });
+        var bytes = Encoding.UTF8.GetBytes(program.ToJsonString());
+        var validation = PpjProgramValidator.Validate(bytes);
+        Assert.True(validation.IsValid, string.Join(Environment.NewLine, validation.Diagnostics));
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest { ProgramJson = ByteString.CopyFrom(bytes) },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(authored.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "weighted-repeat/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var output = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var horizontalFrames = output["pages"]![0]!["elements"]!.AsArray()
+            .Where(element => element!["type"]!.GetValue<string>() == "shape")
+            .Select(element => element!["frame"]!.AsObject())
+            .OrderBy(frame => frame["x"]!.GetValue<double>())
+            .ToArray();
+        Assert.Equal(3, horizontalFrames.Length);
+        Assert.Equal(40, horizontalFrames[0]["x"]!.GetValue<double>(), precision: 6);
+        Assert.Equal(144, horizontalFrames[0]["width"]!.GetValue<double>(), precision: 6);
+        Assert.Equal(196, horizontalFrames[1]["x"]!.GetValue<double>(), precision: 6);
+        Assert.Equal(288, horizontalFrames[1]["width"]!.GetValue<double>(), precision: 6);
+        Assert.Equal(496, horizontalFrames[2]["x"]!.GetValue<double>(), precision: 6);
+        Assert.Equal(144, horizontalFrames[2]["width"]!.GetValue<double>(), precision: 6);
+
+        var verticalProgram = program.DeepClone().AsObject();
+        var verticalLayout = verticalProgram["pages"]![0]!["elements"]![0]!["repeat"]!["layout"]!.AsObject();
+        verticalProgram["pages"]![0]!["id"] = "weighted-vertical-page";
+        verticalProgram["pages"]![0]!["elements"]![0]!["frame"] = new JsonObject
+        {
+            ["x"] = 40,
+            ["y"] = 40,
+            ["width"] = 200,
+            ["height"] = 600,
+        };
+        verticalLayout["direction"] = "vertical";
+        var verticalBytes = Encoding.UTF8.GetBytes(verticalProgram.ToJsonString());
+        Assert.True(PpjProgramValidator.Validate(verticalBytes).IsValid);
+        var verticalAuthored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest { ProgramJson = ByteString.CopyFrom(verticalBytes) },
+        });
+        Assert.True(verticalAuthored.Ok, Diagnostics(verticalAuthored));
+        var verticalProjected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(verticalAuthored.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "weighted-repeat/vertical-source.pptx" },
+        });
+        Assert.True(verticalProjected.Ok, Diagnostics(verticalProjected));
+        var verticalOutput = JsonNode.Parse(verticalProjected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var verticalFrames = verticalOutput["pages"]![0]!["elements"]!.AsArray()
+            .Where(element => element!["type"]!.GetValue<string>() == "shape")
+            .Select(element => element!["frame"]!.AsObject())
+            .OrderBy(frame => frame["y"]!.GetValue<double>())
+            .ToArray();
+        Assert.Equal(3, verticalFrames.Length);
+        Assert.Equal(40, verticalFrames[0]["x"]!.GetValue<double>(), precision: 6);
+        Assert.Equal(200, verticalFrames[0]["width"]!.GetValue<double>(), precision: 6);
+        Assert.Equal(verticalFrames[0]["height"]!.GetValue<double>(), verticalFrames[2]["height"]!.GetValue<double>(), precision: 6);
+        Assert.Equal(verticalFrames[0]["height"]!.GetValue<double>() * 2, verticalFrames[1]["height"]!.GetValue<double>(), precision: 5);
+        Assert.True(verticalFrames[0]["y"]!.GetValue<double>() < verticalFrames[1]["y"]!.GetValue<double>());
+        Assert.True(verticalFrames[1]["y"]!.GetValue<double>() < verticalFrames[2]["y"]!.GetValue<double>());
+
+        var invalidProgram = program.DeepClone().AsObject();
+        invalidProgram["pages"]![0]!["elements"]![0]!["repeat"]!["layout"]!["weights"] = new JsonArray(1, 0, 1);
+        var invalid = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidProgram.ToJsonString()));
+        Assert.False(invalid.IsValid);
+        Assert.Contains(invalid.Diagnostics, diagnostic =>
+            diagnostic.Path.EndsWith(".weights[1]", StringComparison.Ordinal));
+
+        var countProgram = program.DeepClone().AsObject();
+        countProgram["pages"]![0]!["elements"]![0]!["repeat"]!["layout"]!["weights"] = new JsonArray(1, 1);
+        var countInvalid = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(countProgram.ToJsonString()));
+        Assert.False(countInvalid.IsValid);
+        Assert.Contains(countInvalid.Diagnostics, diagnostic =>
+            diagnostic.Code == "ppj.component.repeatStackWeightsCount" &&
+            diagnostic.Path.EndsWith(".weights", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void PpjComponentImagePolicyAuthorsAndRejectsUnsafeReplacement()
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
@@ -20185,6 +21651,355 @@ public sealed partial class PptxCodecTests
         var outputLiteral = Assert.Single(outputElement["nativeRef"]!["leaves"]!.AsArray(),
             leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustment");
         Assert.Equal(30000, outputLiteral!["value"]!.GetValue<long>());
+    }
+
+    [Fact]
+    public void PpjSourceBoundLineOpacityLeafEditsShapeAndConnector()
+    {
+        var request = ExportRequest();
+        var slide = request.Artifact.Presentation.Slides[0];
+        var shapeElement = Assert.Single(slide.Elements);
+        var shape = shapeElement.Shape;
+        shape.Text = string.Empty;
+        shape.TextBody = null;
+        shape.LineRgb = "1D4ED8";
+        shape.LineStyle = "solid";
+        shape.LineWidthEmu = 12_700;
+        shape.LineOpacityThousandthPercent = 40_000;
+        shape.Geometry = "rect";
+        shapeElement.Name = "RGB opacity shape";
+        slide.Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/opacity-target",
+            Name = "Opacity target",
+            Shape = new PresentationShape
+            {
+                Geometry = "ellipse",
+                LeftEmu = 7_000_000,
+                TopEmu = 1_200_000,
+                WidthEmu = 2_000_000,
+                HeightEmu = 1_000_000,
+                FillRgb = "FFFFFF",
+                LineRgb = "64748B",
+                LineWidthEmu = 12_700,
+            },
+        });
+        slide.Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/opacity-connector",
+            Name = "Theme opacity connector",
+            Connector = new PresentationConnector
+            {
+                ConnectorType = "straight",
+                StartXEmu = 1_000_000,
+                StartYEmu = 2_800_000,
+                EndXEmu = 6_500_000,
+                EndYEmu = 2_800_000,
+                LineScheme = "accent1",
+                LineWidthEmu = 19_050,
+                LineStyle = "solid",
+                LineOpacityThousandthPercent = 58_000,
+            },
+        });
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "line-opacity/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var elements = program["pages"]![0]!["elements"]!.AsArray();
+        var projectedShape = elements.Select(item => item!.AsObject()).Single(item => item["name"]!.GetValue<string>() == "RGB opacity shape");
+        var projectedConnector = elements.Select(item => item!.AsObject()).Single(item => item["name"]!.GetValue<string>() == "Theme opacity connector");
+        var shapeLeaf = Assert.Single(projectedShape["nativeRef"]!["leaves"]!.AsArray(),
+            leaf => leaf!["kind"]!.GetValue<string>() == "lineOpacityThousandthPercent");
+        var connectorLeaf = Assert.Single(projectedConnector["nativeRef"]!["leaves"]!.AsArray(),
+            leaf => leaf!["kind"]!.GetValue<string>() == "lineOpacityThousandthPercent");
+        Assert.Equal(40_000, shapeLeaf!["value"]!.GetValue<long>());
+        Assert.Equal(58_000, connectorLeaf!["value"]!.GetValue<long>());
+
+        shapeLeaf["value"] = 45_000;
+        connectorLeaf["value"] = 62_000;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var nativeSlide = package.PresentationPart!.SlideParts.Single().Slide!;
+            var nativeShape = nativeSlide.Descendants<P.Shape>().Single(item =>
+                item.NonVisualShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "RGB opacity shape");
+            var nativeConnector = nativeSlide.Descendants<P.ConnectionShape>().Single(item =>
+                item.NonVisualConnectionShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "Theme opacity connector");
+            Assert.Equal(45_000, nativeShape.ShapeProperties!.GetFirstChild<A.Outline>()!
+                .GetFirstChild<A.SolidFill>()!.GetFirstChild<A.RgbColorModelHex>()!
+                .GetFirstChild<A.Alpha>()!.Val!.Value);
+            Assert.Equal(62_000, nativeConnector.ShapeProperties!.GetFirstChild<A.Outline>()!
+                .GetFirstChild<A.SolidFill>()!.GetFirstChild<A.SchemeColor>()!
+                .GetFirstChild<A.Alpha>()!.Val!.Value);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        }
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "line-opacity/edited.pptx" },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var output = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var outputElements = output["pages"]![0]!["elements"]!.AsArray();
+        var outputShape = outputElements.Select(item => item!.AsObject()).Single(item => item["name"]!.GetValue<string>() == "RGB opacity shape");
+        var outputConnector = outputElements.Select(item => item!.AsObject()).Single(item => item["name"]!.GetValue<string>() == "Theme opacity connector");
+        Assert.Equal(45_000, Assert.Single(outputShape["nativeRef"]!["leaves"]!.AsArray(),
+            leaf => leaf!["kind"]!.GetValue<string>() == "lineOpacityThousandthPercent")["value"]!.GetValue<long>());
+        Assert.Equal(62_000, Assert.Single(outputConnector["nativeRef"]!["leaves"]!.AsArray(),
+            leaf => leaf!["kind"]!.GetValue<string>() == "lineOpacityThousandthPercent")["value"]!.GetValue<long>());
+
+        var missingAlpha = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            var updated = new Regex("<a:alpha\\b[^>]*val=\"40000\"[^>]*/>", RegexOptions.CultureInvariant)
+                .Replace(xml, string.Empty, 1);
+            Assert.NotEqual(xml, updated);
+            return updated;
+        });
+        var missingAlphaProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(missingAlpha),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "line-opacity/missing-alpha.pptx" },
+        });
+        Assert.True(missingAlphaProjection.Ok, Diagnostics(missingAlphaProjection));
+        var missingAlphaProgram = JsonNode.Parse(missingAlphaProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var missingAlphaShape = missingAlphaProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(item => item!.AsObject()).Single(item => item["name"]!.GetValue<string>() == "RGB opacity shape");
+        Assert.DoesNotContain(missingAlphaShape["nativeRef"]!["leaves"]!.AsArray(),
+            leaf => leaf!["kind"]!.GetValue<string>() == "lineOpacityThousandthPercent");
+    }
+
+    [Fact]
+    public void PpjSourceBoundLineArrowSizeLeavesEditShapeAndConnector()
+    {
+        var request = ExportRequest();
+        var slide = request.Artifact.Presentation.Slides[0];
+        slide.Elements.Clear();
+        slide.Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/arrow-shape",
+            Name = "RGB arrow shape",
+            Shape = new PresentationShape
+            {
+                Geometry = "line",
+                LeftEmu = 500_000,
+                TopEmu = 700_000,
+                WidthEmu = 3_600_000,
+                HeightEmu = 1_200_000,
+                LineRgb = "1D4ED8",
+                LineWidthEmu = 19_050,
+                LineStyle = "solid",
+                StartArrow = "oval",
+                StartArrowWidth = "sm",
+                StartArrowLength = "med",
+                EndArrow = "diamond",
+                EndArrowWidth = "lg",
+                EndArrowLength = "sm",
+            },
+        });
+        var target = new PresentationElement
+        {
+            Id = "presentation/slide/1/arrow-target",
+            Name = "Arrow target",
+            Shape = new PresentationShape
+            {
+                Geometry = "ellipse",
+                LeftEmu = 6_000_000,
+                TopEmu = 2_500_000,
+                WidthEmu = 1_500_000,
+                HeightEmu = 900_000,
+                FillRgb = "FFFFFF",
+                LineRgb = "64748B",
+                LineWidthEmu = 12_700,
+            },
+        };
+        slide.Elements.Add(target);
+        slide.Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/arrow-connector",
+            Name = "Theme arrow connector",
+            Connector = new PresentationConnector
+            {
+                ConnectorType = "straight",
+                StartXEmu = 4_100_000,
+                StartYEmu = 1_300_000,
+                EndXEmu = 6_000_000,
+                EndYEmu = 2_900_000,
+                LineScheme = "accent1",
+                LineWidthEmu = 19_050,
+                LineStyle = "solid",
+                StartArrow = "arrow",
+                StartArrowWidth = "med",
+                StartArrowLength = "lg",
+                EndArrow = "triangle",
+                EndArrowWidth = "sm",
+                EndArrowLength = "med",
+                StartTargetId = "presentation/slide/1/arrow-shape",
+                EndTargetId = target.Id,
+            },
+        });
+
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "line-arrow-size/source.pptx" },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var elements = program["pages"]![0]! ["elements"]!.AsArray();
+        var projectedShape = elements.Select(item => item!.AsObject()).Single(item => item["name"]!.GetValue<string>() == "RGB arrow shape");
+        var projectedConnector = elements.Select(item => item!.AsObject()).Single(item => item["name"]!.GetValue<string>() == "Theme arrow connector");
+        var shapeLeaves = projectedShape["nativeRef"]!["leaves"]!.AsArray();
+        var connectorLeaves = projectedConnector["nativeRef"]!["leaves"]!.AsArray();
+        Assert.Equal("sm", Assert.Single(shapeLeaves, leaf => leaf!["kind"]!.GetValue<string>() == "lineStartArrowWidth")["value"]!.GetValue<string>());
+        Assert.Equal("med", Assert.Single(shapeLeaves, leaf => leaf!["kind"]!.GetValue<string>() == "lineStartArrowLength")["value"]!.GetValue<string>());
+        Assert.Equal("lg", Assert.Single(shapeLeaves, leaf => leaf!["kind"]!.GetValue<string>() == "lineEndArrowWidth")["value"]!.GetValue<string>());
+        Assert.Equal("sm", Assert.Single(shapeLeaves, leaf => leaf!["kind"]!.GetValue<string>() == "lineEndArrowLength")["value"]!.GetValue<string>());
+        Assert.Equal("med", Assert.Single(connectorLeaves, leaf => leaf!["kind"]!.GetValue<string>() == "lineStartArrowWidth")["value"]!.GetValue<string>());
+        Assert.Equal("lg", Assert.Single(connectorLeaves, leaf => leaf!["kind"]!.GetValue<string>() == "lineStartArrowLength")["value"]!.GetValue<string>());
+        Assert.Equal("sm", Assert.Single(connectorLeaves, leaf => leaf!["kind"]!.GetValue<string>() == "lineEndArrowWidth")["value"]!.GetValue<string>());
+        Assert.Equal("med", Assert.Single(connectorLeaves, leaf => leaf!["kind"]!.GetValue<string>() == "lineEndArrowLength")["value"]!.GetValue<string>());
+
+        foreach (var leaf in shapeLeaves)
+        {
+            var kind = leaf!["kind"]!.GetValue<string>();
+            if (kind is not ("lineStartArrowWidth" or "lineStartArrowLength" or "lineEndArrowWidth" or "lineEndArrowLength"))
+                continue;
+            leaf["value"] = kind switch
+            {
+                "lineStartArrowWidth" => "lg",
+                "lineStartArrowLength" => "sm",
+                "lineEndArrowWidth" => "sm",
+                "lineEndArrowLength" => "lg",
+                _ => throw new InvalidOperationException($"Unexpected line arrow size leaf {kind}"),
+            };
+        }
+        foreach (var leaf in connectorLeaves)
+        {
+            var kind = leaf!["kind"]!.GetValue<string>();
+            if (kind is not ("lineStartArrowWidth" or "lineStartArrowLength" or "lineEndArrowWidth" or "lineEndArrowLength"))
+                continue;
+            leaf["value"] = kind switch
+            {
+                "lineStartArrowWidth" => "sm",
+                "lineStartArrowLength" => "med",
+                "lineEndArrowWidth" => "lg",
+                "lineEndArrowLength" => "sm",
+                _ => throw new InvalidOperationException($"Unexpected line arrow size leaf {kind}"),
+            };
+        }
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var nativeSlide = package.PresentationPart!.SlideParts.Single().Slide!;
+            var nativeShape = nativeSlide.Descendants<P.Shape>().Single(item =>
+                item.NonVisualShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "RGB arrow shape");
+            var nativeConnector = nativeSlide.Descendants<P.ConnectionShape>().Single(item =>
+                item.NonVisualConnectionShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "Theme arrow connector");
+            var shapeOutline = nativeShape.ShapeProperties!.GetFirstChild<A.Outline>()!;
+            var connectorOutline = nativeConnector.ShapeProperties!.GetFirstChild<A.Outline>()!;
+            Assert.Equal(A.LineEndWidthValues.Large, shapeOutline.GetFirstChild<A.HeadEnd>()!.Width!.Value);
+            Assert.Equal(A.LineEndLengthValues.Small, shapeOutline.GetFirstChild<A.HeadEnd>()!.Length!.Value);
+            Assert.Equal(A.LineEndWidthValues.Small, shapeOutline.GetFirstChild<A.TailEnd>()!.Width!.Value);
+            Assert.Equal(A.LineEndLengthValues.Large, shapeOutline.GetFirstChild<A.TailEnd>()!.Length!.Value);
+            Assert.Equal(A.LineEndWidthValues.Small, connectorOutline.GetFirstChild<A.HeadEnd>()!.Width!.Value);
+            Assert.Equal(A.LineEndLengthValues.Medium, connectorOutline.GetFirstChild<A.HeadEnd>()!.Length!.Value);
+            Assert.Equal(A.LineEndWidthValues.Large, connectorOutline.GetFirstChild<A.TailEnd>()!.Width!.Value);
+            Assert.Equal(A.LineEndLengthValues.Small, connectorOutline.GetFirstChild<A.TailEnd>()!.Length!.Value);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        }
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "line-arrow-size/edited.pptx" },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var output = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var outputElements = output["pages"]![0]! ["elements"]!.AsArray();
+        var outputShape = outputElements.Select(item => item!.AsObject()).Single(item => item["name"]!.GetValue<string>() == "RGB arrow shape");
+        var outputConnector = outputElements.Select(item => item!.AsObject()).Single(item => item["name"]!.GetValue<string>() == "Theme arrow connector");
+        Assert.Equal("lg", Assert.Single(outputShape["nativeRef"]!["leaves"]!.AsArray(), leaf => leaf!["kind"]!.GetValue<string>() == "lineStartArrowWidth")["value"]!.GetValue<string>());
+        Assert.Equal("sm", Assert.Single(outputShape["nativeRef"]!["leaves"]!.AsArray(), leaf => leaf!["kind"]!.GetValue<string>() == "lineStartArrowLength")["value"]!.GetValue<string>());
+        Assert.Equal("sm", Assert.Single(outputShape["nativeRef"]!["leaves"]!.AsArray(), leaf => leaf!["kind"]!.GetValue<string>() == "lineEndArrowWidth")["value"]!.GetValue<string>());
+        Assert.Equal("lg", Assert.Single(outputShape["nativeRef"]!["leaves"]!.AsArray(), leaf => leaf!["kind"]!.GetValue<string>() == "lineEndArrowLength")["value"]!.GetValue<string>());
+        Assert.Equal("sm", Assert.Single(outputConnector["nativeRef"]!["leaves"]!.AsArray(), leaf => leaf!["kind"]!.GetValue<string>() == "lineStartArrowWidth")["value"]!.GetValue<string>());
+        Assert.Equal("med", Assert.Single(outputConnector["nativeRef"]!["leaves"]!.AsArray(), leaf => leaf!["kind"]!.GetValue<string>() == "lineStartArrowLength")["value"]!.GetValue<string>());
+        Assert.Equal("lg", Assert.Single(outputConnector["nativeRef"]!["leaves"]!.AsArray(), leaf => leaf!["kind"]!.GetValue<string>() == "lineEndArrowWidth")["value"]!.GetValue<string>());
+        Assert.Equal("sm", Assert.Single(outputConnector["nativeRef"]!["leaves"]!.AsArray(), leaf => leaf!["kind"]!.GetValue<string>() == "lineEndArrowLength")["value"]!.GetValue<string>());
+
+        var missingWidth = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            var updated = new Regex("(<a:headEnd\\b[^>]*?)\\s+w=\"sm\"", RegexOptions.CultureInvariant)
+                .Replace(xml, "$1", 1);
+            Assert.NotEqual(xml, updated);
+            return updated;
+        });
+        var missingWidthProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(missingWidth),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "line-arrow-size/missing-width.pptx" },
+        });
+        Assert.True(missingWidthProjection.Ok, Diagnostics(missingWidthProjection));
+        var missingWidthProgram = JsonNode.Parse(missingWidthProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var missingWidthShape = missingWidthProgram["pages"]![0]! ["elements"]!.AsArray()
+            .Select(item => item!.AsObject()).Single(item => item["name"]!.GetValue<string>() == "RGB arrow shape");
+        Assert.DoesNotContain(missingWidthShape["nativeRef"]!["leaves"]!.AsArray(),
+            leaf => leaf!["kind"]!.GetValue<string>() == "lineStartArrowWidth");
     }
 
     [Fact]
