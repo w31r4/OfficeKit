@@ -4839,6 +4839,9 @@ message SpreadsheetChartDataLabelOverrideArtifact {
   // Bounded direct point-label c:dLbl/c:spPr/a:ln outline. Series defaults do
   // not expose this field; richer line/effect graphs remain source-owned.
   SpreadsheetChartLineStyleArtifact line = 11;
+  // Bounded literal point-label c:dLbl/c:tx/c:rich text. Formula-backed and
+  // multi-run label text remains source-owned.
+  string text = 12;
 }
 
 // One zero-based c:dLbl/c:idx and its sparse inherited-field overrides.

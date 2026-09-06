@@ -5959,6 +5959,8 @@ internal static class PpjSourceBoundPresentationCompiler
         JsonElement? grammarRoot = null)
     {
         var output = new SpreadsheetChartDataLabelOverrideArtifact();
+        if (source.TryGetProperty("text", out var text))
+            output.Text = text.GetString()!;
         if (source.TryGetProperty("showValue", out var showValue))
             output.ShowValue = grammarRoot is { } showValueRoot
                 ? ResolveGrammarBooleanToken(showValueRoot, showValue, path + ".showValue")
@@ -6006,7 +6008,7 @@ internal static class PpjSourceBoundPresentationCompiler
     }
 
     private static bool HasChartLabelFields(JsonElement source) =>
-        source.TryGetProperty("showValue", out _) || source.TryGetProperty("showCategory", out _) ||
+        source.TryGetProperty("text", out _) || source.TryGetProperty("showValue", out _) || source.TryGetProperty("showCategory", out _) ||
         source.TryGetProperty("showSeries", out _) || source.TryGetProperty("showPercent", out _) ||
         source.TryGetProperty("showBubbleSize", out _) || source.TryGetProperty("showLeaderLines", out _) ||
         source.TryGetProperty("position", out _) || source.TryGetProperty("numberFormat", out _) ||

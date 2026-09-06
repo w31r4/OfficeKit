@@ -1379,6 +1379,7 @@ internal static partial class PpjPresentationProjector
     private static JsonObject ProjectChartLabelOverride(SpreadsheetChartDataLabelOverrideArtifact source)
     {
         var output = new JsonObject();
+        if (source.Text.Length > 0) output["text"] = StringNode(source.Text);
         if (source.HasShowValue) output["showValue"] = JsonValue.Create(source.ShowValue);
         if (source.HasShowCategoryName) output["showCategory"] = JsonValue.Create(source.ShowCategoryName);
         if (source.HasShowSeriesName) output["showSeries"] = JsonValue.Create(source.ShowSeriesName);
