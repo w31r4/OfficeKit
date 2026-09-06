@@ -1897,6 +1897,3755 @@ public sealed partial class PptxCodecTests
     }
 
     [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryGuideLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "x1", Formula = "val 25000" });
+        shape.CustomGuides.Add(new PresentationCustomGeometryGuide { Name = "derived", Formula = "*/ w x1 100000" });
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = shape.WidthEmu,
+            Height = shape.HeightEmu,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { XReference = "l", YReference = "t" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { XReference = "x1", YReference = "b" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-guide.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var guide = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryGuide")!.AsObject();
+        Assert.Equal(25000, guide["value"]!.GetValue<long>());
+        Assert.DoesNotContain(leaves, leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustment");
+
+        guide["value"] = 30000;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("name=\"x1\" fmla=\"val 30000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("name=\"derived\" fmla=\"*/ w x1 100000\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-guide-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.Equal(30000, editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryGuide")!["value"]!.GetValue<long>());
+
+        guide["value"] = 25000;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("name=\"x1\" fmla=\"val 25000\"", xml, StringComparison.Ordinal);
+            return xml.Replace("name=\"x1\" fmla=\"val 25000\"", "name=\"x1\" fmla=\"val 26000\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        guide["value"] = (long)int.MaxValue + 1;
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryAdjustmentHandleXLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjX", Formula = "val 25000" });
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjY", Formula = "val 50000" });
+        shape.CustomAdjustmentHandles.Add(new PresentationCustomGeometryAdjustmentHandle
+        {
+            Xy = new PresentationCustomGeometryXyAdjustmentHandle
+            {
+                XAdjustment = "adjX",
+                MinXReference = "l",
+                MaxXReference = "r",
+                YAdjustment = "adjY",
+                MinYReference = "t",
+                MaxYReference = "b",
+                Position = new PresentationCustomGeometryPoint { X = 180_000, YReference = "vc" },
+            },
+        });
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = shape.WidthEmu,
+            Height = shape.HeightEmu,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { XReference = "l", YReference = "t" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { XReference = "r", YReference = "b" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-x.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var xLeaf = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandleXEmu")!.AsObject();
+        Assert.Equal(180_000, xLeaf["value"]!.GetValue<long>());
+
+        xLeaf["value"] = 240_000;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("x=\"240000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("y=\"vc\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefX=\"adjX\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefY=\"adjY\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("minX=\"l\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("maxX=\"r\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-x-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.Equal(240_000, editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandleXEmu")!["value"]!.GetValue<long>());
+
+        xLeaf["value"] = 180_000;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("x=\"180000\"", xml, StringComparison.Ordinal);
+            return xml.Replace("x=\"180000\"", "x=\"190000\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        xLeaf["value"] = (long)shape.WidthEmu + 1;
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryAdjustmentHandleYLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjX", Formula = "val 25000" });
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjY", Formula = "val 50000" });
+        shape.CustomAdjustmentHandles.Add(new PresentationCustomGeometryAdjustmentHandle
+        {
+            Xy = new PresentationCustomGeometryXyAdjustmentHandle
+            {
+                XAdjustment = "adjX",
+                MinXReference = "l",
+                MaxXReference = "r",
+                YAdjustment = "adjY",
+                MinYReference = "t",
+                MaxYReference = "b",
+                Position = new PresentationCustomGeometryPoint { XReference = "hc", Y = 240_000 },
+            },
+        });
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = shape.WidthEmu,
+            Height = shape.HeightEmu,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { XReference = "l", YReference = "t" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { XReference = "r", YReference = "b" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-y.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var yLeaf = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandleYEmu")!.AsObject();
+        Assert.Equal(240_000, yLeaf["value"]!.GetValue<long>());
+
+        yLeaf["value"] = 360_000;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("y=\"360000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"hc\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefX=\"adjX\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefY=\"adjY\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("minY=\"t\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("maxY=\"b\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-y-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.Equal(360_000, editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandleYEmu")!["value"]!.GetValue<long>());
+
+        yLeaf["value"] = 240_000;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("y=\"240000\"", xml, StringComparison.Ordinal);
+            return xml.Replace("y=\"240000\"", "y=\"250000\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        yLeaf["value"] = (long)shape.HeightEmu + 1;
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryAdjustmentHandleMinXLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjX", Formula = "val 250000" });
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjY", Formula = "val 50000" });
+        shape.CustomAdjustmentHandles.Add(new PresentationCustomGeometryAdjustmentHandle
+        {
+            Xy = new PresentationCustomGeometryXyAdjustmentHandle
+            {
+                XAdjustment = "adjX",
+                MinX = 120_000,
+                MaxXReference = "r",
+                YAdjustment = "adjY",
+                MinYReference = "t",
+                MaxYReference = "b",
+                Position = new PresentationCustomGeometryPoint { XReference = "hc", YReference = "vc" },
+            },
+        });
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = shape.WidthEmu,
+            Height = shape.HeightEmu,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { XReference = "l", YReference = "t" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { XReference = "r", YReference = "b" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-min-x.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var minX = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandleMinXEmu")!.AsObject();
+        Assert.Equal(120_000, minX["value"]!.GetValue<long>());
+
+        minX["value"] = 180_000;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("minX=\"180000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("maxX=\"r\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefX=\"adjX\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefY=\"adjY\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"hc\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("y=\"vc\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-min-x-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.Equal(180_000, editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandleMinXEmu")!["value"]!.GetValue<long>());
+
+        minX["value"] = 120_000;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("minX=\"120000\"", xml, StringComparison.Ordinal);
+            return xml.Replace("minX=\"120000\"", "minX=\"130000\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        minX["value"] = (long)shape.WidthEmu + 1;
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryAdjustmentHandleMaxXLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjX", Formula = "val 250000" });
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjY", Formula = "val 50000" });
+        shape.CustomAdjustmentHandles.Add(new PresentationCustomGeometryAdjustmentHandle
+        {
+            Xy = new PresentationCustomGeometryXyAdjustmentHandle
+            {
+                XAdjustment = "adjX",
+                MinXReference = "l",
+                MaxX = 380_000,
+                YAdjustment = "adjY",
+                MinYReference = "t",
+                MaxYReference = "b",
+                Position = new PresentationCustomGeometryPoint { XReference = "hc", YReference = "vc" },
+            },
+        });
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = shape.WidthEmu,
+            Height = shape.HeightEmu,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { XReference = "l", YReference = "t" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { XReference = "r", YReference = "b" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-max-x.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var maxX = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandleMaxXEmu")!.AsObject();
+        Assert.Equal(380_000, maxX["value"]!.GetValue<long>());
+
+        maxX["value"] = 420_000;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("maxX=\"420000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("minX=\"l\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefX=\"adjX\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefY=\"adjY\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"hc\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("y=\"vc\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-max-x-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.Equal(420_000, editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandleMaxXEmu")!["value"]!.GetValue<long>());
+
+        maxX["value"] = 380_000;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("maxX=\"380000\"", xml, StringComparison.Ordinal);
+            return xml.Replace("maxX=\"380000\"", "maxX=\"390000\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        maxX["value"] = (long)shape.WidthEmu + 1;
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryAdjustmentHandleMinYLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjX", Formula = "val 250000" });
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjY", Formula = "val 50000" });
+        shape.CustomAdjustmentHandles.Add(new PresentationCustomGeometryAdjustmentHandle
+        {
+            Xy = new PresentationCustomGeometryXyAdjustmentHandle
+            {
+                XAdjustment = "adjX",
+                MinXReference = "l",
+                MaxXReference = "r",
+                YAdjustment = "adjY",
+                MinY = 20_000,
+                MaxYReference = "b",
+                Position = new PresentationCustomGeometryPoint { XReference = "hc", YReference = "vc" },
+            },
+        });
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = shape.WidthEmu,
+            Height = shape.HeightEmu,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { XReference = "l", YReference = "t" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { XReference = "r", YReference = "b" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-min-y.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var minY = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandleMinYEmu")!.AsObject();
+        Assert.Equal(20_000, minY["value"]!.GetValue<long>());
+
+        minY["value"] = 40_000;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("minY=\"40000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("maxY=\"b\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("minX=\"l\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("maxX=\"r\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefX=\"adjX\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefY=\"adjY\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"hc\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("y=\"vc\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-min-y-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.Equal(40_000, editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandleMinYEmu")!["value"]!.GetValue<long>());
+
+        minY["value"] = 20_000;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("minY=\"20000\"", xml, StringComparison.Ordinal);
+            return xml.Replace("minY=\"20000\"", "minY=\"30000\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        minY["value"] = (long)shape.HeightEmu + 1;
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryAdjustmentHandleMaxYLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjX", Formula = "val 250000" });
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjY", Formula = "val 50000" });
+        shape.CustomAdjustmentHandles.Add(new PresentationCustomGeometryAdjustmentHandle
+        {
+            Xy = new PresentationCustomGeometryXyAdjustmentHandle
+            {
+                XAdjustment = "adjX",
+                MinXReference = "l",
+                MaxXReference = "r",
+                YAdjustment = "adjY",
+                MinYReference = "t",
+                MaxY = 140_000,
+                Position = new PresentationCustomGeometryPoint { XReference = "hc", YReference = "vc" },
+            },
+        });
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = shape.WidthEmu,
+            Height = shape.HeightEmu,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { XReference = "l", YReference = "t" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { XReference = "r", YReference = "b" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-max-y.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var maxY = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandleMaxYEmu")!.AsObject();
+        Assert.Equal(140_000, maxY["value"]!.GetValue<long>());
+
+        maxY["value"] = 180_000;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("maxY=\"180000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("minY=\"t\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("minX=\"l\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("maxX=\"r\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefX=\"adjX\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefY=\"adjY\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"hc\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("y=\"vc\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-max-y-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.Equal(180_000, editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandleMaxYEmu")!["value"]!.GetValue<long>());
+
+        maxY["value"] = 140_000;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("maxY=\"140000\"", xml, StringComparison.Ordinal);
+            return xml.Replace("maxY=\"140000\"", "maxY=\"150000\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        maxY["value"] = (long)shape.HeightEmu + 1;
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryAdjustmentHandlePolarMinRadiusLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjRadius", Formula = "val 250000" });
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjAngle", Formula = "val 0" });
+        shape.CustomAdjustmentHandles.Add(new PresentationCustomGeometryAdjustmentHandle
+        {
+            Polar = new PresentationCustomGeometryPolarAdjustmentHandle
+            {
+                RadialAdjustment = "adjRadius",
+                MinRadius = 100_000,
+                MaxRadiusReference = "ss",
+                AngleAdjustment = "adjAngle",
+                Position = new PresentationCustomGeometryPoint { XReference = "r", YReference = "vc" },
+            },
+        });
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = shape.WidthEmu,
+            Height = shape.HeightEmu,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { XReference = "l", YReference = "t" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { XReference = "r", YReference = "b" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-polar-min-radius.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var minRadius = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandlePolarMinRadiusEmu")!.AsObject();
+        Assert.Equal(100_000, minRadius["value"]!.GetValue<long>());
+
+        minRadius["value"] = 150_000;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("minR=\"150000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("maxR=\"ss\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefR=\"adjRadius\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefAng=\"adjAngle\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"r\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("y=\"vc\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-polar-min-radius-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.Equal(150_000, editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandlePolarMinRadiusEmu")!["value"]!.GetValue<long>());
+
+        minRadius["value"] = 100_000;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("minR=\"100000\"", xml, StringComparison.Ordinal);
+            return xml.Replace("minR=\"100000\"", "minR=\"110000\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        minRadius["value"] = -1;
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryAdjustmentHandlePolarMaxRadiusLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjRadius", Formula = "val 250000" });
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjAngle", Formula = "val 0" });
+        shape.CustomAdjustmentHandles.Add(new PresentationCustomGeometryAdjustmentHandle
+        {
+            Polar = new PresentationCustomGeometryPolarAdjustmentHandle
+            {
+                RadialAdjustment = "adjRadius",
+                MinRadiusReference = "l",
+                MaxRadius = 600_000,
+                AngleAdjustment = "adjAngle",
+                Position = new PresentationCustomGeometryPoint { XReference = "r", YReference = "vc" },
+            },
+        });
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = shape.WidthEmu,
+            Height = shape.HeightEmu,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { XReference = "l", YReference = "t" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { XReference = "r", YReference = "b" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-polar-max-radius.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var maxRadius = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandlePolarMaxRadiusEmu")!.AsObject();
+        Assert.Equal(600_000, maxRadius["value"]!.GetValue<long>());
+
+        maxRadius["value"] = 700_000;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("maxR=\"700000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("minR=\"l\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefR=\"adjRadius\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefAng=\"adjAngle\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"r\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("y=\"vc\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-polar-max-radius-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.Equal(700_000, editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandlePolarMaxRadiusEmu")!["value"]!.GetValue<long>());
+
+        maxRadius["value"] = 600_000;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("maxR=\"600000\"", xml, StringComparison.Ordinal);
+            return xml.Replace("maxR=\"600000\"", "maxR=\"650000\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        maxRadius["value"] = -1;
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryAdjustmentHandlePolarYLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjRadius", Formula = "val 250000" });
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjAngle", Formula = "val 0" });
+        shape.CustomAdjustmentHandles.Add(new PresentationCustomGeometryAdjustmentHandle
+        {
+            Polar = new PresentationCustomGeometryPolarAdjustmentHandle
+            {
+                RadialAdjustment = "adjRadius",
+                MinRadiusReference = "l",
+                MaxRadiusReference = "ss",
+                AngleAdjustment = "adjAngle",
+                MinAngleReference = "t",
+                MaxAngleReference = "cd2",
+                Position = new PresentationCustomGeometryPoint { XReference = "r", Y = 420_000 },
+            },
+        });
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = shape.WidthEmu,
+            Height = shape.HeightEmu,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { XReference = "l", YReference = "t" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { XReference = "r", YReference = "b" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-polar-y.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var yLeaf = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandlePolarYEmu")!.AsObject();
+        Assert.Equal(420_000, yLeaf["value"]!.GetValue<long>());
+
+        yLeaf["value"] = 520_000;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("x=\"r\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("y=\"520000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefR=\"adjRadius\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefAng=\"adjAngle\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("minR=\"l\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("maxR=\"ss\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("minAng=\"t\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("maxAng=\"cd2\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-polar-y-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.Equal(520_000, editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandlePolarYEmu")!["value"]!.GetValue<long>());
+
+        yLeaf["value"] = 420_000;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("y=\"420000\"", xml, StringComparison.Ordinal);
+            return xml.Replace("y=\"420000\"", "y=\"450000\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        yLeaf["value"] = (long)shape.HeightEmu + 1;
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryPathWidthLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = 1_000,
+            Height = 1_000,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { X = 100, Y = 100 },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { X = 900, Y = 100 },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { X = 500, Y = 900 },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-path-width.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var widthLeaf = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryPathWidth")!.AsObject();
+        Assert.Equal(1_000, widthLeaf["value"]!.GetValue<long>());
+
+        widthLeaf["value"] = 1_200;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("w=\"1200\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("h=\"1000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("fill=\"norm\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"100\" y=\"100\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"900\" y=\"100\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"500\" y=\"900\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-path-width-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.Equal(1_200, editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryPathWidth")!["value"]!.GetValue<long>());
+
+        widthLeaf["value"] = 1_000;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("w=\"1000\"", xml, StringComparison.Ordinal);
+            return xml.Replace("w=\"1000\"", "w=\"1100\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        widthLeaf["value"] = 0;
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+
+        var omittedSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("w=\"1000\"", xml, StringComparison.Ordinal);
+            return xml.Replace("w=\"1000\" ", string.Empty, StringComparison.Ordinal);
+        });
+        var omittedProjected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(omittedSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-path-width-omitted.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(omittedProjected.Ok, Diagnostics(omittedProjected));
+        var omittedProgram = JsonNode.Parse(omittedProjected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var omittedElement = omittedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.DoesNotContain(omittedElement["nativeRef"]!["leaves"]!.AsArray(),
+            leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryPathWidth");
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryPathHeightLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = 1_000,
+            Height = 1_000,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { X = 100, Y = 100 },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { X = 900, Y = 100 },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { X = 500, Y = 900 },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-path-height.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var heightLeaf = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryPathHeight")!.AsObject();
+        Assert.Equal(1_000, heightLeaf["value"]!.GetValue<long>());
+
+        heightLeaf["value"] = 1_200;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("w=\"1000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("h=\"1200\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("fill=\"norm\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"100\" y=\"100\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"900\" y=\"100\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"500\" y=\"900\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-path-height-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.Equal(1_200, editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryPathHeight")!["value"]!.GetValue<long>());
+
+        heightLeaf["value"] = 1_000;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("h=\"1000\"", xml, StringComparison.Ordinal);
+            return xml.Replace("h=\"1000\"", "h=\"1100\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        heightLeaf["value"] = 0;
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+
+        var omittedSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("h=\"1000\"", xml, StringComparison.Ordinal);
+            return xml.Replace("h=\"1000\" ", string.Empty, StringComparison.Ordinal);
+        });
+        var omittedProjected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(omittedSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-path-height-omitted.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(omittedProjected.Ok, Diagnostics(omittedProjected));
+        var omittedProgram = JsonNode.Parse(omittedProjected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var omittedElement = omittedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.DoesNotContain(omittedElement["nativeRef"]!["leaves"]!.AsArray(),
+            leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryPathHeight");
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryPathExtrusionAllowedLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = 1_000,
+            Height = 1_000,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+            Stroke = true,
+            ExtrusionAllowed = true,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { X = 100, Y = 100 },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { X = 900, Y = 100 },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { X = 500, Y = 900 },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-path-extrusion.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var extrusionLeaf = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryPathExtrusionAllowed")!.AsObject();
+        Assert.True(extrusionLeaf["value"]!.GetValue<bool>());
+
+        extrusionLeaf["value"] = false;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("w=\"1000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("h=\"1000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("fill=\"norm\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("stroke=\"1\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("extrusionOk=\"0\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"100\" y=\"100\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"900\" y=\"100\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"500\" y=\"900\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-path-extrusion-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.False(editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryPathExtrusionAllowed")!["value"]!.GetValue<bool>());
+
+        extrusionLeaf["value"] = true;
+        var unchanged = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(unchanged.Ok, Diagnostics(unchanged));
+        Assert.Empty(unchanged.PresentationProgram.ChangedParts);
+        Assert.Equal(source, unchanged.File.ToByteArray());
+
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("extrusionOk=\"1\"", xml, StringComparison.Ordinal);
+            return xml.Replace("extrusionOk=\"1\"", "extrusionOk=\"0\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        extrusionLeaf["value"] = "unexpected";
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+
+        var omittedSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("extrusionOk=\"1\"", xml, StringComparison.Ordinal);
+            return xml.Replace(" extrusionOk=\"1\"", string.Empty, StringComparison.Ordinal);
+        });
+        var omittedProjected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(omittedSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-path-extrusion-omitted.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(omittedProjected.Ok, Diagnostics(omittedProjected));
+        var omittedProgram = JsonNode.Parse(omittedProjected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var omittedElement = omittedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.DoesNotContain(omittedElement["nativeRef"]!["leaves"]!.AsArray(),
+            leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryPathExtrusionAllowed");
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryPathStrokeLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = 1_000,
+            Height = 1_000,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+            Stroke = true,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { X = 100, Y = 100 },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { X = 900, Y = 100 },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { X = 500, Y = 900 },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-path-stroke.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var strokeLeaf = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryPathStroke")!.AsObject();
+        Assert.True(strokeLeaf["value"]!.GetValue<bool>());
+
+        strokeLeaf["value"] = false;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("w=\"1000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("h=\"1000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("fill=\"norm\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("stroke=\"0\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"100\" y=\"100\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"900\" y=\"100\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"500\" y=\"900\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-path-stroke-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.False(editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryPathStroke")!["value"]!.GetValue<bool>());
+
+        strokeLeaf["value"] = true;
+        var unchanged = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(unchanged.Ok, Diagnostics(unchanged));
+        Assert.Empty(unchanged.PresentationProgram.ChangedParts);
+        Assert.Equal(source, unchanged.File.ToByteArray());
+
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("stroke=\"1\"", xml, StringComparison.Ordinal);
+            return xml.Replace("stroke=\"1\"", "stroke=\"0\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        strokeLeaf["value"] = "unexpected";
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+
+        var omittedSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("stroke=\"1\"", xml, StringComparison.Ordinal);
+            return xml.Replace(" stroke=\"1\"", string.Empty, StringComparison.Ordinal);
+        });
+        var omittedProjected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(omittedSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-path-stroke-omitted.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(omittedProjected.Ok, Diagnostics(omittedProjected));
+        var omittedProgram = JsonNode.Parse(omittedProjected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var omittedElement = omittedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.DoesNotContain(omittedElement["nativeRef"]!["leaves"]!.AsArray(),
+            leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryPathStroke");
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryPathFillLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = 1_000,
+            Height = 1_000,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { X = 100, Y = 100 },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { X = 900, Y = 100 },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { X = 500, Y = 900 },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-path-fill.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var fillLeaf = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryPathFill")!.AsObject();
+        Assert.True(fillLeaf["value"]!.GetValue<bool>());
+
+        fillLeaf["value"] = false;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("w=\"1000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("h=\"1000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("fill=\"none\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"100\" y=\"100\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"900\" y=\"100\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"500\" y=\"900\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-path-fill-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.False(editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryPathFill")!["value"]!.GetValue<bool>());
+
+        fillLeaf["value"] = true;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("fill=\"norm\"", xml, StringComparison.Ordinal);
+            return xml.Replace("fill=\"norm\"", "fill=\"none\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        fillLeaf["value"] = "unexpected";
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+
+        var omittedSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("fill=\"norm\"", xml, StringComparison.Ordinal);
+            return xml.Replace(" fill=\"norm\"", string.Empty, StringComparison.Ordinal);
+        });
+        var omittedProjected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(omittedSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-path-fill-omitted.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(omittedProjected.Ok, Diagnostics(omittedProjected));
+        var omittedProgram = JsonNode.Parse(omittedProjected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var omittedElement = omittedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.DoesNotContain(omittedElement["nativeRef"]!["leaves"]!.AsArray(),
+            leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryPathFill");
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryTextRectangleLeftLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        shape.TextRectangle = new PresentationCustomGeometryTextRectangle
+        {
+            LeftEmu = 300_000,
+            TopEmu = 200_000,
+            RightEmu = 800_000,
+            BottomEmu = 600_000,
+        };
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = shape.WidthEmu,
+            Height = shape.HeightEmu,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { XReference = "l", YReference = "t" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { XReference = "r", YReference = "b" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-text-rectangle-left.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var leftLeaf = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryTextRectangleLeftEmu")!.AsObject();
+        Assert.Equal(300_000, leftLeaf["value"]!.GetValue<long>());
+
+        leftLeaf["value"] = 420_000;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("l=\"officeKitTextLeft\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains($"name=\"officeKitTextLeft\" fmla=\"*/ 420000 w {shape.WidthEmu}\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains($"name=\"officeKitTextTop\" fmla=\"*/ 200000 h {shape.HeightEmu}\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains($"name=\"officeKitTextRight\" fmla=\"*/ 800000 w {shape.WidthEmu}\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains($"name=\"officeKitTextBottom\" fmla=\"*/ 600000 h {shape.HeightEmu}\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-text-rectangle-left-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.Equal(420_000, editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryTextRectangleLeftEmu")!["value"]!.GetValue<long>());
+
+        leftLeaf["value"] = 300_000;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            var expected = $"name=\"officeKitTextLeft\" fmla=\"*/ 300000 w {shape.WidthEmu}\"";
+            Assert.Contains(expected, xml, StringComparison.Ordinal);
+            return xml.Replace(expected, $"name=\"officeKitTextLeft\" fmla=\"*/ 330000 w {shape.WidthEmu}\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        leftLeaf["value"] = 800_000;
+        var unordered = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(unordered.Ok);
+        Assert.NotEmpty(unordered.Diagnostics);
+
+        leftLeaf["value"] = (long)shape.WidthEmu + 1;
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+
+        var directSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("l=\"officeKitTextLeft\"", xml, StringComparison.Ordinal);
+            return xml.Replace("l=\"officeKitTextLeft\"", "l=\"300000\"", StringComparison.Ordinal);
+        });
+        var directProjected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(directSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-text-rectangle-left-direct.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(directProjected.Ok, Diagnostics(directProjected));
+        var directProgram = JsonNode.Parse(directProjected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var directElement = directProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var directLeaf = directElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryTextRectangleLeftEmu")!.AsObject();
+        Assert.Equal(300_000, directLeaf["value"]!.GetValue<long>());
+        directLeaf["value"] = 420_000;
+        var directEdited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(directSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(directProgram.ToJsonString()),
+            },
+        });
+        Assert.True(directEdited.Ok, Diagnostics(directEdited));
+        var directEditedXml = Encoding.UTF8.GetString(ZipBytes(directEdited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("l=\"420000\"", directEditedXml, StringComparison.Ordinal);
+        Assert.Contains($"name=\"officeKitTextLeft\" fmla=\"*/ 300000 w {shape.WidthEmu}\"", directEditedXml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryTextRectangleTopLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        shape.TextRectangle = new PresentationCustomGeometryTextRectangle
+        {
+            LeftEmu = 300_000,
+            TopEmu = 200_000,
+            RightEmu = 800_000,
+            BottomEmu = 600_000,
+        };
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = shape.WidthEmu,
+            Height = shape.HeightEmu,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { XReference = "l", YReference = "t" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { XReference = "r", YReference = "b" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-text-rectangle-top.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var topLeaf = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryTextRectangleTopEmu")!.AsObject();
+        Assert.Equal(200_000, topLeaf["value"]!.GetValue<long>());
+
+        topLeaf["value"] = 260_000;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("t=\"officeKitTextTop\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains($"name=\"officeKitTextTop\" fmla=\"*/ 260000 h {shape.HeightEmu}\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains($"name=\"officeKitTextLeft\" fmla=\"*/ 300000 w {shape.WidthEmu}\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains($"name=\"officeKitTextRight\" fmla=\"*/ 800000 w {shape.WidthEmu}\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains($"name=\"officeKitTextBottom\" fmla=\"*/ 600000 h {shape.HeightEmu}\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-text-rectangle-top-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.Equal(260_000, editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryTextRectangleTopEmu")!["value"]!.GetValue<long>());
+
+        topLeaf["value"] = 200_000;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            var expected = $"name=\"officeKitTextTop\" fmla=\"*/ 200000 h {shape.HeightEmu}\"";
+            Assert.Contains(expected, xml, StringComparison.Ordinal);
+            return xml.Replace(expected, $"name=\"officeKitTextTop\" fmla=\"*/ 230000 h {shape.HeightEmu}\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        topLeaf["value"] = 600_000;
+        var unordered = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(unordered.Ok);
+        Assert.NotEmpty(unordered.Diagnostics);
+
+        topLeaf["value"] = (long)shape.HeightEmu + 1;
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+
+        var directSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("t=\"officeKitTextTop\"", xml, StringComparison.Ordinal);
+            return xml.Replace("t=\"officeKitTextTop\"", "t=\"200000\"", StringComparison.Ordinal);
+        });
+        var directProjected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(directSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-text-rectangle-top-direct.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(directProjected.Ok, Diagnostics(directProjected));
+        var directProgram = JsonNode.Parse(directProjected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var directElement = directProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var directLeaf = directElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryTextRectangleTopEmu")!.AsObject();
+        Assert.Equal(200_000, directLeaf["value"]!.GetValue<long>());
+        directLeaf["value"] = 260_000;
+        var directEdited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(directSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(directProgram.ToJsonString()),
+            },
+        });
+        Assert.True(directEdited.Ok, Diagnostics(directEdited));
+        var directEditedXml = Encoding.UTF8.GetString(ZipBytes(directEdited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("t=\"260000\"", directEditedXml, StringComparison.Ordinal);
+        Assert.Contains($"name=\"officeKitTextTop\" fmla=\"*/ 200000 h {shape.HeightEmu}\"", directEditedXml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryTextRectangleRightLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        shape.TextRectangle = new PresentationCustomGeometryTextRectangle
+        {
+            LeftEmu = 300_000,
+            TopEmu = 200_000,
+            RightEmu = 800_000,
+            BottomEmu = 600_000,
+        };
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = shape.WidthEmu,
+            Height = shape.HeightEmu,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { XReference = "l", YReference = "t" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { XReference = "r", YReference = "b" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-text-rectangle-right.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var rightLeaf = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryTextRectangleRightEmu")!.AsObject();
+        Assert.Equal(800_000, rightLeaf["value"]!.GetValue<long>());
+
+        rightLeaf["value"] = 900_000;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("r=\"officeKitTextRight\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains($"name=\"officeKitTextRight\" fmla=\"*/ 900000 w {shape.WidthEmu}\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains($"name=\"officeKitTextLeft\" fmla=\"*/ 300000 w {shape.WidthEmu}\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains($"name=\"officeKitTextTop\" fmla=\"*/ 200000 h {shape.HeightEmu}\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains($"name=\"officeKitTextBottom\" fmla=\"*/ 600000 h {shape.HeightEmu}\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-text-rectangle-right-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.Equal(900_000, editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryTextRectangleRightEmu")!["value"]!.GetValue<long>());
+
+        rightLeaf["value"] = 800_000;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            var expected = $"name=\"officeKitTextRight\" fmla=\"*/ 800000 w {shape.WidthEmu}\"";
+            Assert.Contains(expected, xml, StringComparison.Ordinal);
+            return xml.Replace(expected, $"name=\"officeKitTextRight\" fmla=\"*/ 850000 w {shape.WidthEmu}\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        rightLeaf["value"] = 300_000;
+        var unordered = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(unordered.Ok);
+        Assert.NotEmpty(unordered.Diagnostics);
+
+        rightLeaf["value"] = (long)shape.WidthEmu + 1;
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+
+        var directSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("r=\"officeKitTextRight\"", xml, StringComparison.Ordinal);
+            return xml.Replace("r=\"officeKitTextRight\"", "r=\"800000\"", StringComparison.Ordinal);
+        });
+        var directProjected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(directSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-text-rectangle-right-direct.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(directProjected.Ok, Diagnostics(directProjected));
+        var directProgram = JsonNode.Parse(directProjected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var directElement = directProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var directLeaf = directElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryTextRectangleRightEmu")!.AsObject();
+        Assert.Equal(800_000, directLeaf["value"]!.GetValue<long>());
+        directLeaf["value"] = 900_000;
+        var directEdited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(directSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(directProgram.ToJsonString()),
+            },
+        });
+        Assert.True(directEdited.Ok, Diagnostics(directEdited));
+        var directEditedXml = Encoding.UTF8.GetString(ZipBytes(directEdited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("r=\"900000\"", directEditedXml, StringComparison.Ordinal);
+        Assert.Contains($"name=\"officeKitTextRight\" fmla=\"*/ 800000 w {shape.WidthEmu}\"", directEditedXml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryTextRectangleBottomLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        shape.TextRectangle = new PresentationCustomGeometryTextRectangle
+        {
+            LeftEmu = 300_000,
+            TopEmu = 200_000,
+            RightEmu = 800_000,
+            BottomEmu = 600_000,
+        };
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = shape.WidthEmu,
+            Height = shape.HeightEmu,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { XReference = "l", YReference = "t" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { XReference = "r", YReference = "b" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-text-rectangle-bottom.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var bottomLeaf = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryTextRectangleBottomEmu")!.AsObject();
+        Assert.Equal(600_000, bottomLeaf["value"]!.GetValue<long>());
+
+        bottomLeaf["value"] = 650_000;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("b=\"officeKitTextBottom\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains($"name=\"officeKitTextBottom\" fmla=\"*/ 650000 h {shape.HeightEmu}\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains($"name=\"officeKitTextLeft\" fmla=\"*/ 300000 w {shape.WidthEmu}\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains($"name=\"officeKitTextTop\" fmla=\"*/ 200000 h {shape.HeightEmu}\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains($"name=\"officeKitTextRight\" fmla=\"*/ 800000 w {shape.WidthEmu}\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-text-rectangle-bottom-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.Equal(650_000, editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryTextRectangleBottomEmu")!["value"]!.GetValue<long>());
+
+        bottomLeaf["value"] = 600_000;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            var expected = $"name=\"officeKitTextBottom\" fmla=\"*/ 600000 h {shape.HeightEmu}\"";
+            Assert.Contains(expected, xml, StringComparison.Ordinal);
+            return xml.Replace(expected, $"name=\"officeKitTextBottom\" fmla=\"*/ 650000 h {shape.HeightEmu}\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        bottomLeaf["value"] = 200_000;
+        var unordered = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(unordered.Ok);
+        Assert.NotEmpty(unordered.Diagnostics);
+
+        bottomLeaf["value"] = (long)shape.HeightEmu + 1;
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+
+        var directSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("b=\"officeKitTextBottom\"", xml, StringComparison.Ordinal);
+            return xml.Replace("b=\"officeKitTextBottom\"", "b=\"600000\"", StringComparison.Ordinal);
+        });
+        var directProjected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(directSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-text-rectangle-bottom-direct.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(directProjected.Ok, Diagnostics(directProjected));
+        var directProgram = JsonNode.Parse(directProjected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var directElement = directProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var directLeaf = directElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryTextRectangleBottomEmu")!.AsObject();
+        Assert.Equal(600_000, directLeaf["value"]!.GetValue<long>());
+        directLeaf["value"] = 650_000;
+        var directEdited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(directSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(directProgram.ToJsonString()),
+            },
+        });
+        Assert.True(directEdited.Ok, Diagnostics(directEdited));
+        var directEditedXml = Encoding.UTF8.GetString(ZipBytes(directEdited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("b=\"650000\"", directEditedXml, StringComparison.Ordinal);
+        Assert.Contains($"name=\"officeKitTextBottom\" fmla=\"*/ 600000 h {shape.HeightEmu}\"", directEditedXml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryAdjustmentHandlePolarXLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjRadius", Formula = "val 250000" });
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjAngle", Formula = "val 0" });
+        shape.CustomAdjustmentHandles.Add(new PresentationCustomGeometryAdjustmentHandle
+        {
+            Polar = new PresentationCustomGeometryPolarAdjustmentHandle
+            {
+                RadialAdjustment = "adjRadius",
+                MinRadiusReference = "l",
+                MaxRadiusReference = "ss",
+                AngleAdjustment = "adjAngle",
+                MinAngleReference = "t",
+                MaxAngleReference = "cd2",
+                Position = new PresentationCustomGeometryPoint { X = 300_000, YReference = "vc" },
+            },
+        });
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = shape.WidthEmu,
+            Height = shape.HeightEmu,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { XReference = "l", YReference = "t" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { XReference = "r", YReference = "b" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-polar-x.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var xLeaf = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandlePolarXEmu")!.AsObject();
+        Assert.Equal(300_000, xLeaf["value"]!.GetValue<long>());
+
+        xLeaf["value"] = 420_000;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("x=\"420000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("y=\"vc\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefR=\"adjRadius\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefAng=\"adjAngle\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("minR=\"l\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("maxR=\"ss\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("minAng=\"t\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("maxAng=\"cd2\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-polar-x-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.Equal(420_000, editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandlePolarXEmu")!["value"]!.GetValue<long>());
+
+        xLeaf["value"] = 300_000;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("x=\"300000\"", xml, StringComparison.Ordinal);
+            return xml.Replace("x=\"300000\"", "x=\"330000\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        xLeaf["value"] = (long)shape.WidthEmu + 1;
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryAdjustmentHandlePolarMaxAngleLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjRadius", Formula = "val 250000" });
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjAngle", Formula = "val 0" });
+        shape.CustomAdjustmentHandles.Add(new PresentationCustomGeometryAdjustmentHandle
+        {
+            Polar = new PresentationCustomGeometryPolarAdjustmentHandle
+            {
+                RadialAdjustment = "adjRadius",
+                MinRadiusReference = "l",
+                MaxRadiusReference = "ss",
+                AngleAdjustment = "adjAngle",
+                MinAngleReference = "t",
+                MaxAngle60000 = 1_800_000,
+                Position = new PresentationCustomGeometryPoint { XReference = "r", YReference = "vc" },
+            },
+        });
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = shape.WidthEmu,
+            Height = shape.HeightEmu,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { XReference = "l", YReference = "t" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { XReference = "r", YReference = "b" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-polar-max-angle.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var maxAngle = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandlePolarMaxAngle60000")!.AsObject();
+        Assert.Equal(1_800_000, maxAngle["value"]!.GetValue<long>());
+
+        maxAngle["value"] = 1_200_000;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("minAng=\"t\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("maxAng=\"1200000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("minR=\"l\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("maxR=\"ss\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefR=\"adjRadius\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefAng=\"adjAngle\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"r\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("y=\"vc\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-polar-max-angle-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.Equal(1_200_000, editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandlePolarMaxAngle60000")!["value"]!.GetValue<long>());
+
+        maxAngle["value"] = 1_800_000;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("maxAng=\"1800000\"", xml, StringComparison.Ordinal);
+            return xml.Replace("maxAng=\"1800000\"", "maxAng=\"1500000\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        maxAngle["value"] = 21_600_001;
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryAdjustmentHandlePolarMinAngleLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjRadius", Formula = "val 250000" });
+        shape.CustomAdjustments.Add(new PresentationCustomGeometryGuide { Name = "adjAngle", Formula = "val 0" });
+        shape.CustomAdjustmentHandles.Add(new PresentationCustomGeometryAdjustmentHandle
+        {
+            Polar = new PresentationCustomGeometryPolarAdjustmentHandle
+            {
+                RadialAdjustment = "adjRadius",
+                MinRadiusReference = "l",
+                MaxRadiusReference = "ss",
+                AngleAdjustment = "adjAngle",
+                MinAngle60000 = -1_800_000,
+                MaxAngleReference = "cd2",
+                Position = new PresentationCustomGeometryPoint { XReference = "r", YReference = "vc" },
+            },
+        });
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = shape.WidthEmu,
+            Height = shape.HeightEmu,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { XReference = "l", YReference = "t" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { XReference = "r", YReference = "b" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-polar-min-angle.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var minAngle = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandlePolarMinAngle60000")!.AsObject();
+        Assert.Equal(-1_800_000, minAngle["value"]!.GetValue<long>());
+
+        minAngle["value"] = -1_200_000;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("minAng=\"-1200000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("maxAng=\"cd2\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("minR=\"l\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("maxR=\"ss\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefR=\"adjRadius\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("gdRefAng=\"adjAngle\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"r\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("y=\"vc\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-handle-polar-min-angle-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.Equal(-1_200_000, editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryAdjustmentHandlePolarMinAngle60000")!["value"]!.GetValue<long>());
+
+        minAngle["value"] = -1_800_000;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("minAng=\"-1800000\"", xml, StringComparison.Ordinal);
+            return xml.Replace("minAng=\"-1800000\"", "minAng=\"-1500000\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        minAngle["value"] = 21_600_001;
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryConnectionSiteXLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = shape.WidthEmu,
+            Height = shape.HeightEmu,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { XReference = "l", YReference = "t" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { XReference = "r", YReference = "b" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+        shape.CustomConnectionSites.Add(new PresentationCustomGeometryConnectionSite
+        {
+            AngleReference = "cd2",
+            XEmu = 120_000,
+            YReference = "vc",
+        });
+        shape.CustomConnectionSites.Add(new PresentationCustomGeometryConnectionSite
+        {
+            AngleReference = "cd4",
+            XReference = "r",
+            YReference = "vc",
+        });
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-connection-x.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var xLeaf = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryConnectionSiteXEmu")!.AsObject();
+        Assert.Equal(120_000, xLeaf["value"]!.GetValue<long>());
+        Assert.Equal(1, leaves.Count(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryConnectionSiteXEmu"));
+
+        xLeaf["value"] = 180_000;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("x=\"180000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"r\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("y=\"vc\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("ang=\"cd2\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("ang=\"cd4\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-connection-x-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.Equal(180_000, editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryConnectionSiteXEmu")!["value"]!.GetValue<long>());
+
+        xLeaf["value"] = 120_000;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("x=\"120000\"", xml, StringComparison.Ordinal);
+            return xml.Replace("x=\"120000\"", "x=\"130000\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        xLeaf["value"] = (long)shape.WidthEmu + 1;
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryConnectionSiteYLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = shape.WidthEmu,
+            Height = shape.HeightEmu,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { XReference = "l", YReference = "t" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { XReference = "r", YReference = "b" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+        shape.CustomConnectionSites.Add(new PresentationCustomGeometryConnectionSite
+        {
+            AngleReference = "cd2",
+            XReference = "l",
+            YEmu = 240_000,
+        });
+        shape.CustomConnectionSites.Add(new PresentationCustomGeometryConnectionSite
+        {
+            AngleReference = "cd4",
+            XReference = "r",
+            YReference = "b",
+        });
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-connection-y.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var yLeaf = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryConnectionSiteYEmu")!.AsObject();
+        Assert.Equal(240_000, yLeaf["value"]!.GetValue<long>());
+        Assert.Equal(1, leaves.Count(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryConnectionSiteYEmu"));
+
+        yLeaf["value"] = 360_000;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("y=\"360000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("y=\"b\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"l\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"r\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("ang=\"cd2\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("ang=\"cd4\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-connection-y-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.Equal(360_000, editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryConnectionSiteYEmu")!["value"]!.GetValue<long>());
+
+        yLeaf["value"] = 240_000;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("y=\"240000\"", xml, StringComparison.Ordinal);
+            return xml.Replace("y=\"240000\"", "y=\"250000\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        yLeaf["value"] = (long)shape.HeightEmu + 1;
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+    }
+
+    [Fact]
+    public void PpjSourceBoundLiteralCustomGeometryConnectionSiteAngleLeafEditsAndReprojects()
+    {
+        var authoredRequest = ExportRequest();
+        var shape = authoredRequest.Artifact!.Presentation!.Slides[0].Elements[0].Shape;
+        shape.Geometry = "custom";
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = shape.WidthEmu,
+            Height = shape.HeightEmu,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { XReference = "l", YReference = "t" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { XReference = "r", YReference = "b" },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        shape.CustomPaths.Add(path);
+        shape.CustomConnectionSites.Add(new PresentationCustomGeometryConnectionSite
+        {
+            Angle60000 = 5_400_000,
+            XReference = "l",
+            YReference = "vc",
+        });
+        shape.CustomConnectionSites.Add(new PresentationCustomGeometryConnectionSite
+        {
+            AngleReference = "cd2",
+            XReference = "r",
+            YReference = "vc",
+        });
+        var authored = Invoke(authoredRequest);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-connection-angle.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var program = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var element = program["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        var leaves = element["nativeRef"]!["leaves"]!.AsArray();
+        var angle = leaves.Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryConnectionSiteAngle60000")!.AsObject();
+        Assert.Equal(5_400_000, angle["value"]!.GetValue<long>());
+
+        angle["value"] = 10_800_000;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("ang=\"10800000\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("x=\"l\" y=\"vc\"", editedXml, StringComparison.Ordinal);
+        Assert.Contains("ang=\"cd2\"", editedXml, StringComparison.Ordinal);
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-geometry-connection-angle-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var editedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editedElement = editedProgram["pages"]![0]!["elements"]!.AsArray().Single()!.AsObject();
+        Assert.Equal(10_800_000, editedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "customGeometryConnectionSiteAngle60000")!["value"]!.GetValue<long>());
+
+        angle["value"] = 5_400_000;
+        var staleSource = ReplaceZipText(source, "ppt/slides/slide1.xml", xml =>
+        {
+            Assert.Contains("ang=\"5400000\"", xml, StringComparison.Ordinal);
+            return xml.Replace("ang=\"5400000\"", "ang=\"6000000\"", StringComparison.Ordinal);
+        });
+        var stale = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(staleSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(stale.Ok);
+        Assert.NotEmpty(stale.Diagnostics);
+
+        angle["value"] = 21_600_001;
+        var invalid = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.False(invalid.Ok);
+        Assert.NotEmpty(invalid.Diagnostics);
+    }
+
+    [Fact]
     public void PpjSourceBoundPresetGeometryAdjustmentLeafEditsAndReprojects()
     {
         var authoredRequest = ExportRequest();
@@ -4722,6 +8471,7 @@ public sealed partial class PptxCodecTests
             ["endAtMs"] = 400,
             ["loop"] = true,
             ["mute"] = true,
+            ["playback"] = new JsonObject { ["trigger"] = "onSlideStart" },
         });
         authoredProgram["pages"]![1]!["notes"] = new JsonObject
         {
@@ -4891,6 +8641,22 @@ public sealed partial class PptxCodecTests
         Assert.False(invalidTransition.Ok);
         Assert.Contains(invalidTransition.Diagnostics, diagnostic => diagnostic.Code == "ppj.transition.profile");
 
+        var clickProgram = authoredProgram.DeepClone().AsObject();
+        var clickMedia = clickProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "evidence-video");
+        clickMedia.Remove("playback");
+        var clickRequest = request.Clone();
+        clickRequest.PresentationProgram.ProgramJson = ByteString.CopyFromUtf8(clickProgram.ToJsonString());
+        var clickStart = Invoke(clickRequest);
+        Assert.True(clickStart.Ok, Diagnostics(clickStart));
+        using (var stream = new MemoryStream(clickStart.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var clickTiming = package.PresentationPart!.SlideParts.First().Slide!.Timing!.OuterXml;
+            Assert.Contains("delay=\"indefinite\"", clickTiming, StringComparison.Ordinal);
+        }
+
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
         Assert.Equal(44U, first.PresentationProgram.ExpandedElementCount);
@@ -4962,6 +8728,7 @@ public sealed partial class PptxCodecTests
             Assert.Contains("<p:video", mediaTiming, StringComparison.Ordinal);
             Assert.Contains("mute=\"1\"", mediaTiming, StringComparison.Ordinal);
             Assert.Contains("repeatCount=\"indefinite\"", mediaTiming, StringComparison.Ordinal);
+            Assert.Contains("<p:cond delay=\"0\"", mediaTiming, StringComparison.Ordinal);
             Assert.Contains("<p:animEffect", mediaTiming, StringComparison.Ordinal);
             var nativeLockedClaim = mediaSlide.Slide.CommonSlideData.ShapeTree.Elements<P.Shape>()
                 .Single(shape => shape.Descendants<A.Text>().Any(text => text.Text == "Reduce incident hours "));
