@@ -76,6 +76,7 @@ changing one from 30% to -25% changes only `ppt/slides/slide1.xml` and
 recovers the new value after second import. Values outside +/-400%, inherited
 or end-paragraph styles, malformed tokens, and irregular font graphs remain
 source-owned.
+
 Direct character spacing is exposed as `fontSpacingPoints` for canonical signed
 `a:rPr/@spc` tokens. Public values are points while the source-bound operation
 splices signed hundredths-of-a-point tokens and leaves the rest of the run
@@ -147,11 +148,12 @@ subsequent one-slide edit without changing any other SlidePart.
 Source-free PPJ media now owns a bounded native profile: local MP4 video and
 MP3/M4A/WAV audio use an explicit poster, canonical media plus audio/video
 relationships, click-to-play action, bounded leading/trailing trim, loop/mute
-state, and native timing nodes. The comprehensive authored contract combines a
-video with existing object animation, passes the Office 2021 Open XML validator,
-and recovers both media bytes and exact PPJ from the authored PPTX. Arbitrary
-third-party media timing remains opaque-preserved; this is structural package
-evidence, not desktop playback evidence.
+state, authored `playback.trigger` (`onClick`/`onSlideStart`), and native timing
+nodes. The comprehensive authored contract combines a video with existing
+object animation, passes the Office 2021 Open XML validator, and recovers both
+media bytes and exact PPJ from the authored PPTX. Arbitrary third-party media
+timing remains opaque-preserved; this is structural package evidence, not
+desktop playback evidence.
 
 PPJ speaker notes now use the same bounded native profile as the Presentation
 codec. A supported third-party NotesSlide projects as plain text or structured
@@ -373,6 +375,65 @@ the explicit horizontal mode and pass the source-bound vertical-text
 round-trip; missing, inherited, and non-canonical vertical modes remain
 opaque.
 
+Direct canonical `a:bodyPr/@anchorCtr` flags are exposed as
+`textBodyAnchorCenter` and splice only the `0`/`1` token. The focused PPJ
+round-trip authors the flag, removes the embedded PPJ, edits the source-bound
+leaf, preserves the text body and all non-target package parts, and recovers
+the new value on second projection. Missing direct attributes remain opaque.
+
+Direct canonical `a:bodyPr/@forceAA` flags are exposed as
+`textBodyForceAntiAlias` and splice only the `0`/`1` token. The focused PPJ
+round-trip authors the explicit rendering hint, removes the embedded PPJ,
+edits the source-bound leaf, preserves the text body and all non-target
+package parts, and recovers the new value on second projection. This records
+the DrawingML hint without claiming host-specific anti-aliasing output;
+missing direct attributes remain opaque.
+
+Direct canonical `a:bodyPr/@spcFirstLastPara` flags are exposed as
+`textBodySpaceFirstLastParagraph` and splice only the `0`/`1` token. The
+focused PPJ round-trip authors the explicit paragraph-spacing hint, removes
+the embedded PPJ, edits the source-bound leaf, preserves the text body and
+all non-target package parts, and recovers the new value on second projection.
+This records the DrawingML hint without inferring paragraph metrics or text
+reflow; missing direct attributes remain opaque.
+
+Direct canonical `a:bodyPr/@compatLnSpc` flags are exposed as
+`textBodyCompatibleLineSpacing` and splice only the `0`/`1` token. The focused
+PPJ round-trip authors the explicit compatibility hint, removes the embedded
+PPJ, edits the source-bound leaf, preserves the text body and all non-target
+package parts, and recovers the new value on second projection. This records
+the DrawingML hint without claiming host-specific line metrics or text reflow;
+missing direct attributes remain opaque.
+
+Direct canonical `a:bodyPr/@fromWordArt` flags are exposed as
+`textBodyFromWordArt` and splice only the `0`/`1` token. The focused PPJ
+round-trip authors the explicit WordArt marker, removes the embedded PPJ,
+edits the source-bound leaf, preserves the text body and all non-target
+package parts, and recovers the new value on second projection. This records
+the marker without claiming WordArt transforms, effects, or host-equivalent
+rendering; missing direct attributes remain opaque.
+
+The direct `a:prstTxWarp/@prst` preset is exposed as `textBodyWarpPreset` and
+`textBoxStyle.textWarpPreset` for the finite DrawingML text-shape vocabulary.
+When its optional `a:avLst` contains only unique attribute-only
+`a:gd name="..." fmla="val N"` entries, the ordered values are also exposed as
+`textBoxStyle.textWarpAdjustments` and indexed `textBodyWarpAdjustment` leaves.
+The focused PPJ round-trip authors `textArchUp` with an `adj` value, removes
+the embedded PPJ, splices only the selected `val` token to a new integer,
+preserves the text body and all non-target package parts, and recovers the
+new preset/adjustment on second projection. Empty, formula-driven,
+extension-bearing, duplicate-name, and unknown topologies remain
+source-owned.
+
+Direct canonical `a:flatTx/@z` is exposed as `textBodyFlatTextZ` and
+`textBoxStyle.flatTextZ` for a signed value in the bounded 32-bit coordinate
+range. The focused PPJ round-trip authors one `a:flatTx`, removes the embedded
+PPJ, splices only its `z` token to a new coordinate, preserves the text body,
+sibling 3D markup, and all non-target package parts, then recovers the value on
+second projection. Missing, duplicate, extra-attribute, child-bearing,
+noncanonical, and out-of-range `flatTx` shapes remain source-owned; the
+surrounding 3D scene is not modeled.
+
 Direct `a:xfrm/@rot` values are exposed as bounded `rotationDegrees` leaves on
 safe source-bound shapes and pictures. The native edit changes only the
 60000ths-of-a-degree rotation token, preserves the owning shape tree and all
@@ -394,6 +455,13 @@ splices only the alpha token, preserves the fill color and neighboring source
 markup, and survives second import; effect-bearing, theme, multiple-child, and
 otherwise irregular alpha graphs remain opaque.
 
+Direct shape and connector outlines with one solid RGB or theme paint and one
+existing `a:alpha/@val` now expose `lineOpacityThousandthPercent` as an
+independent native leaf. It splices only that alpha token, preserves line
+paint, geometry, endpoint/style attributes, effects, and non-owner parts, and
+survives second projection; missing, transformed, compound, inherited,
+extension-bearing, or otherwise ambiguous line graphs remain source-owned.
+
 Imported ordinary shapes, connector-shaped legacy `p:sp` lines, connectors,
 and group descendants with one explicit preset
 `a:prstDash/@val`, canonical `a:ln/@cap`, bare `a:round`, `a:bevel`, or
@@ -412,6 +480,15 @@ survive re-import with the target SlidePart as the declared footprint; endpoint
 width/length attributes are retained, while custom dash graphs, miter limits,
 missing/ambiguous paints, malformed or absent endpoints, effects, and other
 unsupported line graphs remain opaque.
+
+The same direct endpoint profile now exposes four independent source-bound
+leaves: `lineStartArrowWidth`, `lineStartArrowLength`, `lineEndArrowWidth`, and
+`lineEndArrowLength`. They are issued only when the selected `a:headEnd` or
+`a:tailEnd` has one existing canonical `sm`/`med`/`lg` size token; each edit
+splices only that `@w` or `@len` attribute on a shape or connector. Missing,
+`none`, malformed, extension-bearing, or ambiguous endpoint sizes remain
+source-owned and the focused shape/connector regression verifies a
+SlidePart-only change and second projection.
 
 PPJ now issues the same finite line-decoration leaves for ordinary imported
 shapes instead of limiting them to `p:cxnSp`. An explicit-source presence bit
@@ -444,7 +521,7 @@ effect-bearing typography is editable.
 | PDF provider routing | partial | Required `mupdf@1.28.0` supplies the lazy default arbitrary-file parse/inspect/render/bounded-edit route. The public `./pdf/providers` control plane is done: one versioned provider→pack catalog, `resolve`/`ensure`/`probe`, default-disabled project policy, explicit `managed`/`system-only` selection, licence/OCR/credential gates, bounded hash-pinned installer, safe extraction, private cache/receipt, and no fallback. It never loads MuPDF or touches network/cache on root import or ordinary PDF work. Strict `redact`/`sanitize` resolves only to an explicitly selected PyMuPDF provider; built-in MuPDF.js `redact_*` operations remain ordinary full-rewrite bounded edits and are not advertised as sanitize. qpdf `12.3.2-oat.2`, `python-foundation` `3.13.14-oat.2`, qpdf-dependent `python-specialists` `3.13.14-oat.2`, veraPDF/JRE `1.30.2-oat.2`, OCR core `17.8.1-oat.3`, `eng`/`chi_sim` language packs `4.1.0-oat.3`, and Poppler QA `24.08.0-oat.2` are published and attested for `darwin-arm64`, `linux-x64`, and `win32-x64`; the public live matrix completes `resolve` → `ensure` → `probe` plus GitHub attestation verification on all three. Managed qpdf, ReportLab/pdfplumber/pypdf foundation, PyMuPDF/pikepdf/pyHanko specialist, veraPDF conformance, explicit-language OCR, and Poppler native render/text QA tasks can install only those exact release bytes after policy authorization. The foundation includes isolated CPython and Pillow; specialists require an explicit AGPL-or-commercial acknowledgement; veraPDF carries a managed JRE; OCR core carries isolated OCRmyPDF, Tesseract 5, Ghostscript, and `pdftotext`; Poppler macOS/Linux assets are source-built relocatable closures with pinned Poppler data and declared native roots, while Windows retains its reviewed upstream closure. Existing deployment-owned runtimes can be explicitly selected through `system-only`; qpdf, pikepdf, pyHanko, veraPDF, OCRmyPDF, Python, and Poppler adapters retain their source/hash/budget/transaction guards. `scripts/pyhanko_sign_provider.py` adds exactly one source-bound local PKCS#12 approval or first-document certification signature; `scripts/pyhanko_provider.py` remains the independent explicit-root trust/revision/difference validator. P12/private keys, HSM/remote-signing credentials, TSA/LTV access, complete PAdES claims, strict sanitize, human PDF/UA review, and broader specialist corpus QA remain caller-provided, explicit, or incomplete. |
 | Legacy options | done | `codec`, `allowLossy`, `preferNative`, and `relativeDateAsOf` are rejected explicitly. |
 | Opaque Office preservation | done | Imported unmodeled parts are content-type/hash/source bound. Unchanged content is preserved; unsupported edits and missing source snapshots fail closed. |
-| Imported native style leaves | partial | Opaque `p:grpSp` shells, semantic connectors, and ordinary source-bound `p:sp` shapes—including legacy lines that lack connector endpoint semantics—expose only unambiguous solid fills, outline colors, canonical positive outline widths, explicit preset dash styles, explicit caps, bare direct line joins, explicit source-bound endpoint types with canonical optional width/length attributes, explicit text-body vertical anchors, bounded direct rotations and flips, text-run sizes, direct literal run typefaces, bare direct run RGB colors, direct standard DrawingML underline/strike/kerning tokens, or direct paragraph alignment and explicit line-spacing/space-before/space-after tokens as revision-bound `fillScheme`/`fillRgb`/`lineScheme`/`lineRgb`/`lineWidthEmu`/`lineStyle`/`lineCap`/`lineJoin`/`lineStartArrow`/`lineEndArrow`/`verticalAnchor`/`rotationDegrees`/`flipHorizontal`/`flipVertical`/`fontSizePoints`/`fontFamily`/`fontFamilyEastAsia`/`fontColorRgb`/`fontUnderline`/`fontStrike`/`fontKerningPoints`/`paragraphAlignment`/`paragraphLineSpacingPoints`/`paragraphLineSpacingMultiplier`/`paragraphSpaceBeforePoints`/`paragraphSpaceBeforeMultiplier`/`paragraphSpaceAfterPoints`/`paragraphSpaceAfterMultiplier` native leaves. PPJ distinguishes an omitted solid default from an explicit `a:prstDash` before issuing `lineStyle`; task receipts accept the same finite line leaf set. The edit token-splices only that color, width, existing `a:prstDash/@val`, direct bare `a:round`/`a:bevel`/`a:miter` join token, direct `a:ln/@cap`, existing `a:headEnd/@type` or `a:tailEnd/@type` token (retaining endpoint width/length), direct `a:bodyPr/@anchor`, direct `a:xfrm/@rot`, direct `a:xfrm/@flipH`, direct `a:xfrm/@flipV`, `a:rPr/@sz`, direct `a:latin`/`a:ea` `@typeface`, direct `a:solidFill/a:srgbClr/@val`, `a:rPr/@u`, `a:rPr/@strike`, `a:rPr/@kern`, direct `a:pPr/@algn`, or direct `a:pPr/a:lnSpc`, `a:spcBef`, or `a:spcAft` unit token, preserves group topology and unsupported effects, reimports the result, and rejects unsafe picture frames, zero-width or missing-outline projections, ambiguous fills, child-bearing colors/effects, inherited/theme-token/missing run styles, inherited or malformed paragraph alignment, line spacing, space-before/space-after, or vertical anchoring, non-canonical widths or rotations, absent flips, custom dash graphs, miter limits, malformed/absent endpoints, endpoint width/length edits, and other style graphs. Decoration graphs with `uFillTx`, `uFill`, `uLnTx`, or `uLn` remain opaque rather than being flattened. |
+| Imported native style leaves | partial | Opaque `p:grpSp` shells, semantic connectors, and ordinary source-bound `p:sp` shapes—including legacy lines that lack connector endpoint semantics—expose only unambiguous solid fills, outline colors, canonical positive outline widths, explicit preset dash styles, explicit caps, bare direct line joins, explicit source-bound endpoint types with canonical optional width/length attributes, explicit text-body vertical anchors, bounded direct rotations and flips, text-run sizes, direct literal run typefaces, bare direct run RGB colors, direct standard DrawingML underline/strike/kerning tokens, or direct paragraph alignment and explicit line-spacing/space-before/space-after tokens as revision-bound `fillScheme`/`fillRgb`/`lineScheme`/`lineRgb`/`lineWidthEmu`/`lineStyle`/`lineCap`/`lineJoin`/`lineStartArrow`/`lineEndArrow`/`verticalAnchor`/`rotationDegrees`/`flipHorizontal`/`flipVertical`/`fontSizePoints`/`fontFamily`/`fontFamilyEastAsia`/`fontFamilyComplexScript`/`fontColorRgb`/`fontUnderline`/`fontStrike`/`fontKerningPoints`/`paragraphAlignment`/`paragraphLineSpacingPoints`/`paragraphLineSpacingMultiplier`/`paragraphSpaceBeforePoints`/`paragraphSpaceBeforeMultiplier`/`paragraphSpaceAfterPoints`/`paragraphSpaceAfterMultiplier` native leaves. PPJ distinguishes an omitted solid default from an explicit `a:prstDash` before issuing `lineStyle`; task receipts accept the same finite line leaf set. The edit token-splices only that color, width, existing `a:prstDash/@val`, direct bare `a:round`/`a:bevel`/`a:miter` join token, direct `a:ln/@cap`, existing `a:headEnd/@type` or `a:tailEnd/@type` token (retaining endpoint width/length), direct `a:bodyPr/@anchor`, direct `a:xfrm/@rot`, direct `a:xfrm/@flipH`, direct `a:xfrm/@flipV`, `a:rPr/@sz`, direct `a:latin`/`a:ea`/`a:cs` `@typeface`, direct `a:solidFill/a:srgbClr/@val`, `a:rPr/@u`, `a:rPr/@strike`, `a:rPr/@kern`, direct `a:pPr/@algn`, or direct `a:pPr/a:lnSpc`, `a:spcBef`, or `a:spcAft` unit token, preserves group topology and unsupported effects, reimports the result, and rejects unsafe picture frames, zero-width or missing-outline projections, ambiguous fills, child-bearing colors/effects, inherited/theme-token/missing run styles, inherited or malformed paragraph alignment, line spacing, space-before/space-after, or vertical anchoring, non-canonical widths or rotations, absent flips, custom dash graphs, miter limits, malformed/absent endpoints, endpoint width/length edits, and other style graphs. Decoration graphs with `uFillTx`, `uFill`, `uLnTx`, or `uLn` remain opaque rather than being flattened. |
 | Low-level OOXML inspect/patch | done | Explicit, bounded package inspection and patching remain available and are never invoked automatically as a fallback. The shared package leaf checks raw compressed input size, source part count, declared and actual per-part/total decompression, safe paths, and an optional declared compression-ratio ceiling before patch mutation; selected Presentation native-object materialization reuses the same pre-inflation loader for codec-returned source snapshots; CRC verification remains opt-in for retained untrusted sources. |
 | OfficeKit routing and template policy | done | The project-native top-level Skill inventories inputs/outputs, assigns exactly one domain owner per artifact, orders cross-format work as a dependency graph, and loads only selected installed domain Skills. Existing-file edits plus explicit user/domain/template choices take precedence. A controlling DOCX or format specification routes through template distillation before ordinary creation or preset selection; the task-local contract keeps document roles separate and resolves typography, color, spacing, and page geometry before authoring. New DOCX/XLSX/PPTX work resolves to exactly `selected`, `ask`, or `none`; `none` is a successful decision, while PDF-only work skips the Office template catalog. The package-owned `officekit template search` command validates schema v2, English search fields, bounded paths/files, exact asset hashes, duplicate-ID root precedence, and untrusted descriptive data. It searches configured, project, user-local, and bundled roots in fixed priority, returns candidates/rejections/invalid entries plus coverage and risk flags with `selectionMade: false`, and leaves the aesthetic decision to the Agent. |
 | Presentation conversational convergence | partial | Net-new PPTX work and broad redesigns now use a Skill-level `clarify → working draft → conversational revision → explicit finalization` contract. Material preflight questions are capped at three; the first checked deck is accompanied by a one-screen goal/structure/confirmation guide rather than a slide dump; local and global revisions must re-resolve the latest draft and verify the affected scope; and full publication occurs only after explicit acceptance or an up-front one-pass-final request. Read-only work and narrow existing-deck edits remain direct. The workflow reuses existing inspect, REPL, render, verify, accessibility, and delivery primitives without a new public API or wire change. Static scenario and packaging gates are complete; status remains partial until the planned real defense-deck dogfood records multi-turn alignment and revision evidence. |
@@ -851,17 +928,17 @@ the final accessibility and visual-review path.
 
 | Capability | Status | Notes |
 | --- | --- | --- |
-| PPJ bounded table-cell text-container layout | partial (bounded) | A fixed-topology mixed-run table cell may expose `text.style` for direct `a:bodyPr` leaves with canonical PPJ spellings: vertical alignment, wrapping, insets, columns, column gap/direction, vertical-text mode, rotation, horizontal/vertical overflow, upright, bounded auto-fit, and canonical `normalAutoFit` percentages. Existing leaves can be patched through `setTableCellStyle`/`table.cell.textStyle` without adding a body, inferring inheritance, or clearing omitted values; explicit removal, unknown/effect-rich body properties, and automatic reflow remain source-owned and fail closed. |
-| PPJ source-bound text-container body layout | partial (bounded) | Recognized fixed-topology text boxes, text-bearing shapes and placeholders may expose direct `a:bodyPr` leaves through `style`/`textStyle` and receive `setTextBodyStyle`. Vertical alignment, wrapping, insets, columns, column gap/direction, vertical-text mode, rotation, horizontal/vertical overflow, upright, finite auto-fit modes, and canonical `normalAutoFit` percentages are patched in the existing text body; paragraph/run topology and unmodeled XML stay intact. Inheritance, explicit style deletion and unknown/effect-rich body properties remain source-owned and fail closed. |
+| PPJ bounded table-cell text-container layout | partial (bounded) | A fixed-topology mixed-run table cell may expose `text.style` for direct `a:bodyPr` leaves with canonical PPJ spellings: vertical alignment, anchor centering, wrapping, insets, columns, column gap/direction, vertical-text mode, rotation, horizontal/vertical overflow, upright, bounded auto-fit, and canonical `normalAutoFit` percentages. Existing leaves can be patched through `setTableCellStyle`/`table.cell.textStyle` without adding a body, inferring inheritance, or clearing omitted values; explicit removal, unknown/effect-rich body properties, and automatic reflow remain source-owned and fail closed. |
+| PPJ source-bound text-container body layout | partial (bounded) | Recognized fixed-topology text boxes, text-bearing shapes and placeholders may expose direct `a:bodyPr` leaves through `style`/`textStyle` and receive `setTextBodyStyle`. Vertical alignment, anchor centering, wrapping, insets, columns, column gap/direction, vertical-text mode, rotation, horizontal/vertical overflow, upright, finite auto-fit modes, and canonical `normalAutoFit` percentages are patched in the existing text body; paragraph/run topology and unmodeled XML stay intact. Inheritance, explicit style deletion and unknown/effect-rich body properties remain source-owned and fail closed. |
 | PPJ source-bound master/layout/slide-placeholder backgrounds and owner-local placeholders | partial (bounded) | Imported masters and layouts expose hash-bound `nativeRef.setBackground` only when their direct `p:bg` profile is safe. PPJ may add, change, or clear the direct RGB/gradient/image background through the existing source owner; direct embedded image backgrounds additionally support bounded crop/opacity and single-owner asset replacement, with the owner `.rels` updated, new media written, and unreferenced old media removed. Direct owner-local master/layout placeholders with a recognized `a:xfrm` and fixed text topology additionally expose placeholder-level `setFrame`/`replaceText`, including bounded rotation/flip writes; a slide placeholder with a complete owner-local `a:xfrm` likewise exposes x/y/width/height plus bounded rotation/flip `setFrame`, while preserving all unrelated placeholder identity and style. A layout placeholder without direct `a:xfrm` now projects an effective frame only when its owning master has one unique same type/index direct frame; changing it materializes the direct layout `xfrm` and keeps the master unchanged. A slide placeholder without direct `a:xfrm` likewise projects a unique slide→layout→master effective frame and its first bounded `setFrame` materializes only the slide owner's direct `xfrm`, including the same finite transform fields. Owner-local rotation/flip presence is now preserved independently of default values: explicit zero/false remains a native attribute and omitting a previously present property clears only that attribute; the focused master/layout round-trip proves the master-only part footprint and second projection. Common picture/chart/table/date/footer/slide-number placeholders are now valid projected layout records; only bounded frame/text capabilities are issued, while unknown `other` placeholders remain read-only. Focused round-trips change only the owning `ppt/slideMasters/*`, `ppt/slideLayouts/*`, or target `ppt/slides/*` part plus necessary relationship/media closure, validate Open XML, and reproject the new values. Multi-level/effect/theme inheritance, unmatched or ambiguous no-frame placeholders, non-text content/relationship graphs, shared/external image relationships, and handout/notes masters remain source-owned and no Windows host evidence is implied. |
 | Unified Presentation scene stack | done (bounded) | `slide.elements.items` is the bottom-to-top authority for authored shapes/text, images, tables, charts, connectors, and groups; typed collections remain filtered indexes. Every supported element exposes `stackIndex`, `zOrderCapability`, `sendToBack()`, `bringToFront()`, `moveBefore()`, and `moveAfter()`, and `slide.setBackgroundImage(...)` plus translucent shape fills provide a public full-bleed image -> scrim -> editable foreground path. SVG/layout/export all consume the same stack. Imported direct top-level elements receive a source-revision-bound capability only when their complete direct order is recognized; the codec then moves the existing native nodes and permits only the target SlidePart to change. Recognized ordinary groups now expose a separate complete local child permutation through `group.readingOrder`; mixed source reorder/authored-overlay transactions, unsafe dependencies, and attempts to place authored overlays below the preserved source prefix still fail closed. Six real 157-page references no-op byte-exactly and reimport after capability-proven reorder; three representative edits changed only one SlidePart, while unrelated relationships and advanced objects remained fixed. A packed clean-install fresh Agent produced and repaired an image/scrim/text composition using only public APIs. This does not claim arbitrary nested native reorder or visual equivalence for overlapping reorder operations. |
 | Source-bound shape RGB style leaves | partial | Imported `p:sp` shapes whose text graph is safe but whose surrounding geometry is source-bound can expose narrowly proven `fillRgb` and `lineRgb` leaves. The typed native-leaf edit changes only the direct RGB token, retains unknown `cNvPr` attributes and surrounding shape XML, reimports the requested color, and fails closed for theme, gradient, alpha-bearing, compound, or otherwise irregular fills/outlines. This extends useful local styling without flattening or making opaque shapes generally editable. |
 | Source-bound PowerPoint section boundary transaction | done | `officekit-section-boundary-edit-workflow.mjs` is a separate Agent transaction for an imported canonical section list. It requires exact expected and replacement arrays covering every fixed source section with `id`, `name`, `nativeId`, and ordered `slideIds`; the expected snapshot binds the current source, while the replacement retains section count/order/IDs/names/GUIDs and makes one different full partition of the retained deck order. Partial updates, label/catalog/GUID changes, empty/no-op partitions, duplicate/omitted/reordered slides, opaque/section-free sources, and slide topology work fail closed. It keeps the source immutable, permits only `ppt/presentation.xml` to change, reimports the exact target partition, verifies non-section semantics/static renders/`verify()`, and emits a no-overwrite byte-bound audit. Visible-page QA does not claim native PowerPoint navigation-pane coverage. |
 | Slide show visibility | done | `slide.hidden`, `slide.visibilityCapability`, `slide.setHidden(boolean)`, `slide.hide()`, and `slide.show()` provide one presence-aware Agent primitive over the inverse native `p:sld/@show` leaf. Source-free hidden slides author `show="0"`; visible slides omit the default-valued attribute. Canonical imported absent/`0`/`1`/`false`/`true` states are source-hash-bound and editable; export changes only the selected SlidePart root attribute, reimports the requested state, preserves all non-target parts byte-for-byte, and keeps static model/native pixels independent of playback visibility. Invalid lexical values remain opaque, report `known: false`, preserve exact source bytes, and fail closed on mutation. This does not delete/reorder slides or alter sections, custom shows, transitions, notes, comments, content, or relationships. |
 | Slides and basic shapes | done | Text boxes, rectangles/ellipses, and `roundRect` have bounded transforms; source-free slides append or insert transactionally. Imported `slide.name`, `slide.moveTo(index)`, capability-gated `slide.delete()`, and `presentation.slideSize` use separate source-bound contracts. Import computes `slide.deletionCapability` from the concrete OPC graph; JS rejects an unsafe delete before mutation, and export re-proves the hash-bound source. The codec aggregates every requested slide removal into one ownership transaction and deletes the real SlideParts plus every OpenXml/DataPart descendant no longer reachable from the package root, so closed notes/comments/chart/OLE/SmartArt/InkML/media, unknown exclusive leaves, and parts shared only among the removed slide set use one algorithm while resources still used by a retained slide survive. Inbound slide relationships and presentation-level custom-show/section/extension identity fail closed; actual ZIP removals and opaque-graph deltas are audited. An imported `slideSize` change is canvas-only: it updates only `ppt/presentation.xml` `p:sldSz`, clears a stale preset type, and never silently rescales existing slide/layout/master/chart/shape coordinates. `slide.cloneCapability` now reports `{ sourceBound, known, supported, blockedReason, clonedPartCount, sharedPartCount }` from a concrete ownership analysis. `slide.duplicate()` uses that result but re-proves it at export: Open XML SDK recursively copies the SlidePart plus every uniquely owned OpenXmlPart/DataPart, preserving exact bytes, content types, relationship IDs, external relationships, and repeated owned-node edges; layout, NotesMaster, images, and retained slide-jump targets are rebound as proven shared resources. Unknown and relationship-bearing descendants therefore work without a type whitelist. The JS clone retains fresh object identities and clone-local connector targets, while custom-show membership stays fixed. The pending clone must remain unchanged until export/reimport. Sections, modern comments, outside-owned descendants, jumps to removed slides, unresolved semantic trees/connectors, pending native replacements, repeated clones, origin deletion, and the 2,048-part/512-DataPart budgets fail closed. Open XML SDK may choose non-sequential part URIs, so tests and Agents resolve ordered slide relationships rather than assuming `slide2.xml`. C# and JS regressions cover a two-level unknown exclusive graph with an external relationship, byte-exact independent copies, second import, and a shared-unknown negative preflight. The existing high-assurance duplicate workflow stays deliberately stricter for its typed locked corpus and is not the public API limit. |
-| Text-frame body properties | done (bounded) | `shape.text.bodyProperties` and source-free `textBodyProperties` author/import/edit pixel insets, vertical anchor, wrapping, three AutoFit modes, rotation, vertical text/overflow, columns, and upright text. `autoFit: "shrinkText"` may carry `normalAutoFit.fontScale` (1%–100%) and `lineSpacingReduction` (0%–13200%) with at most three decimal places. Protocol v2 retains the native thousandths-of-a-percent values and independent attribute presence, so deleting one property restores its schema default without materializing the other. Canonical `a:normAutofit` supports source-bound leaf edits, mode replacement, Open XML SDK validation, and second import. Percent-string lexical forms, unknown attributes/children, invalid ranges, and duplicate AutoFit choices remain opaque-preserved and reject semantic replacement. OfficeKit records the host's fitted parameters; it does not claim to reproduce PowerPoint's text-fitting algorithm in JavaScript. |
+| Text-frame body properties | done (bounded) | `shape.text.bodyProperties` and source-free `textBodyProperties` author/import/edit pixel insets, vertical anchor, anchor centering, wrapping, three AutoFit modes, rotation, vertical text/overflow, columns, and upright text. `autoFit: "shrinkText"` may carry `normalAutoFit.fontScale` (1%–100%) and `lineSpacingReduction` (0%–13200%) with at most three decimal places. Protocol v2 retains the native thousandths-of-a-percent values and independent attribute presence, so deleting one property restores its schema default without materializing the other. Canonical `a:normAutofit` supports source-bound leaf edits, mode replacement, Open XML SDK validation, and second import. Percent-string lexical forms, unknown attributes/children, invalid ranges, and duplicate AutoFit choices remain opaque-preserved and reject semantic replacement. OfficeKit records the host's fitted parameters; it does not claim to reproduce PowerPoint's text-fitting algorithm in JavaScript. |
 | Imported top-level element deletion | done (bounded) | `shape`, `image`, `connector`, `table`, `chart`, and canonical recursive `group` expose source-bound `deletionCapability` evidence plus typed `.delete()` calls for direct ShapeTree children. The shared JS lifecycle records explicit intent; raw array removal remains invalid. The C# codec independently re-proves the hash-bound element, direct owner, every owned package-local native ID, comment/timing/extension safety, and absence of inbound connector endpoints. Ordinary shapes, canonical connectors, and bounded DrawingML tables must be relationship-free. Pictures and charts own uniquely used SlidePart relationships; a group proves every relationship reference is contained in its complete descendant XML, resolves all owned part/reference edges, and computes one multi-root exclusive OPC closure. Export removes the XML subtree and owned edges, then garbage-collects only OpenXmlPart/DataPart descendants with no outside package parent, so media, ChartParts, and their descendants shared elsewhere survive. It validates the package, proves every deleted native descendant ID absent, audits removed opaque edges/parts, and supports second import. Relationship-bearing connector/table frames, external or ambiguously reused group/picture/chart relationships, connector/comment targets into the group, nested group deletion, native objects, and identity-sensitive graphs fail closed. Template Following's data-driven `delete-element` primitive covers all six profiles with exact name/text preconditions, transactional reimport, absence proof, render/verify, and audit; it still does not claim arbitrary PowerPoint object deletion. |
-| Shape, connector, group, image, table, and chart accessibility metadata | partial | Source-free ordinary shapes, connectors, recursive groups, images, tables, and charts author one optional non-visible `{ title?, description?, decorative? }` state through the owner-specific `p:cNvPr`. Every facade exposes `accessibilityCapability` and transactional `setAccessibilityMetadata(...)`: strings are bounded, explicit `decorative: false` differs from omission, `true` is mutually exclusive with title/description, and classification plus text clears/additions must be one call. `image.alt` remains the single description alias; an explicit image accessibility object prevents generation prompts from becoming alt text. The C# codec maps decorative presence to the canonical Office 2019+ `a:extLst/a:ext[@uri='{C183D7F6-B498-43B3-948B-1728B52AA6E4}']/adec:decorative@val`. Imported shapes/connectors/groups/graphic frames are editable only when their strict shared leaf contains no child beyond that exact extension; recognized pictures retain unrelated residual `cNvPr` content while duplicate/malformed known decorative graphs fail closed. Protocol v2 appends `PresentationNonVisualAccessibility.decorative` field 3 and `PresentationImage.accessibility_decorative` field 10 without changing earlier owner fields or the wire version. JS/wire/native tests cover six object kinds, true/false/omitted presence, contradiction and invalid-value rejection, source-bound add/change/remove, capability tampering, exact no-op and non-target stability, second import, Open XML SDK validation, unchanged SVG/native render, and the runnable readiness fixture; the PPJ source-bound route now additionally issues `setAccessibility` and proves a shape edit through SlidePart-only writeback and second projection (`PpjSourceBoundAccessibilityEditsAndReprojects`). Reading order and whole-deck accessibility conformance remain separate. |
+| Shape, connector, group, image, table, chart, and imported media accessibility metadata | partial | Source-free ordinary shapes, connectors, recursive groups, images, tables, and charts author one optional non-visible `{ title?, description?, decorative? }` state through the owner-specific `p:cNvPr`. Every facade exposes `accessibilityCapability` and transactional `setAccessibilityMetadata(...)`: strings are bounded, explicit `decorative: false` differs from omission, `true` is mutually exclusive with title/description, and classification plus text clears/additions must be one call. `image.alt` remains the single description alias; an explicit image accessibility object prevents generation prompts from becoming alt text. The C# codec maps decorative presence to the canonical Office 2019+ `a:extLst/a:ext[@uri='{C183D7F6-B498-43B3-948B-1728B52AA6E4}']/adec:decorative@val`. Imported shapes/connectors/groups/graphic frames are editable only when their strict shared leaf contains no child beyond that exact extension; recognized pictures retain unrelated residual `cNvPr` content while duplicate/malformed known decorative graphs fail closed. Imported media remains `type: "opaque", nativeKind: "media"`, but an unambiguous residual `cNvPr` now projects the common accessibility object and issues `setAccessibility`; source-bound metadata-only edits preserve the media relationships, poster, click sentinel, and timing graph and change only the owning SlidePart. Protocol v2 appends `PresentationNonVisualAccessibility.decorative` field 3, `PresentationImage.accessibility_decorative` field 10, and `PresentationOpaqueElement.accessibility` field 15 without changing earlier owner fields or the wire version. JS/wire/native tests cover six typed object kinds plus the imported-media opaque owner, true/false/omitted presence, contradiction and invalid-value rejection, source-bound add/change/remove, capability tampering, exact no-op and non-target stability, second import, Open XML SDK validation, unchanged SVG/native render, and the runnable readiness fixture; the PPJ source-bound route now additionally issues `setAccessibility` and proves shape and media edits through SlidePart-only writeback and second projection (`PpjSourceBoundAccessibilityEditsAndReprojects` plus the media gap experiment). Reading order and whole-deck accessibility conformance remain separate. |
 | Presentation accessibility audit | done (bounded) | `presentation.auditAccessibility()` inventories every slide, including empty slides, and reports modeled meaningful/decorative/unclassified objects, missing alternative text, and opaque native objects through stable slide/object locators. Machine issues are separate from explicit `readingOrder` and `opaqueObjectAccessibility` manual checks; `conformanceClaimed` is always false. The packaged read-only workflow imports one PPTX through OfficeKit Codec, records source SHA-256/provider/version/save policy, produces only a private-then-no-replace JSON report, and rejects collisions, source mutation, invalid limits, and unsupported packages. It does not reorder `p:spTree`, because that would also change z-order, and it does not claim PowerPoint Accessibility Checker, WCAG, or whole-deck conformance. |
 | Source-bound Presentation object accessibility repair | done (bounded) | `officekit-object-accessibility-edit-workflow.mjs` accepts the exact audit locator plus complete prior metadata for one imported shape, connector, group, image, table, or chart. It requires an editable source-bound `p:cNvPr`, applies one typed update, rejects stale/incomplete locators, no-op, unclassified results, irregular native graphs, symlinks, and collisions, and permits only the locator's SlidePart to change. It proves every other OPC part byte-identical, second-import identity and metadata, complete non-target model stability, normalized SVG visual stability, `verify()`, target audit closure, immutable source bytes, and collision-safe PPTX/audit publication. It does not edit reading order, opaque objects, visible content, geometry, or z-order and does not claim PowerPoint Accessibility Checker, WCAG, or whole-deck conformance. |
 | Free-positioned line shapes | done | `slide.shapes.add({ geometry: "line" })` authors an ordinary `p:sp` whose left/top is the start point and non-negative width/height is the endpoint delta. Horizontal or vertical lines may have one zero extent; both zero fail closed. One shared JS/C# direct `a:ln` profile now serves ordinary shapes and connectors: explicit RGB/no-fill, width, solid/dashed/dotted/dash-dot/dash-dot-dot/none preset dashes, flat/round/square caps, round/bevel/miter joins, and bounded triangle/stealth/diamond/oval/arrow head/tail dimensions. SVG preview, PPTX author/import/edit/export/second-import, imported-slide clone, Open XML SDK validation, and the runnable Presentation Skill fixture cover the profile. Free lines never acquire target/site identity; arrowheads on non-line shapes fail closed, while caps/joins remain valid outline styling. Compound/theme/custom-dash/effect/extension outlines and omitted or ambiguous line fills remain source-bound: unchanged packages are preserved, while mutation fails closed. |
@@ -903,7 +980,7 @@ the final accessibility and visual-review path.
 | Office 2021 modern comments | partial | `Presentation.create({ commentFormat: "modern" })` plus `slide.comments.addThread(...)` authors one native `p188:authorLst` and closed slide-local `p188:cmLst` parts with one root, direct replies, independent GUID/person/time/status metadata, top-level shape/image/table-chart/connector/group anchors, and shape text-range or `{ textMatch }` anchors. OfficeKit imports the bounded graph into inspect/resolve, preserves author and part evidence, and permits only existing root/reply text plus active/resolved/closed status edits after re-proving author/comment XML hashes and fixed identity/anchor/position/topology. The shipped Skill workflow closes source-free creation, import/edit, second import, package inspection, model render, CLI, and byte-bound audit. Reactions/task fields/extensions, rich text, nested replies or group-child moniker chains, unknown anchors, mixed legacy/modern parts, connected author/comment parts, topology changes, and modern-comment slide cloning remain opaque/source-bound and fail closed. |
 | Master/Layout fidelity | partial | Source-free authoring supports multiple canonical masters plus `blank`, `title`, `titleOnly`, or `obj` layouts, direct RGB/theme and embedded-image backgrounds, bounded master text styles, and direct-frame `title`/`body`/`ctrTitle`/`subTitle` text placeholders. Each layout is bound to one master and materialized pages retain that binding; the focused multi-master contract removes embedded PPJ and reimports two masters, two layouts, and two pages as separate graphs. Direct embedded master/layout image backgrounds have a bounded source-bound crop/opacity profile and single-owner replacement profile: the owning XML, `.rels`, and media closure change only for that master or layout, old unreferenced media is removed, and a second projection recovers the replacement asset. `layout.placeholders.summary()` offers a defensive discovery snapshot without exposing mutable model references. `slides.add({ layout })` transactionally binds and materializes matching direct-frame placeholder shapes; same-layout reapplication is idempotent while a materialized layout cannot be switched. Export writes native `p:ph` identities and imports them semantically. Master-theme overrides, non-text placeholder classes, inherited source-free geometry, arbitrary template graphs, shared/external image relationships, and every imported Master/Layout semantic mutation remain source-bound/read-only and fail closed. |
 | Presentation view metadata | partial | `presentation.view` provides local gridline/guide visibility controls plus capability-gated imported view-properties editing. OfficeKit imports grid spacing, snap flags, and horizontal/vertical guides from `ppt/viewProps.xml`; a relationship-free fixed-topology profile may change only already-present grid/snap values and existing guide positions. The native codec re-proves the binding, fixed attribute presence, guide count/order/orientation, and a residual hash after mutable leaves are removed; only `ppt/viewProps.xml` may change. `showGuides` and local visibility remain source-owned/editor-only, source-free authoring cannot create view properties, and extensions/relationships/other view modes remain opaque-preserved or fail closed. The shipped transaction protects input/output paths, reimports, audits exact package scope, and proves model slide renders are unchanged. |
-| OLE, SmartArt, media, 3D, custom XML | partial | An eligible imported top-level OLE object with one uniquely bound internal XLSX package exposes defensive extraction and payload-only replacement; source hash/content type/relationship identity, Open XML SDK validation, shell, preview, and unrelated parts remain guarded. PPJ projects that proven payload as one content-addressed local asset and accepts only a capability-issued `payloadAsset` replacement through the same native writer; no-op and all non-payload parts remain byte-stable, while the source preview is intentionally not regenerated. Canonical top-level SmartArt and embedded-MP4 leaves can travel unchanged through `slide.duplicate()` under their separate closed-graph contracts. SmartArt copies four typed diagram parts; its separately bounded plain-node profile may rewrite only a verified DiagramDataPart; media copies one uniquely owned MP4 into a distinct SDK MediaDataPart while sharing its immutable poster. These are source-bound clone/edit paths, not semantic SmartArt/media authoring or playback. Shared/external/ambiguous OLE graphs and nested/noncanonical/connected SmartArt/contentPart/media/3D/custom-XML graphs remain opaque/read-only and fail closed on unsupported mutation. |
+| OLE, SmartArt, media, 3D, custom XML | partial | An eligible imported top-level OLE object with one uniquely bound internal XLSX package exposes defensive extraction and payload-only replacement; source hash/content type/relationship identity, Open XML SDK validation, shell, preview, and unrelated parts remain guarded. PPJ projects that proven payload as one content-addressed local asset and accepts only a capability-issued `payloadAsset` replacement through the same native writer; no-op and all non-payload parts remain byte-stable, while the source preview is intentionally not regenerated. Canonical top-level SmartArt and embedded-MP4 leaves can travel unchanged through `slide.duplicate()` under their separate closed-graph contracts. SmartArt copies four typed diagram parts; its separately bounded plain-node profile may rewrite only a verified DiagramDataPart; media copies one uniquely owned MP4 into a distinct SDK MediaDataPart while sharing its immutable poster. Imported media also has a narrow source-bound accessibility owner when its residual cNvPr profile is unambiguous; this changes only the slide XML and leaves playback closure opaque. These are source-bound clone/edit paths, not semantic SmartArt/media authoring or playback. Shared/external/ambiguous OLE graphs and nested/noncanonical/connected SmartArt/contentPart/media/3D/custom-XML graphs remain opaque/read-only and fail closed on unsupported mutation. |
 | Source-bound embedded DOCX OLE package | done | `nativeObject.getEmbeddedOfficePackage()` and `replaceEmbeddedOfficePackage(...)` retain generic compatibility with the existing XLSX profile while adding exactly one DOCX profile: one top-level `p:graphicFrame` with one `p:oleObj`, one internal `/package` relationship, the exact WordprocessingML MIME type, and one exclusive inbound package edge. The source binding carries kind/path/MIME/relationship/SHA-256; replacement bytes are size-bounded, must preserve a DOCX `FileBlob` MIME type, are opened with the Microsoft Open XML SDK as a body-bearing `WordprocessingDocument`, and receive Office 2021 validation. Export re-proves the graph and changes only the embedded DOCX bytes; shell XML, relationship topology, preview, source PPTX, and unrelated parts remain byte-stable. The shipped no-overwrite workflow edits one uniquely matched single-run paragraph through `DocumentFile`, audits exact package scope/provenance, reimports PPTX and DOCX, and proves model-render stability. It is not arbitrary OLE access, OLE authoring, DOCX OLE cloning, preview regeneration, general Word reflow, or an implicit package-patch fallback. |
 | InkML content-part clone leaf | done | One unchanged top-level `p:contentPart` can travel through `slide.duplicate()` only when its exact internal `customXml` relationship binds one non-empty, fully well-formed, relationship-free `application/inkml+xml` CustomXmlPart whose document element uses the standard InkML namespace. OfficeKit preserves the slide-local relationship ID, byte-copies the XML into a distinct SDK-typed clone part, and second import proves disjoint paths with equal hashes. The shipped workflow independently checks OPC scope, root namespace, child-graph absence, source immutability, audit fields, model equivalence, and LibreOffice/Poppler source/clone pixels. Ink remains opaque/read-only; arbitrary Custom XML, authoring, stroke edits, and nested, extension-bearing, ambiguous, mistyped, malformed/multi-root, non-InkML-root, or connected content parts fail closed. |
 | Embedded MP4 clone leaf | done | One unchanged top-level canonical media `p:pic` can travel through `slide.duplicate()` only when its empty media-action sentinel, `a:videoFile`, `p14:media`, and poster blip uniquely consume one video/media pair to the same non-empty, relationship-free `video/mp4` data part plus one internal ImagePart. OfficeKit preserves both slide-local media IDs, uses the Open XML SDK to byte-copy the MP4 into a distinct safe `MediaDataPart`, shares the immutable poster, and retains the source SlidePart/relationships byte-for-byte. Second import proves distinct MP4 paths/equal hashes and the same poster path. The shipped workflow runs an independent OPC preflight before semantic import, records exact audit provenance/package scope, rejects connected media before output promotion, and requires model plus LibreOffice/Poppler poster-pixel equality when available. This does not provide authoring, payload editing, audio, linking, timing/trim, transcoding, or playback validation; those and nested/shared/non-MP4/multi-binding/connected graphs fail closed. |
@@ -912,13 +989,24 @@ the final accessibility and visual-review path.
 | PPJ multi-header tables | done (authored) | `table.style.headerRows` may now cover any bounded prefix of the physical grid. Optional `headerCellFill` and `headerTextStyle` apply direct editable formatting to every declared header cell, with cell-local style taking precedence and ordinary table defaults remaining the final fallback. The writer also sets the native first-row flag; exact counts above one recover from embedded PPJ, while ordinary third-party import conservatively projects only PowerPoint's single native first-row fact. Header counts beyond the physical grid and inert header styling fail before output. |
 | PPJ finite authoring conveniences | done (authored, bounded) | The shared preset catalog and PPJ schema now include the public `upArrow` and `lineInv` geometries, bringing the PPJ vocabulary to 178 named profiles while retaining explicit adjustment arity. Table styles can declare a base cell style, 1–16 cycling body-row styles, first/last row and column roles, and deterministic `rowOverColumn` precedence for fill, text and per-edge borders; explicit cell properties still win and the compiler expands the finite rules to ordinary editable cells. `connector` remains the endpoint/routing primitive, while the separate PPJ `line` profile owns free literal paths without endpoint identity. One existing comprehensive authored contract covers the prior finite state; the new independent-line evidence is tracked separately. |
 | PPJ compound shape opacity | done (authored, bounded) | `shape.style.opacity` is a semantic multiplier over every directly owned visual branch of one authored shape: solid/gradient/image fill, visible outline, outer shadow, explicit solid/gradient run paint, text shadow and explicit bullet color. Existing branch alpha is multiplied rather than replaced, and the result stays one editable native shape. Exact embedded PPJ recovery retains the single declared multiplier; ordinary projection truthfully reports the effective per-branch alpha. Inherited text paint, text highlight and unmodeled imported effect graphs remain fail-closed or source-preserved. |
+| PPJ connector and shape-backed compositing opacity | bounded done (authored) | `connector.compositing.opacity` accepts a numeric value or `opacity` grammar token and multiplies any existing connector stroke alpha into the one native line-alpha owner. Authored `icon` and `placeholder` elements reuse the same compound-shape paint owner. After the embedded PPJ snapshot is removed, connectors report effective opacity as canonical `stroke.opacity`, while shape-backed icons/placeholders retain their existing shape/placeholder projection boundary. Non-normal blend, isolation and clip-stack semantics remain fail-closed. |
+| PPJ source-bound compound shape compositing opacity | bounded done (source-bound) | An ordinary non-placeholder shape with no visible text exposes `compositing.opacity` only when its modeled solid/gradient/image fill, visible outline, and shadow owners have one common effective alpha. The exact `setOpacity/compositing.opacity` capability lowers an absolute value to all those owners, changes only the owning SlidePart, and survives a second projection; direct owner alpha is omitted from the projected style while the compound field is present. Mixed owner alpha, line/text/placeholder/custom topology, opaque custom image fills, blend, isolation, and clip stacks remain source-owned or fail closed. |
 | PPJ custom-path image masks | done (authored, bounded projection) | PPJ image elements can use the shared finite custom-geometry `viewBox`, path and literal command vocabulary as a native editable picture mask. The compiler emits picture `<a:custGeom>` beside the existing crop/fit/effect graph and exact embedded PPJ recovery restores the declarative mask. Canonical imported masks project only when they contain literal paths without guides, adjustments, handles, connection sites or text rectangles; their paths can be edited source-bound, and a recognized no-adjustment preset can transition to or from this custom geometry through the same picture-owned mask capability without changing relationships. Richer native custom geometry remains opaque-preserved. |
 | PPJ custom-geometry arcs | done (authored, bounded projection) | Shape geometry and custom image masks accept a typed `arcTo` after an established current point, with positive view-box `radiusX`/`radiusY` and degree-based start/signed-sweep angles. NativeAOT writes the existing editable DrawingML `a:arcTo` primitive, and projection without embedded PPJ recovers literal native arcs after normalizing the start angle to one turn. Formula-backed arcs, raw SVG paths and adjustment graphs remain opaque or fail closed; source-bound image mask topology changes are limited to the separately proven literal preset/custom profile. |
 | PPJ native masters and layouts | done (authored, bounded source identity) | `design.masters[]`, `design.layouts[]`, and `pages[].layout` expose the existing canonical PresentationML authoring profile instead of leaving it hidden behind legacy methods. Source-free PPJ authors one master, `blank`/`title`/`titleOnly`/`obj` layouts, direct solid/gradient/image backgrounds, title/body/other paragraph defaults, and direct-frame title/body/centered-title/subtitle placeholders; each layout-bound page and placeholder reference is validated before native output. Third-party projection records a stable source layout identity on every page but keeps arbitrary Master/Layout parts and relationships source-owned; changing that identity fails closed and no-op remains byte-exact. The capability maintainer now requires every `ppj-state` Help API to map to a concrete language path, preventing ownership labels from counting as implemented syntax. Multiple authored masters, inherited source-free placeholder geometry, non-text placeholder classes, arbitrary imported graph mutation and raw Master/Layout OOXML remain outside the profile. |
 | PPJ element visibility and edit locks | done (authored and bounded source edit) | Every typed element can declare independent `hidden` and `locked` booleans. NativeAOT maps visibility to the element's non-visual state and maps locking to a canonical type-specific DrawingML profile for shapes, pictures/media, connectors, graphic frames and groups while retaining ordinary placeholder, chart/table and media baselines. Third-party projection issues `setHidden` independently and issues `setLocked` only for an exact unlocked baseline or complete canonical lock profile; partial, extension-bearing and unknown combinations remain byte-preserved and fail closed. One comprehensive authored/import/source-bound/reimport contract proves that unlocking changes only the target SlidePart and that residual package checks still protect all unmodeled content. This is an editing aid, not encryption, document protection or host UI acceptance. |
 | PPJ native SmartArt | partial | `smartArt.mode: "authored"` compiles 1–64 styled nodes through eight deterministic layouts to one native `p:graphicFrame`, four standard data/layout/style/colors parts, and one verified Office 2010 cached drawing. PPJ `connections` is the sole topology primitive (`parent`, `sequence`, `association`); package-local paths, relationship IDs, and model GUIDs stay writer-owned. Custom `office-kit/smartart-definition/v1` assets execute bounded placement, gap, column and reverse operators, embed their exact JSON in the native layout definition, reproject without embedded PPJ, and support immutable copy-on-write repointing per instance. OfficeKit-owned native diagrams issue local text, connection and frame capabilities; `picture` layouts whose cached node blips each resolve to one embedded asset additionally issue `setSmartArtImage` for replacing an existing node asset. Unchanged layout/style/colors hashes are re-proved after an edit, and nested drawing relationship sources are tracked separately from the SlidePart. Every closed third-party four-part graph now projects as typed source-bound SmartArt: supported nodes and `parOf` edges retain text-only capability, while unknown relationship/content graphs expose zero semantic nodes and no text capability instead of becoming a fake group. `nativeSections` carries path-independent data/layout/style/colors/drawing and closure hashes. `detachToShapes: true` is an explicit lossy operation available only for a verified cache; export independently proves exclusive ownership, deletes the diagram closure, writes a normal group, warns about semantic loss, validates Office 2021 Open XML and reprojects as a group. Arbitrary DiagramML execution, unsupported operator kinds, picture asset add/remove or multi-blip/effect graphs, shared/external closures, unverified caches and Windows PowerPoint playback remain fail-closed boundaries. |
 | PPJ waterfall charts | done (authored, bounded) | One semantic PPJ series combines signed `delta` points with absolute `total` points and explicit increase/decrease/total role styles. Validation proves role/value alignment, arithmetic continuity, non-negative cumulative values and the restricted style profile before compilation. NativeAOT lowers the semantics deterministically into one editable standard stacked-column ChartPart with invisible offset plus three visible role series; exact embedded PPJ recovery restores the semantic program. Ordinary third-party stacked/ChartEx graphs are not guessed into waterfall semantics and remain truthfully projected or opaque-preserved. |
-| PPJ text gradients and shadows | done (authored and bounded projection) | Direct runs, paragraph `defaultText`, and other compiler-owned text styles accept either a solid color or a two-to-sixteen-stop direct-RGB linear/centered-radial gradient plus one bounded direct outer shadow. NativeAOT writes editable `a:gradFill` and `a:effectLst/a:outerShdw`, reimports the canonical graph, and projects it back into PPJ when embedded source is absent. Solid/gradient conflicts, unordered stops, radial angles, invalid shadow geometry and unmodeled source fill/effect graphs fail before mutation; glow, reflection, inner shadows, WordArt transforms, theme-transformed gradients and broader effect lists remain source-owned. |
+| PPJ text gradients and shadows | done (authored and bounded projection) | Direct runs, paragraph `defaultText`, and other compiler-owned text styles accept either a solid color or a two-to-sixteen-stop direct-RGB linear/centered-radial gradient plus one bounded direct outer shadow. NativeAOT writes editable `a:gradFill` and `a:effectLst/a:outerShdw`, reimports the canonical graph, and projects it back into PPJ when embedded source is absent. Solid/gradient conflicts, unordered stops, radial angles, invalid shadow geometry and unmodeled source fill/effect graphs fail before mutation; authored text glow, inner shadow, reflection, and soft edge now have their own bounded fields and embedded-recovery rows below. WordArt transforms, theme-transformed gradients and broader effect lists remain source-owned. |
+| PPJ authored text glow | partial (authored + bounded source-bound run + defaultText radius/color/theme-color/opacity leaves) | `textStyle.glow` covers rich-text run styles and paragraph `defaultText` owners, including authored named/layout/master defaults, with direct RGB/theme color, `0..1000` point radius and numeric or `opacity`-token opacity. NativeAOT writes one direct `a:effectLst/a:glow` before the bounded text outer shadow, validates the profile and the focused run-plus-default-run experiment proves XML values, embedded PPJ recovery and invalid-radius rejection. A strict imported/source-bound direct rich-text run profile projects `textStyle.glow` and issues `textGlowRadiusEmu`, `textGlowColorRgb` or `textGlowColorScheme`, and an explicit `textGlowOpacityThousandthPercent` when present; `PpjSourceBoundTextGlowEditsDirectRunOwnerAndReprojects` changes all available leaves, proves only the owning `SlidePart` changes, and recovers the values on a second projection. The paragraph `a:defRPr` owner additionally issues `textDefaultGlowRadiusEmu`, `textDefaultGlowColorRgb`, `textDefaultGlowColorScheme`, and `textDefaultGlowOpacityThousandthPercent` for a direct glow radius/RGB/theme color/explicit alpha, as covered by the focused source-bound text-effect fixture; other unmodeled effect graphs, WordArt and arbitrary effect lists remain source-owned or fail closed. |
+| PPJ source-bound paragraph defaultText outer shadow | partial (bounded blur/distance/direction/alignment/RGB/theme-color/opacity/rotate-with-shape leaves) | A strict direct `a:p/a:pPr/a:defRPr/a:effectLst/a:outerShdw` owner exposes `textDefaultShadowBlurRadiusEmu`, `textDefaultShadowDistanceEmu`, `textDefaultShadowDirectionDegrees`, `textDefaultShadowAlignment`, `textDefaultShadowColorRgb`, `textDefaultShadowColorScheme`, `textDefaultShadowOpacityThousandthPercent`, and `textDefaultShadowRotateWithShape` when one existing bounded `blurRad`/`dist`/`dir`/`algn`, one direct RGB `srgbClr/@val` or theme-color `schemeClr/@val`, one existing direct `a:alpha/@val`, and one explicit `rotWithShape` attribute are present. Paragraph-index proof and the focused source-bound text-effect fixture prove token-only `outerShdw/@blurRad`, `outerShdw/@dist`, `outerShdw/@dir`, `outerShdw/@algn`, `outerShdw/srgbClr/@val`/`outerShdw/schemeClr/@val`, `a:alpha/@val`, and `outerShdw/@rotWithShape` edits, owning-`SlidePart` footprint, preserved effect topology and second projection; other effect graphs remain source-owned or fail closed. |
+| PPJ authored text inner shadow | partial (authored + bounded source-bound run + defaultText blur/distance/direction/color/alpha leaves) | `textStyle.innerShadow` covers rich-text run styles and paragraph `defaultText` owners, including authored named/layout/master defaults, with direct RGB/theme color, bounded blur/distance/angle and numeric or `opacity`-token opacity. NativeAOT writes one direct `a:effectLst/a:innerShdw` between bounded text glow and outer shadow, validates geometry/opacity and the focused run-plus-default-run experiment proves XML values, embedded PPJ recovery and invalid-blur rejection. A strict imported/source-bound direct rich-text run profile projects `textStyle.innerShadow` and issues the existing blur/distance/direction, RGB/theme color, and explicit-alpha leaves; `PpjSourceBoundTextInnerShadowEditsDirectRunOwnerAndReprojects` changes all five available values, proves only the owning `SlidePart` changes, and recovers them on a second projection. The paragraph `a:defRPr` owner additionally issues `textDefaultInnerShadowBlurRadiusEmu`, `textDefaultInnerShadowDistanceEmu`, `textDefaultInnerShadowDirectionDegrees`, `textDefaultInnerShadowColorRgb`, `textDefaultInnerShadowColorScheme`, and `textDefaultInnerShadowOpacityThousandthPercent` for direct blur/distance/direction/RGB/theme color/explicit alpha; the focused source-bound text-effect fixture token-splices only the direct inner-shadow geometry, `srgbClr/@val`/`schemeClr/@val`, or an existing `a:alpha/@val`, while reflection scalars other than the covered leaves, WordArt and arbitrary effect lists remain source-owned or fail closed. |
+| PPJ authored text reflection | partial (authored + bounded source-bound run + defaultText blur/distance/start/end-opacity/direction leaves) | `textStyle.reflection` covers rich-text run styles and paragraph `defaultText` owners, including authored named/layout/master defaults, with bounded blur, start/end opacity, distance and angle. NativeAOT writes one direct `a:effectLst/a:reflection` after bounded text glow, inner shadow and outer shadow, uses deterministic full-span positions, and the focused run-plus-default-run experiment proves XML values, embedded PPJ recovery and invalid-opacity rejection. A strict imported/source-bound direct rich-text run profile projects one full-span reflection or `outerShdw`→`reflection`, issues the five existing scalar leaves, token-splices them in the owning SlidePart, preserves the full-span owner proof and reprojects the values in `PpjSourceBoundTextReflectionEditsDirectRunOwnerAndReprojects`; `defaultText` exposes the separate glow-radius, inner-shadow-blur, reflection-blur/distance/start-opacity/end-opacity/direction and soft-edge-radius leaves below, while non-full-span/transform variants, other text effects, WordArt and arbitrary effect lists remain source-owned or fail closed. |
+| PPJ authored text soft edge | partial (authored + bounded source-bound run + defaultText leaves) | `textStyle.softEdge` covers rich-text run styles and paragraph `defaultText` owners, including authored named/layout/master defaults, with a `0..1000` point radius. NativeAOT writes one direct `a:effectLst/a:softEdge` after the bounded text glow, inner shadow, outer shadow, and reflection owners, validates the radius and the focused run-plus-default-run experiment proves XML values, embedded PPJ recovery and invalid-radius rejection. A strict imported/source-bound direct rich-text run profile projects one direct soft edge, `outerShdw`→`softEdge`, or full-span `reflection`→`softEdge`, issues `textSoftEdgeRadiusEmu`; the matching paragraph `a:defRPr` owner issues `textDefaultSoftEdgeRadiusEmu` with paragraph-index proof, and the same fixture verifies `textDefaultGlowRadiusEmu`, `textDefaultGlowColorRgb`, `textDefaultGlowColorScheme`, `textDefaultGlowOpacityThousandthPercent`, `textDefaultShadowBlurRadiusEmu`, `textDefaultShadowDistanceEmu`, `textDefaultShadowDirectionDegrees`, `textDefaultShadowAlignment`, `textDefaultShadowColorRgb`, `textDefaultShadowColorScheme`, `textDefaultShadowOpacityThousandthPercent`, `textDefaultShadowRotateWithShape`, `textDefaultInnerShadowBlurRadiusEmu`, `textDefaultInnerShadowDistanceEmu`, `textDefaultInnerShadowDirectionDegrees`, `textDefaultInnerShadowColorRgb`, `textDefaultInnerShadowColorScheme`, `textDefaultInnerShadowOpacityThousandthPercent`, `textDefaultReflectionBlurRadiusEmu`, `textDefaultReflectionDistanceEmu`, `textDefaultReflectionStartOpacityThousandthPercent`, `textDefaultReflectionEndOpacityThousandthPercent`, and `textDefaultReflectionDirectionDegrees` for separate default-text owners. The focused source-bound fixture token-splices all twenty-four focused default-text effect scalars plus the inline-run soft-edge radius only in the owning SlidePart and reprojects them; multi-effect chains, non-full-span/transform variants, WordArt and arbitrary effect lists remain source-owned or fail closed. |
+| PPJ authored/source-bound shape/image glow | partial (authored + bounded source-bound) | `shapeStyle.glow`, `imageStyle.glow`, and direct shape/line/picture glow fields accept a direct RGB or bounded theme color, a `0..1000` point radius, and numeric or `opacity`-token opacity. NativeAOT writes one direct `a:effectLst/a:glow`, keeps it independent from the outer shadow, places glow before outer shadow, validates the radius/opacity bounds, and the authored shape-plus-picture experiment proves XML values and embedded recovery. Imported/source-bound ordinary shape, line, and picture glow expose shape/image native leaves and a SlidePart-only token-splice path; `PpjSourceBoundShapeImageGlowEditsOwnersAndReprojects` proves retained outer shadows, Open XML validity, non-target package bytes, and second projection. Complex effect graphs remain source-owned/fail-closed. |
+| PPJ authored/source-bound shape/image soft edge | partial (authored + bounded source-bound) | `shapeStyle.softEdge`, `imageStyle.softEdge`, and direct shape/line/picture soft-edge fields accept a `0..1000` point radius. NativeAOT writes one direct `a:effectLst/a:softEdge`, keeps it independent from glow and outer shadow, places it after those bounded effects, validates the radius, and `PpjAuthoredSoftEdgeEffectWritesShapeAndPictureOwners` proves XML values and embedded recovery. Imported/source-bound ordinary shape, line, and picture soft edge expose `shapeSoftEdgeRadiusEmu`/`imageSoftEdgeRadiusEmu`; `PpjSourceBoundShapeImageSoftEdgeEditsOwnersAndReprojects` proves SlidePart-only `rad` token splice, retained preceding outer shadow, Open XML validity, non-target package bytes, and second projection. Complex effect graphs remain source-owned and fail closed. |
+| PPJ authored/source-bound shape/image inner shadow | partial (authored + bounded source-bound) | `shapeStyle.innerShadow`, `imageStyle.innerShadow`, and direct shape/line/picture inner-shadow fields accept a direct RGB or bounded theme color, bounded blur/distance/angle, and numeric or `opacity`-token opacity. NativeAOT writes one direct `a:effectLst/a:innerShdw`, keeps it independent from glow, outer shadow, and soft edge, places it between glow and outer shadow, validates geometry/opacity bounds, and the authored shape-plus-picture experiment proves XML values and embedded recovery. Imported/source-bound direct inner shadow or inner-shadow→outer-shadow exposes owner-specific leaves; `PpjSourceBoundShapeImageInnerShadowEditsOwnersAndReprojects` proves SlidePart-only token splice, retained outer shadows, Open XML validity and second projection, while complex effect lists remain source-owned/fail-closed. |
+| PPJ authored/source-bound shape/image reflection | partial (authored + bounded source-bound) | `shapeStyle.reflection`, `imageStyle.reflection`, and direct shape/line/picture reflection fields accept bounded blur, start/end opacity, distance, and angle values. NativeAOT writes one direct `a:effectLst/a:reflection` with deterministic full-span positions, keeps it independent from the other bounded effects, places it between outer shadow and soft edge, validates geometry/opacity bounds, and the authored shape-plus-picture experiment proves XML values and embedded recovery. Imported/source-bound direct full-span reflection or outer-shadow→reflection exposes owner-specific leaves; `PpjSourceBoundShapeImageReflectionEditsOwnersAndReprojects` proves SlidePart-only token splice, retained outer shadows, Open XML validity and second projection, while non-full-span and complex effect graphs remain source-owned or fail closed. |
 | PPJ vector heatmaps | done (authored, bounded) | One semantic PPJ heatmap carries a 1–32 by 1–32 labelled numeric matrix, explicit missing cells, a two-color linear or three-color diverging scale, bounded domain/midpoint, optional value labels, cell stroke/gap and one color bar. NativeAOT deterministically lowers it to an editable DrawingML group of rectangles and text because OOXML has no standard heatmap ChartPart; no raster image is introduced. Embedded PPJ restores the exact heatmap, while projection without the private program truthfully returns the ordinary group and never guesses semantics from an arbitrary shape grid. Heatmap `chartBuild`, nonlinear scales, clustering, hierarchical axes and larger matrices fail closed. |
 | PPJ vector candlesticks | done (authored, bounded) | One semantic PPJ candlestick carries 1–64 ordered categories, aligned high/low/close channels, optional open values for OHLC, bounded axes, rise/fall paint, wick style, optional close labels and editable gridlines. Up to four aligned line, area or column overlays may share the proven Y domain; filled overlays render behind the price marks and line overlays render above them. NativeAOT proves price inequalities, overlay alignment, truthful zero baselines and frame readability, then lowers the evidence to one editable DrawingML group of connectors, body shapes and text without a PNG or ChartPart. Embedded PPJ restores exact OHLC/HLC and overlay intent; projection without the private program truthfully returns the ordinary group and never infers financial semantics. Secondary axes, numeric-X overlays, formulas, automatic labels, chart-build animation, unsupported number formats and excessive close labels fail closed. |
 | PPJ vector treemaps | done (authored, bounded) | One semantic PPJ treemap carries 1–128 globally named positive nodes, aligned nullable parents, 1–16 roots and at most eight levels. Validation proves every parent exists, the forest is acyclic and each non-leaf value equals its direct-child sum. Optional series `levels` keeps the full forest in PPJ while reflowing only the first 1–8 levels into visible branch rectangles. NativeAOT uses deterministic squarified layout and lowers the visible hierarchy to one editable DrawingML group of named rectangles and bounded text; no PNG or ChartPart is introduced. Root colors, depth lightening, gap, border and label/value styles are finite authored state. Embedded PPJ restores the exact forest and display limit, while projection without the private program truthfully returns the ordinary group and never infers omitted hierarchy from geometry. Chart-build animation, axes, interactive drill-down, ordinary ChartPart options, non-positive values and inconsistent totals fail closed. |
@@ -935,13 +1023,25 @@ the final accessibility and visual-review path.
 | PPJ SmartArt picture-node asset/paint | bounded done | OfficeKit-owned `picture` SmartArt whose cached drawing gives each node exactly one embedded blip projects content-addressed `nodes[].asset` plus canonical `nodes[].image` (`fit: stretch|tile`, crop, opacity) and issues `setSmartArtImage`/`setSmartArtImagePaint`. Replacing an existing node asset or its paint keeps node/edge/layout topology fixed, rebuilds only the owning SlidePart plus the diagram/cache parts and nested drawing `.rels`/media closure, validates the package, protects the source and recovers the replacement on second projection. Asset/image add/remove, multiple/effect-bearing/linked blips, shared/external relationships, unverified cache and arbitrary third-party DiagramML remain source-owned/fail closed. |
 | PPJ chart dataset/encoding | partial | `chart.data.dataset` (`cols`/`rows`), top-level and series-level channel `encoding`, literal `dataFilter` and typed `seriesDefaults` are accepted and normalized to canonical categories/series for authored compile and re-projection. For a native category chart, or a simple scatter/bubble chart, with no formulas, sparse point overrides, advanced series topology, or advanced series styling, projection now emits a deterministic canonical dataset plus top-level `encoding` alongside the legacy categories/series (or xValues/values/bubbleSizes) view; the legacy view remains the compatibility owner for complex charts. `close/flow/isTotal`, numeric-string conversion, heatmap matrix expansion and bounded `xAxisIndex/yAxisIndex` 0/1 mapping to primary/secondary combo axes are covered by `PpjDatasetEncodingCoversKimiChannels`; the finite 0/1 indexes now survive canonical model parsing and combo projection as re-consumable series fields. `PpjDatasetEncodingAuthorsAllKimiSeriesFamilies` additionally validates, authors and reprojects one representative dataset for each of Kimi's 13 series families after removing embedded PPJ, including numeric scatter/bubble canonical rows. Bar/line/area/scatter/bubble/pie/radar retain native ChartParts; bounded categorical column/line/area combinations are native too; waterfall lowers to an editable column ChartPart and candlestick/heatmap/treemap/sunburst/sankey truthfully lower to editable groups/vectors. Series defaults recursively merge nested objects, so a series can override only a nested `marker`, `dataLabels` or `textStyle` field while inheriting the remaining defaults; `PpjDatasetEncodingAuthorsAllKimiSeriesFamilies` covers nested data-label text-style inheritance. Axis arrays are lowered to the existing primary/secondary PPJ pair; source-bound common plot scalars now patch legend, stacking, gap width, axis/grid visibility, line smooth/vary-colors, and bounded bubble/circular integer fields through `setChartPlot` with second projection. Ordinary x/y/secondary axis `tickLabelInterval`, `min`, `max`, `majorUnit`, `visible`, `reverse`, `tickLabelsVisible`, `axisLine` and `gridLine` fields also accept declared `size`/`boolean` tokens in authored and source-bound paths, with a ChartPart-only patch and canonical default-visible gridline handling. Recognized source-bound line/scatter/radar marker identity, size, direct RGB/alpha fill, marker stroke, and non-scatter series stroke now use `setChartSeriesStyle` for ChartPart-only add/replace/remove edits with second projection; the contract is finite and does not execute expressions. Wider cross-family combinations, original array-vs-secondary spelling and synchronized ChartPart/embedded-workbook footprints remain open. |
 | PPJ chart series analytics | partial | Existing bar/column or line ChartPart trendline lists and scalar error-bar objects are projected as editable semantic fields. `setChartSeriesAnalytics` replaces bounded type/parameters/display flags/direct stroke only when the source child topology and cardinality stay unchanged; ChartPart-only output is reprojected and validated. Custom error-bar data, formulas/workbook synchronization, extensions, complex ChartML and add/remove topology remain source-owned and fail closed. |
-| PPJ compositing declaration | partial | Element `compositing` records opacity, blend mode, isolation and an ordered clip stack. Validator diagnostics and authored normal-opacity lowering for shape/image are in place; recognized picture masks additionally have a bounded source-bound preset/custom geometry transition on the existing picture owner. Non-normal blend, isolation, clip closure and broader source-bound effect editing fail closed until a native support matrix is proven. |
-| PPJ design grammar declarations | partial | `designGrammar.tokens`, `stylePrecedence` and `predicates` have typed schema and C# validation for literal types, finite values, uniqueness and bounded comparisons. `reviewPpjArtifact` deterministically evaluates the declared token map and first-hit source precedence (`inline`/`styleRef`/`theme`/`master`/`default`), resolves declared `{token}` references to concrete values with token/kind evidence, and reports predicate violations as warnings. Authored color resolution accepts grammar color token fallback with bounded tint-then-shade mixing; authored text `size`/`bold`/`italic`/`font`/`fontFamily`, image and image-paint `fit`/`opacity`, chart `titleTextStyle` `fontSize`/`fontFamily`/`bold`/`italic`/`color`, shape/image/line opacity, solid fill opacity, stroke width, shadow opacity, and table boolean style flags accept typed grammar token references and validate the expected kind before native lowering. Images now also support a reusable `design.styles.image` catalog with `image.styleRef` plus inline field-level precedence for fit/crop/focus/opacity/border/shadow; authored lowering and source-bound edits resolve the selected image paint/effect values without changing the image relationship. The source-bound image element and shape/text/table/chart-frame/background image-paint profile resolves the same fit/opacity tokens before relationship-safe local edits; source-bound shape solid/gradient-fill colors, stroke colors, shape/image/chart-frame shadow colors, and fixed-topology table-cell border colors now also resolve declared `color` tokens (including bounded tint/shade/alpha), while undeclared stroke/shadow tokens retain the standard DrawingML theme-token route. Source-bound shape/text/chart/table solid fill opacity and shape/line/connector stroke width/opacity use the same kind-checked resolver. Source-bound solid slide backgrounds use the same color resolver and preserve the owning `p:bg` footprint. Chart common style fields now also accept bounded `string` tokens for legend/stacking/bubble mode, `size` tokens for gap/slice/hole/bubble integers, and `boolean` tokens for axis/label visibility and line options, with post-resolution enum/range checks. Ordinary chart-axis titles, numeric bounds, direction, label `numberFormat` and axis/grid line fields, plus chart/radar data-label visibility/position/`numberFormat`, accept the corresponding `size`/`boolean`/`string` tokens and canonicalize true gridlines to DrawingML's default-visible form. Source-bound chart title/legend/data-label/axis text styles and fixed-topology table-cell text styles also resolve bounded size, string, boolean and color tokens before a ChartPart/SlidePart-only patch; chart frame gradient stop colors are covered by the same source-bound color resolver. Authored style precedence now applies the declared first-hit order to bounded text-run `size`/`bold`/`italic`/`font`/`fontFamily`, shape `fill/stroke/shadow/opacity`, chart `legend` plus common chart fields (`stacking`/`gapWidth`/slice/bubble/axis visibility/labels/line options), `chartAreaFill`/`plotAreaFill`/`frame`/`titleTextStyle`/`legendTextStyle`, and table `headerRows`/`bandedRows` properties. Chart title/legend/data-label text styles retain whole-object precedence unless an explicit nested `chart.*TextStyle.<field>` rule requests bounded field-level shallow merging; when no rule is declared, the historical inline-style then named-style order remains unchanged. Full theme/master cascade application, native style writeback and broader source-bound style edits remain open. |
+| PPJ compositing declaration | partial | Element `compositing` records opacity, blend mode, isolation and an ordered clip stack. Validator diagnostics and authored normal-opacity lowering for shape/image are in place; connectors, icons and placeholders are covered by their existing native owners, and exactly one non-inverse bounded preset or custom `compositing.clipStack` entry on an image lowers to the existing picture mask and projects back as canonical `image.mask` with adjustment values or path commands. Recognized picture masks additionally have a bounded source-bound preset/custom geometry transition on the existing picture owner. Multi-entry/inverse/unsupported-custom/non-image/conflicting clips, non-normal blend, isolation and broader source-bound effect editing fail closed until a native support matrix is proven. |
+| PPJ design grammar declarations | partial | `designGrammar.tokens`, `stylePrecedence` and `predicates` have typed schema and C# validation for literal types, finite values, uniqueness and bounded comparisons. `reviewPpjArtifact` deterministically evaluates the declared token map and first-hit source precedence (`inline`/`styleRef`/`theme`/`master`/`default`), resolves declared `{token}` references to concrete values with token/kind evidence, and reports predicate violations as warnings. Authored color resolution accepts grammar color token fallback with bounded tint-then-shade mixing; authored text `size`/`bold`/`italic`/`font`/`fontFamily`, image and image-paint `fit`/`opacity`, chart `titleTextStyle` `fontSize`/`fontFamily`/`bold`/`italic`/`color`, shape/image/line opacity, solid fill opacity, stroke width, shadow opacity, and table boolean style flags accept typed grammar token references and validate the expected kind before native lowering. Images now also support a reusable `design.styles.image` catalog with `image.styleRef` plus inline field-level precedence for fit/crop/focus/opacity/border/shadow; authored lowering and source-bound edits resolve the selected image paint/effect values without changing the image relationship. The source-bound image element and shape/text/table/chart-frame/background image-paint profile resolves the same fit/opacity tokens before relationship-safe local edits; source-bound shape solid/gradient-fill colors, stroke colors, shape/image/chart-frame shadow colors, and fixed-topology table-cell border colors now also resolve declared `color` tokens (including bounded tint/shade/alpha), while undeclared stroke/shadow tokens retain the standard DrawingML theme-token route. Source-bound shape/text/chart/table solid fill opacity and shape/line/connector stroke width/opacity use the same kind-checked resolver. Source-bound solid slide backgrounds use the same color resolver and preserve the owning `p:bg` footprint. Chart common style fields now also accept bounded `string` tokens for legend/stacking/bubble mode, `size` tokens for gap/slice/hole/bubble integers, and `boolean` tokens for axis/label visibility and line options, with post-resolution enum/range checks. Ordinary chart-axis titles, numeric bounds, direction, label `numberFormat` and axis/grid line fields, plus chart/radar data-label visibility/position/`numberFormat`, accept the corresponding `size`/`boolean`/`string` tokens and canonicalize true gridlines to DrawingML's default-visible form. Source-bound chart title/legend/data-label/axis text styles and fixed-topology table-cell text styles also resolve bounded size, string, boolean and color tokens before a ChartPart/SlidePart-only patch; chart frame gradient stop colors are covered by the same source-bound color resolver. Authored style precedence now applies the declared first-hit order to bounded text-run `size`/`bold`/`italic`/`font`/`fontFamily`, shape `fill/stroke/shadow/opacity`, chart `legend` plus common chart fields (`stacking`/`gapWidth`/slice/bubble/axis visibility/labels/line options), `chartAreaFill`/`plotAreaFill`/`frame`/`titleTextStyle`/`legendTextStyle`, and table `headerRows`/`bandedRows` properties. It now also has a bounded formal text-owner map: `run` → `paragraph` → `element` → `styleRef` → `layout` → `master` → `theme` → `default`; direct `textStyle`, `paragraph.style.defaultText`, authored layout/master `style`, and per-run scalar lowering are covered by an authored round trip, while `reviewPpjArtifact` reports the same winning owner per rich-text run. The text-container `style` remains separate, and source-bound requests carrying the new formal owner fields fail closed. Chart title/legend/data-label text styles retain whole-object precedence unless an explicit nested `chart.*TextStyle.<field>` rule requests bounded field-level shallow merging; when no rule is declared, the historical inline-style then named-style order remains unchanged. Full theme/master cascade application, native style writeback and broader source-bound style edits remain open. |
+| PPJ formal theme text owner | bounded done (authored) | `design.theme.textStyle` is the direct authored fallback owner for the eight bounded text scalars, including `text.fontFamilyEastAsia`, `text.fontFamilyComplexScript`, and `text.language`. Theme-hit and default-fallthrough values survive authored compile → embedded-snapshot removal → PPJ projection; `reviewPpjArtifact` reports the same `theme` winner, and source-bound declarations fail closed with `ppj.sourceBound.formalTextOwner`. This does not model or edit the full native `theme1.xml` graph. |
+| PPJ text language grammar token | bounded done (authored) | `text.language` accepts a declared `string` grammar token; the resolved value is still checked as a bounded BCP-47 tag before direct `a:rPr/@lang` lowering. Invalid token kinds/tags fail closed; no locale inference, font fallback, or source-bound theme edit is implied. |
+| PPJ authored theme font scheme | partial (bounded) | `design.theme.fontScheme.major/minor` is an explicit authored owner for the native `a:majorFont`/`a:minorFont` roles. The compiler prefers these values over the legacy positional `design.fonts` fallback and writes each family into the bounded Latin, East Asian, and complex-script slots; a focused native XML check and embedded recovery prove the declaration. Source-bound PPJ rejects the field rather than inferring a writable imported theme graph. Per-script fallback, font embedding/substitution, effect schemes, and arbitrary `theme1.xml` editing remain outside the profile. |
+| PPJ authored theme accent colors | partial (bounded) | `design.theme.accentColors.accent1..accent6` is an explicit authored owner for the six native `a:accent*Color` roles. The compiler prefers these named values over the legacy positional `design.theme.colors` fallback; six-digit RGB remains compatible and an optional `#RRGGBBAA` suffix lowers its alpha to `a:alpha`, with focused native XML and embedded recovery evidence. Source-bound PPJ rejects the field rather than inferring a writable imported theme graph. Other transforms, effect schemes, and arbitrary `theme1.xml` editing remain outside the profile. |
+| PPJ authored theme color roles | partial (bounded) | `design.theme.colorRoles.dark1/light1/dark2/light2/hyperlink/followedHyperlink` is an explicit authored owner for the six remaining bounded `a:clrScheme` roles. The compiler writes six-digit RGB or optional `#RRGGBBAA` values, lowers only the alpha suffix to `a:alpha`, preserves existing defaults for omitted authored fields, and a focused native XML plus embedded recovery experiment proves the named roles. Source-bound PPJ rejects the field rather than inferring a writable imported theme graph. Other transforms, effect schemes, inheritance, and arbitrary `theme1.xml` editing remain outside the profile. |
+| PPJ authored theme accent transforms | partial (bounded) | `design.theme.accentTransforms.accent1..accent6` is an explicit authored owner for bounded direct `a:tint` and `a:shade` children below each accent's `a:srgbClr`; values are preserved in thousandths of a percent and embedded PPJ recovery restores the exact fractions. Omitted roles keep the legacy accent output. Full transform/effect schemes, imported theme editing, and host color-management equivalence remain outside the profile. |
+| PPJ authored theme luminance transforms | partial (bounded) | The same six authored accent roles also accept `lumMod` in `0..1` and signed `lumOff` in `-1..1`, lowering to direct `a:lumMod`/`a:lumOff` after any existing tint/shade children; focused native XML and embedded recovery prove the signed fraction mapping. Other color-transform families, effect schemes, imported theme editing, and host color-management equivalence remain outside the profile. |
+| PPJ authored theme alpha transforms | partial (bounded) | The same six authored accent roles also accept `alphaMod` in `0..1` and signed `alphaOff` in `-1..1`, lowering to direct `a:alphaMod`/`a:alphaOff` after an optional absolute RGBA `a:alpha`; a focused native XML and embedded recovery test proves the owners remain distinct. Other color-transform families, effect schemes, imported theme editing, and host alpha-compositing equivalence remain outside the profile. |
+| PPJ authored theme saturation transforms | partial (bounded) | The same six authored accent roles also accept `satMod` in `0..1` and signed `satOff` in `-1..1`, lowering to direct `a:satMod`/`a:satOff` after the existing luminance fields; focused native XML and embedded recovery prove the signed fraction mapping. Other color-transform families, effect schemes, imported theme editing, and host color-management equivalence remain outside the profile. |
+| PPJ authored theme channel transforms | partial (bounded) | The same six authored accent roles also accept `redMod`/`greenMod`/`blueMod` in `0..1` and signed `redOff`/`greenOff`/`blueOff` in `-1..1`, lowering each present field to its direct DrawingML RGB-channel transform child; focused native XML and embedded recovery prove independent presence and thousandth-percent mapping. Other color-transform families, effect schemes, imported theme editing, and host color-management equivalence remain outside the profile. |
+| PPJ authored discrete theme transforms | partial (bounded) | The same six authored accent roles also accept explicit `true` flags `gray`, `comp`, `inv`, `gamma`, and `invGamma`, lowering each present flag to its corresponding empty DrawingML transform child; focused native XML and embedded recovery prove independent presence, while false-valued flags fail schema validation. Other color-transform families, effect schemes, imported theme editing, and host color-management equivalence remain outside the profile. |
+| PPJ authored theme hue transforms | partial (bounded) | The same six authored accent roles also accept `hueMod` in `0..1` and signed `hueOff` in `-360..360` degrees, lowering to direct `a:hueMod` percentage and `a:hueOff` 1/60000-degree children; focused native XML and embedded recovery prove the unit conversion and independent presence. Other color-transform families, effect schemes, imported theme editing, and host color-management equivalence remain outside the profile. |
 | PPJ component image policy | partial | Image-accepting component slots can declare role, fit/mask allow-lists, minimum pixel dimensions and rights statuses. Asset metadata is checked during PPJ validation; a focused authored compile/projection proves supplied image slots retain the declared mask policy and reject an unsafe fit. Component parameters accept typed `{crop: {...}}` and `{focus: {x, y}}` values for `image.crop`/`image.focus` bindings; `focus` requires `fit: cover` and lowers to an asymmetric executable crop, with a focused repeated-instance projection proof. Schema-v3 template search now verifies image-slot example bindings and returns absolute example paths/hashes; `planTemplateImageReplacement` builds a metadata-only, fail-closed replacement plan that checks asset dimensions/rights/fit/mask and preserves crop/focus/accessibility unless explicitly overridden. `applyTemplateImageReplacement` applies that plan to one explicit PPJ image owner in a pure cloned transaction, adds or verifies the complete content-addressed asset declaration, preserves unmentioned image fields, and checks source-bound replace-image/fit/mask capabilities. `applyTemplateImageReplacementToPptx` now verifies exact source/asset hashes, invokes the PPJ NativeAOT compiler, requires its output hash and changed-part receipt, and reprojects the output through the PPJ projector; a minimal injected-native smoke covers the orchestration and hash refusal. Automatic cross-import focus inference, shared/ambiguous relationship governance, and host acceptance remain open. |
 | PPJ timing graph sugar | partial | Page `timing.nodes[]` is parsed and normalized into the existing bounded animation array. Compact `animations[]` and `timing.nodes[]` retain a normalized `trigger` field, with `timeline` leaving `start` authoritative; non-timeline values must agree with `start`. The finite profile covers linear/ease-in/ease-out/ease-in-out, repeat 1–8, and NativeAOT writes/reads the corresponding `p:cTn` attributes. `PpjSourceBoundTimingGraphEditsOnlySlideAndReprojects` removes the embedded PPJ snapshot, edits duration/delay/repeat/autoReverse/easing through the issued animation capability, proves a `ppt/slides/slide1.xml`-only footprint, validates Open XML, and recovers the edited graph on second projection. Mismatched/unknown triggers, motion paths, media timing and full trigger closure remain fail closed/opaque; this is structural/source-bound evidence, not Windows playback acceptance. |
 | PPJ shape actions | partial | Shape-producing text/shape/line/icon/placeholder elements accept typed URI, slide, custom-show and finite verb click actions plus a separate `hoverAction` for mouse-over navigation. URI schemes and target references are validated, authored output writes native `a:hlinkClick`/`a:hlinkHover`, and projection restores both typed actions; unsupported element types fail closed. Source-bound click/hover relationship edits now replace or remove only the recognized target and clean unreferenced relationships, while sound/media/macro triggers and arbitrary action graphs remain open. |
 | PPJ accessibility and reading order | partial (bounded source writeback) | `pages[].readingOrder` is an explicit complete direct-element permutation for authored/native projection. For a source-bound slide whose direct shape-tree children are all safely movable, the same permutation is written back through the existing z-order owner; recognized ordinary groups additionally expose `group.readingOrder` as a complete direct-child permutation and write it back through the group's local shape-tree order. Only the owning SlidePart and any required relationship part are changed, and a second projection verifies semantic order. The PPJ review adds machine checks for invalid order, missing alternative text and contradictory decorative decisions, and records SmartArt/host Checker work as manual boundaries. It does not claim SmartArt-internal semantics, PowerPoint Accessibility Checker equivalence, WCAG, or whole-deck conformance. |
-| PPJ layout and occlusion review | partial | `reviewPpjArtifact` reports original frames, canvas overflow, z-order and overlap while suppressing duplicate parent/child warnings. It computes deterministic conservative rotated-rectangle bounds and shadow expansion for direct/style/chart-frame shadows, and a bounded endpoint-direction/stroke-width proxy for `line`/`connector` arrowheads (`none|triangle|stealth|diamond|oval|open`), labels `rotated-visual-bounds` or `arrow-visual-bounds` detection, and estimates text overflow from font size, Unicode character widths, margins and wrapping under a `deterministic-character-metric` method. Overflow and overlap issues now carry stable human-action recommendations tied to the detected visual-bound mode; they remain read-only. Authored component repeat supports bounded grid columns/row gaps plus flow wrapping (explicit or stable near-square columns) and start/center/end anchoring, then projects ordinary frames. AutoFit is reported separately from warning-level overflow; real host font measurement, exact mask contours, solver constraints and explicit layout apply remain open, and the review never mutates the input. |
+| PPJ layout and occlusion review | partial | `reviewPpjArtifact` reports original frames, canvas overflow, z-order and overlap while suppressing duplicate parent/child warnings. It computes deterministic conservative rotated-rectangle bounds and shadow expansion for direct/style/chart-frame shadows, and a bounded endpoint-direction/stroke-width proxy for `line`/`connector` arrowheads (`none|triangle|stealth|diamond|oval|open`), labels `rotated-visual-bounds` or `arrow-visual-bounds` detection, and estimates text overflow from font size, Unicode character widths, margins and wrapping under a `deterministic-character-metric` method. Overflow and overlap issues now carry stable human-action recommendations tied to the detected visual-bound mode; they remain read-only. Authored component repeat supports bounded grid columns/row gaps plus flow wrapping (explicit or stable near-square columns), start/center/end anchoring, and positive item-count-matched `layout.weights` for horizontal/vertical weighted stacks, then projects ordinary frames. AutoFit is reported separately from warning-level overflow; real host font measurement, exact mask contours, solver constraints, cross-object constraints and explicit layout apply remain open, and the review never mutates the input. |
 These rows are bounded language/codec evidence, not Windows PowerPoint
 acceptance. The detailed Kimi/full-PowerPoint backlog is in
 `docs/ppj-kimi-pptd-full-ppt-gap-backlog.zh-CN.md`.
@@ -1255,21 +1355,769 @@ effect-bearing, or non-centered profiles remain opaque and fail closed.
 Imported direct shadows now retain observed RGB/theme color, alpha, blur,
 distance, direction, alignment, and rotate-with-shape attributes without
 inventing omitted DrawingML values. Bounded run gradients and shadows survive
-source-bound text edits, including text nested inside groups. Recursive
-semantic-hash normalization treats writer-materialized default `en-US`
-language as equivalent to an omitted source value. The existing presentation
-smoke and real MMS text-edit dogfood cover this profile; arbitrary effect
-graphs and complete six-sample edit coverage remain open.
+source-bound text edits, including text nested inside groups. A strict direct
+rich-text run glow profile also projects `textStyle.glow` and issues only the
+source scalars that exist: radius, RGB/theme color, and an explicit direct
+color alpha. `PpjSourceBoundTextGlowEditsDirectRunOwnerAndReprojects` changes
+those available leaves, token-splices only the owning `SlidePart`, and
+recovers the values on a second projection. Only one direct `a:glow`, or that
+glow followed by one bounded direct outer shadow, qualifies; source-bound
+paragraph `defaultText` now exposes the direct `textDefaultGlowRadiusEmu`,
+`textDefaultGlowColorRgb`, `textDefaultGlowColorScheme`,
+`textDefaultGlowOpacityThousandthPercent`, `textDefaultShadowBlurRadiusEmu`,
+`textDefaultShadowDistanceEmu`,
+`textDefaultShadowDirectionDegrees`,
+`textDefaultShadowAlignment`,
+`textDefaultShadowColorRgb`,
+`textDefaultShadowColorScheme`,
+`textDefaultShadowOpacityThousandthPercent`,
+`textDefaultShadowRotateWithShape`,
+`textDefaultInnerShadowBlurRadiusEmu`,
+`textDefaultReflectionBlurRadiusEmu`, and `textDefaultSoftEdgeRadiusEmu` leaves
+documented below; unknown/extension and other arbitrary effect graphs remain
+source-owned or fail closed. A strict direct rich-text run inner-shadow
+profile also projects `textStyle.innerShadow` and issues only the source
+scalars that exist: blur, distance, direction, RGB/theme color, and an
+explicit direct color alpha. `PpjSourceBoundTextInnerShadowEditsDirectRunOwnerAndReprojects`
+changes all five available leaves, token-splices only the owning `SlidePart`,
+and recovers the values on a second projection. Only one direct
+`a:innerShdw`, or that inner shadow followed by one bounded direct outer
+shadow, qualifies; source-bound paragraph `defaultText` exposes only its
+strict inner-shadow blur leaf here, while its separate glow-radius/color/
+theme-color/alpha, reflection-blur and soft-edge-radius leaves are documented
+below; other reflection scalars, unknown/extension and other
+arbitrary effect graphs remain
+source-owned or fail closed. Recursive semantic-hash
+normalization treats writer-materialized default `en-US` language as
+equivalent to an omitted source value. The existing presentation smoke and
+real MMS text-edit dogfood cover the surrounding profile; complete effect
+graph coverage remains open.
+
+A strict paragraph `defaultText` glow profile now separately exposes
+`textDefaultGlowRadiusEmu`, `textDefaultGlowColorRgb`, and
+`textDefaultGlowColorScheme`, and
+`textDefaultGlowOpacityThousandthPercent` when the direct
+`a:p/a:pPr/a:defRPr/a:effectLst/a:glow` owner uses a direct glow or a glow
+followed by one bounded direct outer shadow. Its paragraph index is
+source-bound and the edit plan token-splices only `glow/@rad`, the direct
+`a:srgbClr/@val`, or the direct `a:schemeClr/@val` in the owning `SlidePart`;
+the focused text-effect fixture changes this radius/color/theme/alpha token alongside
+the other default-text and inline-run owners, then reprojects the focused effect
+values. Unknown/extension and other arbitrary effect graphs remain source-owned
+or fail closed.
+
+A strict paragraph `defaultText` outer-shadow profile now separately exposes
+`textDefaultShadowBlurRadiusEmu`, `textDefaultShadowDistanceEmu`,
+`textDefaultShadowDirectionDegrees`, `textDefaultShadowAlignment`,
+`textDefaultShadowColorRgb`, `textDefaultShadowColorScheme`,
+`textDefaultShadowOpacityThousandthPercent`, and
+`textDefaultShadowRotateWithShape` when the direct
+`a:p/a:pPr/a:defRPr/a:effectLst/a:outerShdw` owner has one existing bounded
+`blurRad`/`dist`/`dir`/`algn`, one direct `srgbClr/@val` or `schemeClr/@val`,
+one existing direct `a:alpha/@val`, and one explicit `rotWithShape` attribute.
+Its paragraph index is source-bound and the edit plan token-splices only
+`outerShdw/@blurRad`, `outerShdw/@dist`, `outerShdw/@dir`, `outerShdw/@algn`,
+`outerShdw/srgbClr/@val`, `outerShdw/schemeClr/@val`, the existing
+`a:alpha/@val`, or `outerShdw/@rotWithShape` in the owning `SlidePart`; the
+focused text-effect fixture changes these values and reprojects them. Missing
+alpha or rotation flag, unknown/extension and other arbitrary effect graphs
+remain source-owned or fail closed.
+
+A strict paragraph `defaultText` inner-shadow profile now separately exposes
+`textDefaultInnerShadowBlurRadiusEmu`,
+`textDefaultInnerShadowDistanceEmu`,
+`textDefaultInnerShadowDirectionDegrees`, and
+`textDefaultInnerShadowColorRgb`,
+`textDefaultInnerShadowColorScheme`, and
+`textDefaultInnerShadowOpacityThousandthPercent` when the direct
+`a:p/a:pPr/a:defRPr/a:effectLst/a:innerShdw` owner uses one bounded direct
+inner shadow, optionally followed by one bounded direct outer shadow. Its
+paragraph index is source-bound and the edit plan token-splices only
+`innerShdw/@blurRad`, `innerShdw/@dist`, `innerShdw/@dir`, the direct
+`a:srgbClr/@val` or `a:schemeClr/@val`, or an existing direct
+`a:alpha/@val` in the owning `SlidePart`; the focused text-effect fixture
+changes these fields alongside the other default-text and inline-run owners,
+then reprojects them. Missing or implicit default-text alpha remains
+source-owned in this slice.
+
+A strict paragraph `defaultText` reflection profile now separately exposes
+`textDefaultReflectionBlurRadiusEmu`,
+`textDefaultReflectionDistanceEmu`,
+`textDefaultReflectionStartOpacityThousandthPercent`,
+`textDefaultReflectionEndOpacityThousandthPercent`, and
+`textDefaultReflectionDirectionDegrees` when the direct
+`a:p/a:pPr/a:defRPr/a:effectLst/a:reflection` owner uses one bounded full-span
+reflection, optionally preceded by one bounded direct outer shadow. Its
+paragraph index is source-bound and the edit plan token-splices only
+`reflection/@blurRad`, `reflection/@dist`, `reflection/@stA`, or
+`reflection/@endA`, or `reflection/@dir` in the owning `SlidePart`; the focused
+text-effect fixture changes this distance, start opacity, end opacity, and
+direction alongside the other default-text and inline-run owners, then
+reprojects all four. Full-span positions and color remain source-owned in this
+slice.
+
+A strict paragraph `defaultText` soft-edge profile now separately exposes
+`textDefaultSoftEdgeRadiusEmu` when the direct
+`a:p/a:pPr/a:defRPr/a:effectLst/a:softEdge` owner uses the same bounded direct,
+outer-shadow→soft-edge, or full-span reflection→soft-edge topology. Its
+paragraph index is source-bound and the edit plan token-splices only
+`softEdge/@rad` in the owning `SlidePart`; the focused text soft-edge fixture
+changes the inline-run and default-text owners independently and reprojects
+both values.
+
+### Authored text glow, inner-shadow, reflection, and soft-edge effects
+
+Source-free PPJ text styles now accept bounded `glow`, `innerShadow`, `reflection`,
+and `softEdge`
+objects on rich-text runs and paragraph `defaultText` owners, including the
+same authored named/layout/master default path. Glow owns direct RGB/theme
+color, radius, and opacity; inner shadow owns direct RGB/theme color,
+blur/distance/angle, and opacity; reflection owns blur, start/end opacity,
+distance, and angle; soft edge owns radius. NativeAOT writes the direct
+`a:effectLst` children independently and keeps their canonical order:
+`a:glow`, `a:innerShdw`, `a:outerShdw`, `a:reflection`, `a:softEdge`.
+`PpjAuthoredTextGlowEffectWritesRunAndDefaultRunOwners` and
+`PpjAuthoredTextInnerShadowEffectWritesRunAndDefaultRunOwners` plus
+`PpjAuthoredTextReflectionEffectWritesRunAndDefaultRunOwners` validate the run
+and `a:defRPr` owners, DrawingML values, embedded recovery, and invalid-value
+refusal; `PpjAuthoredTextSoftEdgeEffectWritesRunAndDefaultRunOwners` covers the
+same evidence for soft edge. The separate direct rich-text run glow and
+inner-shadow source-bound profiles are described above; source-bound
+`defaultText` now has bounded glow-radius/color/theme-color/alpha,
+shadow-blur/distance/direction/alignment/color/theme-color/alpha/rotate-with-shape,
+inner-shadow-blur/distance/direction/color/alpha, reflection-blur/distance/
+start-opacity/end-opacity/direction, and soft-edge-radius owners, while
+3-D, WordArt, and arbitrary effect lists remain
+source-owned and fail closed.
 
 ### Imported shape outer-shadow effects
+
+The strict ordinary-shape profile now also issues a
+`shadowRotateWithShape` leaf, and the picture profile issues
+`imageShadowRotateWithShape`, `imageShadowBlurRadiusEmu`,
+`imageShadowDistanceEmu`, `imageShadowDirectionDegrees`, and
+`imageShadowAlignment`, and `imageShadowOpacityThousandthPercent`, for
+existing explicit `outerShdw/@rotWithShape` `0`/`1`, non-negative integer
+`blurRad`/`dist`, DrawingML `dir`, canonical nine-value `algn`, or direct color
+alpha `0`–`100000` tokens. The focused shape/line and picture source-bound
+contracts change only the selected token, preserve the remaining shadow
+geometry/color/alpha and unrelated package parts, and recover the values on a
+second projection; missing flags/geometry/alpha and complex effect lists remain
+source-owned.
 
 Recognized ordinary non-textbox shapes and lines now project one canonical
 direct `a:effectLst/a:outerShdw` as `style.shadow` (or `shadow` on a line) and
 issue `setShapeEffects` for source-bound add/change/clear. The compiler patches
 only the owning SlidePart and a second projection restores the requested RGB or
 theme color, blur, distance, angle, alignment, rotation behavior, and opacity.
-Text boxes, placeholders, multi-effect/extension graphs, glow, reflection,
-inner shadow, soft edge, and 3-D effects remain source-owned and fail closed.
+Text boxes, placeholders, multi-effect/extension graphs, imported/source-bound
+soft edge, inner shadow, reflection, and 3-D effects remain source-owned and
+fail closed. A strict direct glow or glow→outer-shadow profile for ordinary
+shapes, lines, and pictures is documented below.
+
+### Imported shape and image glow effects
+
+Recognized ordinary shapes, lines, and pictures now project one direct
+`a:effectLst/a:glow` as `style.glow` or `glow` and issue shape/image-specific
+native leaves for radius, RGB/theme color, and existing explicit alpha. The
+source-bound writer token-splices only the selected `rad`, color, or alpha
+attribute in the owning SlidePart, preserves an optional outer shadow, and a
+second projection restores the requested values. The focused
+`PpjSourceBoundShapeImageGlowEditsOwnersAndReprojects` experiment proves the
+shape/picture owners, SlidePart-only changed-part, Open XML validity, retained
+outer shadows, and non-target package bytes. Complex effect lists issue no
+glow leaves; pictures remain opaque and shapes retain only their independently
+safe typed surface without a glow capability.
+
+### Imported shape and image inner-shadow effects
+
+Recognized ordinary shapes, lines, and pictures now project one direct
+`a:effectLst/a:innerShdw` as `style.innerShadow` or `innerShadow` and issue
+shape/image-specific geometry, RGB/theme color, and explicit-alpha native
+leaves. The source-bound writer token-splices only the selected
+`blurRad`/`dist`/`dir`/color/alpha attribute in the owning SlidePart, preserves
+an optional outer shadow, and a second projection restores the requested
+values. The focused
+`PpjSourceBoundShapeImageInnerShadowEditsOwnersAndReprojects` experiment proves
+the shape/picture owners, SlidePart-only changed-part, Open XML validity,
+retained outer shadows, and non-target package bytes. Complex effect lists
+issue no inner-shadow leaves; pictures remain opaque and shapes retain only
+their independently safe typed surface.
+
+### Imported shape and image reflection effects
+
+Recognized ordinary shapes, lines, and pictures now project one direct
+full-span `a:effectLst/a:reflection` as `style.reflection` or `reflection` and
+issue five shape/image-specific native leaves: blur, start opacity, end opacity,
+distance, and direction. The source-bound writer token-splices only the
+selected reflection attribute in the owning SlidePart, preserves an optional
+preceding outer shadow, and a second projection restores the requested values.
+The focused `PpjSourceBoundShapeImageReflectionEditsOwnersAndReprojects`
+experiment proves the owners, SlidePart-only changed-part, Open XML validity,
+retained outer shadows, and non-target package bytes. Non-full-span reflection
+and complex effect lists issue no reflection leaves and remain source-owned or
+opaque.
+
+### Imported shape and image soft-edge effects
+
+Recognized ordinary shapes, lines, and pictures now project one direct
+`a:effectLst/a:softEdge` as `style.softEdge` or `softEdge` and issue one
+owner-specific `shapeSoftEdgeRadiusEmu` or `imageSoftEdgeRadiusEmu` leaf. The
+strict source-bound profile accepts a direct soft edge, an outer shadow followed
+by soft edge, or a full-span reflection followed by soft edge. The writer
+token-splices only `softEdge/@rad` in the owning SlidePart, retains the
+preceding effect, and a second projection restores the point radius. The
+focused `PpjSourceBoundShapeImageSoftEdgeEditsOwnersAndReprojects` experiment
+proves the owners, SlidePart-only changed-part, Open XML validity, retained
+outer shadows, and non-target package bytes. Complex effect lists issue no
+soft-edge leaves or capability and remain source-owned or opaque.
+
+### Authored shape and image glow effects
+
+Source-free PPJ shape styles, image styles, and direct shape/line/picture fields
+now accept a bounded `glow` object with direct RGB or theme color, a `0..1000`
+point radius, and numeric or `opacity`-token opacity. NativeAOT writes one
+direct `a:effectLst/a:glow`; when an authored outer shadow is also present,
+glow is emitted before `a:outerShdw`. The focused
+`PpjAuthoredGlowEffectWritesShapeAndPictureOwners` experiment validates the
+DrawingML radius, color, alpha, effect order, embedded recovery, and invalid
+radius refusal. The imported/source-bound direct glow profile and its complex
+topology negative case are covered by the experiment above; 3-D and arbitrary
+effect graphs remain source-owned and fail closed.
+
+### Authored shape and image soft-edge effects
+
+Source-free PPJ shape styles, image styles, and direct image fields now accept a
+bounded `softEdge` object with a `0..1000` point radius. NativeAOT writes one
+direct `a:effectLst/a:softEdge`; with the other bounded effects present, it
+keeps the canonical order `a:glow`, `a:innerShdw`, `a:outerShdw`,
+`a:reflection`, `a:softEdge`. The focused
+`PpjAuthoredSoftEdgeEffectWritesShapeAndPictureOwners` experiment validates
+the DrawingML radius, effect order, embedded recovery, and invalid-radius
+refusal. The imported/source-bound soft-edge profile and its complex-topology
+negative case are covered above; 3-D and arbitrary effect graphs remain
+source-owned and fail closed.
+
+### Authored shape and image inner-shadow effects
+
+Source-free PPJ shape styles, image styles, and direct image fields now accept a
+bounded `innerShadow` object with direct RGB or theme color, blur, distance,
+angle, and numeric or `opacity`-token opacity. NativeAOT writes one direct
+`a:effectLst/a:innerShdw`; with the other bounded effects present, it keeps the
+canonical order `a:glow`, `a:innerShdw`, `a:outerShdw`, `a:reflection`,
+`a:softEdge`. The
+focused `PpjAuthoredInnerShadowEffectWritesShapeAndPictureOwners` experiment
+validates the DrawingML geometry, color, alpha, effect order, embedded
+recovery, and invalid-geometry refusal. The imported/source-bound direct
+inner-shadow profile and its complex-topology negative case are covered by the
+experiment above; reflection, soft edge, 3-D, and arbitrary effect graphs
+remain source-owned and fail closed.
+
+### Authored shape and image reflection effects
+
+Source-free PPJ shape styles, image styles, and direct image fields now accept a
+bounded `reflection` object with blur, start/end opacity, distance, and angle.
+Opacity values may be literal numbers or `opacity` grammar tokens. NativeAOT
+writes one direct `a:effectLst/a:reflection` with `stPos="0"` and
+`endPos="100000"`; with the other bounded effects present, it keeps the
+canonical order `a:glow`, `a:innerShdw`, `a:outerShdw`, `a:reflection`,
+`a:softEdge`. The focused
+`PpjAuthoredReflectionEffectWritesShapeAndPictureOwners` experiment validates
+the DrawingML geometry, start/end alpha, full-span positions, effect order,
+embedded recovery, and invalid-opacity refusal. The imported/source-bound
+direct full-span reflection profile and its non-full-span/complex-topology
+negative case are covered by the experiment above; 3-D and arbitrary effect
+graphs remain source-owned and fail closed.
+
+### Imported shape 3-D extrusion height
+
+An ordinary imported shape with one child-free direct `a:sp3d` now exposes its
+canonical non-negative `a:sp3d/@extrusionH` as the
+`shape3dExtrusionHeightEmu` native leaf. A source-bound edit token-splices only
+that extrusion-height value in the owning SlidePart and preserves depth,
+contour, material, and the rest of the shape's 3-D markup. Bevels, color
+children, extension-bearing graphs, malformed values, and the complete 3-D
+scene remain source-owned; this is one scalar owner, not a general 3-D editor.
+
+The same bounded owner also exposes a signed 32-bit
+`shape3dDepthEmu` leaf for direct `a:sp3d/@z`. Its source-bound edit changes
+only the depth token and preserves extrusion height, contour, material, and
+the surrounding 3-D markup; this remains a scalar profile rather than a 3-D
+scene editor.
+
+The same `shape3dDepthEmu` leaf now also covers a strict picture owner at
+`p:pic/p:spPr/a:sp3d/@z`. The focused source-bound edit changes only the
+picture depth token, preserving the image relationship, crop, mask, effects,
+other direct 3-D attributes, and every non-target package part; child-bearing,
+extension-bearing, malformed, duplicate, and out-of-range picture 3-D owners
+remain source-owned.
+
+The same native leaf family also covers a strict picture
+`shape3dExtrusionHeightEmu` owner at `p:pic/p:spPr/a:sp3d/@extrusionH`. Its
+focused source-bound edit changes only the non-negative extrusion-height token,
+preserving the image relationship, crop, mask, effects, other direct 3-D
+attributes, and every non-target package part; child-bearing, extension-bearing,
+malformed, duplicate, and out-of-range picture 3-D owners remain source-owned.
+
+The same profile also exposes `shape3dContourWidthEmu` for direct
+`a:sp3d/@contourW`; source-bound edits replace only that non-negative width
+token and preserve the other direct 3-D attributes and markup.
+
+Finally, a child-free owner with a recognized DrawingML preset token exposes
+`shape3dPresetMaterial`. A source-bound edit replaces only `prstMaterial`
+(`metal` → `matte` in the focused fixture); unknown material tokens and
+complex owners remain source-owned.
+
+The same native leaf family also covers a strict picture
+`shape3dPresetMaterial` owner at `p:pic/p:spPr/a:sp3d/@prstMaterial`. Its
+focused source-bound edit changes only the bounded material token, preserving
+the image relationship, crop, mask, effects, other direct 3-D attributes, and
+every non-target package part; unknown, child-bearing, extension-bearing,
+malformed, duplicate, and out-of-range picture 3-D owners remain
+source-owned.
+
+A strict owner with one direct `a:bevelT` child also exposes its canonical
+non-negative `a:bevelT/@w` as `shape3dBevelTopWidthEmu`. A source-bound edit
+token-splices only the top-bevel width and preserves `h`, `prst`, the root
+3-D attributes, and the rest of the package. Bottom bevels, color/extension
+children, malformed values, and the wider scene remain source-owned.
+
+The same native leaf family also covers a strict picture
+`shape3dBevelTopWidthEmu` owner at
+`p:pic/p:spPr/a:sp3d/a:bevelT/@w`. Its focused source-bound edit changes only
+the bounded width token, preserving the image relationship, crop, mask,
+effects, other direct 3-D attributes, and every non-target package part;
+unknown, child-bearing, extension-bearing, malformed, duplicate, and
+out-of-range picture 3-D owners remain source-owned.
+
+The same strict owner exposes `a:bevelT/@h` as
+`shape3dBevelTopHeightEmu`. Its source-bound edit token-splices only the
+top-bevel height and preserves `w`, `prst`, the root 3-D attributes, and the
+rest of the package; bottom bevels, color/extension children, malformed
+values, and the wider scene remain source-owned.
+
+The same native leaf family also covers a strict picture
+`shape3dBevelTopHeightEmu` owner at
+`p:pic/p:spPr/a:sp3d/a:bevelT/@h`. Its focused source-bound edit changes only
+the bounded height token, preserving the image relationship, crop, mask,
+effects, other direct 3-D attributes, and every non-target package part;
+unknown, child-bearing, extension-bearing, malformed, duplicate, and
+out-of-range picture 3-D owners remain source-owned.
+
+Its finite `a:bevelB/@prst` token is also exposed as
+`shape3dBevelBottomPreset`. The focused source-bound edit token-splices only
+the bottom-bevel preset, preserving its dimensions, root 3-D attributes, and
+all non-target package parts. Unknown preset tokens, top bevels,
+color/extension children, malformed values, and the wider scene remain
+source-owned.
+
+The same native leaf family also covers a strict picture
+`shape3dBevelBottomPreset` owner at
+`p:pic/p:spPr/a:sp3d/a:bevelB/@prst`. Its focused source-bound edit changes
+only the bounded preset token, preserving the image relationship, crop, mask,
+effects, bevel dimensions, other direct 3-D attributes, and every non-target
+package part; unknown, child-bearing, extension-bearing, malformed,
+duplicate, and out-of-vocabulary picture 3-D owners remain source-owned.
+
+Its finite `a:bevelT/@prst` value is also exposed as
+`shape3dBevelTopPreset`. The source-bound edit replaces only that preset token
+(`angle` to `softRound` in the focused fixture), while dimensions, root 3-D
+attributes, and the surrounding package remain unchanged. Unknown preset
+tokens and complex bevel owners remain source-owned.
+
+The same native leaf family also covers a strict picture
+`shape3dBevelTopPreset` owner at
+`p:pic/p:spPr/a:sp3d/a:bevelT/@prst`. Its focused source-bound edit changes
+only the bounded preset token, preserving the image relationship, crop, mask,
+effects, bevel dimensions, other direct 3-D attributes, and every non-target
+package part; unknown, child-bearing, extension-bearing, malformed,
+duplicate, and out-of-vocabulary picture 3-D owners remain source-owned.
+
+A strict owner whose sole child is `a:bevelB` also exposes its canonical
+non-negative `a:bevelB/@w` as `shape3dBevelBottomWidthEmu`. The focused
+source-bound edit token-splices only the bottom-bevel width, preserving its
+height/preset, root 3-D attributes, and all non-target package parts. Top
+bevels, color/extension children, malformed values, and the wider scene remain
+source-owned.
+
+The same native leaf family also covers a strict picture
+`shape3dBevelBottomWidthEmu` owner at
+`p:pic/p:spPr/a:sp3d/a:bevelB/@w`. Its focused source-bound edit changes only
+the bounded width token, preserving the image relationship, crop, mask,
+effects, other direct 3-D attributes, and every non-target package part;
+unknown, child-bearing, extension-bearing, malformed, duplicate, and
+out-of-range picture 3-D owners remain source-owned.
+
+The same strict owner exposes its canonical non-negative `a:bevelB/@h` as
+`shape3dBevelBottomHeightEmu`. The focused source-bound edit token-splices only
+the bottom-bevel height, preserving its width/preset, root 3-D attributes, and
+all non-target package parts. Top bevels, color/extension children, malformed
+values, and the wider scene remain source-owned.
+
+The same native leaf family also covers a strict picture
+`shape3dBevelBottomHeightEmu` owner at
+`p:pic/p:spPr/a:sp3d/a:bevelB/@h`. Its focused source-bound edit changes only
+the bounded height token, preserving the image relationship, crop, mask,
+effects, other direct 3-D attributes, and every non-target package part;
+unknown, child-bearing, extension-bearing, malformed, duplicate, and
+out-of-range picture 3-D owners remain source-owned.
+
+A strict single-child `a:sp3d/a:contourClr` owner also exposes its bare
+`a:srgbClr/@val` as `shape3dContourRgb`. The focused source-bound edit
+token-splices only that six-digit RGB token and preserves the 3-D owner and all
+non-target package parts; bevels, transforms, alternate color models, extension
+children, malformed values, and the wider scene remain source-owned.
+
+The same native leaf family also covers a strict picture
+`shape3dContourRgb` owner at
+`p:pic/p:spPr/a:sp3d/a:contourClr/a:srgbClr/@val`. Its focused source-bound
+edit changes only the six-digit RGB token, preserving the image relationship,
+crop, mask, effects, other direct 3-D state, and every non-target package part;
+unknown, child-bearing, extension-bearing, malformed, duplicate, alternate
+color-model, and out-of-profile picture 3-D owners remain source-owned.
+
+A strict single-child `a:sp3d/a:contourClr` owner also exposes its bare
+`a:schemeClr/@val` as `shape3dContourColorScheme` for ordinary shapes. Its
+focused source-bound edit token-splices only the canonical theme token,
+preserving the 3-D owner and all non-target package parts; RGB/transformed or
+otherwise complex color owners remain source-owned.
+
+The same native leaf family also covers a strict picture
+`shape3dContourColorScheme` owner at
+`p:pic/p:spPr/a:sp3d/a:contourClr/a:schemeClr/@val`. Its focused source-bound
+edit changes only the contour theme token, preserving the image relationship,
+crop, mask, effects, other 3-D state, and every non-target package part;
+unknown, transformed, child-bearing, extension-bearing, malformed, duplicate,
+alternate-color-model, and out-of-profile picture 3-D owners remain
+source-owned.
+
+A strict single-child `a:sp3d/a:extrusionClr` owner also exposes its bare
+`a:schemeClr/@val` as `shape3dExtrusionColorScheme` for ordinary shapes. Its
+focused source-bound edit token-splices only the canonical theme token,
+preserving the 3-D owner and all non-target package parts; RGB/transformed or
+otherwise complex color owners remain source-owned.
+
+The same native leaf family also covers a strict picture
+`shape3dExtrusionColorScheme` owner at
+`p:pic/p:spPr/a:sp3d/a:extrusionClr/a:schemeClr/@val`. Its focused source-bound
+edit changes only the extrusion theme token, preserving the image relationship,
+crop, mask, effects, other 3-D state, and every non-target package part;
+unknown, transformed, child-bearing, extension-bearing, malformed, duplicate,
+alternate-color-model, and out-of-profile picture 3-D owners remain
+source-owned.
+
+The symmetric strict `a:sp3d/a:extrusionClr` owner exposes its bare
+`a:srgbClr/@val` as `shape3dExtrusionRgb`. Its focused source-bound edit
+token-splices only the extrusion RGB token and preserves the 3-D owner and all
+non-target package parts; bevels, transforms, alternate color models, extension
+children, malformed values, and the wider scene remain source-owned.
+
+The same native leaf family also covers a strict picture
+`shape3dExtrusionRgb` owner at
+`p:pic/p:spPr/a:sp3d/a:extrusionClr/a:srgbClr/@val`. Its focused source-bound
+edit changes only the six-digit RGB token, preserving the image relationship,
+crop, mask, effects, other direct 3-D state, and every non-target package part;
+unknown, child-bearing, extension-bearing, malformed, duplicate, alternate
+color-model, and out-of-profile picture 3-D owners remain source-owned.
+
+The same native leaf family now also covers a strict picture
+`shape3dSceneCameraPreset` owner at
+`p:pic/p:spPr/a:scene3d/a:camera/@prst`. Its focused source-bound edit changes
+only the recognized camera-preset token, preserving the image relationship,
+crop, mask, effects, light rig, other 3-D state, and every non-target package
+part; partial or complex scene owners remain source-owned.
+
+The same native leaf family now also covers a strict picture
+`shape3dSceneCameraZoomThousandthPercent` owner at
+`p:pic/p:spPr/a:scene3d/a:camera/@zoom`. Its focused source-bound edit changes
+only the explicit canonical non-negative zoom token, preserving the image
+relationship, crop, mask, effects, camera preset, light rig, other 3-D state,
+and every non-target package part; omitted/default or complex scene owners
+remain source-owned.
+
+The same native leaf family now also covers a strict picture
+`shape3dSceneCameraFov60000` owner at
+`p:pic/p:spPr/a:scene3d/a:camera/@fov`. Its focused source-bound edit changes
+only the explicit canonical positive FOV below 180 degrees, expressed in
+60000ths-of-a-degree, preserving the image relationship, crop, mask, effects,
+camera preset/zoom, light rig, other 3-D state, and every non-target package
+part; omitted or complex scene owners remain source-owned.
+
+The same native leaf family now also covers a strict picture
+`shape3dSceneCameraRotationLatitude60000` owner at
+`p:pic/p:spPr/a:scene3d/a:camera/a:rot/@lat`. Its focused source-bound edit
+changes only the canonical non-negative latitude at or below 360 degrees,
+expressed in 60000ths-of-a-degree, preserving the complete rotation's
+longitude/revolution, camera state, light rig, image relationship, crop, mask,
+effects, and every non-target package part; partial or complex rotations
+remain source-owned.
+
+The same native leaf family now also covers a strict picture
+`shape3dSceneCameraRotationLongitude60000` owner at
+`p:pic/p:spPr/a:scene3d/a:camera/a:rot/@lon`. Its focused source-bound edit
+changes only the canonical non-negative longitude at or below 360 degrees,
+expressed in 60000ths-of-a-degree, preserving the complete rotation's
+latitude/revolution, camera state, light rig, image relationship, crop, mask,
+effects, and every non-target package part; partial or complex rotations
+remain source-owned.
+
+The same native leaf family now also covers a strict picture
+`shape3dSceneCameraRotationRevolution60000` owner at
+`p:pic/p:spPr/a:scene3d/a:camera/a:rot/@rev`. Its focused source-bound edit
+changes only the canonical non-negative revolution at or below 360 degrees,
+expressed in 60000ths-of-a-degree, preserving the complete rotation's
+latitude/longitude, camera state, light rig, image relationship, crop, mask,
+effects, and every non-target package part; partial or complex rotations
+remain source-owned.
+
+A strict two-child direct `a:spPr/a:scene3d` owner also exposes its bare
+`a:camera/@prst` as `shape3dSceneCameraPreset`. Its focused source-bound edit
+token-splices only the camera preset while preserving the light rig, root 3-D
+attributes, and non-target package parts; camera transforms, FOV/zoom,
+backdrops, extensions, and other scene graphs remain source-owned.
+
+The same strict two-child scene owner exposes an explicit `a:camera/@zoom` as
+`shape3dSceneCameraZoomThousandthPercent`. Its focused source-bound edit
+token-splices only the canonical zoom override, expressed in thousandths of a
+percent, while preserving the camera preset, light rig, root 3-D attributes,
+and non-target package parts; omitted/default zoom, FOV/rotation, backdrops,
+extensions, and other scene graphs remain source-owned.
+
+The same strict two-child scene owner exposes an explicit `a:camera/@fov` as
+`shape3dSceneCameraFov60000`. Its focused source-bound edit token-splices only
+the canonical positive FOV below 180 degrees in 60000ths-of-a-degree units,
+while preserving the camera preset/zoom, light rig, root 3-D attributes, and
+non-target package parts; rotation, backdrops, extensions, and other scene
+graphs remain source-owned.
+
+The camera-rotation variant exposes `a:camera/a:rot/@lat` as
+`shape3dSceneCameraRotationLatitude60000`. Its focused source-bound edit
+token-splices only the canonical non-negative latitude in
+60000ths-of-a-degree units, while preserving longitude, revolution, light-rig
+state, root 3-D attributes, and non-target package parts; camera zoom/FOV,
+light rotation, partial rotation, backdrops, extensions, and other scene
+graphs remain source-owned.
+
+The same camera-rotation variant exposes `a:camera/a:rot/@lon` as
+`shape3dSceneCameraRotationLongitude60000`. Its focused source-bound edit
+token-splices only the canonical non-negative longitude in
+60000ths-of-a-degree units, while preserving latitude, revolution, light-rig
+state, root 3-D attributes, and non-target package parts; camera zoom/FOV,
+light rotation, partial rotation, backdrops, extensions, and other scene
+graphs remain source-owned.
+
+The same camera-rotation variant exposes `a:camera/a:rot/@rev` as
+`shape3dSceneCameraRotationRevolution60000`. Its focused source-bound edit
+token-splices only the canonical non-negative revolution in
+60000ths-of-a-degree units, while preserving latitude, longitude, light-rig
+state, root 3-D attributes, and non-target package parts; camera zoom/FOV,
+light rotation, partial rotation, backdrops, extensions, and other scene
+graphs remain source-owned.
+
+A strict complete-backdrop scene also exposes the
+`a:backdrop/a:anchor/@x` coordinate as `shape3dSceneBackdropAnchorXEmu`. The
+focused source-bound edit token-splices only this signed EMU coordinate while
+requiring complete literal anchor, normal, and up vectors and preserving all
+other scene state and package parts; anchor Y/Z, vector coordinates, camera or
+light transforms, extensions, and partial backdrop graphs remain source-owned.
+
+The same strict complete-backdrop scene also exposes
+`a:backdrop/a:anchor/@y` as `shape3dSceneBackdropAnchorYEmu`. Its focused
+source-bound edit token-splices only the signed Y coordinate while preserving
+anchor X/Z, both vectors, the rest of the scene, and all non-target package
+parts; partial or complex backdrop graphs remain source-owned.
+
+The same strict complete-backdrop scene also exposes
+`a:backdrop/a:anchor/@z` as `shape3dSceneBackdropAnchorZEmu`. Its focused
+source-bound edit token-splices only the signed Z coordinate while preserving
+anchor X/Y, both vectors, the rest of the scene, and all non-target package
+parts; partial or complex backdrop graphs remain source-owned.
+
+The same strict complete-backdrop scene also exposes
+`a:backdrop/a:norm/@dx` as `shape3dSceneBackdropNormalDxEmu`. Its focused
+source-bound edit token-splices only the signed normal X coordinate while
+preserving the anchor, normal Y/Z, up vector, the rest of the scene, and all
+non-target package parts; partial or complex backdrop graphs remain
+source-owned.
+
+The same strict complete-backdrop scene also exposes
+`a:backdrop/a:norm/@dy` as `shape3dSceneBackdropNormalDyEmu`. Its focused
+source-bound edit token-splices only the signed normal Y coordinate while
+preserving the anchor, normal X/Z, up vector, the rest of the scene, and all
+non-target package parts; partial or complex backdrop graphs remain
+source-owned.
+
+The same strict complete-backdrop scene also exposes
+`a:backdrop/a:norm/@dz` as `shape3dSceneBackdropNormalDzEmu`. Its focused
+source-bound edit token-splices only the signed normal Z coordinate while
+preserving the anchor, normal X/Y, up vector, the rest of the scene, and all
+non-target package parts; partial or complex backdrop graphs remain
+source-owned.
+
+The same strict complete-backdrop scene also exposes
+`a:backdrop/a:up/@dx` as `shape3dSceneBackdropUpDxEmu`. Its focused
+source-bound edit token-splices only the signed up-vector X coordinate while
+preserving the anchor, normal vector, up Y/Z, the rest of the scene, and all
+non-target package parts; partial or complex backdrop graphs remain
+source-owned.
+
+The same strict complete-backdrop scene also exposes
+`a:backdrop/a:up/@dy` as `shape3dSceneBackdropUpDyEmu`. Its focused
+source-bound edit token-splices only the signed up-vector Y coordinate while
+preserving the anchor, normal vector, up X/Z, the rest of the scene, and all
+non-target package parts; partial or complex backdrop graphs remain
+source-owned.
+
+The same strict complete-backdrop scene also exposes
+`a:backdrop/a:up/@dz` as `shape3dSceneBackdropUpDzEmu`. Its focused
+source-bound edit token-splices only the signed up-vector Z coordinate while
+preserving the anchor, normal vector, up X/Y, the rest of the scene, and all
+non-target package parts; partial or complex backdrop graphs remain
+source-owned.
+
+The same strict two-child scene owner exposes `a:lightRig/@rig` as
+`shape3dSceneLightRigPreset`. Its focused source-bound edit token-splices only
+the light-rig preset while preserving the camera, direction, root 3-D
+attributes, and non-target package parts; light rotation, backdrops,
+extensions, and other scene graphs remain source-owned.
+
+The same strict two-child scene owner also exposes `p:pic/p:spPr/a:scene3d/a:lightRig/@rig`
+as `shape3dSceneLightRigPreset`. Its focused source-bound edit token-splices
+only the picture light-rig preset while preserving the camera, direction, root
+3-D attributes, picture relationships, masks, effects, and non-target package
+parts; light rotation, backdrops, extensions, and other scene graphs remain
+source-owned.
+
+The same strict two-child scene owner exposes `a:lightRig/@dir` as
+`shape3dSceneLightRigDirection`. Its focused source-bound edit token-splices
+only the light-rig direction while preserving the camera, preset, root 3-D
+attributes, and non-target package parts; light rotation, backdrops,
+extensions, and other scene graphs remain source-owned.
+
+The same strict two-child scene owner also exposes
+`p:pic/p:spPr/a:scene3d/a:lightRig/@dir` as
+`shape3dSceneLightRigDirection`. Its focused source-bound edit token-splices
+only the picture light-rig direction while preserving the camera, preset, root
+3-D attributes, picture relationships, masks, effects, and non-target package
+parts; light rotation, backdrops, extensions, and other scene graphs remain
+source-owned.
+
+The full light-rig-rotation variant exposes `a:lightRig/a:rot/@lat` as
+`shape3dSceneLightRigRotationLatitude60000`. Its focused source-bound edit
+token-splices only the canonical non-negative latitude in 60000ths-of-a-degree
+units, while preserving longitude, revolution, camera, light-rig state, root
+3-D attributes, and non-target package parts; partial rotation, backdrops,
+extensions, and other scene graphs remain source-owned.
+
+The full light-rig-rotation variant also exposes
+`p:pic/p:spPr/a:scene3d/a:lightRig/a:rot/@lat` as
+`shape3dSceneLightRigRotationLatitude60000`. Its focused source-bound edit
+token-splices only the picture's canonical non-negative latitude while
+preserving longitude, revolution, camera, light-rig state, picture
+relationships, masks, effects, and non-target package parts; partial
+rotation, backdrops, extensions, and other scene graphs remain source-owned.
+
+The same full light-rig-rotation variant also exposes
+`p:pic/p:spPr/a:scene3d/a:lightRig/a:rot/@lon` as
+`shape3dSceneLightRigRotationLongitude60000`. Its focused source-bound edit
+token-splices only the picture's canonical non-negative longitude while
+preserving latitude, revolution, camera, light-rig state, picture
+relationships, masks, effects, and non-target package parts; partial
+rotation, backdrops, extensions, and other scene graphs remain source-owned.
+
+The same full light-rig-rotation variant also exposes
+`p:pic/p:spPr/a:scene3d/a:lightRig/a:rot/@rev` as
+`shape3dSceneLightRigRotationRevolution60000`. Its focused source-bound edit
+token-splices only the picture's canonical non-negative revolution while
+preserving latitude, longitude, camera, light-rig state, picture
+relationships, masks, effects, and non-target package parts; partial
+rotation, backdrops, extensions, and other scene graphs remain source-owned.
+
+The strict complete backdrop variant exposes
+`p:pic/p:spPr/a:scene3d/a:backdrop/a:anchor/@x` as
+`shape3dSceneBackdropAnchorXEmu`. Its focused source-bound edit token-splices
+only the picture backdrop anchor X coordinate while preserving anchor Y/Z,
+normal/up vectors, camera/light-rig state, picture relationships, masks,
+effects, and non-target package parts; partial or complex backdrop graphs
+remain source-owned.
+
+The same strict complete-backdrop picture variant exposes
+`p:pic/p:spPr/a:scene3d/a:backdrop/a:anchor/@y` as
+`shape3dSceneBackdropAnchorYEmu`. Its focused source-bound edit token-splices
+only the picture backdrop anchor Y coordinate while preserving anchor X/Z,
+normal/up vectors, camera/light-rig state, picture relationships, masks,
+effects, and non-target package parts; partial or complex backdrop graphs
+remain source-owned.
+
+The same strict complete-backdrop picture variant exposes
+`p:pic/p:spPr/a:scene3d/a:backdrop/a:anchor/@z` as
+`shape3dSceneBackdropAnchorZEmu`. Its focused source-bound edit token-splices
+only the picture backdrop anchor Z coordinate while preserving anchor X/Y,
+normal/up vectors, camera/light-rig state, picture relationships, masks,
+effects, and non-target package parts; partial or complex backdrop graphs
+remain source-owned.
+
+The same strict complete-backdrop picture variant exposes
+`p:pic/p:spPr/a:scene3d/a:backdrop/a:norm/@dx` as
+`shape3dSceneBackdropNormalDxEmu`. Its focused source-bound edit token-splices
+only the picture backdrop normal X coordinate while preserving the anchor,
+normal Y/Z, up vector, camera/light-rig state, picture relationships, masks,
+effects, and non-target package parts; partial or complex backdrop graphs
+remain source-owned.
+
+The same strict complete-backdrop picture variant exposes
+`p:pic/p:spPr/a:scene3d/a:backdrop/a:norm/@dy` as
+`shape3dSceneBackdropNormalDyEmu`. Its focused source-bound edit token-splices
+only the picture backdrop normal Y coordinate while preserving the anchor,
+normal X/Z, up vector, camera/light-rig state, picture relationships, masks,
+effects, and non-target package parts; partial or complex backdrop graphs
+remain source-owned.
+
+The same strict complete-backdrop picture variant exposes
+`p:pic/p:spPr/a:scene3d/a:backdrop/a:norm/@dz` as
+`shape3dSceneBackdropNormalDzEmu`. Its focused source-bound edit token-splices
+only the picture backdrop normal Z coordinate while preserving the anchor,
+normal X/Y, up vector, camera/light-rig state, picture relationships, masks,
+effects, and non-target package parts; partial or complex backdrop graphs
+remain source-owned.
+
+The same strict complete-backdrop picture variant exposes
+`p:pic/p:spPr/a:scene3d/a:backdrop/a:up/@dx` as
+`shape3dSceneBackdropUpDxEmu`. Its focused source-bound edit token-splices
+only the picture backdrop up-vector X coordinate while preserving the anchor,
+normal vector, up Y/Z, camera/light-rig state, picture relationships, masks,
+effects, and non-target package parts; partial or complex backdrop graphs
+remain source-owned.
+
+The same strict complete-backdrop picture variant exposes
+`p:pic/p:spPr/a:scene3d/a:backdrop/a:up/@dy` as
+`shape3dSceneBackdropUpDyEmu`. Its focused source-bound edit token-splices
+only the picture backdrop up-vector Y coordinate while preserving the anchor,
+normal vector, up X/Z, camera/light-rig state, picture relationships, masks,
+effects, and non-target package parts; partial or complex backdrop graphs
+remain source-owned.
+
+The same strict complete-backdrop picture variant exposes
+`p:pic/p:spPr/a:scene3d/a:backdrop/a:up/@dz` as
+`shape3dSceneBackdropUpDzEmu`. Its focused source-bound edit token-splices
+only the picture backdrop up-vector Z coordinate while preserving the anchor,
+normal vector, up X/Y, camera/light-rig state, picture relationships, masks,
+effects, and non-target package parts; partial or complex backdrop graphs
+remain source-owned.
+
+The same full light-rig-rotation variant exposes `a:lightRig/a:rot/@lon` as
+`shape3dSceneLightRigRotationLongitude60000`. Its focused source-bound edit
+token-splices only the canonical non-negative longitude in 60000ths-of-a-degree
+units, while preserving latitude, revolution, camera, light-rig state, root
+3-D attributes, and non-target package parts; partial rotation, backdrops,
+extensions, and other scene graphs remain source-owned.
+
+The same full light-rig-rotation variant exposes `a:lightRig/a:rot/@rev` as
+`shape3dSceneLightRigRotationRevolution60000`. Its focused source-bound edit
+token-splices only the canonical non-negative revolution in
+60000ths-of-a-degree units, while preserving latitude, longitude, camera,
+light-rig state, root 3-D attributes, and non-target package parts; partial
+rotation, backdrops, extensions, and other scene graphs remain source-owned.
 
 ### Imported preset shape geometry
 
@@ -1307,6 +2155,360 @@ that `a:gd/@fmla` value, keeps guide names, path references, handles, and other
 topology unchanged, and survives a second projection. Non-`val` formulas,
 calculated guides, effects, and vendor extensions remain source-owned; this
 does not claim arbitrary custom-geometry graphs are editable.
+
+For a fully recognized custom geometry, a non-literal direct adjustment formula
+also receives a `customGeometryAdjustmentFormula` native leaf when its formula
+is canonical under the bounded guide graph. A source-bound edit replaces only
+that `a:avLst/a:gd/@fmla` value and keeps the adjustment/guide references,
+paths, handles, and other topology intact; partial image-fill fallback graphs
+remain source-owned.
+
+Each direct literal `a:lnTo/a:pt/@x` in a recognized custom-geometry path also
+receives a `customGeometryPathLineToX` native leaf. The path order is retained
+as `NativeLeafIndex` and the direct command order as `TextLeafIndex`; a
+source-bound edit token-splices only the selected x coordinate, preserving the
+paired y coordinate, path properties, sibling commands, sibling paths, and
+other geometry topology. Reference-backed, malformed, extension-bearing, or
+unsupported command state remains source-owned.
+
+Each direct literal `a:lnTo/a:pt/@y` in a recognized custom-geometry path also
+receives a `customGeometryPathLineToY` native leaf. It uses the same path and
+command identity, but a source-bound edit token-splices only the selected y
+coordinate, preserving the paired x coordinate, path properties, sibling
+commands, sibling paths, and other geometry topology. Reference-backed,
+malformed, extension-bearing, or unsupported command state remains
+source-owned.
+
+Each direct literal `a:moveTo/a:pt/@x` in a recognized custom-geometry path
+also receives a `customGeometryPathMoveToX` native leaf. It uses the same path
+and command identity, but a source-bound edit token-splices only the selected
+move-to x coordinate, preserving the paired y coordinate, path properties,
+sibling commands, sibling paths, and other geometry topology. Reference-backed,
+malformed, extension-bearing, or unsupported command state remains
+source-owned.
+
+Each direct literal `a:moveTo/a:pt/@y` in a recognized custom-geometry path
+also receives a `customGeometryPathMoveToY` native leaf. It uses the same path
+and command identity, but a source-bound edit token-splices only the selected
+move-to y coordinate, preserving the paired x coordinate, path properties,
+sibling commands, sibling paths, and other geometry topology. Reference-backed,
+malformed, extension-bearing, or unsupported command state remains
+source-owned.
+
+Each direct literal `a:quadBezTo/a:pt[1]/@x` in a recognized custom-geometry
+path also receives a `customGeometryPathQuadraticEndX` native leaf. It uses the
+same path and command identity, but a source-bound edit token-splices only the
+quadratic end-point x coordinate, preserving the control point, paired end-point
+y coordinate, path properties, sibling commands, sibling paths, and other
+geometry topology. Reference-backed, malformed, extension-bearing, or
+unsupported command state remains source-owned.
+
+Each direct literal `a:quadBezTo/a:pt[1]/@y` in a recognized custom-geometry
+path also receives a `customGeometryPathQuadraticEndY` native leaf. It uses the
+same path and command identity, but a source-bound edit token-splices only the
+quadratic end-point y coordinate, preserving the control point, paired end-point
+x coordinate, path properties, sibling commands, sibling paths, and other
+geometry topology. Reference-backed, malformed, extension-bearing, or
+unsupported command state remains source-owned.
+
+Each direct literal `a:quadBezTo/a:pt[0]/@x` in a recognized custom-geometry
+path also receives a `customGeometryPathQuadraticControlX` native leaf. It uses
+the same path and command identity, but a source-bound edit token-splices only
+the quadratic control-point x coordinate, preserving the control-point y, end
+point, path properties, sibling commands, sibling paths, and other geometry
+topology. Reference-backed, malformed, extension-bearing, or unsupported
+command state remains source-owned.
+
+Each direct literal `a:quadBezTo/a:pt[0]/@y` in a recognized custom-geometry
+path also receives a `customGeometryPathQuadraticControlY` native leaf. It uses
+the same path and command identity, but a source-bound edit token-splices only
+the quadratic control-point y coordinate, preserving the control-point x, end
+point, path properties, sibling commands, sibling paths, and other geometry
+topology. Reference-backed, malformed, extension-bearing, or unsupported
+command state remains source-owned.
+
+Each direct literal `a:cubicBezTo/a:pt[2]/@x` in a recognized custom-geometry
+path also receives a `customGeometryPathCubicEndX` native leaf. It uses the same
+path and command identity, but a source-bound edit token-splices only the cubic
+end-point x coordinate, preserving both control points, the paired end-point y,
+path properties, sibling commands, sibling paths, and other geometry topology.
+Reference-backed, malformed, extension-bearing, or unsupported command state
+remains source-owned.
+
+Each direct literal `a:cubicBezTo/a:pt[2]/@y` in a recognized custom-geometry
+path also receives a `customGeometryPathCubicEndY` native leaf. It uses the same
+path and command identity, but a source-bound edit token-splices only the cubic
+end-point y coordinate, preserving both control points, the paired end-point x,
+path properties, sibling commands, sibling paths, and other geometry topology.
+Reference-backed, malformed, extension-bearing, or unsupported command state
+remains source-owned.
+
+Each direct literal `a:cubicBezTo/a:pt[0]/@x` in a recognized custom-geometry
+path also receives a `customGeometryPathCubicControl1X` native leaf. It uses the
+same path and command identity, but a source-bound edit token-splices only the
+first cubic control-point x coordinate, preserving its y, the second control
+point, end point, path properties, sibling commands, sibling paths, and other
+geometry topology. Reference-backed, malformed, extension-bearing, or
+unsupported command state remains source-owned.
+
+Each direct literal `a:cubicBezTo/a:pt[0]/@y` in a recognized custom-geometry
+path also receives a `customGeometryPathCubicControl1Y` native leaf. It uses the
+same path and command identity, but a source-bound edit token-splices only the
+first cubic control-point y coordinate, preserving its x, the second control
+point, end point, path properties, sibling commands, sibling paths, and other
+geometry topology. Reference-backed, malformed, extension-bearing, or
+unsupported command state remains source-owned.
+
+Each direct literal `a:cubicBezTo/a:pt[1]/@x` in a recognized custom-geometry
+path also receives a `customGeometryPathCubicControl2X` native leaf. It uses the
+same path and command identity, but a source-bound edit token-splices only the
+second cubic control-point x coordinate, preserving its y, the first control
+point, end point, path properties, sibling commands, sibling paths, and other
+geometry topology. Reference-backed, malformed, extension-bearing, or
+unsupported command state remains source-owned.
+
+Each direct literal `a:cubicBezTo/a:pt[1]/@y` in a recognized custom-geometry
+path also receives a `customGeometryPathCubicControl2Y` native leaf. It uses the
+same path and command identity, but a source-bound edit token-splices only the
+second cubic control-point y coordinate, preserving its x, the first control
+point, end point, path properties, sibling commands, sibling paths, and other
+geometry topology. Reference-backed, malformed, extension-bearing, or
+unsupported command state remains source-owned.
+
+An imported recognized custom geometry also exposes each direct ordered
+`a:gdLst/a:gd fmla="val N"` guide with a unique name as a
+`customGeometryGuide` native leaf. Its source-bound edit token-splices only
+that guide formula value and preserves the formula graph, handles, connection
+sites, text rectangle, paths, and non-target parts. Calculated or malformed
+guides, duplicate names, extensions, and other topology remain source-owned.
+
+The same recognized guide list also exposes a calculated direct guide formula
+as a `customGeometryGuideFormula` native leaf when the formula is canonical and
+accepted by the bounded formula graph. Its source-bound edit replaces only that
+`a:gd/@fmla` token, preserving the graph, references, handles, paths, and
+other geometry topology; literal `val N` guides remain numeric leaves.
+
+An imported recognized custom geometry also exposes each direct ordered
+`a:cxnLst/a:cxn/@ang` literal angle as a
+`customGeometryConnectionSiteAngle60000` native leaf. Its source-bound edit
+token-splices only the selected angle value, preserves site positions/order
+and the rest of the custom geometry, and survives a second projection.
+Formula-backed, non-canonical, malformed, extension-bearing, and out-of-range
+angles remain source-owned.
+
+An imported recognized custom geometry also exposes each direct ordered
+`a:cxnLst/a:cxn/a:pos/@x` literal coordinate as a
+`customGeometryConnectionSiteXEmu` native leaf. Its source-bound edit
+token-splices only the selected x value in shape-local EMU units, preserves
+the selected y/angle, reference-backed siblings, and geometry topology, and
+survives a second projection. Formula-backed, non-canonical, malformed, and
+out-of-frame x coordinates remain source-owned.
+
+An imported recognized custom geometry also exposes each direct ordered
+`a:cxnLst/a:cxn/a:pos/@y` literal coordinate as a
+`customGeometryConnectionSiteYEmu` native leaf. Its source-bound edit
+token-splices only the selected y value in shape-local EMU units, preserves
+the selected x/angle, reference-backed siblings, and geometry topology, and
+survives a second projection. Formula-backed, non-canonical, malformed, and
+out-of-frame y coordinates remain source-owned.
+
+An imported recognized custom geometry also exposes each direct ordered
+`a:ahXY/a:pos/@x` literal handle position as a
+`customGeometryAdjustmentHandleXEmu` native leaf. Its source-bound edit
+token-splices only the selected handle x value in shape-local EMU units,
+preserves `gdRef` identity, bounds, y, handle order/kind, and the remaining
+geometry, and survives a second projection. Formula-backed, non-canonical,
+malformed, non-XY, and out-of-frame handle positions remain source-owned.
+
+An imported recognized custom geometry also exposes each direct ordered
+`a:ahXY/a:pos/@y` literal handle position as a
+`customGeometryAdjustmentHandleYEmu` native leaf. Its source-bound edit
+token-splices only the selected handle y value in shape-local EMU units,
+preserves `gdRef` identity, bounds, x, handle order/kind, and the remaining
+geometry, and survives a second projection. Formula-backed, non-canonical,
+malformed, non-XY, and out-of-frame handle positions remain source-owned.
+
+An imported recognized custom geometry also exposes each direct ordered
+`a:ahXY/@minX` literal handle bound as a
+`customGeometryAdjustmentHandleMinXEmu` native leaf. Its source-bound edit
+token-splices only the selected minimum-x value in shape-local EMU units,
+preserves `gdRef` identity, maxX, y bounds, position, handle order/kind, and
+the remaining geometry, and survives a second projection. Reference-backed,
+non-canonical, malformed, non-XY, and out-of-frame bounds remain source-owned.
+
+An imported recognized custom geometry also exposes each direct ordered
+`a:ahXY/@maxX` literal handle bound as a
+`customGeometryAdjustmentHandleMaxXEmu` native leaf. Its source-bound edit
+token-splices only the selected maximum-x value in shape-local EMU units,
+preserves `gdRef` identity, minX, y bounds, position, handle order/kind, and
+the remaining geometry, and survives a second projection. Reference-backed,
+non-canonical, malformed, non-XY, and out-of-frame bounds remain source-owned.
+
+An imported recognized custom geometry also exposes each direct ordered
+`a:ahXY/@minY` literal handle bound as a
+`customGeometryAdjustmentHandleMinYEmu` native leaf. Its source-bound edit
+token-splices only the selected minimum-y value in shape-local EMU units,
+preserves `gdRef` identity, x bounds, maxY, position, handle order/kind, and
+the remaining geometry, and survives a second projection. Reference-backed,
+non-canonical, malformed, non-XY, and out-of-frame bounds remain source-owned.
+
+An imported recognized custom geometry also exposes each direct ordered
+`a:ahXY/@maxY` literal handle bound as a
+`customGeometryAdjustmentHandleMaxYEmu` native leaf. Its source-bound edit
+token-splices only the selected maximum-y value in shape-local EMU units,
+preserves `gdRef` identity, x bounds, minY, position, handle order/kind, and
+the remaining geometry, and survives a second projection. Reference-backed,
+non-canonical, malformed, non-XY, and out-of-frame bounds remain source-owned.
+
+An imported recognized custom geometry also exposes each direct ordered
+`a:ahPolar/@minR` literal radial bound as a
+`customGeometryAdjustmentHandlePolarMinRadiusEmu` native leaf. Its
+source-bound edit token-splices only the selected minimum-radius value in
+shape-local EMU units, preserves `gdRefR`/`gdRefAng`, maxR, angle bounds,
+position, handle order/kind, and the remaining geometry, and survives a second
+projection. Reference-backed, non-canonical, malformed, non-polar, and
+out-of-range bounds remain source-owned.
+
+An imported recognized custom geometry also exposes each direct ordered
+`a:ahPolar/@maxR` literal radial bound as a
+`customGeometryAdjustmentHandlePolarMaxRadiusEmu` native leaf. Its
+source-bound edit token-splices only the selected maximum-radius value in
+shape-local EMU units, preserves `gdRefR`/`gdRefAng`, minR, angle bounds,
+position, handle order/kind, and the remaining geometry, and survives a second
+projection. Reference-backed, non-canonical, malformed, non-polar, and
+out-of-range bounds remain source-owned.
+
+An imported recognized custom geometry also exposes each direct ordered
+`a:ahPolar/@minAng` literal angle bound as a
+`customGeometryAdjustmentHandlePolarMinAngle60000` native leaf. Its
+source-bound edit token-splices only the selected minimum-angle value in
+1/60000-degree units, preserves `gdRefR`/`gdRefAng`, radial bounds, maxAng,
+position, handle order/kind, and the remaining geometry, and survives a second
+projection. Reference-backed, non-canonical, malformed, non-polar, and
+out-of-range angles remain source-owned.
+
+The paired direct ordered `a:ahPolar/@maxAng` literal angle bound is exposed as
+a `customGeometryAdjustmentHandlePolarMaxAngle60000` native leaf. Its
+source-bound edit token-splices only the selected maximum-angle value in
+1/60000-degree units, preserves `gdRefR`/`gdRefAng`, radial bounds, minAng,
+position, handle order/kind, and the remaining geometry, and survives a second
+projection. Reference-backed, non-canonical, malformed, non-polar, and
+out-of-range angles remain source-owned.
+
+An imported recognized custom geometry also exposes a direct ordered
+`a:ahPolar/a:pos/@x` literal coordinate as a
+`customGeometryAdjustmentHandlePolarXEmu` native leaf when it is within the
+shape-local frame. Its source-bound edit token-splices only the selected x
+coordinate, preserves `gdRefR`/`gdRefAng`, radial/angular bounds, y, handle
+order/kind, and the remaining geometry, and survives a second projection.
+Reference-backed, non-canonical, malformed, non-polar, and out-of-frame
+coordinates remain source-owned.
+
+The paired direct ordered `a:ahPolar/a:pos/@y` literal coordinate is exposed as
+a `customGeometryAdjustmentHandlePolarYEmu` native leaf when it is within the
+shape-local frame. Its source-bound edit token-splices only the selected y
+coordinate, preserves `gdRefR`/`gdRefAng`, radial/angular bounds, x, handle
+order/kind, and the remaining geometry, and survives a second projection.
+Reference-backed, non-canonical, malformed, non-polar, and out-of-frame
+coordinates remain source-owned.
+
+A recognized custom geometry text rectangle with four in-frame literal edges
+also exposes its left edge as a `customGeometryTextRectangleLeftEmu` native
+leaf. For an authored/private profile, the source-bound edit changes only the
+numeric operand of `officeKitTextLeft`'s scaled guide; for a direct numeric
+source it changes only `a:rect/@l`. It preserves top/right/bottom, the
+representation and guide identity, the remaining geometry, and survives a
+second projection. Reference-backed, malformed, extension-bearing, negative,
+out-of-frame, or unordered rectangles remain source-owned.
+
+The fourth edge is exposed as a `customGeometryTextRectangleBottomEmu` native
+leaf under the same recognized four-edge text-rectangle profile. Its
+source-bound edit changes only direct `a:rect/@b`, or only the numeric operand
+of the authored `officeKitTextBottom` scaled guide, while preserving the other
+edges, representation, guide identity, remaining geometry, and second-projection
+stability. Reference-backed, malformed, extension-bearing, negative,
+out-of-frame, or unordered rectangles remain source-owned.
+
+The paired right edge is exposed as a `customGeometryTextRectangleRightEmu`
+native leaf under the same recognized four-edge text-rectangle profile. Its
+source-bound edit changes only direct `a:rect/@r`, or only the numeric operand
+of the authored `officeKitTextRight` scaled guide, while preserving the other
+edges, representation, guide identity, remaining geometry, and second-projection
+stability. Reference-backed, malformed, extension-bearing, negative,
+out-of-frame, or unordered rectangles remain source-owned.
+
+The same recognized four-edge text-rectangle profile exposes its top edge as a
+`customGeometryTextRectangleTopEmu` native leaf. Its source-bound edit changes
+only direct `a:rect/@t`, or only the numeric operand of the authored
+`officeKitTextTop` scaled guide, while preserving the other edges,
+representation, guide identity, remaining geometry, and second-projection
+stability. Reference-backed, malformed, extension-bearing, negative,
+out-of-frame, or unordered rectangles remain source-owned.
+
+Each recognized custom-geometry path with an existing positive direct
+`a:path/@w` also exposes a `customGeometryPathWidth` native leaf, indexed by
+path order. The value is in DrawingML path-coordinate units rather than EMU;
+its source-bound edit changes only `@w`, preserving `@h`, path properties,
+commands, sibling paths, and the remaining geometry. Omitted, zero, malformed,
+extension-bearing, or unsupported paths remain source-owned and the edited
+value survives a second projection.
+
+The paired explicit positive direct `a:path/@h` is exposed as a
+`customGeometryPathHeight` native leaf with the same path-order identity and
+DrawingML path-coordinate unit. Its source-bound edit changes only `@h`, keeps
+width, path properties, commands, sibling paths, and other geometry intact,
+and survives a second projection; omitted, zero, malformed, extension-bearing,
+or unsupported paths remain source-owned.
+
+Each recognized direct `a:arcTo` command with a positive literal `@wR` also
+exposes a `customGeometryPathArcWidthRadius` native leaf. Its path order and
+direct command order identify the command; a source-bound edit token-splices
+only `@wR`, preserving the height radius, start/sweep angles, path properties,
+other commands, sibling paths, and remaining geometry. Reference-backed,
+malformed, extension-bearing, or unsupported arc state remains source-owned,
+and the edited radius survives a second projection.
+
+The paired positive literal `a:arcTo/@hR` is exposed as
+`customGeometryPathArcHeightRadius` with the same path/command identity. Its
+source-bound edit token-splices only `@hR`, preserving the width radius,
+start/sweep angles, path properties, other commands, sibling paths, and the
+remaining geometry; reference-backed, malformed, extension-bearing, or
+unsupported arc state remains source-owned.
+
+The direct literal `a:arcTo/@stAng` is exposed as
+`customGeometryPathArcStartAngle60000` with the same path/command identity.
+Its source-bound edit token-splices only the signed one-turn angle token,
+preserving both radii, the sweep angle, path properties, other commands,
+sibling paths, and remaining geometry; reference-backed, malformed,
+extension-bearing, or out-of-range angles remain source-owned.
+
+The direct non-zero literal `a:arcTo/@swAng` is exposed as
+`customGeometryPathArcSweepAngle60000` with the same path/command identity.
+Its source-bound edit token-splices only the signed one-turn sweep-angle
+token, preserving both radii, the start angle, path properties, other
+commands, sibling paths, and remaining geometry; reference-backed, malformed,
+extension-bearing, zero, or out-of-range sweeps remain source-owned.
+
+An explicit direct custom-path fill of `norm` or `none` is also exposed as a
+`customGeometryPathFill` boolean native leaf, indexed by path order. A
+source-bound edit maps `true`/`false` to those two existing DrawingML tokens and
+changes only `@fill`, preserving viewport extents, stroke/extrusion properties,
+commands, sibling paths, and the rest of the geometry; omitted or unsupported
+fill state remains source-owned.
+
+An explicit direct custom-path `@stroke` boolean is exposed as a
+`customGeometryPathStroke` native leaf, indexed by path order. A source-bound
+edit changes only that path's `@stroke`, preserving viewport extents, fill/
+extrusion properties, commands, sibling paths, and the rest of the geometry;
+omitted, malformed, unsupported, or extension-bearing stroke state remains
+source-owned.
+
+An explicit direct custom-path `@extrusionOk` boolean is exposed as a
+`customGeometryPathExtrusionAllowed` native leaf, indexed by path order. A
+source-bound edit changes only that path's `@extrusionOk`, preserving viewport
+extents, fill/stroke properties, commands, sibling paths, and the rest of the
+geometry; omitted, malformed, unsupported, or extension-bearing extrusion state
+remains source-owned.
 
 The same bounded leaf profile now covers recognized preset shapes with a
 complete adjustment list: each ordered `a:avLst/a:gd fmla="val N"` is exposed
@@ -1346,7 +2548,7 @@ Detailed evidence and gaps are in
 | Documents | partial | Native packaging plus the ordinary public-API create/import/edit/export workflow are runnable and tested through canonical OfficeKit, semantic assertions, and real LibreOffice page QA. Source-free headers/footers can now use one bounded 2-through-32-item ordered literal/simple-field sequence (for example, `Page PAGE of NUMPAGES`) in one native paragraph; field displays are cached fallbacks, while the pagination host remains the authority for live numbers. Imported recognized sequences are inspectable and byte-exactly no-op preserved but source-bound/read-only. Imported paragraphs/table cells expose separate `textEditable` and `textPatchable` evidence; the latter routes one unique untracked literal replacement inside one direct native node or across adjacent same-`w:rPr` runs without flattening formatting. The shipped `officekit-source-text-patch-workflow.mjs` binds an explicit paragraph/table-cell target, protects the input, permits only `word/document.xml` to change, publishes without overwrite, reimports, verifies, audits, and enters native render QA; duplicate, mixed-format, empty-gap, cross-paragraph, field/control/revision text fails closed. The paired `officekit-{header,footer}-text-edit-workflow.mjs` commands separately bind one ordinary imported default/first/even HeaderPart or FooterPart paragraph with capability preflight, immutable input, exact one matching part scope and residual proof, no-overwrite publication, reimport, verification, model render, and byte-bound audit; PAGE/simple fields, shared/inherited/rich page furniture, cross-kind reinterpretation, and multiple same-part edits remain rejected. The `officekit-note-text-edit-workflow.mjs` transaction likewise changes one exact imported canonical footnote/endnote physical paragraph only after binding its semantic/native/anchor IDs, index, and old text; it permits only the relevant note part, proves the raw residual outside that text leaf, then reimports, verifies, model-renders, and audits. The separate `officekit-tracked-replacement-workflow.mjs` adds one true source-bound redline in either a direct body paragraph or one bounded physical table cell as adjacent native deletion/insertion runs. It discovers or accepts a structured target, protects the input, checks exact package scope and audit hashes, reimports the accepted-view projection, renders, and supports typed accept/reject finalization. Other workflows update one uniquely located imported classic comment, or one recognized modern root plus direct reply, with native identity/topology protection and audits. Source-free modern threads author commentsExtended plus optional IDs/extensible/people parts; generated and explicit paragraph identities obey the Office 2021 range, while nested/irregular graphs and imported topology/identity changes fail closed. Inline and bounded foreground floating PNG/JPEG images now cross the public model/protobuf/Open XML path; the floating fixture authors square wrap, imports and changes it to top-and-bottom wrap without changing anchor topology, imports again, inspects the native package, and enters real LibreOffice/Poppler QA. Canonical VML text watermarks now cross the same public model/protobuf/Open XML path: the fixture authors one section-scoped object, edits only its text after import, imports again, inspects the Header part, and enters native page QA; the shipped transactional workflow also protects the input, limits mutation to one Header part, verifies, model-renders, and writes a byte-bound audit. Shared/multiple, DrawingML/image, irregular VML, and imported relationship/scope mutations remain opaque or fail closed. Bounded whole-block bookmarks/internal hyperlinks, plain-text footnotes/endnotes, whole-paragraph tracked insertions/deletions, block plain-text controls, and all five canonical inline/table-cell text, Word 2010+ checkbox, standard drop-down, combo-box, and ISO/Gregorian date profiles cross the same path with strict type-specific setters, source-bound choices/symbols/date metadata, explicit placement, and fixed imported topology. Canonical inline SEQ/REF/PAGEREF runs with optional caption-number bookmarks and transactional SEQ/REF cache materialization, bibliography-backed citations plus one source-free `BIBLIOGRAPHY` refresh placeholder, and native TOC placeholders with update-on-open intent are also covered. The bibliography placeholder has no JavaScript formatter: it requires a modeled source, may change only its cached display after canonical import, and relies on a compatible host to calculate the final entries. PAGEREF/page calculation, refreshed cross-paragraph TOCs, refreshed/multi-paragraph or irregular bibliography output, complex bibliography/field/bookmark/note/revision graphs, rich/multi-paragraph/inline-within-cell/nested/data-bound/locked/placeholder/repeating-section SDTs, irregular lists, localized dates, custom-symbol checkboxes, and floating anchors outside the bounded foreground absolute-offset profile remain explicit source-bound or advanced host/package workflows. |
 | Spreadsheets | partial | The native plugin, reference-style core workbook example, shipped Range/R1C1, financial-returns, loan-amortization, asset-depreciation, seven-family chart, standard-sparkline, What-If data-table, and bounded native PivotTable workflows, and independent three-sheet operating-forecast forward test pass canonical XLSX export/import/edit/re-export plus semantic/render verification. The financial workflows place assumptions, standard NPV/XNPV/IRR/XIRR/MIRR/PMT outputs, formula-driven PMT/IPMT/PPMT schedules with RATE/PV/FV/NPER inverse audits plus CUMIPMT/CUMPRINC schedule reconciliations, or SLN/SYD/DB/DDB fixed-asset schedules with salvage/basis checks, and finance-color conventions in separate auditable sheets. The named high-value Range Quick API slice, direct `thread.addReply()` comment workflow, formula-only internal chart binding, bar/line/pie/standard-area/50%-doughnut/marker-scatter/2D-bubble charts, canonical Office 2010 line/column/stacked sparklines, bounded one-/two-variable native data tables, and a 1-through-8-row/optional-one-column/1-through-32-value native PivotTable profile with exact axis-item plus absolute whole-day date filters are compatible; nested/mention comment graphs, richer Pivot grouping/relative-or-sub-day-condition-filter/edit/compact/subtotal/multi-column graphs, additional chart families and advanced plot options, imported data-table topology mutation, and other extended reference surfaces remain incomplete. |
 | Excel live control | partial | OfficeKit owns a local desktop Excel path: `officekit excel install` creates a user-local root/localhost certificate, add-in-only manifest, task pane, and on-demand loopback HTTPS bridge; the user sideloads the manifest once, then opens OfficeKit from the Home ribbon for the intended workbook. The protocol is versioned at 1 and accepts only typed JSON primitives for bounded range reads/writes/clear, search, workbook/sheet metadata and updates, copy, PNG range screenshots, dimensions/views, formatting, tables, charts, PivotTables, object inventory, and explicit save. The bridge uses Secure/HttpOnly/SameSite browser pairing, a separate private CLI secret, certificate fingerprint pinning, per-session serial queues, idempotency retention, bounded request/image payloads, content-free audit records, and `maybeApplied` error evidence for re-read-before-retry. Unit/integration coverage exercises certificate generation, manifest generation, cross-origin rejection, sessions, queue/idempotency, audit redaction, explicit save, operation schemas, Linux refusal, and the compiled task pane against mocked Office.js over the real bridge. V1 remains partial until manual Excel acceptance verifies sideloading, Ribbon connection, hidden-panel persistence, two-workbook isolation, all primitives, screenshots, table/chart/PivotTable, unsaved-save behavior, disconnect, and uninstall on both Windows x64 and macOS Apple Silicon. |
-| Presentations | partial | The native plugin creates and edits editable PPTX content across bounded rich text, geometry, images and crops, tables, charts, connectors, semantic authored diagrams, backgrounds, placeholders, notes/comments, transitions and motion, sections, custom shows, source-derived slides/components, eligible OLE payloads, and controlled native SmartArt/SVG/native leaves. Recognized rectangular tables also have direct cell fill/border editing, fixed-topology multi-run text replacement, a shared-style run profile, and a narrower mixed-run text-body profile for fixed direct plain runs whose styles remain in the bounded set; the edits preserve paragraph/run count and text topology and are proved by declared SlidePart/relationship/media footprint plus second projection. New decks follow the communication-first C route or one selected schema-v3 style Skill; no fixed built-in page library is required. Imported edits bind capabilities to the exact source revision, preserve unsupported topology as opaque, audit the declared OPC footprint, reimport, and render. Paragraph/list/field/layout-bearing text bodies, complex identity-sensitive graphs, unsupported extension topologies, arbitrary raw OOXML, inherited/effect-rich table runs, native SmartArt topology authoring, and unproven media/OLE operations remain read-only or fail closed. |
+| Presentations | partial | The native plugin creates and edits editable PPTX content across bounded rich text, geometry, images and crops, tables, charts, connectors, semantic authored diagrams, backgrounds, placeholders, notes/comments, transitions and motion, sections, custom shows, source-derived slides/components, eligible OLE payloads, and controlled native SmartArt/SVG/native leaves. Recognized rectangular tables also expose the source-bound `tableHeaderRows`/`tableBandedRows`/`tableBandedColumns`/`tableFirstColumnEmphasis`/`tableLastColumnEmphasis`/`tableLastRow` native leaves and have direct cell fill/border editing, fixed-topology multi-run text replacement, a shared-style run profile, and a narrower mixed-run text-body profile for fixed direct plain runs whose styles remain in the bounded set; the edits preserve paragraph/run count and text topology and are proved by declared SlidePart/relationship/media footprint plus second projection. New decks follow the communication-first C route or one selected schema-v3 style Skill; no fixed built-in page library is required. Imported edits bind capabilities to the exact source revision, preserve unsupported topology as opaque, audit the declared OPC footprint, reimport, and render. Paragraph/list/field/layout-bearing text bodies, complex identity-sensitive graphs, unsupported extension topologies, arbitrary raw OOXML, inherited/effect-rich table runs, native SmartArt topology authoring, and unproven media/OLE operations remain read-only or fail closed. |
 | Presentation image sourcing | done (bounded) | The lazy `officekit image search/add/list/audit` route searches Openverse and Wikimedia through local provider adapters and materializes offline Lucide icons from exact-pinned catalog data. Search returns task-bound opaque candidates with `selectionMade: false`; only declared Public Domain, CC0, CC BY, Lucide ISC, permission, user/generated assets, and official press-kit rights are accepted. Acquisition revalidates HTTPS redirects, public DNS, byte and pixel budgets, MIME/magic agreement, and PNG/JPEG/GIF remote formats. Content-addressed task assets retain source and credit receipts, and audit reconciles those receipts against media hashes actually embedded in the PPTX. The PPJ Skill loads this workflow only for an explicit media role and requires crop, contrast, accessibility, attribution, render, and source-sidecar review; provider metadata remains evidence, not legal verification. |
 | PPTX three-sample programmable-import acceptance | done | The frozen 算秩未来, blue-gray, and McKinsey corpus passes `90/90` packed clean-install edit runs and `30/30` byte-deterministic intents, with source protection, second import, exact part/relationship scope, target XML/SVG masking, nested-package checks where applicable, target-page change, and pixel-identical non-target pages. Rendering uses LibreOffice for 60 runs and Keynote for 30 declared text cases. Nine fresh Codex trials pass the required three-session inspect/edit/review/commit/resume/publish lifecycle, and the separate source-derived suite passes `24/24` runs across text, geometry, image, table, chart, component, add, delete, and reorder. `evals/pptx-programmable-import/candidate.v1.json` binds the exact product commit, packed tarball, definitions, component evidence hashes, and the preserved failed baseline. This row is complete only for those frozen samples and declared operations on macOS; it does not promote the broader Presentations, design-profile, Edit Plan, SVG, arbitrary OOXML, or Windows host surfaces to `done`. |
 | PPTX design profiles and source-derived continuation | partial | Three immutable external decks now have deterministic, source-hash-bound design profiles covering package structure, masters/layouts/themes, palette/typeface evidence, density, layout families, slide archetypes, recurring geometry, and opaque native summaries. SVG media is also profiled as visible content: bounded vector assets now contribute source hashes, text-node samples, font/size evidence, and direct colors (the McKinsey deck records all 8 SVG assets and all 250 visible text nodes, inheriting parent `<text>` typography into nested `<tspan>` leaves); active or external SVG content remains blocked. A codec-proven source slide can be cloned without reserializing its semantic projection; immutable `image/*` descendants, including legacy WDP assets, may be shared while mutable descendants remain ownership-checked. Each sample has a clone → append-to-end → second import → typed continuation evidence: text edits on the 算秩未来 and blue-gray copies, and a same-format SVG payload replacement on the 麦肯锡 copy. The package oracle proves the original slide and all non-target parts remain byte-identical; only presentation topology and newly added clone assets change. LibreOffice + Poppler native evidence now proves every original page is pixel-identical after continuation and the appended page is non-blank. A source-bound review baseline can downgrade only exact pre-existing semantic/layout issues; structural package failures and new errors remain blocking. Three fresh public-REPL continuation rehearsals each complete two commits, two resumes, verification, and publish with the source unchanged. Three independent model black-box runs now pass the bounded native-leaf slice on all three samples; each run records a source-hash-bound design profile and frame map, one cloned/edited slide, source protection, byte-identical non-target parts, second import, and a separate structural/layout review. The compact evidence is in `evals/pptx-generation/agent-blackbox.v1.json`; visual review is explicitly unavailable on this portable lane and inherited layout warnings remain reported rather than repaired. Imported presentations now expose deterministic inspect-only `componentCandidate` references with source SHA, occurrences, semantic descriptors, ownership evidence, and blocked reasons for ambiguous/opaque/relationship-bound graphs. Repeated candidates now also expose occurrence-level `editCapability` leaf IDs; `presentation.editComponentOccurrence` validates and applies a bounded batch of those already-issued leaves without adding XML or topology access. The same atomic batch now passes on all three real samples: two geometry leaves on 算秩未来, two text leaves on the blue-gray template, and two geometry leaves on McKinsey, each changing one target SlidePart and surviving reimport with the source protected. `presentation.reuseSourceSlide` now binds complete-slide reuse to the exact inspected slide ID, source revision SHA, and optional clone-capability proof; stale or unsupported requests fail closed before the codec graph clone. `presentation.reuseSourceComponent` now has three real passed candidates: the 算秩未来 template's repeated component after proving its slide-level PowerPoint `p14:creationId` extension is slide-owned rather than a child identity consumer, the blue-gray template's repeated picture-backed component (including an independently owned fallback image relationship), and the McKinsey repeated-image component. Each has zero non-topology part drift and successful second import; unknown slide extensions, duplicate identities, and relationship-bound graphs remain blocked. The component scan now ignores ZIP directory entries, which are packaging hints rather than OPC parts. The self-contained distribution smoke now runs a no-local-install task that imports a generated PPTX, resolves a source-bound candidate, reuses one complete source slide, and proves candidate inspection is byte-stable before reuse. Broader component mutation beyond issued native leaves and Windows PowerPoint acceptance remain open. |
