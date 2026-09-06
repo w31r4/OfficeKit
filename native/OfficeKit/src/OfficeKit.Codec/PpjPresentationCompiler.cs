@@ -5012,11 +5012,13 @@ internal static class PpjSourceBoundPresentationCompiler
                         if (beforeRun.Field is null || afterRun.Field is null ||
                             !string.Equals(beforeRun.Field.Id, afterRun.Field.Id, StringComparison.Ordinal) ||
                             !string.Equals(beforeRun.Field.Type, afterRun.Field.Type, StringComparison.Ordinal) ||
+                            beforeRun.Field.Automatic != afterRun.Field.Automatic ||
                             !string.Equals(targetRun.Field.Id, beforeRun.Field.Id, StringComparison.Ordinal) ||
                             !string.Equals(targetRun.Field.Type, beforeRun.Field.Type, StringComparison.Ordinal))
                             throw Unsupported(path, "source-bound field identity or type change");
                         if (!string.Equals(beforeRun.Field.Text, afterRun.Field.Text, StringComparison.Ordinal))
                         {
+                            targetRun.Field.Automatic = afterRun.Field.Automatic;
                             targetRun.Field.Text = afterRun.Field.Text;
                             target.Text = PptxTextCodec.Flatten(target.TextBody);
                             mutations.SemanticChanges = true;

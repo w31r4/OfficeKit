@@ -2173,7 +2173,13 @@ internal static partial class PpjAuthoredPresentationCompiler
             var digest = MD5.HashData(Encoding.UTF8.GetBytes($"officekit-field\0{type}\0{text}"));
             id = $"{{{new Guid(digest).ToString()}}}";
         }
-        run.Field = new PresentationTextField { Id = id, Type = type, Text = text };
+        run.Field = new PresentationTextField
+        {
+            Id = id,
+            Type = type,
+            Text = text,
+            Automatic = source.TryGetProperty("automatic", out var automatic) && automatic.ValueKind == JsonValueKind.True,
+        };
         return run;
     }
 

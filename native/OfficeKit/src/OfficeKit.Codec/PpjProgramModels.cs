@@ -331,7 +331,7 @@ internal sealed record PpjParagraphModel(
 
 internal sealed record PpjFormulaModel(string Syntax, string Source);
 
-internal sealed record PpjTextFieldModel(string? Id, string Type, string Text);
+internal sealed record PpjTextFieldModel(string? Id, string Type, string Text, bool Automatic);
 
 internal sealed record PpjRunModel(string? Id, string? Text, PpjFormulaModel? Formula, PpjTextFieldModel? Field, bool LineBreak);
 
@@ -1514,7 +1514,7 @@ internal static class PpjProgramParser
                         ? new PpjFormulaModel(formula.GetProperty("syntax").GetString()!, formula.GetProperty("source").GetString()!)
                         : null,
                     run.TryGetProperty("field", out var field)
-                        ? new PpjTextFieldModel(OptionalString(field, "id"), field.GetProperty("type").GetString()!, field.GetProperty("text").GetString()!)
+                        ? new PpjTextFieldModel(OptionalString(field, "id"), field.GetProperty("type").GetString()!, field.GetProperty("text").GetString()!, OptionalBool(field, "automatic"))
                         : null,
                     run.TryGetProperty("break", out var lineBreak) && lineBreak.ValueKind == JsonValueKind.True)).ToArray())).ToArray());
     }

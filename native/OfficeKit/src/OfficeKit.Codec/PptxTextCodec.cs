@@ -65,6 +65,15 @@ internal static class PptxTextCodec
             // otherwise unlocalized run does not fail post-write semantics.
             if (run.HasLanguage && run.Language.Equals("en-US", StringComparison.OrdinalIgnoreCase)) run.ClearLanguage();
             if (run.ContentCase == PresentationTextRun.ContentOneofCase.Formula) run.Formula.SourceLatex = string.Empty;
+            // The bounded automatic-field marker is an OfficeKit semantic
+            // profile; OOXML stores only the field type and cached display.
+            // Compare the stored field identity/cache here and let the PPJ
+            // projector re-derive the marker from the native type.
+            if (run.ContentCase == PresentationTextRun.ContentOneofCase.Field && run.Field.Automatic)
+            {
+                run.Field.Automatic = false;
+                run.Field.Text = string.Empty;
+            }
         }
         foreach (var paragraph in shape.TextBody.Paragraphs) NormalizeParagraphEditIntent(paragraph);
         foreach (var style in shape.TextBody.ListStyles) NormalizeParagraphEditIntent(style);
@@ -75,7 +84,7 @@ internal static class PptxTextCodec
         shape.TextBody.ListStyles.Clear();
         shape.TextBody.ListStyles.Add(sortedListStyles);
         if (shape.TextBody.HasNoListStyles) shape.TextBody.ClearNoListStyles();
-        shape.Text = Flatten(body);
+        shape.Text = Flatten(shape.TextBody);
     }
 
     internal static bool SupportsEditing(P.TextBody? body)
@@ -333,6 +342,9 @@ internal static class PptxTextCodec
                     Id = field.Id?.Value ?? string.Empty,
                     Type = field.Type?.Value ?? string.Empty,
                     Text = field.Text?.Text ?? string.Empty,
+                    Automatic = slideContext?.DeriveAutomaticFields == true &&
+                        slideContext.SlideNumber is not null &&
+                        IsAutomaticFieldType(field.Type?.Value),
                 },
             },
             OpenXmlElement math when PptxMathCodec.TryRead(math, out var formula) => formula,
@@ -407,7 +419,7 @@ internal static class PptxTextCodec
         {
             PresentationTextRun.ContentOneofCase.Text => new A.Run(properties, new A.Text(source.Text)),
             PresentationTextRun.ContentOneofCase.LineBreak => new A.Break(properties),
-            PresentationTextRun.ContentOneofCase.Field => new A.Field(properties, new A.Text(source.Field.Text)) { Id = source.Field.Id, Type = source.Field.Type },
+            PresentationTextRun.ContentOneofCase.Field => new A.Field(properties, new A.Text(FieldText(source.Field, slideContext))) { Id = source.Field.Id, Type = source.Field.Type },
             PresentationTextRun.ContentOneofCase.Formula => PptxMathCodec.Build(source),
             _ => throw new CodecException("invalid_presentation_text", "Presentation inline must contain text, a line break, a field, or a formula."),
         };
@@ -451,7 +463,7 @@ internal static class PptxTextCodec
         {
             field.Id = requested.Field.Id;
             field.Type = requested.Field.Type;
-            field.Text!.Text = requested.Field.Text;
+            field.Text!.Text = FieldText(requested.Field, slideContext);
         }
     }
 
@@ -513,6 +525,8 @@ internal static class PptxTextCodec
                     throw new CodecException("invalid_presentation_text", "Presentation field id must be a brace-wrapped UUID.");
                 if (!ValidFieldType(source.Field.Type))
                     throw new CodecException("invalid_presentation_text", "Presentation field type must contain 1 through 255 printable characters.");
+                if (source.Field.Automatic && !IsAutomaticFieldType(source.Field.Type))
+                    throw new CodecException("invalid_presentation_text", "The bounded automatic presentation field profile only supports type slidenum.");
                 return;
             case PresentationTextRun.ContentOneofCase.Formula:
                 PptxMathCodec.Validate(source);
@@ -526,6 +540,14 @@ internal static class PptxTextCodec
 
     private static bool ValidFieldType(string? value) =>
         !string.IsNullOrWhiteSpace(value) && value.Length <= 255 && !value.Any(char.IsControl);
+
+    internal static bool IsAutomaticFieldType(string? value) =>
+        string.Equals(value, "slidenum", StringComparison.OrdinalIgnoreCase);
+
+    private static string FieldText(PresentationTextField field, PptxPartContext? slideContext) =>
+        field.Automatic && IsAutomaticFieldType(field.Type) && slideContext?.SlideNumber is { } slideNumber
+            ? slideNumber.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            : field.Text;
 
     internal static void ReadTabStops(PresentationTextParagraph target, A.TextParagraphPropertiesType? source)
     {

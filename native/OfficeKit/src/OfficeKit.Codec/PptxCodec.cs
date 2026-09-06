@@ -1014,7 +1014,7 @@ internal static class PptxCodec
                     throw new CodecException("missing_common_slide_data", $"Presentation slide {slideIndex + 1} has no common slide data.", PartPath(slidePart));
                 var shapeTree = slideCommon.ShapeTree ??
                     throw new CodecException("missing_shape_tree", $"Presentation slide {slideIndex + 1} has no shape tree.", PartPath(slidePart));
-                var slideContext = new PptxPartContext(slidePart, slideIdByPartPath, slidePartById, assetCatalog, customShowCatalog);
+                var slideContext = new PptxPartContext(slidePart, slideIdByPartPath, slidePartById, assetCatalog, customShowCatalog, slideNumber: checked(slideIndex + 1));
                 var originalBackground = PptxBackgroundCodec.Read(slideCommon, slideContext);
                 var originalBackgroundHash = BackgroundSemanticHash(originalBackground);
                 if (!binding.BackgroundSemanticSha256.Equals(originalBackgroundHash, StringComparison.OrdinalIgnoreCase))
@@ -2649,7 +2649,7 @@ internal static class PptxCodec
             validateSlide?.Invoke(slideIndex, source);
             var slidePart = slideParts[slideIndex];
             var slideCommon = slidePart.Slide!.CommonSlideData!;
-            var slideContext = new PptxPartContext(slidePart, slideIdByPartPath, slidePartById, assetCatalog, customShowCatalog);
+            var slideContext = new PptxPartContext(slidePart, slideIdByPartPath, slidePartById, assetCatalog, customShowCatalog, slideNumber: checked(slideIndex + 1));
             PptxBackgroundCodec.Build(slideCommon, source.Background, slideContext);
             PptxTransitionCodec.Build(slidePart.Slide!, source.Transition);
             var shapeTree = slideCommon.ShapeTree!;
@@ -2742,6 +2742,19 @@ internal static class PptxCodec
             "unsupported_presentation_features",
             $"Source-free presentation placeholder {ownerId} uses {type}; only title, body, ctrTitle, and subTitle text placeholders are supported.");
     }
+
+    private static bool ContainsAutomaticFields(PresentationElement element) => element.ContentCase switch
+    {
+        PresentationElement.ContentOneofCase.Shape => ContainsAutomaticFields(element.Shape.TextBody),
+        PresentationElement.ContentOneofCase.Table => element.Table.Rows.Any(row => row.Cells.Any(cell => ContainsAutomaticFields(cell.TextBody))),
+        PresentationElement.ContentOneofCase.Group => element.Group.Children.Any(ContainsAutomaticFields),
+        PresentationElement.ContentOneofCase.Chart => ContainsAutomaticFields(element.Chart.TitleBody),
+        _ => false,
+    };
+
+    private static bool ContainsAutomaticFields(PresentationTextBody? body) =>
+        body is not null && body.Paragraphs.Any(paragraph => paragraph.Runs.Any(run =>
+            run.ContentCase == PresentationTextRun.ContentOneofCase.Field && run.Field.Automatic));
 
     private static IEnumerable<PresentationElement> FlattenPresentationElements(IEnumerable<PresentationElement> elements)
     {
@@ -4297,8 +4310,8 @@ internal static class PptxCodec
                     "presentation_postwrite_timing_semantics_mismatch",
                     $"PPTX slide {slideIndex + 1} timing does not match requested animation semantics after export.",
                     PartPath(outputSlide));
-            var sourceContext = new PptxPartContext(sourceSlide, sourceIdByPartPath, assets: sourceAssets, customShows: customShowCatalog);
-            var outputContext = new PptxPartContext(outputSlides[slideIndex], outputIdByPartPath, assets: outputAssets, customShows: customShowCatalog);
+            var sourceContext = new PptxPartContext(sourceSlide, sourceIdByPartPath, assets: sourceAssets, customShows: customShowCatalog, slideNumber: checked(slideIndex + 1));
+            var outputContext = new PptxPartContext(outputSlides[slideIndex], outputIdByPartPath, assets: outputAssets, customShows: customShowCatalog, slideNumber: checked(slideIndex + 1));
             var outputBackground = PptxBackgroundCodec.Read(outputRoot.CommonSlideData, outputContext);
             if (!BackgroundSemanticHash(outputBackground).Equals(BackgroundSemanticHash(requested.Slides[slideIndex].Background), StringComparison.OrdinalIgnoreCase))
                 throw new CodecException(
@@ -4343,6 +4356,7 @@ internal static class PptxCodec
             for (var elementIndex = 0; elementIndex < elements.Length; elementIndex++)
             {
                 var request = elements[elementIndex];
+                outputContext.DeriveAutomaticFields = ContainsAutomaticFields(request);
                 var binding = request.Source!;
                 var sourceElementIndex = checked((int)binding.ShapeTreeIndex);
                 if (sourceElementIndex >= before.Length)
@@ -4494,6 +4508,7 @@ internal static class PptxCodec
             for (var authoredIndex = 0; authoredIndex < authoredElements.Length; authoredIndex++)
             {
                 var request = authoredElements[authoredIndex];
+                outputContext.DeriveAutomaticFields = ContainsAutomaticFields(request);
                 var outputIndex = elements.Length + authoredIndex;
                 var outputElement = after[outputIndex];
                 var authoredOutputNativeIds = PptxElementDeletionCodec.NativeIds(outputElement).ToArray();

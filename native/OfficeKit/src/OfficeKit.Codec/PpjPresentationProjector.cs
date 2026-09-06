@@ -2077,6 +2077,7 @@ internal static partial class PpjPresentationProjector
                         ["type"] = StringNode(sourceRun.Field.Type),
                         ["text"] = StringNode(sourceRun.Field.Text),
                     };
+                    if (PptxTextCodec.IsAutomaticFieldType(sourceRun.Field.Type)) field["automatic"] = true;
                     if (!string.IsNullOrWhiteSpace(sourceRun.Field.Id)) field["id"] = StringNode(sourceRun.Field.Id);
                     run["field"] = field;
                 }

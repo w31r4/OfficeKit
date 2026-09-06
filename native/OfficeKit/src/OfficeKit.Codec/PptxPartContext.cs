@@ -24,7 +24,9 @@ internal sealed class PptxPartContext
         IReadOnlyDictionary<string, string> slideIdByPartPath,
         IReadOnlyDictionary<string, SlidePart>? slidePartById = null,
         PptxAssetCatalog? assets = null,
-        PptxCustomShowCatalog? customShows = null) : this(
+        PptxCustomShowCatalog? customShows = null,
+        int? slideNumber = null,
+        bool deriveAutomaticFields = false) : this(
             owner,
             owner switch
             {
@@ -45,7 +47,9 @@ internal sealed class PptxPartContext
             slideIdByPartPath,
             slidePartById,
             assets,
-            customShows)
+            customShows,
+            slideNumber,
+            deriveAutomaticFields)
     {
     }
 
@@ -55,7 +59,9 @@ internal sealed class PptxPartContext
         IReadOnlyDictionary<string, string> slideIdByPartPath,
         IReadOnlyDictionary<string, SlidePart>? slidePartById,
         PptxAssetCatalog? assets,
-        PptxCustomShowCatalog? customShows)
+        PptxCustomShowCatalog? customShows,
+        int? slideNumber,
+        bool deriveAutomaticFields)
     {
         Owner = owner;
         _addImagePart = addImagePart;
@@ -63,6 +69,8 @@ internal sealed class PptxPartContext
         SlidePartById = slidePartById ?? new Dictionary<string, SlidePart>(StringComparer.Ordinal);
         Assets = assets;
         CustomShows = customShows ?? PptxCustomShowCatalog.Empty;
+        SlideNumber = slideNumber;
+        DeriveAutomaticFields = deriveAutomaticFields;
     }
 
     internal OpenXmlPart Owner { get; }
@@ -70,6 +78,8 @@ internal sealed class PptxPartContext
     internal IReadOnlyDictionary<string, SlidePart> SlidePartById { get; }
     internal PptxAssetCatalog? Assets { get; }
     internal PptxCustomShowCatalog CustomShows { get; }
+    internal int? SlideNumber { get; }
+    internal bool DeriveAutomaticFields { get; set; }
     internal bool RelationshipsChanged => _addedRelationshipKeys.Count > 0 || _removedRelationshipKeys.Count > 0;
     internal IReadOnlyCollection<string> AddedRelationshipIds => _addedRelationshipIds;
     internal IReadOnlyCollection<string> AddedRelationshipKeys => _addedRelationshipKeys;
