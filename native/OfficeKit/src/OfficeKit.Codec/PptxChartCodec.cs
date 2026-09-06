@@ -316,6 +316,7 @@ internal static partial class PptxChartCodec
         output.BubbleSizeMode = source.BubbleSizeMode;
         if (source.HasDisplayBlanksAs) output.DisplayBlanksAs = source.DisplayBlanksAs;
         if (source.HasLegendOverlay) output.LegendOverlay = source.LegendOverlay;
+        output.ScatterStyle = source.ScatterStyle;
         return output;
     }
 
@@ -362,12 +363,13 @@ internal static partial class PptxChartCodec
         output.BubbleSizeMode = source.BubbleSizeMode;
         if (source.HasDisplayBlanksAs) output.DisplayBlanksAs = source.DisplayBlanksAs;
         if (source.HasLegendOverlay) output.LegendOverlay = source.LegendOverlay;
+        output.ScatterStyle = source.ScatterStyle;
         return output;
     }
 
     private static bool TryReadChart(string xml, out SpreadsheetChartArtifact chart, out XDocument document, out bool editable)
     {
-        if (!OpenXmlChartSpaceCodec.TryRead(xml, out chart, out document, out editable, allowRichTitle: true, allowChartFrameDecorations: true)) return false;
+        if (!OpenXmlChartSpaceCodec.TryRead(xml, out chart, out document, out editable, allowRichTitle: true, allowChartFrameDecorations: true, allowScatterStyleVariants: true)) return false;
         return chart.Series.All(series => FormulaProfileIsSafe(series.CategoryFormula) &&
             FormulaProfileIsSafe(series.XValueFormula) &&
             FormulaProfileIsSafe(series.ValueFormula) &&

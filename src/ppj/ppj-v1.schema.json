@@ -5770,6 +5770,23 @@
         "smooth": {
           "$ref": "#/$defs/booleanOrToken"
         },
+        "scatterStyle": {
+          "oneOf": [
+            {
+              "enum": [
+                "line",
+                "lineWithMarkers",
+                "marker",
+                "smooth",
+                "smoothWithMarkers"
+              ]
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ],
+          "description": "Scatter plot line/marker mode; maps to c:scatterChart/c:scatterStyle. A string grammar token must resolve to one of the bounded values."
+        },
         "varyColors": {
           "$ref": "#/$defs/booleanOrToken"
         },

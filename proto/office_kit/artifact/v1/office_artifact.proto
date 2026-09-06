@@ -1036,6 +1036,10 @@ message SpreadsheetChartArtifact {
   // flags retain native presence, while fill and line share the direct
   // surface/outline profiles used by other ChartSpace containers.
   SpreadsheetChartDataTableArtifact data_table = 45;
+  // Canonical Kimi scatter plot style mirrored from
+  // c:scatterChart/c:scatterStyle. Empty defaults to marker; values are line,
+  // lineWithMarkers, marker, smooth, or smoothWithMarkers.
+  string scatter_style = 46;
 }
 
 message SpreadsheetChartSeriesArtifact {
@@ -2870,6 +2874,10 @@ message PresentationChart {
   // Optional bounded c:plotArea/c:dTable data-table state mirrored from the
   // native ChartPart.
   SpreadsheetChartDataTableArtifact data_table = 45;
+  // Canonical Kimi scatter plot style mirrored from
+  // c:scatterChart/c:scatterStyle. Empty defaults to marker; values are line,
+  // lineWithMarkers, marker, smooth, or smoothWithMarkers.
+  string scatter_style = 46;
 }
 
 // Bounded literal c:chartSpace/c:spPr container paint for Presentation charts.

@@ -3086,6 +3086,12 @@ internal static partial class PpjAuthoredPresentationCompiler
                 throw Unsupported(elementId, "bubbleSizeMode applies only to bubble charts");
             chart.BubbleSizeMode = ChartEnumToken(bubbleSizeMode, catalog, "chart bubbleSizeMode", "area", "width");
         }
+        if (catalog.PropertyByPrecedence("chart.scatterStyle", element, inline, named) is { } scatterStyle)
+        {
+            if (chart.Type != SpreadsheetChartType.Scatter)
+                throw Unsupported(elementId, "scatterStyle applies only to scatter charts");
+            chart.ScatterStyle = ChartEnumToken(scatterStyle, catalog, "chart scatterStyle", "line", "lineWithMarkers", "marker", "smooth", "smoothWithMarkers");
+        }
         var axisBearing = chart.Type is not (SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut);
         if (catalog.PropertyByPrecedence("chart.showCategoryAxis", element, inline, named) is { } showCategoryAxis)
         {

@@ -1362,6 +1362,21 @@ internal static class PpjSemanticValidator
                 "style.holeSize applies only to doughnut charts.",
                 path + ".style.holeSize"));
         if (chart.Raw.TryGetProperty("style", out style) &&
+            style.TryGetProperty("scatterStyle", out var scatterStyle))
+        {
+            if (chart.ChartType != "scatter")
+                diagnostics.Add(new(
+                    "ppj.chart.scatterStyleType",
+                    "style.scatterStyle applies only to scatter charts.",
+                    path + ".style.scatterStyle"));
+            else if (scatterStyle.ValueKind == JsonValueKind.String &&
+                     scatterStyle.GetString() is not ("line" or "lineWithMarkers" or "marker" or "smooth" or "smoothWithMarkers"))
+                diagnostics.Add(new(
+                    "ppj.chart.scatterStyleValue",
+                    "style.scatterStyle must be line, lineWithMarkers, marker, smooth, or smoothWithMarkers.",
+                    path + ".style.scatterStyle"));
+        }
+        if (chart.Raw.TryGetProperty("style", out style) &&
             style.TryGetProperty("varyColors", out _) &&
             chart.ChartType is not ("bar" or "column" or "line" or "combo"))
             diagnostics.Add(new(

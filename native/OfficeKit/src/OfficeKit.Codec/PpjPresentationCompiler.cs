@@ -2594,6 +2594,7 @@ internal static class PpjSourceBoundPresentationCompiler
             "holeSize",
             "bubbleScale",
             "bubbleSizeMode",
+            "scatterStyle",
             "smooth",
             "varyColors");
 
@@ -2989,6 +2990,16 @@ internal static class PpjSourceBoundPresentationCompiler
             target.BubbleSizeMode = newStyle is { } owner && owner.TryGetProperty("bubbleSizeMode", out var value)
                 ? ResolveGrammarEnumToken(grammarRoot, value, path + ".style.bubbleSizeMode", "area", "width")
                 : string.Empty;
+            changed = true;
+        }
+        if (PropertyChanged(oldStyle, newStyle, "scatterStyle"))
+        {
+            RequireCapability(after, "setChartPlot", path + ".style.scatterStyle");
+            if (target.Type != SpreadsheetChartType.Scatter)
+                throw Unsupported(path + ".style.scatterStyle", "scatter style on a non-scatter chart");
+            target.ScatterStyle = newStyle is { } owner && owner.TryGetProperty("scatterStyle", out var value)
+                ? ResolveGrammarEnumToken(grammarRoot, value, path + ".style.scatterStyle", "line", "lineWithMarkers", "marker", "smooth", "smoothWithMarkers")
+                : "marker";
             changed = true;
         }
         if (PropertyChanged(oldStyle, newStyle, "smooth"))

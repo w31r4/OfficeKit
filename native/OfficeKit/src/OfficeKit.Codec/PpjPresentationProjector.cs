@@ -1134,6 +1134,7 @@ internal static partial class PpjPresentationProjector
         if (chart.HasDoughnutHoleSize) style["holeSize"] = JsonValue.Create(chart.DoughnutHoleSize);
         if (chart.HasBubbleScale) style["bubbleScale"] = JsonValue.Create(chart.BubbleScale);
         if (chart.BubbleSizeMode.Length > 0) style["bubbleSizeMode"] = StringNode(chart.BubbleSizeMode);
+        if (chart.ScatterStyle.Length > 0) style["scatterStyle"] = StringNode(chart.ScatterStyle);
         if (chart.XAxis is null && chart.HasShowCategoryAxis) style["showCategoryAxis"] = JsonValue.Create(chart.ShowCategoryAxis);
         if (chart.YAxis is null && chart.HasShowValueAxis) style["showValueAxis"] = JsonValue.Create(chart.ShowValueAxis);
         if (chart.YAxis is null && chart.HasShowGridlines) style["showGridlines"] = JsonValue.Create(chart.ShowGridlines);
@@ -2927,7 +2928,7 @@ internal static partial class PpjPresentationProjector
                     output.Add(new("setChartAxis", ["chart.axis"]));
                 // Common ChartSpace plot scalars (legend placement, grouping,
                 // gap width, axis visibility, line smoothness/colour
-                // variation, and bounded circular/bubble geometry) are safe
+                // variation, scatter style, and bounded circular/bubble geometry) are safe
                 // only for the parser-owned chart families below.  The
                 // capability is deliberately broad at the operation level;
                 // the source-bound compiler still checks each field and the
@@ -2939,7 +2940,8 @@ internal static partial class PpjPresentationProjector
                     SpreadsheetChartType.Doughnut or
                     SpreadsheetChartType.Bubble or
                     SpreadsheetChartType.Radar or
-                    SpreadsheetChartType.Combo)
+                    SpreadsheetChartType.Combo or
+                    SpreadsheetChartType.Scatter)
                     output.Add(new("setChartPlot", ["chart.plot"]));
                 output.Add(new("setFrame", EditableFrameFields));
                 break;
