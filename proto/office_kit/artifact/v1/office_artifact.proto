@@ -4691,6 +4691,8 @@ message SpreadsheetChartTextStyleArtifact {
   // Direct DrawingML a:rPr/@u or a:defRPr/@u underline token. The bounded
   // chart profile uses the same native token vocabulary as presentation text.
   string underline = 9;
+  // Direct DrawingML a:pPr/@algn alignment token for chart text paragraphs.
+  string alignment = 10;
 }
 
 enum SpreadsheetChartLineDashStyle {

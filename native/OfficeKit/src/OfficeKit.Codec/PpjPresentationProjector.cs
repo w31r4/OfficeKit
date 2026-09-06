@@ -1512,6 +1512,8 @@ internal static partial class PpjPresentationProjector
         if (source.HasItalic) output["italic"] = JsonValue.Create(source.Italic);
         if (source.Underline.Length > 0)
             output["underline"] = StringNode(source.Underline switch { "sng" => "single", "dbl" => "double", _ => source.Underline });
+        if (source.Alignment.Length > 0)
+            output["alignment"] = StringNode(source.Alignment switch { "l" => "left", "ctr" => "center", "r" => "right", "just" => "justify", _ => source.Alignment });
         if (source.ColorRgb.Length > 0)
             output["color"] = TextColor(source.ColorRgb, null,
                 source.HasOpacityThousandthPercent, source.OpacityThousandthPercent);

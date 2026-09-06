@@ -3491,6 +3491,8 @@ internal static class PpjSourceBoundPresentationCompiler
                 : italic.GetBoolean();
         if (source.TryGetProperty("underline", out var underline))
             output.Underline = PpjAuthoredPresentationCompiler.NativeUnderline(underline.GetString()!);
+        if (source.TryGetProperty("alignment", out var alignment))
+            output.Alignment = PpjAuthoredPresentationCompiler.NativeChartAlignment(alignment.GetString()!);
         if (source.TryGetProperty("color", out var color))
         {
             var resolved = grammarRoot is { } root

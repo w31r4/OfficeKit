@@ -5,8 +5,9 @@ using OfficeKit.Artifact.Wire.V1;
 namespace OfficeKit.Codec;
 
 // Owns one exact chart-title / axis-tick DrawingML text profile. Font identity,
-// emphasis, direct RGB/alpha, and point size are editable; unrecognized rich
-// text graphs keep the containing chart source-owned instead of being normalized.
+// emphasis, paragraph alignment, direct RGB/alpha, and point size are editable;
+// unrecognized rich text graphs keep the containing chart source-owned instead
+// of being normalized.
 internal static class XlsxChartTextStyleCodec
 {
     private const double MinimumFontSizePoints = 1;
@@ -17,6 +18,10 @@ internal static class XlsxChartTextStyleCodec
     {
         "none", "words", "sng", "dbl", "heavy", "dotted", "dottedHeavy", "dash", "dashHeavy", "dashLong", "dashLongHeavy",
         "dotDash", "dotDashHeavy", "dotDotDash", "dotDotDashHeavy", "wavy", "wavyHeavy", "wavyDbl",
+    };
+    private static readonly HashSet<string> AlignmentValues = new(StringComparer.Ordinal)
+    {
+        "l", "ctr", "r", "just",
     };
 
     internal static void Validate(SpreadsheetChartArtifact chart, string worksheetId)
@@ -67,12 +72,16 @@ internal static class XlsxChartTextStyleCodec
     internal static XElement TitleElement(string title, SpreadsheetChartTextStyleArtifact? style)
     {
         var run = new XElement(DrawingNs + "r");
-        if (style is not null) run.Add(StyleProperties("rPr", style));
+        if (style is not null && HasCharacterStyle(style)) run.Add(StyleProperties("rPr", style));
         run.Add(new XElement(DrawingNs + "t", title));
+        var paragraph = new XElement(DrawingNs + "p");
+        if (style is not null && style.Alignment.Length > 0)
+            paragraph.Add(new XElement(DrawingNs + "pPr", new XAttribute("algn", style.Alignment)));
+        paragraph.Add(run);
         return new XElement(ChartNs + "title",
             new XElement(ChartNs + "tx", new XElement(ChartNs + "rich",
                 new XElement(DrawingNs + "bodyPr"), new XElement(DrawingNs + "lstStyle"),
-                new XElement(DrawingNs + "p", run))),
+                paragraph)),
             new XElement(ChartNs + "layout"));
     }
 
@@ -83,13 +92,31 @@ internal static class XlsxChartTextStyleCodec
 
     internal static void PatchTitle(XElement title, SpreadsheetChartTextStyleArtifact? style)
     {
-        if (!TryExactTitleRun(title, out var run)) throw ReadOnly("title");
+        if (!TryExactTitleRun(title, out var run, out var paragraphProperties)) throw ReadOnly("title");
         var existing = run.Element(DrawingNs + "rPr");
-        if (style is null) { existing?.Remove(); return; }
+        if (style is null)
+        {
+            existing?.Remove();
+            paragraphProperties?.Remove();
+            return;
+        }
         if (existing is not null && !TryExactStyleProperties(existing, out _)) throw ReadOnly("title");
-        var replacement = StyleProperties("rPr", style);
-        if (existing is null) run.AddFirst(replacement);
-        else existing.ReplaceWith(replacement);
+        if (HasCharacterStyle(style))
+        {
+            var replacement = StyleProperties("rPr", style);
+            if (existing is null) run.AddFirst(replacement);
+            else existing.ReplaceWith(replacement);
+        }
+        else
+            existing?.Remove();
+        if (style.Alignment.Length > 0)
+        {
+            var replacement = new XElement(DrawingNs + "pPr", new XAttribute("algn", style.Alignment));
+            if (paragraphProperties is null) run.AddBeforeSelf(replacement);
+            else paragraphProperties.ReplaceWith(replacement);
+        }
+        else
+            paragraphProperties?.Remove();
     }
 
     internal static void PatchAxis(XElement axis, SpreadsheetChartTextStyleArtifact? style)
@@ -134,6 +161,7 @@ internal static class XlsxChartTextStyleCodec
             style.FontFamilyComplexScript.Length > 0 ? style.FontFamilyComplexScript : "default-complexScript",
             style.HasBold ? style.Bold.ToString(CultureInfo.InvariantCulture) : "default-bold",
             style.HasItalic ? style.Italic.ToString(CultureInfo.InvariantCulture) : "default-italic",
+            style.Alignment.Length > 0 ? style.Alignment : "default-alignment",
             style.Underline.Length > 0 ? style.Underline : "default-underline",
             style.ColorRgb.Length > 0 ? style.ColorRgb.ToUpperInvariant() : "default-color",
             style.HasOpacityThousandthPercent ? style.OpacityThousandthPercent.ToString(CultureInfo.InvariantCulture) : "default-alpha");
@@ -142,11 +170,19 @@ internal static class XlsxChartTextStyleCodec
     private static bool TryReadTitleStyle(XElement title, out SpreadsheetChartTextStyleArtifact? style)
     {
         style = null;
-        if (!TryExactTitleRun(title, out var run)) return false;
+        if (!TryExactTitleRun(title, out var run, out var paragraphProperties)) return false;
         var properties = run.Element(DrawingNs + "rPr");
-        if (properties is null) return true;
-        if (!TryExactStyleProperties(properties, out var parsed)) return false;
-        style = parsed;
+        if (properties is not null)
+        {
+            if (!TryExactStyleProperties(properties, out var parsed)) return false;
+            style = parsed;
+        }
+        if (paragraphProperties is not null)
+        {
+            style ??= new SpreadsheetChartTextStyleArtifact();
+            style.Alignment = paragraphProperties.Attribute("algn")!.Value;
+        }
+        if (style is not null && !HasAnyStyle(style)) return false;
         return true;
     }
 
@@ -161,13 +197,15 @@ internal static class XlsxChartTextStyleCodec
     {
         if (style is null) return;
         if (!style.HasFontSizePoints && style.FontFamily.Length == 0 && style.FontFamilyEastAsia.Length == 0 && style.FontFamilyComplexScript.Length == 0 &&
-            !style.HasBold && !style.HasItalic && style.Underline.Length == 0 && style.ColorRgb.Length == 0 && !style.HasOpacityThousandthPercent)
+            !style.HasBold && !style.HasItalic && style.Alignment.Length == 0 && style.Underline.Length == 0 && style.ColorRgb.Length == 0 && !style.HasOpacityThousandthPercent)
             throw Invalid(worksheetId, chartId, $"{field} must declare at least one bounded property.");
         if (style.HasFontSizePoints && (!double.IsFinite(style.FontSizePoints) || style.FontSizePoints < MinimumFontSizePoints || style.FontSizePoints > MaximumFontSizePoints))
             throw Invalid(worksheetId, chartId, $"{field}.font_size_points must be from 1 through 4000.");
         ValidateTypeface(style.FontFamily, worksheetId, chartId, field + ".font_family");
         ValidateTypeface(style.FontFamilyEastAsia, worksheetId, chartId, field + ".font_family_east_asia");
         ValidateTypeface(style.FontFamilyComplexScript, worksheetId, chartId, field + ".font_family_complex_script");
+        if (style.Alignment.Length > 0 && !AlignmentValues.Contains(style.Alignment))
+            throw Invalid(worksheetId, chartId, $"{field}.alignment must be a bounded DrawingML paragraph-alignment token.");
         if (style.Underline.Length > 0 && !UnderlineValues.Contains(style.Underline))
             throw Invalid(worksheetId, chartId, $"{field}.underline must be a bounded DrawingML underline token.");
         if (style.ColorRgb.Length > 0 && (style.ColorRgb.Length != 6 || !style.ColorRgb.All(Uri.IsHexDigit)))
@@ -182,9 +220,10 @@ internal static class XlsxChartTextStyleCodec
             throw Invalid(worksheetId, chartId, $"{field} must contain at most 255 characters without controls.");
     }
 
-    private static bool TryExactTitleRun(XElement title, out XElement run)
+    private static bool TryExactTitleRun(XElement title, out XElement run, out XElement? paragraphProperties)
     {
         run = null!;
+        paragraphProperties = null;
         var titleChildren = title.Elements().ToArray();
         if (titleChildren.Any(item => item.Name != ChartNs + "tx" && item.Name != ChartNs + "layout") || titleChildren.Count(item => item.Name == ChartNs + "tx") != 1) return false;
         var tx = title.Element(ChartNs + "tx")!;
@@ -194,8 +233,15 @@ internal static class XlsxChartTextStyleCodec
         if (richChildren.Length != 3 || richChildren[0].Name != DrawingNs + "bodyPr" || richChildren[1].Name != DrawingNs + "lstStyle" || richChildren[2].Name != DrawingNs + "p" ||
             richChildren[0].HasAttributes || richChildren[0].HasElements || richChildren[1].HasAttributes || richChildren[1].HasElements) return false;
         var paragraphChildren = richChildren[2].Elements().ToArray();
-        if (paragraphChildren.Length != 1 || paragraphChildren[0].Name != DrawingNs + "r") return false;
-        run = paragraphChildren[0];
+        if (paragraphChildren.Length is < 1 or > 2 || paragraphChildren[^1].Name != DrawingNs + "r") return false;
+        if (paragraphChildren.Length == 2)
+        {
+            paragraphProperties = paragraphChildren[0];
+            var attributes = paragraphProperties.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration).ToArray();
+            if (paragraphProperties.HasElements || attributes.Length != 1 || attributes[0].Name != "algn" || !AlignmentValues.Contains(attributes[0].Value))
+                return false;
+        }
+        run = paragraphChildren[^1];
         var runChildren = run.Elements().ToArray();
         return runChildren.Length is >= 1 and <= 2 && runChildren[^1].Name == DrawingNs + "t" &&
             (runChildren.Length != 2 || runChildren[0].Name == DrawingNs + "rPr");
@@ -212,8 +258,14 @@ internal static class XlsxChartTextStyleCodec
             paragraphChildren[1].HasAttributes || paragraphChildren[1].HasElements) return false;
         var paragraphProperties = paragraphChildren[0];
         var defaults = paragraphProperties.Elements().ToArray();
-        return !paragraphProperties.HasAttributes && defaults.Length == 1 && defaults[0].Name == DrawingNs + "defRPr" &&
-            TryExactStyleProperties(defaults[0], out style);
+        var attributes = paragraphProperties.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration).ToArray();
+        if (attributes.Any(attribute => attribute.Name != "algn") ||
+            attributes.Any(attribute => attribute.Name == "algn" && !AlignmentValues.Contains(attribute.Value)) ||
+            defaults.Length > 1 || defaults.Any(defaultsChild => defaultsChild.Name != DrawingNs + "defRPr"))
+            return false;
+        if (defaults.Length == 1 && !TryExactStyleProperties(defaults[0], out style)) return false;
+        if (paragraphProperties.Attribute("algn") is { } alignment) style.Alignment = alignment.Value;
+        return defaults.Length == 1 || style.Alignment.Length > 0;
     }
 
     private static bool TryExactStyleProperties(XElement properties, out SpreadsheetChartTextStyleArtifact style)
@@ -298,8 +350,22 @@ internal static class XlsxChartTextStyleCodec
     private static XElement AxisTextProperties(SpreadsheetChartTextStyleArtifact style) => new(ChartNs + "txPr",
         new XElement(DrawingNs + "bodyPr"), new XElement(DrawingNs + "lstStyle"),
         new XElement(DrawingNs + "p",
-            new XElement(DrawingNs + "pPr", StyleProperties("defRPr", style)),
+            ParagraphProperties(style),
             new XElement(DrawingNs + "endParaRPr")));
+
+    private static XElement ParagraphProperties(SpreadsheetChartTextStyleArtifact style)
+    {
+        var output = new XElement(DrawingNs + "pPr");
+        if (style.Alignment.Length > 0) output.SetAttributeValue("algn", style.Alignment);
+        if (HasCharacterStyle(style)) output.Add(StyleProperties("defRPr", style));
+        return output;
+    }
+
+    private static bool HasCharacterStyle(SpreadsheetChartTextStyleArtifact style) =>
+        style.HasFontSizePoints || style.FontFamily.Length > 0 || style.FontFamilyEastAsia.Length > 0 || style.FontFamilyComplexScript.Length > 0 ||
+        style.HasBold || style.HasItalic || style.Underline.Length > 0 || style.ColorRgb.Length > 0 || style.HasOpacityThousandthPercent;
+
+    private static bool HasAnyStyle(SpreadsheetChartTextStyleArtifact style) => HasCharacterStyle(style) || style.Alignment.Length > 0;
 
     private static XElement StyleProperties(string name, SpreadsheetChartTextStyleArtifact style)
     {

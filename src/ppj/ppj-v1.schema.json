@@ -6124,6 +6124,15 @@
           ],
           "description": "Direct DrawingML chart-text underline token."
         },
+        "alignment": {
+          "enum": [
+            "left",
+            "center",
+            "right",
+            "justify"
+          ],
+          "description": "Direct DrawingML chart-text paragraph alignment."
+        },
         "bold": {
           "$ref": "#/$defs/booleanOrToken"
         },

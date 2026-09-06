@@ -3279,6 +3279,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (source.TryGetProperty("bold", out var bold)) output.Bold = catalog.BooleanToken(bold, "boolean", "chart text bold");
         if (source.TryGetProperty("italic", out var italic)) output.Italic = catalog.BooleanToken(italic, "boolean", "chart text italic");
         if (source.TryGetProperty("underline", out var underline)) output.Underline = NativeUnderline(underline.GetString()!);
+        if (source.TryGetProperty("alignment", out var alignment)) output.Alignment = NativeChartAlignment(alignment.GetString()!);
         if (source.TryGetProperty("color", out var color))
         {
             var resolved = catalog.Color(color);
@@ -3314,7 +3315,7 @@ internal static partial class PpjAuthoredPresentationCompiler
     }
 
     private static readonly string[] ChartTextStyleFields =
-    ["fontSize", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "bold", "italic", "underline", "color"];
+    ["fontSize", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "bold", "italic", "underline", "alignment", "color"];
 
     private static void ApplyChartTextStyleProperty(
         SpreadsheetChartTextStyleArtifact output,
@@ -3344,6 +3345,9 @@ internal static partial class PpjAuthoredPresentationCompiler
                 break;
             case "underline":
                 output.Underline = NativeUnderline(value.GetString()!);
+                break;
+            case "alignment":
+                output.Alignment = NativeChartAlignment(value.GetString()!);
                 break;
             case "color":
                 var resolved = catalog.Color(value);
@@ -3661,6 +3665,15 @@ internal static partial class PpjAuthoredPresentationCompiler
     {
         "single" => "sng",
         "double" => "dbl",
+        _ => value,
+    };
+
+    internal static string NativeChartAlignment(string value) => value switch
+    {
+        "left" => "l",
+        "center" => "ctr",
+        "right" => "r",
+        "justify" => "just",
         _ => value,
     };
 
