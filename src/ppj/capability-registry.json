@@ -193,6 +193,13 @@
       "reason": "PPJ owns the five Kimi `scatterOptions.style` values (`line`, `lineWithMarkers`, `marker`, `smooth`, `smoothWithMarkers`) through native `line`, `lineMarker`, `marker`, `smooth`, and `smoothMarker` tokens. Scatter series line styling remains a separate marker/stroke capability; numeric combo/vector fallback, 3D/effect/extension graphs, invalid topology, and XLSX's marker-only editable profile remain source-owned or fail closed."
     },
     {
+      "feature": "native radar chart style",
+      "ppjPath": "pages[].elements[].style.radarStyle",
+      "behavior": "partial",
+      "sourceBound": "Recognized imported ordinary radar ChartParts project `style.radarStyle` from direct c:radarChart/c:radarStyle/@val. A source-bound setChartPlot edit changes only the target ChartPart and reprojects `standard`, `marker`, or `filled`.",
+      "reason": "PPJ owns the bounded native radar plot modes through the Office Open XML `standard`, `marker`, and `filled` tokens. 3D, extension/effect graphs, complex combinations, vector fallback, and irregular radar topology remain source-owned and fail closed."
+    },
+    {
       "feature": "native chart series null handling",
       "ppjPath": "pages[].elements[].data.series[].nullHandling",
       "behavior": "partial",
