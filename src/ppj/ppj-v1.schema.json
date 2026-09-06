@@ -4617,6 +4617,21 @@
             "data": {
               "$ref": "#/$defs/chartData"
             },
+            "displayBlanksAs": {
+              "oneOf": [
+                {
+                  "enum": [
+                    "zero",
+                    "gap",
+                    "span"
+                  ]
+                },
+                {
+                  "$ref": "#/$defs/grammarTokenRef"
+                }
+              ],
+              "description": "How blank cells are plotted; a string grammar token must resolve to zero, gap, or span."
+            },
             "style": {
               "$ref": "#/$defs/chartStyle"
             },

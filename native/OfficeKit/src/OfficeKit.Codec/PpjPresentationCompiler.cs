@@ -2440,8 +2440,21 @@ internal static class PpjSourceBoundPresentationCompiler
     {
         RequireEqualExcept(before.Raw, after.Raw, path,
             "role", "tags", "hidden", "locked", "frame", "title", "data", "style",
-            "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis", "spokeAxis", "accessibility");
+            "displayBlanksAs", "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis", "spokeAxis", "accessibility");
         var changed = ApplyFrame(before, after, target, path);
+        if (PropertyChanged(before.Raw, after.Raw, "displayBlanksAs"))
+        {
+            RequireCapability(after, "setChartPlot", path + ".displayBlanksAs");
+            if (after.Raw.TryGetProperty("displayBlanksAs", out var displayBlanksAs))
+                target.DisplayBlanksAs = ResolveGrammarEnumToken(
+                    program.Root,
+                    displayBlanksAs,
+                    path + ".displayBlanksAs",
+                    "zero", "gap", "span");
+            else
+                target.ClearDisplayBlanksAs();
+            changed = true;
+        }
         if (PropertyChanged(before.Raw, after.Raw, "title"))
         {
             RequireCapability(after, "setChartTitle", path + ".title");

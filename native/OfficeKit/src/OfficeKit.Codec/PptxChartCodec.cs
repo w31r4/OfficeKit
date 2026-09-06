@@ -306,6 +306,7 @@ internal static partial class PptxChartCodec
         if (source.HasDoughnutHoleSize) output.DoughnutHoleSize = source.DoughnutHoleSize;
         if (source.HasBubbleScale) output.BubbleScale = source.BubbleScale;
         output.BubbleSizeMode = source.BubbleSizeMode;
+        if (source.HasDisplayBlanksAs) output.DisplayBlanksAs = source.DisplayBlanksAs;
         return output;
     }
 
@@ -342,6 +343,7 @@ internal static partial class PptxChartCodec
         if (source.HasDoughnutHoleSize) output.DoughnutHoleSize = source.DoughnutHoleSize;
         if (source.HasBubbleScale) output.BubbleScale = source.BubbleScale;
         output.BubbleSizeMode = source.BubbleSizeMode;
+        if (source.HasDisplayBlanksAs) output.DisplayBlanksAs = source.DisplayBlanksAs;
         return output;
     }
 

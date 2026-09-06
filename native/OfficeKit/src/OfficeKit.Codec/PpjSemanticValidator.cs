@@ -1121,6 +1121,19 @@ internal static class PpjSemanticValidator
     private static void ValidateChart(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)
     {
         var numericCombo = IsNumericCombo(chart);
+        if (chart.Raw.TryGetProperty("displayBlanksAs", out var displayBlanksAs))
+        {
+            if (chart.ChartType is not ("bar" or "column" or "line" or "area" or "pie" or "doughnut" or "scatter" or "bubble" or "radar" or "combo" or "waterfall"))
+                diagnostics.Add(new(
+                    "ppj.chart.displayBlanksAsType",
+                    "displayBlanksAs applies only to bounded native ChartPart chart families.",
+                    path + ".displayBlanksAs"));
+            else if (displayBlanksAs.ValueKind == JsonValueKind.String && displayBlanksAs.GetString() is not ("zero" or "gap" or "span"))
+                diagnostics.Add(new(
+                    "ppj.chart.displayBlanksAsValue",
+                    "displayBlanksAs must be zero, gap, or span.",
+                    path + ".displayBlanksAs"));
+        }
         var seriesIds = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < chart.Data.Series.Count; index++)
         {

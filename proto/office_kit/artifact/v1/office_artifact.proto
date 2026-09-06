@@ -1003,6 +1003,9 @@ message SpreadsheetChartArtifact {
   // bubble_size_mode is area or width; both apply only to bubble charts.
   optional uint32 bubble_scale = 29;
   string bubble_size_mode = 30;
+  // Presence-aware ChartSpace blank-cell behavior. The bounded values map to
+  // c:dispBlanksAs and are zero, gap, or span.
+  optional string display_blanks_as = 31;
 }
 
 message SpreadsheetChartSeriesArtifact {
@@ -2782,6 +2785,8 @@ message PresentationChart {
   // owns the outer c:spPr fill/line/effect graph and is independently
   // editable when its native profile is unique and literal.
   PresentationChartFrame frame = 35;
+  // Presence-aware c:dispBlanksAs behavior mirrored from the native ChartPart.
+  optional string display_blanks_as = 36;
 }
 
 // Bounded literal c:chartSpace/c:spPr container paint for Presentation charts.

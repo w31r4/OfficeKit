@@ -12,6 +12,7 @@ internal static class OpenXmlChartSpaceCodec
 {
     private const int MaxSeries = 256;
     private const int MaxPoints = 1_048_576;
+    private static readonly string[] DisplayBlanksAsValues = ["zero", "gap", "span"];
     private static readonly XNamespace ChartNs = "http://schemas.openxmlformats.org/drawingml/2006/chart";
     private static readonly XNamespace DrawingNs = "http://schemas.openxmlformats.org/drawingml/2006/main";
 
@@ -49,6 +50,8 @@ internal static class OpenXmlChartSpaceCodec
         if (chart.Type == SpreadsheetChartType.Unspecified) return false;
         editable &= PlotProfileEditable(plot, chart.Type);
         editable &= TryReadPlotOptions(plot, chart);
+        if (!TryReadDisplayBlanksAs(nativeChart, out var displayBlanksAs)) editable = false;
+        else if (displayBlanksAs is not null) chart.DisplayBlanksAs = displayBlanksAs;
         var title = nativeChart.Element(ChartNs + "title");
         if (title is not null)
         {
@@ -122,6 +125,8 @@ internal static class OpenXmlChartSpaceCodec
         nativeChart.Add(plotArea);
         if (chart.HasLegend) nativeChart.Add(LegendElement(chart.LegendPosition, chart.LegendTextStyle));
         nativeChart.Add(new XElement(ChartNs + "plotVisOnly", new XAttribute("val", "1")));
+        if (chart.HasDisplayBlanksAs)
+            nativeChart.Add(new XElement(ChartNs + "dispBlanksAs", new XAttribute("val", DisplayBlanksAsToken(chart.DisplayBlanksAs))));
         var chartSpace = new XElement(ChartNs + "chartSpace", new XAttribute(XNamespace.Xmlns + "c", ChartNs), new XAttribute(XNamespace.Xmlns + "a", DrawingNs), nativeChart);
         if (XlsxChartSurfaceFillCodec.Element(chart.ChartAreaFill, "Chart area") is { } chartFill) chartSpace.Add(chartFill);
         return new XDocument(new XDeclaration("1.0", "UTF-8", "yes"), chartSpace);
@@ -138,6 +143,7 @@ internal static class OpenXmlChartSpaceCodec
         var nativeChart = document.Root?.Element(ChartNs + "chart") ?? throw Topology(errorCode, subject, "is missing c:chart");
         if (patchTitle) PatchTitle(nativeChart, target.Title, target.TitleTextStyle, errorCode, subject);
         PatchLegend(nativeChart, target.HasLegend, target.LegendPosition, target.LegendTextStyle);
+        PatchDisplayBlanksAs(nativeChart, target.HasDisplayBlanksAs, target.DisplayBlanksAs, errorCode, subject);
         var plotArea = nativeChart.Element(ChartNs + "plotArea") ?? throw Topology(errorCode, subject, "is missing c:plotArea");
         var plotName = target.Type switch
         {
@@ -320,6 +326,41 @@ internal static class OpenXmlChartSpaceCodec
         chart.LegendPosition = position;
         if (textStyle is not null) chart.LegendTextStyle = textStyle;
         return true;
+    }
+
+    internal static bool TryReadDisplayBlanksAs(XElement nativeChart, out string? value) =>
+        TryScalar(nativeChart, "dispBlanksAs", DisplayBlanksAsValues, required: false, out value);
+
+    internal static void PatchDisplayBlanksAs(
+        XElement nativeChart,
+        bool present,
+        string value,
+        string errorCode,
+        string subject)
+    {
+        var existing = nativeChart.Element(ChartNs + "dispBlanksAs");
+        if (!present)
+        {
+            existing?.Remove();
+            return;
+        }
+        if (existing is not null)
+        {
+            if (!TryReadDisplayBlanksAs(nativeChart, out var current) || current is null)
+                throw Topology(errorCode, subject, "has an invalid c:dispBlanksAs");
+        }
+        var replacement = new XElement(ChartNs + "dispBlanksAs", new XAttribute("val", DisplayBlanksAsToken(value)));
+        if (existing is not null)
+        {
+            existing.ReplaceWith(replacement);
+            return;
+        }
+        var following = nativeChart.Elements().FirstOrDefault(element =>
+            element.Name == ChartNs + "showDLbls" ||
+            element.Name == ChartNs + "showDLblsOverMax" ||
+            element.Name == ChartNs + "extLst");
+        if (following is null) nativeChart.Add(replacement);
+        else following.AddBeforeSelf(replacement);
     }
 
     private static bool TryLegendPosition(XElement legend, out string position)
@@ -579,6 +620,14 @@ internal static class OpenXmlChartSpaceCodec
         "" or "area" => "area",
         "width" => "w",
         _ => throw new CodecException("invalid_chart_style", $"Unsupported bubble size mode {value}."),
+    };
+
+    internal static string DisplayBlanksAsToken(string value) => value switch
+    {
+        "zero" => "zero",
+        "gap" => "gap",
+        "span" => "span",
+        _ => throw new CodecException("invalid_chart_style", $"Unsupported display blanks mode {value}."),
     };
 
     private static bool TryStringData(XElement source, out string[] values, out string formula)

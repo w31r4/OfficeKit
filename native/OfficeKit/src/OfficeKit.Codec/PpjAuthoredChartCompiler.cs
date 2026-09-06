@@ -69,6 +69,8 @@ internal static partial class PpjAuthoredPresentationCompiler
         };
         if (BuildFrameTransform(element.Frame) is { } frameTransform) chart.FrameTransform = frameTransform;
         chart.Categories.Add(element.Data.Categories.Select(CategoryText));
+        if (raw.TryGetProperty("displayBlanksAs", out var displayBlanksAs))
+            chart.DisplayBlanksAs = ChartEnumToken(displayBlanksAs, catalog, "chart displayBlanksAs", "zero", "gap", "span");
         var namedStyle = catalog.ChartStyle(element.StyleRef);
         var inlineStyle = Property(raw, "style");
         if (isWaterfall) ValidateWaterfallCompileProfile(element, raw, namedStyle, inlineStyle);

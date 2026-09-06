@@ -1023,6 +1023,7 @@ internal static partial class PpjPresentationProjector
             output["title"] = chart.TitleBody is null
                 ? StringNode(chart.Title)
                 : TextContent(chart.TitleBody, chart.Title, context);
+        if (chart.HasDisplayBlanksAs) output["displayBlanksAs"] = StringNode(chart.DisplayBlanksAs);
         var categories = new JsonArray();
         foreach (var value in chart.Categories) categories.Add(StringNode(value));
         var seriesJson = new JsonArray();

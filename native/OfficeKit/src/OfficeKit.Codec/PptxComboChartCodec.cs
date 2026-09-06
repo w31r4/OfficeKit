@@ -176,6 +176,7 @@ internal static partial class PptxChartCodec
         if (source.ChartAreaFill is not null) output.ChartAreaFill = source.ChartAreaFill.Clone();
         if (source.PlotAreaFill is not null) output.PlotAreaFill = source.PlotAreaFill.Clone();
         if (source.DataLabels is not null) output.DataLabels = source.DataLabels.Clone();
+        if (source.HasDisplayBlanksAs) output.DisplayBlanksAs = source.DisplayBlanksAs;
         return output;
     }
 
@@ -262,6 +263,8 @@ internal static partial class PptxChartCodec
         }
         chart.Type = SpreadsheetChartType.Combo;
         chart.Grouping = commonGrouping ?? string.Empty;
+        if (!OpenXmlChartSpaceCodec.TryReadDisplayBlanksAs(nativeChart, out var displayBlanksAs)) editable = false;
+        else if (displayBlanksAs is not null) chart.DisplayBlanksAs = displayBlanksAs;
         var legend = nativeChart.Element(ChartNs + "legend");
         chart.HasLegend = legend is not null;
         if (legend is not null)
@@ -491,6 +494,8 @@ internal static partial class PptxChartCodec
         nativeChart.Add(plotArea);
         if (chart.HasLegend) nativeChart.Add(OpenXmlChartSpaceCodec.LegendElement(chart.LegendPosition, chart.LegendTextStyle));
         nativeChart.Add(new XElement(ChartNs + "plotVisOnly", new XAttribute("val", "1")));
+        if (chart.HasDisplayBlanksAs)
+            nativeChart.Add(new XElement(ChartNs + "dispBlanksAs", new XAttribute("val", OpenXmlChartSpaceCodec.DisplayBlanksAsToken(chart.DisplayBlanksAs))));
         var chartSpace = new XElement(ChartNs + "chartSpace", new XAttribute(XNamespace.Xmlns + "c", ChartNs), new XAttribute(XNamespace.Xmlns + "a", DrawingNs), nativeChart);
         if (XlsxChartSurfaceFillCodec.Element(chart.ChartAreaFill, "Presentation combo chart area") is { } chartFill) chartSpace.Add(chartFill);
         return new XDocument(new XDeclaration("1.0", "UTF-8", "yes"), chartSpace);
@@ -522,6 +527,7 @@ internal static partial class PptxChartCodec
         if (patchTitle)
             OpenXmlChartSpaceCodec.PatchTitle(nativeChart, target.Title, target.TitleTextStyle, "unsupported_presentation_edit", "Presentation combo chart");
         OpenXmlChartSpaceCodec.PatchLegend(nativeChart, target.HasLegend, target.LegendPosition, target.LegendTextStyle);
+        OpenXmlChartSpaceCodec.PatchDisplayBlanksAs(nativeChart, target.HasDisplayBlanksAs, target.DisplayBlanksAs, "unsupported_presentation_edit", "Presentation combo chart");
         var plotArea = nativeChart.Element(ChartNs + "plotArea")!;
         var plots = plotArea.Elements().Where(item => item.Name.LocalName.EndsWith("Chart", StringComparison.Ordinal)).ToArray();
         if (plots.Length is < 2 or > 3) throw new CodecException("unsupported_presentation_edit", "Presentation combo chart no longer has two or three bounded plots.");
