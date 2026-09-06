@@ -1096,8 +1096,11 @@ message SpreadsheetChartAxisArtifact {
   optional bool major_gridline_visible = 15;
   // Presence-aware tick-label visibility. False writes c:tickLblPos=none;
   // true removes that explicit suppression and uses the native default.
-  // Custom high/low native positions remain outside the bounded profile.
   optional bool tick_labels_visible = 16;
+  // Presence-aware native c:tickLblPos value. The bounded profile accepts
+  // nextTo, high, low, and none; the legacy tick_labels_visible alias may
+  // accompany only the none value with false.
+  optional string tick_label_position = 18;
 }
 
 message SpreadsheetChartSurfaceFill {

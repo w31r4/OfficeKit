@@ -1393,6 +1393,7 @@ internal static partial class PpjPresentationProjector
         if (axis.HasVisible) output["visible"] = JsonValue.Create(axis.Visible);
         if (axis.HasReverse) output["reverse"] = JsonValue.Create(axis.Reverse);
         if (axis.HasTickLabelsVisible) output["tickLabelsVisible"] = JsonValue.Create(axis.TickLabelsVisible);
+        if (axis.HasTickLabelPosition) output["tickLabelPosition"] = StringNode(axis.TickLabelPosition);
         if (axis.AxisLine is not null && !string.IsNullOrEmpty(axis.AxisLine.Color?.Rgb))
             output["axisLine"] = ProjectChartLine(axis.AxisLine);
         else if (axis.HasAxisLineVisible)
@@ -1427,9 +1428,10 @@ internal static partial class PpjPresentationProjector
             xAxis.Title.Length > 0 || xAxis.NumberFormatCode.Length > 0 || xAxis.HasTickLabelInterval ||
             xAxis.HasMinimum || xAxis.HasMaximum || xAxis.HasMajorUnit || xAxis.HasMinorUnit || xAxis.HasReverse && xAxis.Reverse ||
             xAxis.AxisLine is not null || xAxis.HasAxisLineVisible || xAxis.TextStyle is not null || xAxis.TitleTextStyle is not null ||
-            xAxis.HasTickLabelsVisible ||
+            xAxis.HasTickLabelsVisible || xAxis.HasTickLabelPosition ||
             yAxis.Title.Length > 0 || yAxis.HasTickLabelInterval || yAxis.HasReverse && yAxis.Reverse ||
-            yAxis.AxisLine is not null || yAxis.HasAxisLineVisible || yAxis.TitleTextStyle is not null)
+            yAxis.AxisLine is not null || yAxis.HasAxisLineVisible || yAxis.TitleTextStyle is not null ||
+            yAxis.HasTickLabelPosition)
             return false;
 
         if (xAxis.HasVisible != yAxis.HasVisible ||

@@ -11,6 +11,7 @@ namespace OfficeKit.Codec;
 internal static class XlsxChartAxisCodec
 {
     private const uint MaxTickLabelInterval = 1_048_576;
+    private static readonly string[] TickLabelPositions = ["nextTo", "high", "low", "none"];
     private static readonly XNamespace ChartNs = "http://schemas.openxmlformats.org/drawingml/2006/chart";
     private static readonly XNamespace DrawingNs = "http://schemas.openxmlformats.org/drawingml/2006/main";
 
@@ -110,6 +111,11 @@ internal static class XlsxChartAxisCodec
             throw Invalid(worksheetId, chartId, $"{axisName}-axis grid-line style requires visible major gridlines.");
         if (axis.MajorGridlineStyle is not null && axis.HasMajorGridlineVisible && !axis.MajorGridlineVisible)
             throw Invalid(worksheetId, chartId, $"{axisName}-axis cannot combine a hidden major gridline with a line style.");
+        if (axis.HasTickLabelPosition && !TickLabelPositions.Contains(axis.TickLabelPosition, StringComparer.Ordinal))
+            throw Invalid(worksheetId, chartId, $"{axisName}-axis tick label position must be nextTo, high, low, or none.");
+        if (axis.HasTickLabelPosition && axis.HasTickLabelsVisible &&
+            (!string.Equals(axis.TickLabelPosition, "none", StringComparison.Ordinal) || axis.TickLabelsVisible))
+            throw Invalid(worksheetId, chartId, $"{axisName}-axis tick label position may accompany tick label visibility only as none plus false.");
         XlsxChartSeriesLineStyleCodec.ValidateLine(axis.AxisLine, worksheetId, chartId, axisName, "axis line", allowArrowheads: true);
         XlsxChartSeriesLineStyleCodec.ValidateLine(axis.MajorGridlineStyle, worksheetId, chartId, axisName, "major gridline");
         if (category)
@@ -185,7 +191,8 @@ internal static class XlsxChartAxisCodec
         axis.Title = title;
         axis.NumberFormatCode = numberFormat;
         editable &= titleEditable && numberFormatEditable && XlsxChartTextStyleCodec.TryReadAxis(source, axis);
-        if (!TryReadTickLabelVisibility(source, out var tickLabelsVisible, out var tickLabelsEditable)) return false;
+        if (!TryReadTickLabelPosition(source, out var tickLabelPosition, out var tickLabelsVisible, out var tickLabelsEditable)) return false;
+        if (tickLabelPosition is { } positionValue) axis.TickLabelPosition = positionValue;
         if (tickLabelsVisible is { } labelsVisible) axis.TickLabelsVisible = labelsVisible;
         editable &= tickLabelsEditable;
         if (!TryReadLineContainer(source.Element(ChartNs + "spPr"), out var axisLineVisible, out var axisLine, out var axisLineEditable, allowArrowheads: true)) return false;
@@ -262,7 +269,7 @@ internal static class XlsxChartAxisCodec
             output.Add(new XElement(ChartNs + "majorGridlines",
                 GridLineProperties(axis)));
         AppendTitleAndNumberFormat(output, axis);
-        if (axis.HasTickLabelsVisible && !axis.TickLabelsVisible) output.Add(ValueElement("tickLblPos", "none"));
+        AppendTickLabelPosition(output, axis);
         if (AxisLineProperties(axis) is { } shapeProperties) output.Add(shapeProperties);
         XlsxChartTextStyleCodec.AppendAuthoredAxis(output, axis.TextStyle);
         output.Add(new XElement(ChartNs + "crossAx", new XAttribute("val", crossAxisId)));
@@ -283,7 +290,7 @@ internal static class XlsxChartAxisCodec
             output.Add(new XElement(ChartNs + "majorGridlines",
                 GridLineProperties(axis)));
         AppendTitleAndNumberFormat(output, axis);
-        if (axis.HasTickLabelsVisible && !axis.TickLabelsVisible) output.Add(ValueElement("tickLblPos", "none"));
+        AppendTickLabelPosition(output, axis);
         if (AxisLineProperties(axis) is { } shapeProperties) output.Add(shapeProperties);
         XlsxChartTextStyleCodec.AppendAuthoredAxis(output, axis.TextStyle);
         output.Add(new XElement(ChartNs + "crossAx", new XAttribute("val", crossAxisId)));
@@ -307,7 +314,7 @@ internal static class XlsxChartAxisCodec
         PatchMajorGridlines(native, target);
         PatchTitle(native, target.Title, target.TitleTextStyle);
         PatchNumberFormat(native, target.NumberFormatCode);
-        PatchTickLabelVisibility(native, target);
+        PatchTickLabelPosition(native, target);
         PatchAxisLine(native, target);
         XlsxChartTextStyleCodec.PatchAxis(native, target.TextStyle);
         if (category)
@@ -343,34 +350,52 @@ internal static class XlsxChartAxisCodec
             GridLineProperties(target)), ["title", "numFmt", "majorTickMark", "minorTickMark", "tickLblPos", "spPr", "txPr", "crossAx", "crosses", "crossesAt", "extLst"]);
     }
 
-    private static bool TryReadTickLabelVisibility(
+    private static bool TryReadTickLabelPosition(
         XElement source,
+        out string? position,
         out bool? visible,
         out bool editable)
     {
+        position = null;
         visible = null;
         editable = true;
         if (!Singleton(source, "tickLblPos", out var element)) return false;
         if (element is null) return true;
         var value = AxisValue(element);
+        if (!TickLabelPositions.Contains(value, StringComparer.Ordinal)) return false;
+        position = value;
         if (value == "none")
         {
             visible = false;
             return true;
         }
-        if (value == "nextTo") return true;
-        if (value is "high" or "low")
-        {
-            editable = false;
-            return true;
-        }
-        return false;
+        return true;
     }
 
-    private static void PatchTickLabelVisibility(XElement axis, SpreadsheetChartAxisArtifact target)
+    private static void AppendTickLabelPosition(XElement axis, SpreadsheetChartAxisArtifact target)
     {
-        if (!target.HasTickLabelsVisible) return;
+        if (target.HasTickLabelPosition)
+            axis.Add(ValueElement("tickLblPos", target.TickLabelPosition));
+        else if (target.HasTickLabelsVisible && !target.TickLabelsVisible)
+            axis.Add(ValueElement("tickLblPos", "none"));
+    }
+
+    private static void PatchTickLabelPosition(XElement axis, SpreadsheetChartAxisArtifact target)
+    {
         var existing = axis.Element(ChartNs + "tickLblPos");
+        if (target.HasTickLabelPosition)
+        {
+            if (existing is null)
+                InsertBefore(axis, ValueElement("tickLblPos", target.TickLabelPosition), ["spPr", "txPr", "crossAx", "crosses", "crossesAt", "extLst"]);
+            else
+                existing.SetAttributeValue("val", target.TickLabelPosition);
+            return;
+        }
+        if (!target.HasTickLabelsVisible)
+        {
+            existing?.Remove();
+            return;
+        }
         if (target.TickLabelsVisible)
         {
             existing?.Remove();
@@ -578,8 +603,16 @@ internal static class XlsxChartAxisCodec
         axis.HasShowMajorGridlines ? (axis.ShowMajorGridlines ? "gridlines" : "no-gridlines") : "default-gridlines",
         axis.HasMajorGridlineVisible ? (axis.MajorGridlineVisible ? "visible-gridline" : "hidden-gridline") : "default-gridline-visibility",
         XlsxChartSeriesLineStyleCodec.Semantics(axis.MajorGridlineStyle),
-        axis.HasTickLabelsVisible && !axis.TickLabelsVisible ? "no-tick-labels" : "default-tick-labels",
+        axis.HasTickLabelPosition
+            ? axis.TickLabelPosition
+            : axis.HasTickLabelsVisible && !axis.TickLabelsVisible ? "none" : "-",
+        TickLabelSemantics(axis),
         XlsxChartTextStyleCodec.Semantics(axis.TextStyle),
         XlsxChartTextStyleCodec.Semantics(axis.TitleTextStyle));
+    private static string TickLabelSemantics(SpreadsheetChartAxisArtifact axis) =>
+        axis.HasTickLabelPosition && axis.TickLabelPosition == "none" ||
+        axis.HasTickLabelsVisible && !axis.TickLabelsVisible
+            ? "no-tick-labels"
+            : "default-tick-labels";
     private static CodecException Invalid(string worksheetId, string chartId, string message) => new("invalid_spreadsheet_chart", $"Worksheet {worksheetId} chart {chartId} {message}");
 }

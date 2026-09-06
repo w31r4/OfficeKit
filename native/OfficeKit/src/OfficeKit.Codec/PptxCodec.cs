@@ -3498,6 +3498,17 @@ internal static class PptxCodec
 
     private static void NormalizeChartAxisForHash(SpreadsheetChartAxisArtifact? axis)
     {
+        // tickLabelPosition=none is the native representation of hidden tick
+        // labels. Older PPJ projections also carried tickLabelsVisible=false
+        // as a compatibility alias, so canonicalize both forms before the
+        // post-write semantic comparison.
+        if (axis?.HasTickLabelsVisible == true && !axis.TickLabelsVisible &&
+            (!axis.HasTickLabelPosition || string.Equals(axis.TickLabelPosition, "none", StringComparison.Ordinal)))
+        {
+            axis.TickLabelPosition = "none";
+            axis.ClearTickLabelsVisible();
+        }
+
         // OOXML's native default is to show tick labels. Treat an explicit
         // request for that default as equivalent to an omitted tickLblPos.
         if (axis?.HasTickLabelsVisible == true && axis.TickLabelsVisible)

@@ -2731,6 +2731,30 @@ internal static class PpjSemanticValidator
                 "ppj.chart.axisArrowHiddenLine",
                 "axisLineArrow requires a visible axis line.",
                 $"{path}.{property}.axisLineArrow"));
+        if (axis.TryGetProperty("tickLabelPosition", out var tickLabelPosition) &&
+            tickLabelPosition.ValueKind == JsonValueKind.String &&
+            tickLabelPosition.GetString() is not ("nextTo" or "high" or "low" or "none"))
+            diagnostics.Add(new(
+                "ppj.chart.axisTickLabelPosition",
+                "tickLabelPosition must be nextTo, high, low, or none.",
+                $"{path}.{property}.tickLabelPosition"));
+        if (axis.TryGetProperty("tickLabelsVisible", out var tickLabelsVisible) &&
+            axis.TryGetProperty("tickLabelPosition", out tickLabelPosition) &&
+            tickLabelsVisible.ValueKind == JsonValueKind.False &&
+            tickLabelPosition.ValueKind == JsonValueKind.String &&
+            tickLabelPosition.GetString() != "none")
+            diagnostics.Add(new(
+                "ppj.chart.axisTickLabelConflict",
+                "tickLabelsVisible=false may accompany tickLabelPosition only when the position is none.",
+                $"{path}.{property}"));
+        if (axis.TryGetProperty("tickLabelsVisible", out tickLabelsVisible) &&
+            axis.TryGetProperty("tickLabelPosition", out tickLabelPosition) &&
+            tickLabelsVisible.ValueKind == JsonValueKind.True &&
+            tickLabelPosition.ValueKind == JsonValueKind.String)
+            diagnostics.Add(new(
+                "ppj.chart.axisTickLabelConflict",
+                "tickLabelsVisible=true cannot accompany an explicit tickLabelPosition.",
+                $"{path}.{property}"));
         if (categoryAxis)
         {
             foreach (var name in new[] { "min", "max", "majorUnit", "minorUnit" })
