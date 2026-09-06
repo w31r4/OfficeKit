@@ -1137,6 +1137,8 @@ internal static partial class PpjPresentationProjector
         if (chart.YAxis is null && chart.HasShowGridlines) style["showGridlines"] = JsonValue.Create(chart.ShowGridlines);
         if (chart.ChartAreaFill is not null) style["chartAreaFill"] = ProjectChartSurfaceFill(chart.ChartAreaFill);
         if (chart.PlotAreaFill is not null) style["plotAreaFill"] = ProjectChartSurfaceFill(chart.PlotAreaFill);
+        if (chart.PlotAreaLine is not null && !string.IsNullOrEmpty(chart.PlotAreaLine.Color?.Rgb))
+            style["plotAreaLine"] = ProjectChartLine(chart.PlotAreaLine);
         if (chart.Frame is not null)
         {
             var frame = new JsonObject();

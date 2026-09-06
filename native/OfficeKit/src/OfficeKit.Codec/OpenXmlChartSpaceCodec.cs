@@ -100,8 +100,12 @@ internal static class OpenXmlChartSpaceCodec
                 editable = false;
         }
         else if (chartAreaFill is not null) chart.ChartAreaFill = chartAreaFill;
-        if (!XlsxChartSurfaceFillCodec.TryRead(plotArea.Element(ChartNs + "spPr"), out var plotAreaFill)) editable = false;
-        else if (plotAreaFill is not null) chart.PlotAreaFill = plotAreaFill;
+        if (!XlsxChartPlotAreaStyleCodec.TryRead(plotArea.Element(ChartNs + "spPr"), out var plotAreaFill, out var plotAreaLine)) editable = false;
+        else
+        {
+            if (plotAreaFill is not null) chart.PlotAreaFill = plotAreaFill;
+            if (plotAreaLine is not null) chart.PlotAreaLine = plotAreaLine;
+        }
         return chart.Title.Length <= 32_767 && !HasControls(chart.Title) && chart.Categories.Count <= MaxPoints;
     }
 
@@ -122,7 +126,7 @@ internal static class OpenXmlChartSpaceCodec
         };
         var plotArea = new XElement(ChartNs + "plotArea", new XElement(ChartNs + "layout"), plot);
         XlsxChartAxisCodec.AppendAuthored(plotArea, chart);
-        if (XlsxChartSurfaceFillCodec.Element(chart.PlotAreaFill, "Chart plot area") is { } plotFill) plotArea.Add(plotFill);
+        if (XlsxChartPlotAreaStyleCodec.Element(chart.PlotAreaFill, chart.PlotAreaLine, "Chart plot area") is { } plotStyle) plotArea.Add(plotStyle);
         var nativeChart = new XElement(ChartNs + "chart");
         if (chart.Title.Length > 0) nativeChart.Add(XlsxChartTextStyleCodec.TitleElement(chart.Title, chart.TitleTextStyle, chart.HasTitlePlacement ? chart.TitlePlacement : string.Empty));
         nativeChart.Add(plotArea);
@@ -169,7 +173,7 @@ internal static class OpenXmlChartSpaceCodec
         XlsxChartDataLabelsCodec.Patch(plot, target.DataLabels);
         XlsxChartAxisCodec.Patch(plotArea, plot, target);
         XlsxChartSurfaceFillCodec.Patch(document.Root!, target.ChartAreaFill, $"{subject} chart area", allowChartFrameDecorations);
-        XlsxChartSurfaceFillCodec.Patch(plotArea, target.PlotAreaFill, $"{subject} plot area");
+        XlsxChartPlotAreaStyleCodec.Patch(plotArea, target.PlotAreaFill, target.PlotAreaLine, $"{subject} plot area");
     }
 
     internal static bool TrySeries(XElement source, SpreadsheetChartType chartType, out SpreadsheetChartSeriesArtifact series, out string[] categories, out bool editable)

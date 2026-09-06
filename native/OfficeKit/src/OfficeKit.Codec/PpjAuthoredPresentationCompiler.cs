@@ -3109,6 +3109,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             chart.ChartAreaFill = BuildChartSurfaceFill(chartAreaFill, catalog, $"{elementId} chart area");
         if (catalog.PropertyByPrecedence("chart.plotAreaFill", element, inline, named) is { } plotAreaFill)
             chart.PlotAreaFill = BuildChartSurfaceFill(plotAreaFill, catalog, $"{elementId} plot area");
+        if (catalog.PropertyByPrecedence("chart.plotAreaLine", element, inline, named) is { } plotAreaLine)
+            chart.PlotAreaLine = ChartCompiler.BuildChartLine(plotAreaLine, catalog);
         if (catalog.PropertyByPrecedence("chart.frame", element, inline, named) is { } frame)
         {
             chart.Frame = new PresentationChartFrame();

@@ -1161,6 +1161,16 @@ internal static class PpjSemanticValidator
                     "displayBlanksAs must be zero, gap, or span.",
                     path + ".displayBlanksAs"));
         }
+        if (chart.Raw.TryGetProperty("style", out var plotAreaStyle) &&
+            plotAreaStyle.TryGetProperty("plotAreaLine", out _))
+        {
+            var supportsNativePlotAreaLine = chart.ChartType is "bar" or "column" or "line" or "area" or "pie" or "doughnut" or "scatter" or "bubble" or "radar" or "combo" or "waterfall";
+            if (!supportsNativePlotAreaLine || numericCombo)
+                diagnostics.Add(new(
+                    "ppj.chart.plotAreaLineType",
+                    "style.plotAreaLine applies only to bounded native ChartPart charts.",
+                    path + ".style.plotAreaLine"));
+        }
         var seriesIds = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < chart.Data.Series.Count; index++)
         {

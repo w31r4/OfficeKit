@@ -301,6 +301,7 @@ internal static partial class PptxChartCodec
         if (source.HasVaryColors) output.VaryColors = source.VaryColors;
         if (source.ChartAreaFill is not null) output.ChartAreaFill = source.ChartAreaFill.Clone();
         if (source.PlotAreaFill is not null) output.PlotAreaFill = source.PlotAreaFill.Clone();
+        if (source.PlotAreaLine is not null) output.PlotAreaLine = source.PlotAreaLine.Clone();
         if (source.DataLabels is not null) output.DataLabels = source.DataLabels.Clone();
         if (source.TitleTextStyle is not null) output.TitleTextStyle = source.TitleTextStyle.Clone();
         if (source.LegendTextStyle is not null) output.LegendTextStyle = source.LegendTextStyle.Clone();
@@ -344,6 +345,7 @@ internal static partial class PptxChartCodec
         if (source.HasVaryColors) output.VaryColors = source.VaryColors;
         if (source.ChartAreaFill is not null) output.ChartAreaFill = source.ChartAreaFill.Clone();
         if (source.PlotAreaFill is not null) output.PlotAreaFill = source.PlotAreaFill.Clone();
+        if (source.PlotAreaLine is not null) output.PlotAreaLine = source.PlotAreaLine.Clone();
         if (source.DataLabels is not null) output.DataLabels = source.DataLabels.Clone();
         if (source.TitleTextStyle is not null) output.TitleTextStyle = source.TitleTextStyle.Clone();
         if (source.LegendTextStyle is not null) output.LegendTextStyle = source.LegendTextStyle.Clone();

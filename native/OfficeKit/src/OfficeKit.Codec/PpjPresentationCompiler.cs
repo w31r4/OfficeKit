@@ -2571,6 +2571,7 @@ internal static class PpjSourceBoundPresentationCompiler
             "dataLabels",
             "chartAreaFill",
             "plotAreaFill",
+            "plotAreaLine",
             "frame",
             "startAngle",
             "holeSize",
@@ -2892,6 +2893,14 @@ internal static class PpjSourceBoundPresentationCompiler
         {
             RequireCapability(after, "setChartFill", path + ".style.plotAreaFill");
             target.PlotAreaFill = SourceBoundChartFill(newStyle, "plotAreaFill", path + ".style.plotAreaFill", grammarRoot);
+            changed = true;
+        }
+        if (PropertyChanged(oldStyle, newStyle, "plotAreaLine"))
+        {
+            RequireCapability(after, "setChartPlot", path + ".style.plotAreaLine");
+            target.PlotAreaLine = newStyle is { } owner && owner.TryGetProperty("plotAreaLine", out var value)
+                ? SourceBoundChartLine(value, path + ".style.plotAreaLine", grammarRoot)
+                : null;
             changed = true;
         }
         if (PropertyChanged(oldStyle, newStyle, "frame"))

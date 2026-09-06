@@ -1026,6 +1026,9 @@ message SpreadsheetChartArtifact {
   // value when the chart has no title; aboveChart is the native default and
   // centeredOverlay maps to c:overlay val=1.
   optional string title_placement = 42;
+  // Bounded direct c:plotArea/c:spPr/a:ln outline. Fill and line share the
+  // plot-area shape-properties container while retaining independent fields.
+  SpreadsheetChartLineStyleArtifact plot_area_line = 43;
 }
 
 message SpreadsheetChartSeriesArtifact {
@@ -2838,6 +2841,9 @@ message PresentationChart {
   // value when the chart has no title; aboveChart is the native default and
   // centeredOverlay maps to c:overlay val=1.
   optional string title_placement = 42;
+  // Bounded direct c:plotArea/c:spPr/a:ln outline mirrored from the native
+  // ChartPart.
+  SpreadsheetChartLineStyleArtifact plot_area_line = 43;
 }
 
 // Bounded literal c:chartSpace/c:spPr container paint for Presentation charts.
