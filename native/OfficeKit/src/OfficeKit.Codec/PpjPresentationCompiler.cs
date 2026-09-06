@@ -2595,6 +2595,7 @@ internal static class PpjSourceBoundPresentationCompiler
             "bubbleScale",
             "bubbleSizeMode",
             "scatterStyle",
+            "radarStyle",
             "smooth",
             "varyColors");
 
@@ -3000,6 +3001,16 @@ internal static class PpjSourceBoundPresentationCompiler
             target.ScatterStyle = newStyle is { } owner && owner.TryGetProperty("scatterStyle", out var value)
                 ? ResolveGrammarEnumToken(grammarRoot, value, path + ".style.scatterStyle", "line", "lineWithMarkers", "marker", "smooth", "smoothWithMarkers")
                 : "marker";
+            changed = true;
+        }
+        if (PropertyChanged(oldStyle, newStyle, "radarStyle"))
+        {
+            RequireCapability(after, "setChartPlot", path + ".style.radarStyle");
+            if (target.Type != SpreadsheetChartType.Radar)
+                throw Unsupported(path + ".style.radarStyle", "radar style on a non-radar chart");
+            target.RadarStyle = newStyle is { } owner && owner.TryGetProperty("radarStyle", out var value)
+                ? ResolveGrammarEnumToken(grammarRoot, value, path + ".style.radarStyle", "standard", "marker", "filled")
+                : "standard";
             changed = true;
         }
         if (PropertyChanged(oldStyle, newStyle, "smooth"))

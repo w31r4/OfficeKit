@@ -1411,6 +1411,21 @@ internal static class PpjSemanticValidator
                     path + ".style.scatterStyle"));
         }
         if (chart.Raw.TryGetProperty("style", out style) &&
+            style.TryGetProperty("radarStyle", out var radarStyle))
+        {
+            if (chart.ChartType != "radar")
+                diagnostics.Add(new(
+                    "ppj.chart.radarStyleType",
+                    "style.radarStyle applies only to radar charts.",
+                    path + ".style.radarStyle"));
+            else if (radarStyle.ValueKind == JsonValueKind.String &&
+                     radarStyle.GetString() is not ("standard" or "marker" or "filled"))
+                diagnostics.Add(new(
+                    "ppj.chart.radarStyleValue",
+                    "style.radarStyle must be standard, marker, or filled.",
+                    path + ".style.radarStyle"));
+        }
+        if (chart.Raw.TryGetProperty("style", out style) &&
             style.TryGetProperty("varyColors", out _) &&
             chart.ChartType is not ("bar" or "column" or "line" or "combo"))
             diagnostics.Add(new(

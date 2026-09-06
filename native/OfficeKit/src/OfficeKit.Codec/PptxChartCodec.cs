@@ -317,6 +317,7 @@ internal static partial class PptxChartCodec
         if (source.HasDisplayBlanksAs) output.DisplayBlanksAs = source.DisplayBlanksAs;
         if (source.HasLegendOverlay) output.LegendOverlay = source.LegendOverlay;
         output.ScatterStyle = source.ScatterStyle;
+        output.RadarStyle = source.RadarStyle;
         return output;
     }
 
@@ -364,6 +365,7 @@ internal static partial class PptxChartCodec
         if (source.HasDisplayBlanksAs) output.DisplayBlanksAs = source.DisplayBlanksAs;
         if (source.HasLegendOverlay) output.LegendOverlay = source.LegendOverlay;
         output.ScatterStyle = source.ScatterStyle;
+        output.RadarStyle = source.RadarStyle;
         return output;
     }
 

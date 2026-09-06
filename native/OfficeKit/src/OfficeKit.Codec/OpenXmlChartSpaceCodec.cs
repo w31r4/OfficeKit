@@ -15,6 +15,7 @@ internal static class OpenXmlChartSpaceCodec
     private static readonly string[] DisplayBlanksAsValues = ["zero", "gap", "span"];
     private static readonly string[] BooleanValues = ["0", "1", "false", "true"];
     private static readonly string[] ScatterStyleNativeValues = ["line", "lineMarker", "marker", "smooth", "smoothMarker"];
+    private static readonly string[] RadarStyleNativeValues = ["standard", "marker", "filled"];
     private static readonly XNamespace ChartNs = "http://schemas.openxmlformats.org/drawingml/2006/chart";
     private static readonly XNamespace DrawingNs = "http://schemas.openxmlformats.org/drawingml/2006/main";
 
@@ -125,7 +126,7 @@ internal static class OpenXmlChartSpaceCodec
             SpreadsheetChartType.Doughnut => new XElement(ChartNs + "doughnutChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "1")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "firstSliceAng", new XAttribute("val", chart.HasFirstSliceAngle ? chart.FirstSliceAngle : 0U)), new XElement(ChartNs + "holeSize", new XAttribute("val", chart.HasDoughnutHoleSize ? chart.DoughnutHoleSize : 50U))),
             SpreadsheetChartType.Scatter => new XElement(ChartNs + "scatterChart", new XElement(ChartNs + "scatterStyle", new XAttribute("val", ScatterStyleToken(chart.ScatterStyle))), new XElement(ChartNs + "varyColors", new XAttribute("val", "0")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Bubble => new XElement(ChartNs + "bubbleChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "0")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "bubble3D", new XAttribute("val", "0")), new XElement(ChartNs + "bubbleScale", new XAttribute("val", chart.HasBubbleScale ? chart.BubbleScale : 100U)), new XElement(ChartNs + "showNegBubbles", new XAttribute("val", "0")), new XElement(ChartNs + "sizeRepresents", new XAttribute("val", BubbleSizeModeToken(chart.BubbleSizeMode))), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
-            SpreadsheetChartType.Radar => new XElement(ChartNs + "radarChart", new XElement(ChartNs + "radarStyle", new XAttribute("val", "standard")), new XElement(ChartNs + "varyColors", new XAttribute("val", "0")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
+            SpreadsheetChartType.Radar => new XElement(ChartNs + "radarChart", new XElement(ChartNs + "radarStyle", new XAttribute("val", RadarStyleToken(chart.RadarStyle))), new XElement(ChartNs + "varyColors", new XAttribute("val", "0")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Pie => new XElement(ChartNs + "pieChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "1")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), chart.HasFirstSliceAngle ? new XElement(ChartNs + "firstSliceAng", new XAttribute("val", chart.FirstSliceAngle)) : null),
             _ => throw new InvalidOperationException("Validated chart type is unsupported."),
         };
@@ -696,6 +697,13 @@ internal static class OpenXmlChartSpaceCodec
             if (sizeMode is not null) chart.BubbleSizeMode = sizeMode == "w" ? "width" : "area";
         }
 
+        if (chart.Type == SpreadsheetChartType.Radar)
+        {
+            if (!TryScalar(plot, "radarStyle", RadarStyleNativeValues, required: true, out var radarStyle))
+                return false;
+            chart.RadarStyle = radarStyle!;
+        }
+
         return plot.Element(ChartNs + "grouping") is null &&
                plot.Element(ChartNs + "gapWidth") is null &&
                plot.Element(ChartNs + "overlap") is null &&
@@ -746,6 +754,11 @@ internal static class OpenXmlChartSpaceCodec
             PatchOptionalUInt(plot, "bubbleScale", chart.HasBubbleScale, chart.BubbleScale);
             if (chart.BubbleSizeMode.Length == 0) plot.Element(ChartNs + "sizeRepresents")?.Remove();
             else SetRequiredScalar(plot, "sizeRepresents", BubbleSizeModeToken(chart.BubbleSizeMode));
+            return;
+        }
+        if (chart.Type == SpreadsheetChartType.Radar)
+        {
+            SetRequiredScalar(plot, "radarStyle", RadarStyleToken(chart.RadarStyle));
             return;
         }
         if (chart.HasGapWidth || chart.HasOverlap || chart.Grouping.Length > 0 || chart.BarDirection.Length > 0 || chart.HasFirstSliceAngle || chart.HasDoughnutHoleSize || chart.HasBubbleScale || chart.BubbleSizeMode.Length > 0)
@@ -915,7 +928,7 @@ internal static class OpenXmlChartSpaceCodec
             return allowed && (ScalarEquals(plot, "varyColors", "0", required: false) || ScalarEquals(plot, "varyColors", "false", required: false));
         }
         if (type == SpreadsheetChartType.Bubble) return ScalarEquals(plot, "varyColors", "0", required: false) && ScalarEquals(plot, "bubble3D", "0", required: false) && ScalarEquals(plot, "showNegBubbles", "0", required: false);
-        if (type == SpreadsheetChartType.Radar) return ScalarEquals(plot, "radarStyle", "standard", required: true) && ScalarEquals(plot, "varyColors", "0", required: false);
+        if (type == SpreadsheetChartType.Radar) return ScalarAllowed(plot, "radarStyle", RadarStyleNativeValues, required: true) && ScalarEquals(plot, "varyColors", "0", required: false);
         return true;
     }
 
@@ -946,6 +959,14 @@ internal static class OpenXmlChartSpaceCodec
         "smooth" => "smooth",
         "smoothWithMarkers" => "smoothMarker",
         _ => throw new CodecException("invalid_chart_style", $"Unsupported scatter style {value}."),
+    };
+
+    private static string RadarStyleToken(string value) => value switch
+    {
+        "" or "standard" => "standard",
+        "marker" => "marker",
+        "filled" => "filled",
+        _ => throw new CodecException("invalid_chart_style", $"Unsupported radar style {value}."),
     };
 
     private static string BubbleSizeModeToken(string value) => value switch

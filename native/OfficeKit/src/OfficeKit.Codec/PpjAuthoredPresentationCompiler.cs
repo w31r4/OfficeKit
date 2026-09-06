@@ -3092,6 +3092,12 @@ internal static partial class PpjAuthoredPresentationCompiler
                 throw Unsupported(elementId, "scatterStyle applies only to scatter charts");
             chart.ScatterStyle = ChartEnumToken(scatterStyle, catalog, "chart scatterStyle", "line", "lineWithMarkers", "marker", "smooth", "smoothWithMarkers");
         }
+        if (catalog.PropertyByPrecedence("chart.radarStyle", element, inline, named) is { } radarStyle)
+        {
+            if (chart.Type != SpreadsheetChartType.Radar)
+                throw Unsupported(elementId, "radarStyle applies only to radar charts");
+            chart.RadarStyle = ChartEnumToken(radarStyle, catalog, "chart radarStyle", "standard", "marker", "filled");
+        }
         var axisBearing = chart.Type is not (SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut);
         if (catalog.PropertyByPrecedence("chart.showCategoryAxis", element, inline, named) is { } showCategoryAxis)
         {

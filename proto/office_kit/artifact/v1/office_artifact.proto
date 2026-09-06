@@ -1040,6 +1040,9 @@ message SpreadsheetChartArtifact {
   // c:scatterChart/c:scatterStyle. Empty defaults to marker; values are line,
   // lineWithMarkers, marker, smooth, or smoothWithMarkers.
   string scatter_style = 46;
+  // Canonical native radar plot style mirrored from c:radarChart/c:radarStyle.
+  // Empty defaults to standard; values are standard, marker, or filled.
+  string radar_style = 47;
 }
 
 message SpreadsheetChartSeriesArtifact {
@@ -2878,6 +2881,9 @@ message PresentationChart {
   // c:scatterChart/c:scatterStyle. Empty defaults to marker; values are line,
   // lineWithMarkers, marker, smooth, or smoothWithMarkers.
   string scatter_style = 46;
+  // Canonical native radar plot style mirrored from c:radarChart/c:radarStyle.
+  // Empty defaults to standard; values are standard, marker, or filled.
+  string radar_style = 47;
 }
 
 // Bounded literal c:chartSpace/c:spPr container paint for Presentation charts.

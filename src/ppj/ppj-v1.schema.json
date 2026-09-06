@@ -5811,6 +5811,21 @@
           ],
           "description": "Scatter plot line/marker mode; maps to c:scatterChart/c:scatterStyle. A string grammar token must resolve to one of the bounded values."
         },
+        "radarStyle": {
+          "oneOf": [
+            {
+              "enum": [
+                "standard",
+                "marker",
+                "filled"
+              ]
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ],
+          "description": "Radar plot mode; maps to c:radarChart/c:radarStyle. A string grammar token must resolve to standard, marker, or filled."
+        },
         "varyColors": {
           "$ref": "#/$defs/booleanOrToken"
         },

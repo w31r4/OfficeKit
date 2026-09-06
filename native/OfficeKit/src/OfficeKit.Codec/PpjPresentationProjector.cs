@@ -1140,6 +1140,7 @@ internal static partial class PpjPresentationProjector
         if (chart.HasBubbleScale) style["bubbleScale"] = JsonValue.Create(chart.BubbleScale);
         if (chart.BubbleSizeMode.Length > 0) style["bubbleSizeMode"] = StringNode(chart.BubbleSizeMode);
         if (chart.ScatterStyle.Length > 0) style["scatterStyle"] = StringNode(chart.ScatterStyle);
+        if (chart.RadarStyle.Length > 0) style["radarStyle"] = StringNode(chart.RadarStyle);
         if (chart.XAxis is null && chart.HasShowCategoryAxis) style["showCategoryAxis"] = JsonValue.Create(chart.ShowCategoryAxis);
         if (chart.YAxis is null && chart.HasShowValueAxis) style["showValueAxis"] = JsonValue.Create(chart.ShowValueAxis);
         if (chart.YAxis is null && chart.HasShowGridlines) style["showGridlines"] = JsonValue.Create(chart.ShowGridlines);
