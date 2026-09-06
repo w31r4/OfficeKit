@@ -1295,6 +1295,21 @@ internal static class PpjSemanticValidator
                 "ppj.chart.holeSizeType",
                 "style.holeSize applies only to doughnut charts.",
                 path + ".style.holeSize"));
+        if (chart.Raw.TryGetProperty("style", out style) &&
+            style.TryGetProperty("varyColors", out _) &&
+            chart.ChartType is not ("bar" or "column" or "line" or "combo"))
+            diagnostics.Add(new(
+                "ppj.chart.varyColorsType",
+                "style.varyColors applies only to line, bar, column, and categorical combo charts.",
+                path + ".style.varyColors"));
+        if (chart.Raw.TryGetProperty("style", out style) &&
+            style.TryGetProperty("varyColors", out _) &&
+            chart.ChartType == "combo" &&
+            !chart.Data.Series.Any(series => series.ChartType is "bar" or "column"))
+            diagnostics.Add(new(
+                "ppj.chart.varyColorsCombo",
+                "style.varyColors on a combo chart requires a bar or column plot.",
+                path + ".style.varyColors"));
         var hasBubbleSeries = chart.ChartType == "bubble" ||
             chart.ChartType == "combo" && chart.Data.Series.Any(series => series.ChartType == "bubble");
         if (chart.Raw.TryGetProperty("style", out style) &&

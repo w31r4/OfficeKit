@@ -3142,21 +3142,27 @@ internal static partial class PpjAuthoredPresentationCompiler
         }
         var smooth = catalog.PropertyByPrecedence("chart.smooth", element, inline, named);
         var varyColors = catalog.PropertyByPrecedence("chart.varyColors", element, inline, named);
-        if (smooth is not null || varyColors is not null)
+        if (smooth is not null && chart.Type != SpreadsheetChartType.Line)
+            throw Unsupported(elementId, "smooth applies only to line charts");
+        if (varyColors is not null && chart.Type is not (SpreadsheetChartType.Line or SpreadsheetChartType.Bar or SpreadsheetChartType.Combo))
+            throw Unsupported(elementId, "varyColors applies only to line, column, and categorical combo charts");
+        if (smooth is { } explicitSmooth)
         {
-            if (chart.Type != SpreadsheetChartType.Line)
-                throw Unsupported(elementId, "smooth and varyColors apply only to line charts");
-            var resolvedSmooth = smooth is { } explicitSmooth
-                ? catalog.BooleanToken(explicitSmooth, "boolean", "chart smooth")
-                : (bool?)null;
-            var resolvedVaryColors = varyColors is { } explicitVaryColors
-                && catalog.BooleanToken(explicitVaryColors, "boolean", "chart varyColors");
-            if (resolvedSmooth is not null || resolvedVaryColors)
+            chart.LineOptions = new SpreadsheetChartLineOptionsArtifact
             {
-                chart.LineOptions = new SpreadsheetChartLineOptionsArtifact();
-                if (resolvedSmooth is { } explicitSmoothValue) chart.LineOptions.Smooth = explicitSmoothValue;
-                if (resolvedVaryColors) chart.LineOptions.VaryColors = true;
+                Smooth = catalog.BooleanToken(explicitSmooth, "boolean", "chart smooth"),
+            };
+        }
+        if (varyColors is { } explicitVaryColors)
+        {
+            var resolvedVaryColors = catalog.BooleanToken(explicitVaryColors, "boolean", "chart varyColors");
+            if (chart.Type == SpreadsheetChartType.Line)
+            {
+                if (resolvedVaryColors)
+                    (chart.LineOptions ??= new SpreadsheetChartLineOptionsArtifact()).VaryColors = true;
             }
+            else
+                chart.VaryColors = resolvedVaryColors;
         }
         var structuredLabels = catalog.PropertyByPrecedence("chart.dataLabels", element, inline, named);
         var labels = catalog.PropertyByPrecedence("chart.showDataLabels", element, inline, named);

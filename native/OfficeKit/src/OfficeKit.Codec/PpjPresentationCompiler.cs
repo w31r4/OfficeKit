@@ -2937,14 +2937,24 @@ internal static class PpjSourceBoundPresentationCompiler
         if (PropertyChanged(oldStyle, newStyle, "varyColors"))
         {
             RequireCapability(after, "setChartPlot", path + ".style.varyColors");
-            if (target.Type is not (SpreadsheetChartType.Line or SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut or SpreadsheetChartType.Scatter or SpreadsheetChartType.Bubble or SpreadsheetChartType.Radar))
+            if (target.Type is not (SpreadsheetChartType.Line or SpreadsheetChartType.Bar or SpreadsheetChartType.Combo))
                 throw Unsupported(path + ".style.varyColors", "color variation on an unsupported chart family");
-            if (target.Type != SpreadsheetChartType.Line)
-                throw Unsupported(path + ".style.varyColors", "source-bound color variation outside line charts");
-            var options = target.LineOptions?.Clone() ?? new SpreadsheetChartLineOptionsArtifact();
-            options.VaryColors = newStyle is { } owner && owner.TryGetProperty("varyColors", out var value) &&
-                ResolveGrammarBooleanToken(grammarRoot, value, path + ".style.varyColors");
-            target.LineOptions = options;
+            if (target.Type == SpreadsheetChartType.Line)
+            {
+                var options = target.LineOptions?.Clone() ?? new SpreadsheetChartLineOptionsArtifact();
+                options.VaryColors = newStyle is { } owner && owner.TryGetProperty("varyColors", out var value) &&
+                    ResolveGrammarBooleanToken(grammarRoot, value, path + ".style.varyColors");
+                target.LineOptions = options;
+            }
+            else
+            {
+                if (target.Type == SpreadsheetChartType.Combo && !target.ComboSeries.Any(item => item.Type == SpreadsheetChartType.Bar))
+                    throw Unsupported(path + ".style.varyColors", "categorical combo color variation requires a column plot");
+                if (newStyle is { } owner && owner.TryGetProperty("varyColors", out var value))
+                    target.VaryColors = ResolveGrammarBooleanToken(grammarRoot, value, path + ".style.varyColors");
+                else
+                    target.ClearVaryColors();
+            }
             changed = true;
         }
         return changed;

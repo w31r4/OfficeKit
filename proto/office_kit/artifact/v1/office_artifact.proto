@@ -1015,6 +1015,10 @@ message SpreadsheetChartArtifact {
   // Presence-aware c:overlap value for bar/column plots. The native signed
   // percentage is bounded from -100 through 100.
   optional int32 overlap = 34;
+  // Presence-aware c:varyColors value for bar/column plots. The native
+  // boolean is kept separate from line_options because it belongs to the
+  // bar plot rather than the line plot.
+  optional bool vary_colors = 35;
 }
 
 message SpreadsheetChartSeriesArtifact {
@@ -2803,6 +2807,9 @@ message PresentationChart {
   SpreadsheetChartSurfaceFill legend_fill = 38;
   // Presence-aware c:overlap value mirrored from the native ChartPart.
   optional int32 overlap = 39;
+  // Presence-aware c:varyColors value mirrored from the native ChartPart's
+  // bar/column plot.
+  optional bool vary_colors = 40;
 }
 
 // Bounded literal c:chartSpace/c:spPr container paint for Presentation charts.

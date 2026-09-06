@@ -1120,6 +1120,7 @@ internal static partial class PpjPresentationProjector
         if (chart.Grouping.Length > 0) style["stacking"] = StringNode(chart.Grouping);
         if (chart.HasGapWidth) style["gapWidth"] = JsonValue.Create(chart.GapWidth);
         if (chart.HasOverlap) style["overlap"] = JsonValue.Create(chart.Overlap);
+        if (chart.HasVaryColors) style["varyColors"] = JsonValue.Create(chart.VaryColors);
         if (chart.HasFirstSliceAngle) style["startAngle"] = JsonValue.Create(chart.FirstSliceAngle);
         if (chart.HasDoughnutHoleSize) style["holeSize"] = JsonValue.Create(chart.DoughnutHoleSize);
         if (chart.HasBubbleScale) style["bubbleScale"] = JsonValue.Create(chart.BubbleScale);

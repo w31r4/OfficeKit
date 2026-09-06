@@ -104,6 +104,8 @@ internal static partial class PptxChartCodec
             throw Invalid(elementId, "gap_width requires a column plot family");
         if (chart.HasOverlap && !families.ContainsKey(SpreadsheetChartType.Bar))
             throw Invalid(elementId, "overlap requires a column plot family");
+        if (chart.HasVaryColors && !families.ContainsKey(SpreadsheetChartType.Bar))
+            throw Invalid(elementId, "vary_colors requires a column plot family");
         foreach (var (type, family) in families)
             if (family.Select(ComboAxisGroup).Distinct().Count() != 1)
                 throw Invalid(elementId, $"cannot split one {type.ToString().ToLowerInvariant()} plot family across primary and secondary axes");
@@ -174,8 +176,9 @@ internal static partial class PptxChartCodec
         if (type == SpreadsheetChartType.Bar)
         {
             output.BarDirection = source.BarDirection;
-        if (source.HasGapWidth) output.GapWidth = source.GapWidth;
-        if (source.HasOverlap) output.Overlap = source.Overlap;
+            if (source.HasGapWidth) output.GapWidth = source.GapWidth;
+            if (source.HasOverlap) output.Overlap = source.Overlap;
+            if (source.HasVaryColors) output.VaryColors = source.VaryColors;
         }
         if (source.ChartAreaFill is not null) output.ChartAreaFill = source.ChartAreaFill.Clone();
         if (source.PlotAreaFill is not null) output.PlotAreaFill = source.PlotAreaFill.Clone();
@@ -231,7 +234,7 @@ internal static partial class PptxChartCodec
         foreach (var plot in plots)
         {
             if (!TryComboPlotType(plot, out var type) ||
-                !TryReadComboPlotStyle(plot, type, out var grouping, out var barDirection, out var hasGapWidth, out var gapWidth, out var hasOverlap, out var overlap)) return false;
+                !TryReadComboPlotStyle(plot, type, out var grouping, out var barDirection, out var hasGapWidth, out var gapWidth, out var hasOverlap, out var overlap, out var hasVaryColors, out var varyColors)) return false;
             commonGrouping ??= grouping;
             if (!string.Equals(commonGrouping, grouping, StringComparison.Ordinal)) return false;
             if (!TryComboAxisGroup(plotArea, plot, out var axisGroup)) return false;
@@ -251,6 +254,7 @@ internal static partial class PptxChartCodec
                 chart.BarDirection = barDirection;
                 if (hasGapWidth) chart.GapWidth = gapWidth;
                 if (hasOverlap) chart.Overlap = overlap;
+                if (hasVaryColors) chart.VaryColors = varyColors;
             }
             nativePlots.Add((plot, type, axisGroup));
         }
@@ -383,7 +387,9 @@ internal static partial class PptxChartCodec
         out bool hasGapWidth,
         out uint gapWidth,
         out bool hasOverlap,
-        out int overlap)
+        out int overlap,
+        out bool hasVaryColors,
+        out bool varyColors)
     {
         grouping = string.Empty;
         barDirection = string.Empty;
@@ -391,8 +397,10 @@ internal static partial class PptxChartCodec
         gapWidth = 0;
         hasOverlap = false;
         overlap = 0;
+        hasVaryColors = false;
+        varyColors = false;
         var allowed = type == SpreadsheetChartType.Bar
-            ? new HashSet<XName> { ChartNs + "barDir", ChartNs + "grouping", ChartNs + "ser", ChartNs + "dLbls", ChartNs + "gapWidth", ChartNs + "overlap", ChartNs + "axId" }
+            ? new HashSet<XName> { ChartNs + "barDir", ChartNs + "grouping", ChartNs + "varyColors", ChartNs + "ser", ChartNs + "dLbls", ChartNs + "gapWidth", ChartNs + "overlap", ChartNs + "axId" }
             : new HashSet<XName> { ChartNs + "grouping", ChartNs + "ser", ChartNs + "dLbls", ChartNs + "axId" };
         if (plot.Elements().Any(item => !allowed.Contains(item.Name))) return false;
         if (!ComboScalar(plot.Element(ChartNs + "grouping"), out var nativeGrouping) ||
@@ -410,6 +418,11 @@ internal static partial class PptxChartCodec
         {
             if (!ComboScalar(plot.Element(ChartNs + "barDir"), out var nativeDirection) || nativeDirection is not ("col" or "bar")) return false;
             barDirection = nativeDirection == "bar" ? "bar" : "column";
+            var vary = plot.Elements(ChartNs + "varyColors").Take(2).ToArray();
+            if (vary.Length > 1 || vary.Length == 1 &&
+                (!ComboScalar(vary[0], out var varyText) || varyText is not ("0" or "1" or "false" or "true"))) return false;
+            hasVaryColors = vary.Length == 1;
+            if (hasVaryColors) varyColors = vary[0].Attribute("val")!.Value is "1" or "true";
             var gap = plot.Elements(ChartNs + "gapWidth").Take(2).ToArray();
             if (gap.Length > 1 || gap.Length == 1 &&
                 (!ComboScalar(gap[0], out var text) || !uint.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out gapWidth) || gapWidth > 500)) return false;
@@ -527,6 +540,8 @@ internal static partial class PptxChartCodec
         if (type == SpreadsheetChartType.Bar)
             plot.Add(new XElement(ChartNs + "barDir", new XAttribute("val", OpenXmlChartSpaceCodec.BarDirectionToken(chart.BarDirection))));
         plot.Add(new XElement(ChartNs + "grouping", new XAttribute("val", OpenXmlChartSpaceCodec.GroupingToken(chart.Grouping, clustered: type == SpreadsheetChartType.Bar))));
+        if (type == SpreadsheetChartType.Bar && chart.HasVaryColors)
+            plot.Add(new XElement(ChartNs + "varyColors", new XAttribute("val", chart.VaryColors ? "1" : "0")));
         plot.Add(series);
         plot.Add(XlsxChartDataLabelsCodec.Element(chart.DataLabels));
         if (type == SpreadsheetChartType.Bar && chart.HasGapWidth)
@@ -562,6 +577,7 @@ internal static partial class PptxChartCodec
             if (type == SpreadsheetChartType.Bar)
             {
                 PatchComboScalar(plot, "barDir", OpenXmlChartSpaceCodec.BarDirectionToken(target.BarDirection));
+                PatchComboVaryColors(plot, target);
                 PatchComboGapWidth(plot, target);
                 PatchComboOverlap(plot, target);
             }
@@ -610,6 +626,27 @@ internal static partial class PptxChartCodec
         }
         var axis = plot.Elements(ChartNs + "axId").First();
         axis.AddBeforeSelf(new XElement(ChartNs + "gapWidth", new XAttribute("val", chart.GapWidth)));
+    }
+
+    private static void PatchComboVaryColors(XElement plot, PresentationChart chart)
+    {
+        var existing = plot.Element(ChartNs + "varyColors");
+        if (!chart.HasVaryColors)
+        {
+            existing?.Remove();
+            return;
+        }
+        var replacement = new XElement(ChartNs + "varyColors", new XAttribute("val", chart.VaryColors ? "1" : "0"));
+        if (existing is not null)
+        {
+            if (!ComboScalar(existing, out var text) || text is not ("0" or "1" or "false" or "true"))
+                throw new CodecException("unsupported_presentation_edit", "Presentation combo chart varyColors is outside the bounded scalar profile.");
+            existing.ReplaceWith(replacement);
+            return;
+        }
+        var series = plot.Element(ChartNs + "ser");
+        if (series is null) plot.Add(replacement);
+        else series.AddBeforeSelf(replacement);
     }
 
     private static void PatchComboOverlap(XElement plot, PresentationChart chart)

@@ -13,6 +13,7 @@ internal static class OpenXmlChartSpaceCodec
     private const int MaxSeries = 256;
     private const int MaxPoints = 1_048_576;
     private static readonly string[] DisplayBlanksAsValues = ["zero", "gap", "span"];
+    private static readonly string[] BooleanValues = ["0", "1", "false", "true"];
     private static readonly XNamespace ChartNs = "http://schemas.openxmlformats.org/drawingml/2006/chart";
     private static readonly XNamespace DrawingNs = "http://schemas.openxmlformats.org/drawingml/2006/main";
 
@@ -107,7 +108,7 @@ internal static class OpenXmlChartSpaceCodec
         var series = chart.Series.Select((item, index) => SeriesElement(item, chart.Categories, index, chart.Type)).ToArray();
         XElement plot = chart.Type switch
         {
-            SpreadsheetChartType.Bar => new XElement(ChartNs + "barChart", new XElement(ChartNs + "barDir", new XAttribute("val", BarDirectionToken(chart.BarDirection))), new XElement(ChartNs + "grouping", new XAttribute("val", GroupingToken(chart.Grouping, clustered: true))), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), chart.HasGapWidth ? new XElement(ChartNs + "gapWidth", new XAttribute("val", chart.GapWidth)) : null, chart.HasOverlap ? new XElement(ChartNs + "overlap", new XAttribute("val", chart.Overlap)) : null, new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
+            SpreadsheetChartType.Bar => new XElement(ChartNs + "barChart", new XElement(ChartNs + "barDir", new XAttribute("val", BarDirectionToken(chart.BarDirection))), new XElement(ChartNs + "grouping", new XAttribute("val", GroupingToken(chart.Grouping, clustered: true))), chart.HasVaryColors ? new XElement(ChartNs + "varyColors", new XAttribute("val", chart.VaryColors ? "1" : "0")) : null, series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), chart.HasGapWidth ? new XElement(ChartNs + "gapWidth", new XAttribute("val", chart.GapWidth)) : null, chart.HasOverlap ? new XElement(ChartNs + "overlap", new XAttribute("val", chart.Overlap)) : null, new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Line => new XElement(ChartNs + "lineChart", XlsxChartLineOptionsCodec.GroupingElement(LineOptions(chart)), XlsxChartLineOptionsCodec.VaryColorsElement(chart.LineOptions), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), XlsxChartLineOptionsCodec.SmoothElement(chart.LineOptions), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Area => new XElement(ChartNs + "areaChart", new XElement(ChartNs + "grouping", new XAttribute("val", GroupingToken(chart.Grouping, clustered: false))), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Doughnut => new XElement(ChartNs + "doughnutChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "1")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "firstSliceAng", new XAttribute("val", chart.HasFirstSliceAngle ? chart.FirstSliceAngle : 0U)), new XElement(ChartNs + "holeSize", new XAttribute("val", chart.HasDoughnutHoleSize ? chart.DoughnutHoleSize : 50U))),
@@ -460,11 +461,13 @@ internal static class OpenXmlChartSpaceCodec
         {
             if (!TryScalar(plot, "barDir", new[] { "col", "bar" }, required: true, out var direction) ||
                 !TryScalar(plot, "grouping", new[] { "clustered", "stacked", "percentStacked" }, required: true, out var grouping) ||
+                !TryScalar(plot, "varyColors", BooleanValues, required: false, out var varyColors) ||
                 !TryOptionalUInt(plot, "gapWidth", 0, 500, out var hasGapWidth, out var gapWidth) ||
                 !TryOptionalInt(plot, "overlap", -100, 100, out var hasOverlap, out var overlap))
                 return false;
             chart.BarDirection = direction == "bar" ? "bar" : "column";
             chart.Grouping = NativeGrouping(grouping!);
+            if (varyColors is not null) chart.VaryColors = varyColors is "1" or "true";
             if (hasGapWidth) chart.GapWidth = gapWidth;
             if (hasOverlap) chart.Overlap = overlap;
             return true;
@@ -528,6 +531,7 @@ internal static class OpenXmlChartSpaceCodec
         {
             SetRequiredScalar(plot, "barDir", BarDirectionToken(chart.BarDirection));
             SetRequiredScalar(plot, "grouping", GroupingToken(chart.Grouping, clustered: true));
+            PatchOptionalBool(plot, "varyColors", chart.HasVaryColors, chart.VaryColors);
             PatchOptionalUInt(plot, "gapWidth", chart.HasGapWidth, chart.GapWidth);
             PatchOptionalInt(plot, "overlap", chart.HasOverlap, chart.Overlap);
             return;
@@ -691,6 +695,25 @@ internal static class OpenXmlChartSpaceCodec
         {
             var following = owner.Elements().FirstOrDefault(element =>
                 element.Name == ChartNs + "axId" || element.Name == ChartNs + "extLst");
+            if (following is null) owner.Add(replacement);
+            else following.AddBeforeSelf(replacement);
+        }
+    }
+
+    private static void PatchOptionalBool(XElement owner, string name, bool present, bool value)
+    {
+        var existing = owner.Element(ChartNs + name);
+        if (!present)
+        {
+            existing?.Remove();
+            return;
+        }
+        var replacement = new XElement(ChartNs + name, new XAttribute("val", value ? "1" : "0"));
+        if (existing is not null) existing.ReplaceWith(replacement);
+        else
+        {
+            var following = owner.Elements().FirstOrDefault(element =>
+                element.Name == ChartNs + "ser" || element.Name == ChartNs + "dLbls" || element.Name == ChartNs + "gapWidth" || element.Name == ChartNs + "overlap" || element.Name == ChartNs + "axId" || element.Name == ChartNs + "extLst");
             if (following is null) owner.Add(replacement);
             else following.AddBeforeSelf(replacement);
         }
