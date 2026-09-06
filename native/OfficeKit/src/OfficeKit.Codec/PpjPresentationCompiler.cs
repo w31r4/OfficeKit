@@ -834,6 +834,22 @@ internal static class PpjSourceBoundPresentationCompiler
         return checked((uint)resolved);
     }
 
+    private static int ResolveGrammarSignedIntegerToken(
+        JsonElement root,
+        JsonElement value,
+        string path,
+        int minimum,
+        int maximum)
+    {
+        var resolved = ResolveGrammarNumberToken(root, value, "size", path);
+        if (!double.IsFinite(resolved) || resolved < minimum || resolved > maximum || Math.Truncate(resolved) != resolved)
+            throw new CodecException(
+                "ppj.grammar.tokenValue",
+                $"PPJ {path} must resolve to an integer between {minimum} and {maximum}.",
+                path);
+        return checked((int)resolved);
+    }
+
     private static bool ResolveGrammarBooleanToken(JsonElement root, JsonElement value, string path)
     {
         if (value.ValueKind is JsonValueKind.True or JsonValueKind.False)
@@ -2531,6 +2547,7 @@ internal static class PpjSourceBoundPresentationCompiler
             "legendFill",
             "stacking",
             "gapWidth",
+            "overlap",
             "showCategoryAxis",
             "showValueAxis",
             "showGridlines",
@@ -2602,6 +2619,19 @@ internal static class PpjSourceBoundPresentationCompiler
                 target.GapWidth = ResolveGrammarIntegerToken(grammarRoot, value, path + ".style.gapWidth", 0, 500);
             else
                 target.ClearGapWidth();
+            changed = true;
+        }
+        if (PropertyChanged(oldStyle, newStyle, "overlap"))
+        {
+            RequireCapability(after, "setChartPlot", path + ".style.overlap");
+            var supportsOverlap = target.Type == SpreadsheetChartType.Bar ||
+                target.Type == SpreadsheetChartType.Combo && target.ComboSeries.Any(item => item.Type == SpreadsheetChartType.Bar);
+            if (!supportsOverlap)
+                throw Unsupported(path + ".style.overlap", "overlap without a bounded column plot");
+            if (newStyle is { } owner && owner.TryGetProperty("overlap", out var value))
+                target.Overlap = ResolveGrammarSignedIntegerToken(grammarRoot, value, path + ".style.overlap", -100, 100);
+            else
+                target.ClearOverlap();
             changed = true;
         }
         if (PropertyChanged(oldStyle, newStyle, "showCategoryAxis"))

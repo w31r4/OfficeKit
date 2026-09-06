@@ -296,6 +296,7 @@ internal static partial class PptxChartCodec
             output.YAxis.ShowMajorGridlines = source.ShowGridlines;
         }
         if (source.HasGapWidth) output.GapWidth = source.GapWidth;
+        if (source.HasOverlap) output.Overlap = source.Overlap;
         if (source.ChartAreaFill is not null) output.ChartAreaFill = source.ChartAreaFill.Clone();
         if (source.PlotAreaFill is not null) output.PlotAreaFill = source.PlotAreaFill.Clone();
         if (source.DataLabels is not null) output.DataLabels = source.DataLabels.Clone();
@@ -335,6 +336,7 @@ internal static partial class PptxChartCodec
         if (source.YAxis?.HasVisible == true) output.ShowValueAxis = source.YAxis.Visible;
         if (source.YAxis?.HasShowMajorGridlines == true) output.ShowGridlines = source.YAxis.ShowMajorGridlines;
         if (source.HasGapWidth) output.GapWidth = source.GapWidth;
+        if (source.HasOverlap) output.Overlap = source.Overlap;
         if (source.ChartAreaFill is not null) output.ChartAreaFill = source.ChartAreaFill.Clone();
         if (source.PlotAreaFill is not null) output.PlotAreaFill = source.PlotAreaFill.Clone();
         if (source.DataLabels is not null) output.DataLabels = source.DataLabels.Clone();

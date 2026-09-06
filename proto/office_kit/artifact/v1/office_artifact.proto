@@ -1012,6 +1012,9 @@ message SpreadsheetChartArtifact {
   // Bounded c:legend/c:spPr surface paint. Direct no-fill, solid RGB, and
   // literal gradient branches are shared with chart and plot-area fills.
   SpreadsheetChartSurfaceFill legend_fill = 33;
+  // Presence-aware c:overlap value for bar/column plots. The native signed
+  // percentage is bounded from -100 through 100.
+  optional int32 overlap = 34;
 }
 
 message SpreadsheetChartSeriesArtifact {
@@ -2798,6 +2801,8 @@ message PresentationChart {
   optional bool legend_overlay = 37;
   // Bounded c:legend/c:spPr surface paint mirrored from the native ChartPart.
   SpreadsheetChartSurfaceFill legend_fill = 38;
+  // Presence-aware c:overlap value mirrored from the native ChartPart.
+  optional int32 overlap = 39;
 }
 
 // Bounded literal c:chartSpace/c:spPr container paint for Presentation charts.

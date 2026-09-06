@@ -102,6 +102,8 @@ internal static partial class PptxChartCodec
             throw Invalid(elementId, "horizontal bars cannot share the categorical combo-axis profile; use columns");
         if (chart.HasGapWidth && !families.ContainsKey(SpreadsheetChartType.Bar))
             throw Invalid(elementId, "gap_width requires a column plot family");
+        if (chart.HasOverlap && !families.ContainsKey(SpreadsheetChartType.Bar))
+            throw Invalid(elementId, "overlap requires a column plot family");
         foreach (var (type, family) in families)
             if (family.Select(ComboAxisGroup).Distinct().Count() != 1)
                 throw Invalid(elementId, $"cannot split one {type.ToString().ToLowerInvariant()} plot family across primary and secondary axes");
@@ -172,7 +174,8 @@ internal static partial class PptxChartCodec
         if (type == SpreadsheetChartType.Bar)
         {
             output.BarDirection = source.BarDirection;
-            if (source.HasGapWidth) output.GapWidth = source.GapWidth;
+        if (source.HasGapWidth) output.GapWidth = source.GapWidth;
+        if (source.HasOverlap) output.Overlap = source.Overlap;
         }
         if (source.ChartAreaFill is not null) output.ChartAreaFill = source.ChartAreaFill.Clone();
         if (source.PlotAreaFill is not null) output.PlotAreaFill = source.PlotAreaFill.Clone();
@@ -228,7 +231,7 @@ internal static partial class PptxChartCodec
         foreach (var plot in plots)
         {
             if (!TryComboPlotType(plot, out var type) ||
-                !TryReadComboPlotStyle(plot, type, out var grouping, out var barDirection, out var hasGapWidth, out var gapWidth)) return false;
+                !TryReadComboPlotStyle(plot, type, out var grouping, out var barDirection, out var hasGapWidth, out var gapWidth, out var hasOverlap, out var overlap)) return false;
             commonGrouping ??= grouping;
             if (!string.Equals(commonGrouping, grouping, StringComparison.Ordinal)) return false;
             if (!TryComboAxisGroup(plotArea, plot, out var axisGroup)) return false;
@@ -247,6 +250,7 @@ internal static partial class PptxChartCodec
                 if (barDirection != "column") return false;
                 chart.BarDirection = barDirection;
                 if (hasGapWidth) chart.GapWidth = gapWidth;
+                if (hasOverlap) chart.Overlap = overlap;
             }
             nativePlots.Add((plot, type, axisGroup));
         }
@@ -377,14 +381,18 @@ internal static partial class PptxChartCodec
         out string grouping,
         out string barDirection,
         out bool hasGapWidth,
-        out uint gapWidth)
+        out uint gapWidth,
+        out bool hasOverlap,
+        out int overlap)
     {
         grouping = string.Empty;
         barDirection = string.Empty;
         hasGapWidth = false;
         gapWidth = 0;
+        hasOverlap = false;
+        overlap = 0;
         var allowed = type == SpreadsheetChartType.Bar
-            ? new HashSet<XName> { ChartNs + "barDir", ChartNs + "grouping", ChartNs + "ser", ChartNs + "dLbls", ChartNs + "gapWidth", ChartNs + "axId" }
+            ? new HashSet<XName> { ChartNs + "barDir", ChartNs + "grouping", ChartNs + "ser", ChartNs + "dLbls", ChartNs + "gapWidth", ChartNs + "overlap", ChartNs + "axId" }
             : new HashSet<XName> { ChartNs + "grouping", ChartNs + "ser", ChartNs + "dLbls", ChartNs + "axId" };
         if (plot.Elements().Any(item => !allowed.Contains(item.Name))) return false;
         if (!ComboScalar(plot.Element(ChartNs + "grouping"), out var nativeGrouping) ||
@@ -406,6 +414,10 @@ internal static partial class PptxChartCodec
             if (gap.Length > 1 || gap.Length == 1 &&
                 (!ComboScalar(gap[0], out var text) || !uint.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out gapWidth) || gapWidth > 500)) return false;
             hasGapWidth = gap.Length == 1;
+            var overlapElements = plot.Elements(ChartNs + "overlap").Take(2).ToArray();
+            if (overlapElements.Length > 1 || overlapElements.Length == 1 &&
+                (!ComboScalar(overlapElements[0], out var overlapText) || !int.TryParse(overlapText, NumberStyles.Integer, CultureInfo.InvariantCulture, out overlap) || overlap is < -100 or > 100)) return false;
+            hasOverlap = overlapElements.Length == 1;
         }
         var axisIds = plot.Elements(ChartNs + "axId").ToArray();
         return axisIds.Length == 2 && axisIds.All(item => ComboScalar(item, out _));
@@ -519,6 +531,8 @@ internal static partial class PptxChartCodec
         plot.Add(XlsxChartDataLabelsCodec.Element(chart.DataLabels));
         if (type == SpreadsheetChartType.Bar && chart.HasGapWidth)
             plot.Add(new XElement(ChartNs + "gapWidth", new XAttribute("val", chart.GapWidth)));
+        if (type == SpreadsheetChartType.Bar && chart.HasOverlap)
+            plot.Add(new XElement(ChartNs + "overlap", new XAttribute("val", chart.Overlap)));
         var secondary = axisGroup == PresentationChartAxisGroup.Secondary;
         plot.Add(new XElement(ChartNs + "axId", new XAttribute("val", secondary ? "3" : "1")));
         plot.Add(new XElement(ChartNs + "axId", new XAttribute("val", secondary ? "4" : "2")));
@@ -549,6 +563,7 @@ internal static partial class PptxChartCodec
             {
                 PatchComboScalar(plot, "barDir", OpenXmlChartSpaceCodec.BarDirectionToken(target.BarDirection));
                 PatchComboGapWidth(plot, target);
+                PatchComboOverlap(plot, target);
             }
             PatchComboScalar(plot, "grouping", OpenXmlChartSpaceCodec.GroupingToken(target.Grouping, clustered: type == SpreadsheetChartType.Bar));
             collectedSeries.AddRange(plotSeries);
@@ -595,5 +610,24 @@ internal static partial class PptxChartCodec
         }
         var axis = plot.Elements(ChartNs + "axId").First();
         axis.AddBeforeSelf(new XElement(ChartNs + "gapWidth", new XAttribute("val", chart.GapWidth)));
+    }
+
+    private static void PatchComboOverlap(XElement plot, PresentationChart chart)
+    {
+        var existing = plot.Element(ChartNs + "overlap");
+        if (!chart.HasOverlap)
+        {
+            existing?.Remove();
+            return;
+        }
+        if (existing is not null)
+        {
+            if (!ComboScalar(existing, out var text) || !int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var current) || current is < -100 or > 100)
+                throw new CodecException("unsupported_presentation_edit", "Presentation combo chart overlap is outside the bounded scalar profile.");
+            existing.SetAttributeValue("val", chart.Overlap);
+            return;
+        }
+        var axis = plot.Elements(ChartNs + "axId").First();
+        axis.AddBeforeSelf(new XElement(ChartNs + "overlap", new XAttribute("val", chart.Overlap)));
     }
 }

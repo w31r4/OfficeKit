@@ -1900,7 +1900,7 @@ internal static partial class PpjAuthoredPresentationCompiler
                     throw Unsupported(element.Id, $"vector heatmap series do not support {property}");
         foreach (var property in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
             if (raw.TryGetProperty(property, out _)) throw Unsupported(element.Id, "vector heatmaps generate their own matrix labels");
-        foreach (var property in new[] { "legend", "legendOverlay", "stacking", "gapWidth", "startAngle", "holeSize", "bubbleScale", "bubbleSizeMode", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall" })
+        foreach (var property in new[] { "legend", "legendOverlay", "stacking", "gapWidth", "overlap", "startAngle", "holeSize", "bubbleScale", "bubbleSizeMode", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall" })
             if (FirstProperty(inlineStyle, namedStyle, property) is not null)
                 throw Unsupported(element.Id, $"vector heatmaps do not support chart style field {property}");
         if (FirstProperty(inlineStyle, namedStyle, "heatmap") is not { } heatmap)
@@ -2544,7 +2544,7 @@ internal static partial class PpjAuthoredPresentationCompiler
                 throw Unsupported(element.Id, "candlestick charts do not support secondary axes");
         RejectTokenizedVectorAxis(Property(raw, "xAxis"), element.Id, "X");
         RejectTokenizedVectorAxis(Property(raw, "yAxis"), element.Id, "Y");
-        foreach (var property in new[] { "legend", "legendOverlay", "stacking", "gapWidth", "startAngle", "holeSize", "bubbleScale", "bubbleSizeMode", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap" })
+        foreach (var property in new[] { "legend", "legendOverlay", "stacking", "gapWidth", "overlap", "startAngle", "holeSize", "bubbleScale", "bubbleSizeMode", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap" })
             if (FirstProperty(inlineStyle, namedStyle, property) is not null)
                 throw Unsupported(element.Id, $"candlestick charts do not support chart style field {property}");
         if (FirstProperty(inlineStyle, namedStyle, "candlestick") is not { } candlestick)
@@ -2729,7 +2729,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         foreach (var property in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
             if (raw.TryGetProperty(property, out _))
                 throw Unsupported(element.Id, "treemap charts do not use Cartesian axes");
-        foreach (var property in new[] { "legend", "legendOverlay", "stacking", "gapWidth", "startAngle", "holeSize", "bubbleScale", "bubbleSizeMode", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap", "candlestick" })
+        foreach (var property in new[] { "legend", "legendOverlay", "stacking", "gapWidth", "overlap", "startAngle", "holeSize", "bubbleScale", "bubbleSizeMode", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap", "candlestick" })
             if (FirstProperty(inlineStyle, namedStyle, property) is not null)
                 throw Unsupported(element.Id, $"treemap charts do not support chart style field {property}");
         if (FirstProperty(inlineStyle, namedStyle, "treemap") is null)
@@ -3163,7 +3163,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         foreach (var property in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
             if (raw.TryGetProperty(property, out _))
                 throw Unsupported(element.Id, "sunburst charts do not use Cartesian axes");
-        foreach (var property in new[] { "legend", "legendOverlay", "stacking", "gapWidth", "startAngle", "holeSize", "bubbleScale", "bubbleSizeMode", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap", "candlestick", "treemap" })
+        foreach (var property in new[] { "legend", "legendOverlay", "stacking", "gapWidth", "overlap", "startAngle", "holeSize", "bubbleScale", "bubbleSizeMode", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap", "candlestick", "treemap" })
             if (FirstProperty(inlineStyle, namedStyle, property) is not null)
                 throw Unsupported(element.Id, $"sunburst charts do not support chart style field {property}");
         if (FirstProperty(inlineStyle, namedStyle, "sunburst") is null)
@@ -3703,7 +3703,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         foreach (var property in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
             if (raw.TryGetProperty(property, out _))
                 throw Unsupported(element.Id, "sankey charts do not use Cartesian axes");
-        foreach (var property in new[] { "legend", "legendOverlay", "stacking", "gapWidth", "startAngle", "holeSize", "bubbleScale", "bubbleSizeMode", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap", "candlestick", "treemap", "sunburst" })
+        foreach (var property in new[] { "legend", "legendOverlay", "stacking", "gapWidth", "overlap", "startAngle", "holeSize", "bubbleScale", "bubbleSizeMode", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap", "candlestick", "treemap", "sunburst" })
             if (FirstProperty(inlineStyle, namedStyle, property) is not null)
                 throw Unsupported(element.Id, $"sankey charts do not support chart style field {property}");
         if (FirstProperty(inlineStyle, namedStyle, "sankey") is null)

@@ -3050,6 +3050,12 @@ internal static partial class PpjAuthoredPresentationCompiler
                 throw Unsupported(elementId, "gapWidth applies only to bar, column, and combo charts");
             chart.GapWidth = ChartIntegerToken(gapWidth, catalog, "chart gapWidth", 0, 500);
         }
+        if (catalog.PropertyByPrecedence("chart.overlap", element, inline, named) is { } overlap)
+        {
+            if (chart.Type is not (SpreadsheetChartType.Bar or SpreadsheetChartType.Combo))
+                throw Unsupported(elementId, "overlap applies only to bar, column, and combo charts");
+            chart.Overlap = ChartSignedIntegerToken(overlap, catalog, "chart overlap", -100, 100);
+        }
         if (catalog.PropertyByPrecedence("chart.startAngle", element, inline, named) is { } startAngle)
         {
             if (chart.Type is not (SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut))
@@ -3219,6 +3225,14 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (!double.IsFinite(resolved) || resolved != Math.Truncate(resolved) || resolved < minimum || resolved > maximum)
             throw Unsupported(owner, $"value must resolve to an integer from {minimum} through {maximum}");
         return checked((uint)resolved);
+    }
+
+    private static int ChartSignedIntegerToken(JsonElement value, Catalog catalog, string owner, int minimum, int maximum)
+    {
+        var resolved = catalog.NumberToken(value, "size", owner);
+        if (!double.IsFinite(resolved) || resolved != Math.Truncate(resolved) || resolved < minimum || resolved > maximum)
+            throw Unsupported(owner, $"value must resolve to an integer from {minimum} through {maximum}");
+        return checked((int)resolved);
     }
 
     private static SpreadsheetChartSurfaceFill BuildChartSurfaceFill(JsonElement fill, Catalog catalog, string subject)
