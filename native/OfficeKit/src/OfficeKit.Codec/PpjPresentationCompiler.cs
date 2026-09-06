@@ -3493,15 +3493,36 @@ internal static class PpjSourceBoundPresentationCompiler
             output.Underline = PpjAuthoredPresentationCompiler.NativeUnderline(underline.GetString()!);
         if (source.TryGetProperty("alignment", out var alignment))
             output.Alignment = PpjAuthoredPresentationCompiler.NativeChartAlignment(alignment.GetString()!);
+        if (source.TryGetProperty("fill", out var fill))
+            ApplyChartTextFill(output, SourceBoundChartFill(fill, path + ".fill", grammarRoot));
         if (source.TryGetProperty("color", out var color))
         {
             var resolved = grammarRoot is { } root
                 ? ResolveGrammarColorValue(root, color, path + ".color")
                 : ParseSourceBoundColor(color, path + ".color");
+            output.Fill = null;
             output.ColorRgb = resolved.Rgb;
             if (resolved.Alpha < 1) output.OpacityThousandthPercent = Unit(resolved.Alpha);
+            else output.ClearOpacityThousandthPercent();
         }
         return output;
+    }
+
+    private static void ApplyChartTextFill(
+        SpreadsheetChartTextStyleArtifact output,
+        SpreadsheetChartSurfaceFill fill)
+    {
+        output.Fill = null;
+        output.ColorRgb = string.Empty;
+        output.ClearOpacityThousandthPercent();
+        if (fill.FillCase == SpreadsheetChartSurfaceFill.FillOneofCase.SolidRgb)
+        {
+            output.ColorRgb = fill.SolidRgb;
+            if (fill.HasOpacityThousandthPercent)
+                output.OpacityThousandthPercent = fill.OpacityThousandthPercent;
+        }
+        else
+            output.Fill = fill;
     }
 
     private static SpreadsheetChartLineStyleArtifact SourceBoundChartLine(

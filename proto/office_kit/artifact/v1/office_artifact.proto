@@ -4693,6 +4693,9 @@ message SpreadsheetChartTextStyleArtifact {
   string underline = 9;
   // Direct DrawingML a:pPr/@algn alignment token for chart text paragraphs.
   string alignment = 10;
+  // Direct DrawingML text paint. Bounded no-fill and literal gradients use
+  // this field; a solid RGB paint remains compatible with color_rgb/alpha.
+  SpreadsheetChartSurfaceFill fill = 11;
 }
 
 enum SpreadsheetChartLineDashStyle {

@@ -3280,11 +3280,15 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (source.TryGetProperty("italic", out var italic)) output.Italic = catalog.BooleanToken(italic, "boolean", "chart text italic");
         if (source.TryGetProperty("underline", out var underline)) output.Underline = NativeUnderline(underline.GetString()!);
         if (source.TryGetProperty("alignment", out var alignment)) output.Alignment = NativeChartAlignment(alignment.GetString()!);
+        if (source.TryGetProperty("fill", out var fill))
+            ApplyChartTextFill(output, BuildChartSurfaceFill(fill, catalog, "chart text fill"));
         if (source.TryGetProperty("color", out var color))
         {
             var resolved = catalog.Color(color);
+            output.Fill = null;
             output.ColorRgb = resolved.Rgb;
-            if (resolved.Alpha != 1) output.OpacityThousandthPercent = Opacity(resolved.Alpha);
+            if (resolved.Alpha == 1) output.ClearOpacityThousandthPercent();
+            else output.OpacityThousandthPercent = Opacity(resolved.Alpha);
         }
         return output;
     }
@@ -3315,7 +3319,7 @@ internal static partial class PpjAuthoredPresentationCompiler
     }
 
     private static readonly string[] ChartTextStyleFields =
-    ["fontSize", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "bold", "italic", "underline", "alignment", "color"];
+    ["fontSize", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "bold", "italic", "underline", "alignment", "fill", "color"];
 
     private static void ApplyChartTextStyleProperty(
         SpreadsheetChartTextStyleArtifact output,
@@ -3349,8 +3353,12 @@ internal static partial class PpjAuthoredPresentationCompiler
             case "alignment":
                 output.Alignment = NativeChartAlignment(value.GetString()!);
                 break;
+            case "fill":
+                ApplyChartTextFill(output, BuildChartSurfaceFill(value, catalog, "chart text fill"));
+                break;
             case "color":
                 var resolved = catalog.Color(value);
+                output.Fill = null;
                 output.ColorRgb = resolved.Rgb;
                 if (resolved.Alpha == 1) output.ClearOpacityThousandthPercent();
                 else output.OpacityThousandthPercent = Opacity(resolved.Alpha);
@@ -3358,6 +3366,23 @@ internal static partial class PpjAuthoredPresentationCompiler
             default:
                 throw new InvalidOperationException($"Unknown chart text style field {field}.");
         }
+    }
+
+    private static void ApplyChartTextFill(
+        SpreadsheetChartTextStyleArtifact output,
+        SpreadsheetChartSurfaceFill fill)
+    {
+        output.Fill = null;
+        output.ColorRgb = string.Empty;
+        output.ClearOpacityThousandthPercent();
+        if (fill.FillCase == SpreadsheetChartSurfaceFill.FillOneofCase.SolidRgb)
+        {
+            output.ColorRgb = fill.SolidRgb;
+            if (fill.HasOpacityThousandthPercent)
+                output.OpacityThousandthPercent = fill.OpacityThousandthPercent;
+        }
+        else
+            output.Fill = fill;
     }
 
     internal static void ApplyCustomGeometry(PresentationShape target, JsonElement geometry, string elementId)

@@ -5,9 +5,9 @@ using OfficeKit.Artifact.Wire.V1;
 namespace OfficeKit.Codec;
 
 // Owns one exact chart-title / axis-tick DrawingML text profile. Font identity,
-// emphasis, paragraph alignment, direct RGB/alpha, and point size are editable;
-// unrecognized rich text graphs keep the containing chart source-owned instead
-// of being normalized.
+// emphasis, paragraph alignment, direct text paint, and point size are
+// editable; unrecognized rich text graphs keep the containing chart
+// source-owned instead of being normalized.
 internal static class XlsxChartTextStyleCodec
 {
     private const double MinimumFontSizePoints = 1;
@@ -162,6 +162,7 @@ internal static class XlsxChartTextStyleCodec
             style.HasBold ? style.Bold.ToString(CultureInfo.InvariantCulture) : "default-bold",
             style.HasItalic ? style.Italic.ToString(CultureInfo.InvariantCulture) : "default-italic",
             style.Alignment.Length > 0 ? style.Alignment : "default-alignment",
+            style.Fill is not null ? XlsxChartSurfaceFillCodec.Semantics(style.Fill) : "default-fill",
             style.Underline.Length > 0 ? style.Underline : "default-underline",
             style.ColorRgb.Length > 0 ? style.ColorRgb.ToUpperInvariant() : "default-color",
             style.HasOpacityThousandthPercent ? style.OpacityThousandthPercent.ToString(CultureInfo.InvariantCulture) : "default-alpha");
@@ -197,13 +198,19 @@ internal static class XlsxChartTextStyleCodec
     {
         if (style is null) return;
         if (!style.HasFontSizePoints && style.FontFamily.Length == 0 && style.FontFamilyEastAsia.Length == 0 && style.FontFamilyComplexScript.Length == 0 &&
-            !style.HasBold && !style.HasItalic && style.Alignment.Length == 0 && style.Underline.Length == 0 && style.ColorRgb.Length == 0 && !style.HasOpacityThousandthPercent)
+            !style.HasBold && !style.HasItalic && style.Alignment.Length == 0 && style.Underline.Length == 0 && style.ColorRgb.Length == 0 && !style.HasOpacityThousandthPercent && style.Fill is null)
             throw Invalid(worksheetId, chartId, $"{field} must declare at least one bounded property.");
         if (style.HasFontSizePoints && (!double.IsFinite(style.FontSizePoints) || style.FontSizePoints < MinimumFontSizePoints || style.FontSizePoints > MaximumFontSizePoints))
             throw Invalid(worksheetId, chartId, $"{field}.font_size_points must be from 1 through 4000.");
         ValidateTypeface(style.FontFamily, worksheetId, chartId, field + ".font_family");
         ValidateTypeface(style.FontFamilyEastAsia, worksheetId, chartId, field + ".font_family_east_asia");
         ValidateTypeface(style.FontFamilyComplexScript, worksheetId, chartId, field + ".font_family_complex_script");
+        if (style.Fill is not null)
+        {
+            XlsxChartSurfaceFillCodec.Validate(style.Fill, field + ".fill");
+            if (style.ColorRgb.Length > 0 || style.HasOpacityThousandthPercent)
+                throw Invalid(worksheetId, chartId, $"{field}.fill cannot be combined with color.");
+        }
         if (style.Alignment.Length > 0 && !AlignmentValues.Contains(style.Alignment))
             throw Invalid(worksheetId, chartId, $"{field}.alignment must be a bounded DrawingML paragraph-alignment token.");
         if (style.Underline.Length > 0 && !UnderlineValues.Contains(style.Underline))
@@ -296,9 +303,10 @@ internal static class XlsxChartTextStyleCodec
         }
         var children = properties.Elements().ToArray();
         var index = 0;
-        if (index < children.Length && children[index].Name == DrawingNs + "solidFill")
+        if (index < children.Length && IsPaint(children[index]))
         {
-            if (!TryColor(children[index++], style)) return false;
+            if (!XlsxChartSurfaceFillCodec.TryReadPaint(children[index++], out var fill) || fill is null) return false;
+            ApplyParsedFill(style, fill);
         }
         if (index < children.Length && children[index].Name == DrawingNs + "latin")
         {
@@ -317,25 +325,19 @@ internal static class XlsxChartTextStyleCodec
         }
         return index == children.Length &&
             (style.HasFontSizePoints || style.FontFamily.Length > 0 || style.FontFamilyEastAsia.Length > 0 || style.FontFamilyComplexScript.Length > 0 ||
-             style.HasBold || style.HasItalic || style.Underline.Length > 0 || style.ColorRgb.Length > 0);
+             style.HasBold || style.HasItalic || style.Underline.Length > 0 || style.ColorRgb.Length > 0 || style.Fill is not null);
     }
 
-    private static bool TryColor(XElement fill, SpreadsheetChartTextStyleArtifact style)
+    private static void ApplyParsedFill(SpreadsheetChartTextStyleArtifact style, SpreadsheetChartSurfaceFill fill)
     {
-        if (fill.HasAttributes || fill.Elements().Take(2).Count() != 1 || fill.Element(DrawingNs + "srgbClr") is not { } color) return false;
-        var attributes = color.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration).ToArray();
-        if (attributes.Length != 1 || attributes[0].Name != "val" || attributes[0].Value.Length != 6 || !attributes[0].Value.All(Uri.IsHexDigit)) return false;
-        var children = color.Elements().ToArray();
-        if (children.Length > 1 || children.Any(child => child.Name != DrawingNs + "alpha" || child.HasElements)) return false;
-        style.ColorRgb = attributes[0].Value.ToUpperInvariant();
-        if (children.Length == 1)
+        if (fill.FillCase == SpreadsheetChartSurfaceFill.FillOneofCase.SolidRgb)
         {
-            var alphaAttributes = children[0].Attributes().Where(attribute => !attribute.IsNamespaceDeclaration).ToArray();
-            if (alphaAttributes.Length != 1 || alphaAttributes[0].Name != "val" ||
-                !uint.TryParse(alphaAttributes[0].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var alpha) || alpha > 100_000) return false;
-            style.OpacityThousandthPercent = alpha;
+            style.ColorRgb = fill.SolidRgb;
+            if (fill.HasOpacityThousandthPercent)
+                style.OpacityThousandthPercent = fill.OpacityThousandthPercent;
+            return;
         }
-        return true;
+        style.Fill = fill;
     }
 
     private static bool TryTypeface(XElement source, out string value)
@@ -363,7 +365,7 @@ internal static class XlsxChartTextStyleCodec
 
     private static bool HasCharacterStyle(SpreadsheetChartTextStyleArtifact style) =>
         style.HasFontSizePoints || style.FontFamily.Length > 0 || style.FontFamilyEastAsia.Length > 0 || style.FontFamilyComplexScript.Length > 0 ||
-        style.HasBold || style.HasItalic || style.Underline.Length > 0 || style.ColorRgb.Length > 0 || style.HasOpacityThousandthPercent;
+        style.HasBold || style.HasItalic || style.Underline.Length > 0 || style.ColorRgb.Length > 0 || style.HasOpacityThousandthPercent || style.Fill is not null;
 
     private static bool HasAnyStyle(SpreadsheetChartTextStyleArtifact style) => HasCharacterStyle(style) || style.Alignment.Length > 0;
 
@@ -374,7 +376,9 @@ internal static class XlsxChartTextStyleCodec
         if (style.HasBold) output.SetAttributeValue("b", style.Bold ? "1" : "0");
         if (style.HasItalic) output.SetAttributeValue("i", style.Italic ? "1" : "0");
         if (style.Underline.Length > 0) output.SetAttributeValue("u", style.Underline);
-        if (style.ColorRgb.Length > 0)
+        if (style.Fill is not null)
+            output.Add(XlsxChartSurfaceFillCodec.PaintElement(style.Fill, "chart text fill"));
+        else if (style.ColorRgb.Length > 0)
         {
             var color = new XElement(DrawingNs + "srgbClr", new XAttribute("val", style.ColorRgb.ToUpperInvariant()));
             if (style.HasOpacityThousandthPercent)
@@ -389,6 +393,9 @@ internal static class XlsxChartTextStyleCodec
             output.Add(new XElement(DrawingNs + "cs", new XAttribute("typeface", style.FontFamilyComplexScript)));
         return output;
     }
+
+    private static bool IsPaint(XElement element) => element.Name == DrawingNs + "noFill" ||
+        element.Name == DrawingNs + "solidFill" || element.Name == DrawingNs + "gradFill";
 
     private static bool TryBoolean(string source, out bool value)
     {

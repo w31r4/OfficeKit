@@ -1514,6 +1514,8 @@ internal static partial class PpjPresentationProjector
             output["underline"] = StringNode(source.Underline switch { "sng" => "single", "dbl" => "double", _ => source.Underline });
         if (source.Alignment.Length > 0)
             output["alignment"] = StringNode(source.Alignment switch { "l" => "left", "ctr" => "center", "r" => "right", "just" => "justify", _ => source.Alignment });
+        if (source.Fill is not null)
+            output["fill"] = ProjectChartSurfaceFill(source.Fill);
         if (source.ColorRgb.Length > 0)
             output["color"] = TextColor(source.ColorRgb, null,
                 source.HasOpacityThousandthPercent, source.OpacityThousandthPercent);

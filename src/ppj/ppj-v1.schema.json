@@ -6133,6 +6133,10 @@
           ],
           "description": "Direct DrawingML chart-text paragraph alignment."
         },
+        "fill": {
+          "$ref": "#/$defs/fill",
+          "description": "Bounded direct DrawingML chart-text paint; solid, none, or literal gradient fills are preserved."
+        },
         "bold": {
           "$ref": "#/$defs/booleanOrToken"
         },
