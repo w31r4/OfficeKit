@@ -149,11 +149,13 @@ shapes:
   "xAxis": {
     "title": "Quarter",
     "tickLabelInterval": 1,
+    "position": "top",
     "tickLabelPosition": "nextTo",
     "axisLine": { "color": "#16697A", "width": 1 }
   },
   "yAxis": {
     "title": "Conversion rate",
+    "position": "right",
     "numberFormat": "0.0%",
     "min": 0,
     "max": 0.4,
