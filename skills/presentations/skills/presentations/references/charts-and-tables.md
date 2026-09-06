@@ -365,6 +365,10 @@ linear/radial gradient. Solid fills remain compatible with the existing
 `color` projection; image, theme, effect, and unknown rich-text paint graphs
 stay source-owned and fail closed.
 
+Sparse series data-label points may also set bounded `fill` paint using `none`,
+a direct solid color, or a literal linear/radial gradient. Point label
+outlines and richer label/effect graphs remain source-owned.
+
 `smooth` preserves an explicit true or false native value. For line charts,
 `varyColors: true` authors one direct native color-variation flag and false is
 canonical omission. Bar/column charts and categorical combos preserve
