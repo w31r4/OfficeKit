@@ -1029,6 +1029,9 @@ message SpreadsheetChartArtifact {
   // Bounded direct c:plotArea/c:spPr/a:ln outline. Fill and line share the
   // plot-area shape-properties container while retaining independent fields.
   SpreadsheetChartLineStyleArtifact plot_area_line = 43;
+  // Optional bounded c:chartSpace/c:style built-in chart style index. The
+  // native profile accepts the PowerPoint 1..48 style catalog.
+  optional uint32 style_index = 44;
 }
 
 message SpreadsheetChartSeriesArtifact {
@@ -2844,6 +2847,9 @@ message PresentationChart {
   // Bounded direct c:plotArea/c:spPr/a:ln outline mirrored from the native
   // ChartPart.
   SpreadsheetChartLineStyleArtifact plot_area_line = 43;
+  // Optional bounded c:chartSpace/c:style built-in chart style index mirrored
+  // from the native ChartPart. The native profile accepts 1..48.
+  optional uint32 style_index = 44;
 }
 
 // Bounded literal c:chartSpace/c:spPr container paint for Presentation charts.

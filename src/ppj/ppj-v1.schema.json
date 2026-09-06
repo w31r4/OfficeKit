@@ -4648,6 +4648,19 @@
               ],
               "description": "How blank cells are plotted; a string grammar token must resolve to zero, gap, or span."
             },
+            "styleIndex": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 48
+                },
+                {
+                  "$ref": "#/$defs/grammarTokenRef"
+                }
+              ],
+              "description": "Built-in native ChartML style index; a size grammar token must resolve to an integer from 1 through 48. It applies only to bounded native ChartPart charts."
+            },
             "style": {
               "$ref": "#/$defs/chartStyle"
             },

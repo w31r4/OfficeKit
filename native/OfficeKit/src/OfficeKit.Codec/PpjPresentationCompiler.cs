@@ -2456,7 +2456,7 @@ internal static class PpjSourceBoundPresentationCompiler
     {
         RequireEqualExcept(before.Raw, after.Raw, path,
             "role", "tags", "hidden", "locked", "frame", "title", "data", "style",
-            "titlePlacement", "displayBlanksAs", "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis", "spokeAxis", "accessibility");
+            "titlePlacement", "displayBlanksAs", "styleIndex", "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis", "spokeAxis", "accessibility");
         var changed = ApplyFrame(before, after, target, path);
         if (PropertyChanged(before.Raw, after.Raw, "displayBlanksAs"))
         {
@@ -2469,6 +2469,15 @@ internal static class PpjSourceBoundPresentationCompiler
                     "zero", "gap", "span");
             else
                 target.ClearDisplayBlanksAs();
+            changed = true;
+        }
+        if (PropertyChanged(before.Raw, after.Raw, "styleIndex"))
+        {
+            RequireCapability(after, "setChartPlot", path + ".styleIndex");
+            if (after.Raw.TryGetProperty("styleIndex", out var styleIndex))
+                target.StyleIndex = ResolveGrammarIntegerToken(program.Root, styleIndex, path + ".styleIndex", 1, 48);
+            else
+                target.ClearStyleIndex();
             changed = true;
         }
         if (PropertyChanged(before.Raw, after.Raw, "title"))

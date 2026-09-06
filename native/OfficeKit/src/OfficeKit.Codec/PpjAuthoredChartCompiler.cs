@@ -69,6 +69,8 @@ internal static partial class PpjAuthoredPresentationCompiler
         };
         if (raw.TryGetProperty("titlePlacement", out var titlePlacement))
             chart.TitlePlacement = ChartEnumToken(titlePlacement, catalog, "chart titlePlacement", "none", "aboveChart", "centeredOverlay");
+        if (raw.TryGetProperty("styleIndex", out var styleIndex))
+            chart.StyleIndex = ChartIntegerToken(styleIndex, catalog, "chart styleIndex", 1, 48);
         if (BuildFrameTransform(element.Frame) is { } frameTransform) chart.FrameTransform = frameTransform;
         chart.Categories.Add(element.Data.Categories.Select(CategoryText));
         if (raw.TryGetProperty("displayBlanksAs", out var displayBlanksAs))

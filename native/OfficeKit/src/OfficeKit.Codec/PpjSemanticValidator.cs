@@ -1161,6 +1161,26 @@ internal static class PpjSemanticValidator
                     "displayBlanksAs must be zero, gap, or span.",
                     path + ".displayBlanksAs"));
         }
+        if (chart.Raw.TryGetProperty("styleIndex", out var styleIndex))
+        {
+            var supportsNativeStyle = chart.ChartType is "bar" or "column" or "line" or "area" or "pie" or "doughnut" or "scatter" or "bubble" or "radar" or "combo" or "waterfall";
+            if (!supportsNativeStyle || numericCombo)
+                diagnostics.Add(new(
+                    "ppj.chart.styleIndexType",
+                    "styleIndex applies only to bounded native ChartPart charts.",
+                    path + ".styleIndex"));
+            else if (styleIndex.ValueKind == JsonValueKind.Number &&
+                     (!styleIndex.TryGetInt32(out var value) || value is < 1 or > 48))
+                diagnostics.Add(new(
+                    "ppj.chart.styleIndexValue",
+                    "styleIndex must be an integer from 1 through 48.",
+                    path + ".styleIndex"));
+            else if (styleIndex.ValueKind is not (JsonValueKind.Number or JsonValueKind.Object))
+                diagnostics.Add(new(
+                    "ppj.chart.styleIndexValue",
+                    "styleIndex must be an integer or a size grammar token reference.",
+                    path + ".styleIndex"));
+        }
         if (chart.Raw.TryGetProperty("style", out var plotAreaStyle) &&
             plotAreaStyle.TryGetProperty("plotAreaLine", out _))
         {

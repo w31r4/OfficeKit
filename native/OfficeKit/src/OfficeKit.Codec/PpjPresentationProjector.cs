@@ -1029,6 +1029,7 @@ internal static partial class PpjPresentationProjector
                 ? chart.TitlePlacement
                 : "aboveChart");
         if (chart.HasDisplayBlanksAs) output["displayBlanksAs"] = StringNode(chart.DisplayBlanksAs);
+        if (chart.HasStyleIndex) output["styleIndex"] = JsonValue.Create(chart.StyleIndex);
         var categories = new JsonArray();
         foreach (var value in chart.Categories) categories.Add(StringNode(value));
         var seriesJson = new JsonArray();

@@ -33,6 +33,8 @@ internal static class OpenXmlChartSpaceCodec
         var nativeChart = root?.Element(ChartNs + "chart");
         var plotArea = nativeChart?.Element(ChartNs + "plotArea");
         if (root?.Name != ChartNs + "chartSpace" || nativeChart is null || plotArea is null || root.Element(ChartNs + "externalData") is not null) return false;
+        if (!TryReadStyleIndex(root, out var hasStyleIndex, out var styleIndex)) editable = false;
+        else if (hasStyleIndex) chart.StyleIndex = styleIndex;
         var plots = plotArea.Elements().Where(item => item.Name == ChartNs + "barChart" || item.Name == ChartNs + "lineChart" || item.Name == ChartNs + "pieChart" || item.Name == ChartNs + "areaChart" || item.Name == ChartNs + "doughnutChart" || item.Name == ChartNs + "scatterChart" || item.Name == ChartNs + "bubbleChart" || item.Name == ChartNs + "radarChart").ToArray();
         if (plots.Length != 1 || plotArea.Elements().Any(item => item.Name.LocalName.EndsWith("Chart", StringComparison.Ordinal) && !plots.Contains(item))) return false;
         var plot = plots[0];
@@ -134,7 +136,7 @@ internal static class OpenXmlChartSpaceCodec
         nativeChart.Add(new XElement(ChartNs + "plotVisOnly", new XAttribute("val", "1")));
         if (chart.HasDisplayBlanksAs)
             nativeChart.Add(new XElement(ChartNs + "dispBlanksAs", new XAttribute("val", DisplayBlanksAsToken(chart.DisplayBlanksAs))));
-        var chartSpace = new XElement(ChartNs + "chartSpace", new XAttribute(XNamespace.Xmlns + "c", ChartNs), new XAttribute(XNamespace.Xmlns + "a", DrawingNs), nativeChart);
+        var chartSpace = new XElement(ChartNs + "chartSpace", new XAttribute(XNamespace.Xmlns + "c", ChartNs), new XAttribute(XNamespace.Xmlns + "a", DrawingNs), chart.HasStyleIndex ? new XElement(ChartNs + "style", new XAttribute("val", chart.StyleIndex.ToString(CultureInfo.InvariantCulture))) : null, nativeChart);
         if (XlsxChartSurfaceFillCodec.Element(chart.ChartAreaFill, "Chart area") is { } chartFill) chartSpace.Add(chartFill);
         return new XDocument(new XDeclaration("1.0", "UTF-8", "yes"), chartSpace);
     }
@@ -148,6 +150,7 @@ internal static class OpenXmlChartSpaceCodec
         bool allowChartFrameDecorations = false)
     {
         var nativeChart = document.Root?.Element(ChartNs + "chart") ?? throw Topology(errorCode, subject, "is missing c:chart");
+        PatchStyleIndex(document.Root!, target.HasStyleIndex, target.StyleIndex, errorCode, subject);
         if (patchTitle) PatchTitle(nativeChart, target.Title, target.TitleTextStyle, target.HasTitlePlacement ? target.TitlePlacement : string.Empty, errorCode, subject);
         PatchLegend(nativeChart, target.HasLegend, target.LegendPosition, target.LegendTextStyle, target.HasLegendOverlay, target.LegendOverlay, target.LegendFill, target.LegendLine);
         PatchDisplayBlanksAs(nativeChart, target.HasDisplayBlanksAs, target.DisplayBlanksAs, errorCode, subject);
@@ -442,6 +445,34 @@ internal static class OpenXmlChartSpaceCodec
 
     internal static bool TryReadDisplayBlanksAs(XElement nativeChart, out string? value) =>
         TryScalar(nativeChart, "dispBlanksAs", DisplayBlanksAsValues, required: false, out value);
+
+    internal static bool TryReadStyleIndex(XElement chartSpace, out bool present, out uint value) =>
+        TryOptionalUInt(chartSpace, "style", 1, 48, out present, out value);
+
+    internal static void PatchStyleIndex(
+        XElement chartSpace,
+        bool present,
+        uint value,
+        string errorCode,
+        string subject)
+    {
+        var existing = chartSpace.Element(ChartNs + "style");
+        if (!present)
+        {
+            existing?.Remove();
+            return;
+        }
+        if (existing is not null && (!TryReadStyleIndex(chartSpace, out var existingPresent, out _) || !existingPresent))
+            throw Topology(errorCode, subject, "has an invalid c:style");
+        var replacement = new XElement(ChartNs + "style", new XAttribute("val", value.ToString(CultureInfo.InvariantCulture)));
+        if (existing is not null)
+        {
+            existing.ReplaceWith(replacement);
+            return;
+        }
+        var nativeChart = chartSpace.Element(ChartNs + "chart") ?? throw Topology(errorCode, subject, "is missing c:chart");
+        nativeChart.AddBeforeSelf(replacement);
+    }
 
     internal static void PatchDisplayBlanksAs(
         XElement nativeChart,
