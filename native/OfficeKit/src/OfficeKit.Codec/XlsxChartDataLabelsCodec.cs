@@ -35,6 +35,7 @@ internal static class XlsxChartDataLabelsCodec
             SpreadsheetChartDataLabelPosition.OutsideEnd or SpreadsheetChartDataLabelPosition.Right or
             SpreadsheetChartDataLabelPosition.Top))
             throw new CodecException("invalid_spreadsheet_chart", $"Worksheet {worksheetId} chart {chart.Id} data-label position is unsupported.");
+        XlsxChartSurfaceFillCodec.Validate(chart.DataLabels?.Fill, $"Worksheet {worksheetId} chart {chart.Id} data-label fill");
         XlsxChartSeriesLineStyleCodec.ValidateLine(chart.DataLabels?.Line, worksheetId, chart.Id, "chart", "data-label line");
     }
 
@@ -102,8 +103,9 @@ internal static class XlsxChartDataLabelsCodec
             dataLabels.Position = position;
         }
         if (!XlsxChartTextStyleCodec.TryReadTextProperties(labels, out var textStyle) ||
-            !TryReadLineProperties(labels.Element(ChartNs + "spPr"), out var line)) return false;
+            !TryReadProperties(labels.Element(ChartNs + "spPr"), out var fill, out var line)) return false;
         if (textStyle is not null) dataLabels.TextStyle = textStyle;
+        if (fill is not null) dataLabels.Fill = fill;
         if (line is not null) dataLabels.Line = line;
         chart.DataLabels = dataLabels;
         return true;
@@ -112,7 +114,7 @@ internal static class XlsxChartDataLabelsCodec
     internal static XElement? Element(SpreadsheetChartDataLabelsArtifact? labels) => labels is null ? null :
         new XElement(ChartNs + "dLbls",
             labels.NumberFormatCode.Length == 0 ? null : NumberFormatElement(labels.NumberFormatCode),
-            labels.Line is null ? null : new XElement(ChartNs + "spPr", XlsxChartSeriesLineStyleCodec.Element(labels.Line)),
+            DataLabelPropertiesElement(labels.Fill, labels.Line),
             labels.TextStyle is null ? null : XlsxChartTextStyleCodec.TextPropertiesElement(labels.TextStyle),
             PositionElement(labels),
             BooleanElement("showVal", labels.ShowValue),
@@ -139,7 +141,7 @@ internal static class XlsxChartDataLabelsCodec
             }
             return;
         }
-        if (!TryReadLineProperties(existing.Element(ChartNs + "spPr"), out var currentLine))
+        if (!TryReadProperties(existing.Element(ChartNs + "spPr"), out var currentFill, out var currentLine))
             throw new CodecException("unsupported_chart_edit", "Chart data labels use an unmodeled shape-properties graph.");
         XlsxChartTextStyleCodec.PatchTextProperties(existing, labels.TextStyle, AllowedChildren);
         PatchNumberFormat(existing, labels.NumberFormatCode);
@@ -159,38 +161,67 @@ internal static class XlsxChartDataLabelsCodec
         PatchOptionalBoolean(existing, "showPercent", labels.HasShowPercent ? labels.ShowPercent : null);
         PatchOptionalBoolean(existing, "showBubbleSize", labels.HasShowBubbleSize ? labels.ShowBubbleSize : null);
         PatchOptionalBoolean(existing, "showLeaderLines", labels.HasShowLeaderLines ? labels.ShowLeaderLines : null);
-        PatchLineProperties(existing, currentLine, labels.Line);
+        PatchProperties(existing, currentFill, currentLine, labels.Fill, labels.Line);
     }
 
     internal static string Semantics(SpreadsheetChartDataLabelsArtifact? labels) => labels is null
         ? "-"
-        : $"value:{(labels.ShowValue ? 1 : 0)};category:{(labels.ShowCategoryName ? 1 : 0)};series:{(labels.HasShowSeriesName ? labels.ShowSeriesName ? "1" : "0" : "-")};percent:{(labels.HasShowPercent ? labels.ShowPercent ? "1" : "0" : "-")};bubbleSize:{(labels.HasShowBubbleSize ? labels.ShowBubbleSize ? "1" : "0" : "-")};leaderLines:{(labels.HasShowLeaderLines ? labels.ShowLeaderLines ? "1" : "0" : "-")};position:{(labels.HasPosition ? PositionValue(labels.Position) : "-")};format:{labels.NumberFormatCode};text:{XlsxChartTextStyleCodec.Semantics(labels.TextStyle)};line:{XlsxChartSeriesLineStyleCodec.Semantics(labels.Line)}";
+        : $"value:{(labels.ShowValue ? 1 : 0)};category:{(labels.ShowCategoryName ? 1 : 0)};series:{(labels.HasShowSeriesName ? labels.ShowSeriesName ? "1" : "0" : "-")};percent:{(labels.HasShowPercent ? labels.ShowPercent ? "1" : "0" : "-")};bubbleSize:{(labels.HasShowBubbleSize ? labels.ShowBubbleSize ? "1" : "0" : "-")};leaderLines:{(labels.HasShowLeaderLines ? labels.ShowLeaderLines ? "1" : "0" : "-")};position:{(labels.HasPosition ? PositionValue(labels.Position) : "-")};format:{labels.NumberFormatCode};text:{XlsxChartTextStyleCodec.Semantics(labels.TextStyle)};fill:{XlsxChartSurfaceFillCodec.Semantics(labels.Fill)};line:{XlsxChartSeriesLineStyleCodec.Semantics(labels.Line)}";
 
-    private static bool TryReadLineProperties(
+    private static XElement? DataLabelPropertiesElement(
+        SpreadsheetChartSurfaceFill? fill,
+        SpreadsheetChartLineStyleArtifact? line)
+    {
+        if (fill is null && line is null) return null;
+        return new XElement(
+            ChartNs + "spPr",
+            fill is null ? null : XlsxChartSurfaceFillCodec.PaintElement(fill, "Chart data labels"),
+            line is null ? null : XlsxChartSeriesLineStyleCodec.Element(line));
+    }
+
+    private static bool TryReadProperties(
         XElement? properties,
+        out SpreadsheetChartSurfaceFill? fill,
         out SpreadsheetChartLineStyleArtifact? line)
     {
+        fill = null;
         line = null;
         if (properties is null) return true;
         if (properties.HasAttributes) return false;
         var children = properties.Elements().ToArray();
-        if (children.Length != 1 || children[0].Name != DrawingNs + "ln") return false;
-        return XlsxChartSeriesLineStyleCodec.TryReadLine(properties, out line);
+        if (children.Length == 0 ||
+            children.Any(child => child.Name != DrawingNs + "noFill" &&
+                                  child.Name != DrawingNs + "solidFill" &&
+                                  child.Name != DrawingNs + "gradFill" &&
+                                  child.Name != DrawingNs + "ln") ||
+            children.Count(child => child.Name == DrawingNs + "noFill" ||
+                                   child.Name == DrawingNs + "solidFill" ||
+                                   child.Name == DrawingNs + "gradFill") > 1 ||
+            children.Count(child => child.Name == DrawingNs + "ln") > 1)
+            return false;
+        var paint = children.FirstOrDefault(child => child.Name == DrawingNs + "noFill" ||
+                                                     child.Name == DrawingNs + "solidFill" ||
+                                                     child.Name == DrawingNs + "gradFill");
+        if (!XlsxChartSurfaceFillCodec.TryReadPaint(paint, out fill) ||
+            !XlsxChartSeriesLineStyleCodec.TryReadLine(properties, out line)) return false;
+        return true;
     }
 
-    private static void PatchLineProperties(
+    private static void PatchProperties(
         XElement labels,
-        SpreadsheetChartLineStyleArtifact? current,
-        SpreadsheetChartLineStyleArtifact? target)
+        SpreadsheetChartSurfaceFill? currentFill,
+        SpreadsheetChartLineStyleArtifact? currentLine,
+        SpreadsheetChartSurfaceFill? targetFill,
+        SpreadsheetChartLineStyleArtifact? targetLine)
     {
-        if (XlsxChartSeriesLineStyleCodec.Semantics(current) == XlsxChartSeriesLineStyleCodec.Semantics(target)) return;
+        if (DataLabelPropertiesSemantics(currentFill, currentLine) == DataLabelPropertiesSemantics(targetFill, targetLine)) return;
         var existing = labels.Element(ChartNs + "spPr");
-        if (target is null)
+        var replacement = DataLabelPropertiesElement(targetFill, targetLine);
+        if (replacement is null)
         {
             existing?.Remove();
             return;
         }
-        var replacement = new XElement(ChartNs + "spPr", XlsxChartSeriesLineStyleCodec.Element(target));
         if (existing is not null)
         {
             existing.ReplaceWith(replacement);
@@ -201,6 +232,11 @@ internal static class XlsxChartDataLabelsCodec
         if (next is null) labels.Add(replacement);
         else next.AddBeforeSelf(replacement);
     }
+
+    private static string DataLabelPropertiesSemantics(
+        SpreadsheetChartSurfaceFill? fill,
+        SpreadsheetChartLineStyleArtifact? line) =>
+        string.Join('\0', XlsxChartSurfaceFillCodec.Semantics(fill), XlsxChartSeriesLineStyleCodec.Semantics(line));
 
     private static void PatchNumberFormat(XElement labels, string code)
     {

@@ -3209,6 +3209,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             if (dataLabels.TryGetProperty("textStyle", out var textStyle))
                 chart.DataLabels.TextStyle = BuildChartTextStyle(
                     "chart.dataLabels.textStyle", element, inline, named, textStyle, catalog);
+            if (dataLabels.TryGetProperty("fill", out var fill))
+                chart.DataLabels.Fill = BuildChartSurfaceFill(fill, catalog, "chart dataLabels fill");
             if (dataLabels.TryGetProperty("line", out var line))
                 chart.DataLabels.Line = ChartCompiler.BuildChartLine(line, catalog);
         }

@@ -4804,6 +4804,9 @@ message SpreadsheetChartDataLabelsArtifact {
   // Bounded direct plot-level c:dLbls/c:spPr/a:ln outline. Data-label fill
   // and richer shape/effect graphs remain source-owned.
   SpreadsheetChartLineStyleArtifact line = 10;
+  // Bounded direct plot-level c:dLbls/c:spPr paint. Richer fill/effect graphs
+  // remain source-owned.
+  SpreadsheetChartSurfaceFill fill = 11;
 }
 
 // Presence-aware fields that inherit from the containing series/plot when

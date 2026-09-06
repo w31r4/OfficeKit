@@ -6434,6 +6434,10 @@
         "textStyle": {
           "$ref": "#/$defs/chartTextStyle"
         },
+        "fill": {
+          "$ref": "#/$defs/fill",
+          "description": "Bounded direct data-label surface paint; none, solid RGB, or literal gradient is emitted as c:dLbls/c:spPr."
+        },
         "line": {
           "$ref": "#/$defs/stroke",
           "description": "Bounded direct data-label outline; color, width, and dash are emitted as c:dLbls/c:spPr/a:ln."
