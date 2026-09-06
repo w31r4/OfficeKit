@@ -1983,6 +1983,7 @@
               "chart.title",
               "chart.data",
               "chart.textStyle",
+              "chart.fontFamily",
               "chart.fill",
               "chart.legendFill",
               "chart.data.series[].stroke",
