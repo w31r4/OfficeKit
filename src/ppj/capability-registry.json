@@ -179,6 +179,13 @@
       "reason": "PPJ owns the Kimi `ChartConfig.styleIndex` field through OfficeKit's bounded 1 through 48 native chart-style profile. Vector-lowered and advanced chart families, invalid style topology, and unsupported native chart content remain source-owned and fail closed."
     },
     {
+      "feature": "native chart data table",
+      "ppjPath": "pages[].elements[].dataTable",
+      "behavior": "partial",
+      "sourceBound": "Recognized ordinary and combo ChartParts project `dataTable` from the direct c:plotArea/c:dTable container. A source-bound setChartPlot edit changes only the target ChartPart and reprojects the bounded table state.",
+      "reason": "PPJ owns the Kimi `ChartConfig.dataTable` profile: four presence-aware border/key flags, direct none/solid/gradient fill, and direct RGB/preset-dash stroke. Text-property and extension children, theme/effect paint graphs, unsupported chart families, and irregular c:dTable topology remain source-owned and fail closed."
+    },
+    {
       "feature": "native sparse chart point styles",
       "ppjPath": "pages[].elements[].data.series[].pointStyles",
       "behavior": "partial",
