@@ -110,8 +110,9 @@ The authored chart compiler owns these native visual controls:
 - chart-level blank-cell policy through `displayBlanksAs`: `zero`, `gap`, or
   `span`, with optional string grammar-token resolution;
 - bar direction, gap width, category/value-axis visibility, major and minor gridlines,
-  data-label visibility, bounded label position, and direct RGB data-label outline
-  with bounded width, dash, opacity, cap, and join;
+  data-label visibility, bounded label position, none/solid/gradient data-label
+  surface paint, and direct RGB data-label outline with bounded width, dash,
+  opacity, cap, and join;
 - presence-aware axis reversal plus direct RGB/no-fill axis and major/minor-grid
   lines with bounded width, dash, opacity, cap, and join;
 - chart-area, plot-area, and series none, solid, or bounded direct-RGB gradient
