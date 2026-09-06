@@ -172,6 +172,13 @@
       "reason": "PPJ owns direct RGB color, finite width, and preset dash values for the plot-area outline while preserving the sibling plot-area fill in the shared shape-properties container. Theme/effect line graphs, vector fallback, unsupported chart families, and irregular shape-properties topology remain source-owned and fail closed."
     },
     {
+      "feature": "native chart style index",
+      "ppjPath": "pages[].elements[].styleIndex",
+      "behavior": "partial",
+      "sourceBound": "Recognized ordinary and combo ChartParts project `styleIndex` from the direct c:style/@val built-in style index. A source-bound setChartPlot edit changes only the target ChartPart and reprojects the bounded index.",
+      "reason": "PPJ owns the Kimi `ChartConfig.styleIndex` field through OfficeKit's bounded 1 through 48 native chart-style profile. Vector-lowered and advanced chart families, invalid style topology, and unsupported native chart content remain source-owned and fail closed."
+    },
+    {
       "feature": "native sparse chart point styles",
       "ppjPath": "pages[].elements[].data.series[].pointStyles",
       "behavior": "partial",
