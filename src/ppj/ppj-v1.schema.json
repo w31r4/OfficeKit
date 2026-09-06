@@ -3502,7 +3502,7 @@
         },
         "automatic": {
           "type": "boolean",
-          "description": "Whether this is a bounded automatic field. The current profile supports type slidenum, which refreshes from the owning slide number, and types datetime, datetime1, datetime2, datetime3, and datetime4, which preserve their cached display for the host to refresh. datetime1 requests MM/DD/YYYY, datetime2 requests Day, Month DD, YYYY, datetime3 requests DD Month YYYY, and datetime4 requests Month DD, YYYY."
+          "description": "Whether this is a bounded automatic field. The current profile supports type slidenum, which refreshes from the owning slide number, and types datetime, datetime1, datetime2, datetime3, datetime4, and datetime5, which preserve their cached display for the host to refresh. datetime1 requests MM/DD/YYYY, datetime2 requests Day, Month DD, YYYY, datetime3 requests DD Month YYYY, datetime4 requests Month DD, YYYY, and datetime5 requests DD-Mon-YY."
         }
       }
     },
