@@ -165,6 +165,13 @@
       "reason": "PPJ owns the bounded Kimi titlePlacement enum: no title maps to none, the native above-chart default maps to aboveChart, and c:overlay val=1 maps to centeredOverlay. Formula-backed titles, title hyperlinks, WordArt, unsupported chart families, and irregular title topology remain source-owned and fail closed."
     },
     {
+      "feature": "native chart plot-area line",
+      "ppjPath": "pages[].elements[].style.plotAreaLine",
+      "behavior": "partial",
+      "sourceBound": "Recognized ordinary and combo ChartParts project `style.plotAreaLine` from the direct c:plotArea/c:spPr/a:ln outline. A source-bound setChartPlot edit changes only the target ChartPart and reprojects the bounded outline.",
+      "reason": "PPJ owns direct RGB color, finite width, and preset dash values for the plot-area outline while preserving the sibling plot-area fill in the shared shape-properties container. Theme/effect line graphs, vector fallback, unsupported chart families, and irregular shape-properties topology remain source-owned and fail closed."
+    },
+    {
       "feature": "native sparse chart point styles",
       "ppjPath": "pages[].elements[].data.series[].pointStyles",
       "behavior": "partial",
