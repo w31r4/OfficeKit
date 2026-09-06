@@ -98,8 +98,8 @@ The authored chart compiler owns these native visual controls:
   columns, bounded vector treemap, bounded vector sunburst, bounded vector
   sankey, bounded column-line-area category combo plots, and bounded editable
   scatter/bubble plus line/area/column numeric overlays;
-- legend visibility, top, top-right, bottom, left, or right placement, and
-  bounded overlay state;
+- legend visibility, top, top-right, bottom, left, or right placement, bounded
+  overlay state, and bounded none/solid/gradient legend fill;
 - ordinary, stacked, and percent-stacked grouping where the chart family
   supports it;
 - pie/doughnut first-slice orientation from 0 through 360 degrees and

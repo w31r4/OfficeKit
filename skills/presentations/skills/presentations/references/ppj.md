@@ -2303,6 +2303,7 @@ array of `number`.
 | --- | --- | --- | --- |
 | `legend` | no | `"none"` | `"top"` | `"bottom"` | `"left"` | `"right"` | `"topRight"` or `grammarTokenRef` | Chart legend placement; a string grammar token is resolved and checked against the bounded placements. |
 | `legendOverlay` | no | `booleanOrToken` | Whether the chart legend may overlay the plot; a boolean grammar token is resolved and preserved as c:legend/c:overlay. |
+| `legendFill` | no | `fill` | Bounded none, solid RGB, or literal gradient paint emitted as c:legend/c:spPr. |
 | `stacking` | no | `"none"` | `"stacked"` | `"percent-stacked"` | `"stream"` or `grammarTokenRef` | Chart stacking mode; a string grammar token is resolved and checked against the bounded modes. |
 | `gapWidth` | no | `integer` or `grammarTokenRef` | Column gap width; a size grammar token must resolve to a bounded integer. |
 | `startAngle` | no | `integer` or `grammarTokenRef` | First pie/doughnut slice angle; a size grammar token must resolve to a bounded integer. |
