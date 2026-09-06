@@ -3630,7 +3630,8 @@ message PresentationTextField {
   string text = 3;
   // A bounded automatic field identifies a host-refreshable field. The
   // current profile refreshes type "slidenum" from the owning slide number;
-  // type "datetime" preserves its cached display for the host to refresh.
+  // types "datetime" and "datetime1" preserve their cached display for the
+  // host to refresh. "datetime1" requests the host's MM/DD/YYYY format.
   // Other field types remain cached values.
   optional bool automatic = 4;
 }
