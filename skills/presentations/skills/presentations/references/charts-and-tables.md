@@ -99,7 +99,8 @@ The authored chart compiler owns these native visual controls:
   sankey, bounded column-line-area category combo plots, and bounded editable
   scatter/bubble plus line/area/column numeric overlays;
 - legend visibility, top, top-right, bottom, left, or right placement, bounded
-  overlay state, and bounded none/solid/gradient legend fill;
+  overlay state, none/solid/gradient legend fill, and direct RGB legend outline
+  with bounded width, dash, opacity, cap, and join;
 - ordinary, stacked, and percent-stacked grouping where the chart family
   supports it;
 - pie/doughnut first-slice orientation from 0 through 360 degrees and
