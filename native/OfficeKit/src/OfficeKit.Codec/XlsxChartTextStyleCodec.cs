@@ -161,13 +161,15 @@ internal static class XlsxChartTextStyleCodec
     {
         if (style is null) return;
         if (!style.HasFontSizePoints && style.FontFamily.Length == 0 && style.FontFamilyEastAsia.Length == 0 && style.FontFamilyComplexScript.Length == 0 &&
-            !style.HasBold && !style.HasItalic && style.ColorRgb.Length == 0 && !style.HasOpacityThousandthPercent)
+            !style.HasBold && !style.HasItalic && style.Underline.Length == 0 && style.ColorRgb.Length == 0 && !style.HasOpacityThousandthPercent)
             throw Invalid(worksheetId, chartId, $"{field} must declare at least one bounded property.");
         if (style.HasFontSizePoints && (!double.IsFinite(style.FontSizePoints) || style.FontSizePoints < MinimumFontSizePoints || style.FontSizePoints > MaximumFontSizePoints))
             throw Invalid(worksheetId, chartId, $"{field}.font_size_points must be from 1 through 4000.");
         ValidateTypeface(style.FontFamily, worksheetId, chartId, field + ".font_family");
         ValidateTypeface(style.FontFamilyEastAsia, worksheetId, chartId, field + ".font_family_east_asia");
         ValidateTypeface(style.FontFamilyComplexScript, worksheetId, chartId, field + ".font_family_complex_script");
+        if (style.Underline.Length > 0 && !UnderlineValues.Contains(style.Underline))
+            throw Invalid(worksheetId, chartId, $"{field}.underline must be a bounded DrawingML underline token.");
         if (style.ColorRgb.Length > 0 && (style.ColorRgb.Length != 6 || !style.ColorRgb.All(Uri.IsHexDigit)))
             throw Invalid(worksheetId, chartId, $"{field}.color_rgb must be a six-digit RGB color.");
         if (style.HasOpacityThousandthPercent && (style.ColorRgb.Length == 0 || style.OpacityThousandthPercent > 100_000))
