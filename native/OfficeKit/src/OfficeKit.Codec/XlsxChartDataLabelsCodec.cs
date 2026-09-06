@@ -6,13 +6,14 @@ namespace OfficeKit.Codec;
 // Owns one plot-level c:dLbls container with optional c:dLblPos plus direct
 // c:showVal/c:showCatName booleans plus presence-aware c:showSerName.
 // Percentage visibility is presence-aware for circular-chart labels; bubble-
-// size visibility is presence-aware for bubble charts. The remaining
+// size visibility is presence-aware for bubble charts. Leader-line visibility
+// is presence-aware without claiming ownership of leader-line geometry. The remaining
 // unsupported standard show flags are accepted only when false and retained
 // during another bounded edit.
 internal static class XlsxChartDataLabelsCodec
 {
     private static readonly XNamespace ChartNs = "http://schemas.openxmlformats.org/drawingml/2006/chart";
-    private static readonly string[] OrderedFlags = ["showLegendKey", "showVal", "showCatName", "showSerName", "showPercent", "showBubbleSize"];
+    private static readonly string[] OrderedFlags = ["showLegendKey", "showVal", "showCatName", "showSerName", "showPercent", "showBubbleSize", "showLeaderLines"];
     private static readonly HashSet<string> AllowedChildren = new(["numFmt", "txPr", "dLblPos", .. OrderedFlags], StringComparer.Ordinal);
     private static readonly HashSet<string> BooleanValues = new(StringComparer.Ordinal) { "0", "1", "false", "true" };
     private static readonly HashSet<string> PositionValues = new(StringComparer.Ordinal) { "bestFit", "b", "ctr", "inBase", "inEnd", "l", "outEnd", "r", "t" };
@@ -48,7 +49,7 @@ internal static class XlsxChartDataLabelsCodec
         var showValue = children.SingleOrDefault(child => child.Name == ChartNs + "showVal");
         var showCategoryName = children.SingleOrDefault(child => child.Name == ChartNs + "showCatName");
         if (!TryBoolean(showValue, out var value) || !TryBoolean(showCategoryName, out var categoryName)) return false;
-        foreach (var name in OrderedFlags.Where(name => name is not "showVal" and not "showCatName" and not "showSerName" and not "showPercent" and not "showBubbleSize"))
+        foreach (var name in OrderedFlags.Where(name => name is not "showVal" and not "showCatName" and not "showSerName" and not "showPercent" and not "showBubbleSize" and not "showLeaderLines"))
         {
             var element = children.SingleOrDefault(child => child.Name == ChartNs + name);
             if (element is not null && (!TryBoolean(element, out var enabled) || enabled)) return false;
@@ -86,6 +87,12 @@ internal static class XlsxChartDataLabelsCodec
             if (bubbleSize && chart.Type != SpreadsheetChartType.Bubble) return false;
             dataLabels.ShowBubbleSize = bubbleSize;
         }
+        var showLeaderLines = children.SingleOrDefault(child => child.Name == ChartNs + "showLeaderLines");
+        if (showLeaderLines is not null)
+        {
+            if (!TryBoolean(showLeaderLines, out var leaderLines)) return false;
+            dataLabels.ShowLeaderLines = leaderLines;
+        }
         var nativePosition = children.SingleOrDefault(child => child.Name == ChartNs + "dLblPos");
         if (nativePosition is not null)
         {
@@ -107,7 +114,8 @@ internal static class XlsxChartDataLabelsCodec
             BooleanElement("showCatName", labels.ShowCategoryName),
             labels.HasShowSeriesName ? BooleanElement("showSerName", labels.ShowSeriesName) : null,
             labels.HasShowPercent ? BooleanElement("showPercent", labels.ShowPercent) : null,
-            labels.HasShowBubbleSize ? BooleanElement("showBubbleSize", labels.ShowBubbleSize) : null);
+            labels.HasShowBubbleSize ? BooleanElement("showBubbleSize", labels.ShowBubbleSize) : null,
+            labels.HasShowLeaderLines ? BooleanElement("showLeaderLines", labels.ShowLeaderLines) : null);
 
     internal static void Patch(XElement plot, SpreadsheetChartDataLabelsArtifact? labels)
     {
@@ -143,11 +151,12 @@ internal static class XlsxChartDataLabelsCodec
         PatchOptionalBoolean(existing, "showSerName", labels.HasShowSeriesName ? labels.ShowSeriesName : null);
         PatchOptionalBoolean(existing, "showPercent", labels.HasShowPercent ? labels.ShowPercent : null);
         PatchOptionalBoolean(existing, "showBubbleSize", labels.HasShowBubbleSize ? labels.ShowBubbleSize : null);
+        PatchOptionalBoolean(existing, "showLeaderLines", labels.HasShowLeaderLines ? labels.ShowLeaderLines : null);
     }
 
     internal static string Semantics(SpreadsheetChartDataLabelsArtifact? labels) => labels is null
         ? "-"
-        : $"value:{(labels.ShowValue ? 1 : 0)};category:{(labels.ShowCategoryName ? 1 : 0)};series:{(labels.HasShowSeriesName ? labels.ShowSeriesName ? "1" : "0" : "-")};percent:{(labels.HasShowPercent ? labels.ShowPercent ? "1" : "0" : "-")};bubbleSize:{(labels.HasShowBubbleSize ? labels.ShowBubbleSize ? "1" : "0" : "-")};position:{(labels.HasPosition ? PositionValue(labels.Position) : "-")};format:{labels.NumberFormatCode};text:{XlsxChartTextStyleCodec.Semantics(labels.TextStyle)}";
+        : $"value:{(labels.ShowValue ? 1 : 0)};category:{(labels.ShowCategoryName ? 1 : 0)};series:{(labels.HasShowSeriesName ? labels.ShowSeriesName ? "1" : "0" : "-")};percent:{(labels.HasShowPercent ? labels.ShowPercent ? "1" : "0" : "-")};bubbleSize:{(labels.HasShowBubbleSize ? labels.ShowBubbleSize ? "1" : "0" : "-")};leaderLines:{(labels.HasShowLeaderLines ? labels.ShowLeaderLines ? "1" : "0" : "-")};position:{(labels.HasPosition ? PositionValue(labels.Position) : "-")};format:{labels.NumberFormatCode};text:{XlsxChartTextStyleCodec.Semantics(labels.TextStyle)}";
 
     private static void PatchNumberFormat(XElement labels, string code)
     {

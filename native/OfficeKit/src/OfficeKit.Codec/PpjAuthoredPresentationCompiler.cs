@@ -3166,6 +3166,8 @@ internal static partial class PpjAuthoredPresentationCompiler
                 chart.DataLabels.ShowPercent = catalog.BooleanToken(showPercent, "boolean", "chart dataLabels showPercent");
             if (dataLabels.TryGetProperty("showBubbleSize", out var showBubbleSize))
                 chart.DataLabels.ShowBubbleSize = catalog.BooleanToken(showBubbleSize, "boolean", "chart dataLabels showBubbleSize");
+            if (dataLabels.TryGetProperty("showLeaderLines", out var showLeaderLines))
+                chart.DataLabels.ShowLeaderLines = catalog.BooleanToken(showLeaderLines, "boolean", "chart dataLabels showLeaderLines");
             if (dataLabels.TryGetProperty("position", out var position))
                 chart.DataLabels.Position = LabelPosition(ChartEnumToken(position, catalog, "chart dataLabels position",
                     "best-fit", "bottom", "center", "inside-base", "inside-end", "left", "outside-end", "right", "top"));

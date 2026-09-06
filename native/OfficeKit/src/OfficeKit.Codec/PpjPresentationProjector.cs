@@ -1154,6 +1154,7 @@ internal static partial class PpjPresentationProjector
             if (chart.DataLabels.HasShowSeriesName) labels["showSeries"] = JsonValue.Create(chart.DataLabels.ShowSeriesName);
             if (chart.DataLabels.HasShowPercent) labels["showPercent"] = JsonValue.Create(chart.DataLabels.ShowPercent);
             if (chart.DataLabels.HasShowBubbleSize) labels["showBubbleSize"] = JsonValue.Create(chart.DataLabels.ShowBubbleSize);
+            if (chart.DataLabels.HasShowLeaderLines) labels["showLeaderLines"] = JsonValue.Create(chart.DataLabels.ShowLeaderLines);
             if (chart.DataLabels.HasPosition && DataLabelPosition(chart.DataLabels.Position) is { } position)
                 labels["position"] = StringNode(position);
             if (chart.DataLabels.TextStyle is not null)
@@ -1372,6 +1373,7 @@ internal static partial class PpjPresentationProjector
         if (source.HasShowSeriesName) output["showSeries"] = JsonValue.Create(source.ShowSeriesName);
         if (source.HasShowPercent) output["showPercent"] = JsonValue.Create(source.ShowPercent);
         if (source.HasShowBubbleSize) output["showBubbleSize"] = JsonValue.Create(source.ShowBubbleSize);
+        if (source.HasShowLeaderLines) output["showLeaderLines"] = JsonValue.Create(source.ShowLeaderLines);
         if (source.HasPosition && DataLabelPosition(source.Position) is { } position) output["position"] = StringNode(position);
         if (source.TextStyle is not null) output["textStyle"] = ProjectChartTextStyle(source.TextStyle);
         if (source.NumberFormatCode.Length > 0) output["numberFormat"] = StringNode(source.NumberFormatCode);

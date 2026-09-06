@@ -4743,6 +4743,9 @@ message SpreadsheetChartDataLabelsArtifact {
   // Bubble charts may expose the native c:showBubbleSize label channel. The
   // optional wire field preserves explicit false separately from omission.
   optional bool show_bubble_size = 8;
+  // Native c:showLeaderLines visibility. Presence preserves an explicit
+  // false separately from omission; the leader-line geometry remains native.
+  optional bool show_leader_lines = 9;
   // Canonical plot-level c:dLbls/c:txPr typography. Per-point label runs and
   // effect-bearing text graphs remain source-owned.
   SpreadsheetChartTextStyleArtifact text_style = 6;
@@ -4762,6 +4765,8 @@ message SpreadsheetChartDataLabelOverrideArtifact {
   optional bool show_percent = 5;
   // Presence-aware c:showBubbleSize for bubble-series labels.
   optional bool show_bubble_size = 8;
+  // Presence-aware c:showLeaderLines for native label connectors.
+  optional bool show_leader_lines = 9;
   SpreadsheetChartTextStyleArtifact text_style = 6;
   string number_format_code = 7;
 }
