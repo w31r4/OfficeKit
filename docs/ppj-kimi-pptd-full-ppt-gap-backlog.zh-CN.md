@@ -232,6 +232,8 @@ PPJ 的固定数组对常见图表更安全，也更容易做 source-bound 依�
 
 **本轮点级数据标签填充增量（2026-09-07）：** Kimi 的 `dataLabelOverrides[].fill` 现在补齐为 PPJ `series[].dataLabels.points[].fill`；普通 native/combo ChartPart 的稀疏 `c:dLbl` 以直接 `c:spPr` 承载 bounded none、solid RGB 或 literal gradient paint，authored 与 source-bound 回投影恢复点级填充。source-bound 只改目标 ChartPart；point label line、图片/主题/效果图和复杂 label graph 继续 fail-closed。`PpjChartPointDataLabelFillAuthorAndEditSourceChart` 覆盖 authored → 去嵌入 → source-bound 修改 → 二次投影。
 
+**本轮点级数据标签轮廓增量（2026-09-07）：** Kimi 的 `dataLabelOverrides[].line` 现在补齐为 PPJ `series[].dataLabels.points[].line`；普通 native/combo ChartPart 的稀疏 `c:dLbl` 以直接 `c:spPr/a:ln` 承载 bounded RGB、宽度和预置虚线，并可与点级 fill 共存。source-bound 只改目标 ChartPart；自定义 line/effect graph、leader-line 几何和 vector fallback 继续 fail-closed。`PpjChartPointDataLabelLineAuthorAndEditSourceChart` 覆盖 authored → 去嵌入 → source-bound 修改 → 二次投影。
+
 **仍缺：**
 
 - source-bound 时可定位、可同步修改的 ChartPart/cache/workbook 二维 footprint（安全数字点通道已有独立双 footprint 叶子；series marker/stroke 则是 ChartPart-only 样式闭包）；
@@ -727,6 +729,8 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 **本轮补充（2026-09-07）：** Kimi 的 `ChartTextStyleConfig.fill` 现在补齐为 PPJ `chartTextStyle.fill`；普通 native/combo ChartPart 以标题、图例、数据标签、轴标题和刻度标签的直接 `a:noFill`、`a:solidFill` 或 literal `a:gradFill` 承载有界文字填充，authored 与 source-bound 回投影恢复该 paint。solid 输入继续兼容既有 `color` 投影，none/gradient 保留 `fill` 形状；source-bound 只改目标 ChartPart，图片、主题/效果图和未知 rich-text paint 图继续 fail-closed。`PpjChartTextFillAuthorAndEditSourceChart` 覆盖 authored → 去嵌入 → source-bound 修改 → 二次投影。
 
 **本轮点级数据标签填充增量（2026-09-07）：** Kimi 的 `dataLabelOverrides[].fill` 现在补齐为 PPJ `series[].dataLabels.points[].fill`；普通 native/combo ChartPart 的稀疏 `c:dLbl` 以直接 `c:spPr` 承载 bounded none、solid RGB 或 literal gradient paint，authored 与 source-bound 回投影恢复点级填充。source-bound 只改目标 ChartPart；point label line、图片/主题/效果图和复杂 label graph 继续 fail-closed。`PpjChartPointDataLabelFillAuthorAndEditSourceChart` 覆盖 authored → 去嵌入 → source-bound 修改 → 二次投影。
+
+**本轮点级数据标签轮廓增量（2026-09-07）：** Kimi 的 `dataLabelOverrides[].line` 现在补齐为 PPJ `series[].dataLabels.points[].line`；普通 native/combo ChartPart 的稀疏 `c:dLbl` 以直接 `c:spPr/a:ln` 承载 bounded RGB、宽度和预置虚线，并可与点级 fill 共存。source-bound 只改目标 ChartPart；自定义 line/effect graph、leader-line 几何和 vector fallback 继续 fail-closed。`PpjChartPointDataLabelLineAuthorAndEditSourceChart` 覆盖 authored → 去嵌入 → source-bound 修改 → 二次投影。
 
 **仍缺：** 通用 dataset/encode 的完整 13 类组合、图表容器 frame 的共享/外部 image relationship 治理与完整 effect graph、任意 ChartML extension、3D charts、stock/特殊 radar 变体、复杂 combo/多坐标轴、公式/链接工作簿的通用同步编辑（当前仅安全本地公式引用的 ChartPart-only profile）、图表 build 动画、自动标签布局和完整 number format/effect graph。
 

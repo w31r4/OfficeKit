@@ -369,6 +369,10 @@ Sparse series data-label points may also set bounded `fill` paint using `none`,
 a direct solid color, or a literal linear/radial gradient. Point label
 outlines and richer label/effect graphs remain source-owned.
 
+The same sparse series data-label points may set a bounded `line` using direct
+RGB color, width, and a preset dash. Custom outline/effect graphs and
+leader-line geometry remain source-owned.
+
 `smooth` preserves an explicit true or false native value. For line charts,
 `varyColors: true` authors one direct native color-variation flag and false is
 canonical omission. Bar/column charts and categorical combos preserve
