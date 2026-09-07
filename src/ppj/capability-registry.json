@@ -200,6 +200,13 @@
       "reason": "PPJ owns the Kimi `scatterOptions.varyColors` boolean through presence-aware direct `c:varyColors` true/false values. Combo charts, bubble/radar plots, vector fallback, non-marker numeric combos and irregular ChartML remain source-owned or fail closed."
     },
     {
+      "feature": "native area color variation",
+      "ppjPath": "pages[].elements[].style.varyColors",
+      "behavior": "partial",
+      "sourceBound": "Recognized imported ordinary area ChartParts project `style.varyColors` from direct c:areaChart/c:varyColors/@val. A source-bound setChartPlot edit changes only the target ChartPart and reprojects explicit true or false.",
+      "reason": "PPJ owns the Kimi `areaOptions.varyColors` boolean through presence-aware direct `c:varyColors` true/false values. Area combos without a column plot, vector fallback, advanced effects/extensions and irregular ChartML remain source-owned or fail closed."
+    },
+    {
       "feature": "native radar chart style",
       "ppjPath": "pages[].elements[].style.radarStyle",
       "behavior": "partial",
