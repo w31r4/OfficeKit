@@ -124,7 +124,7 @@ internal static class OpenXmlChartSpaceCodec
         {
             SpreadsheetChartType.Bar => new XElement(ChartNs + "barChart", new XElement(ChartNs + "barDir", new XAttribute("val", BarDirectionToken(chart.BarDirection))), new XElement(ChartNs + "grouping", new XAttribute("val", GroupingToken(chart.Grouping, clustered: true))), chart.HasVaryColors ? new XElement(ChartNs + "varyColors", new XAttribute("val", chart.VaryColors ? "1" : "0")) : null, series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), chart.HasGapWidth ? new XElement(ChartNs + "gapWidth", new XAttribute("val", chart.GapWidth)) : null, chart.HasOverlap ? new XElement(ChartNs + "overlap", new XAttribute("val", chart.Overlap)) : null, new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Line => new XElement(ChartNs + "lineChart", XlsxChartLineOptionsCodec.GroupingElement(LineOptions(chart)), XlsxChartLineOptionsCodec.VaryColorsElement(chart.LineOptions), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), XlsxChartLineOptionsCodec.SmoothElement(chart.LineOptions), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
-            SpreadsheetChartType.Area => new XElement(ChartNs + "areaChart", new XElement(ChartNs + "grouping", new XAttribute("val", GroupingToken(chart.Grouping, clustered: false))), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
+            SpreadsheetChartType.Area => new XElement(ChartNs + "areaChart", new XElement(ChartNs + "grouping", new XAttribute("val", GroupingToken(chart.Grouping, clustered: false))), chart.HasVaryColors ? new XElement(ChartNs + "varyColors", new XAttribute("val", chart.VaryColors ? "1" : "0")) : null, series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Doughnut => new XElement(ChartNs + "doughnutChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "1")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "firstSliceAng", new XAttribute("val", chart.HasFirstSliceAngle ? chart.FirstSliceAngle : 0U)), new XElement(ChartNs + "holeSize", new XAttribute("val", chart.HasDoughnutHoleSize ? chart.DoughnutHoleSize : 50U))),
             SpreadsheetChartType.Scatter => new XElement(ChartNs + "scatterChart", new XElement(ChartNs + "scatterStyle", new XAttribute("val", ScatterStyleToken(chart.ScatterStyle))), chart.HasVaryColors ? new XElement(ChartNs + "varyColors", new XAttribute("val", chart.VaryColors ? "1" : "0")) : null, series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Bubble => new XElement(ChartNs + "bubbleChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "0")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "bubble3D", new XAttribute("val", "0")), new XElement(ChartNs + "bubbleScale", new XAttribute("val", chart.HasBubbleScale ? chart.BubbleScale : 100U)), new XElement(ChartNs + "showNegBubbles", new XAttribute("val", "0")), new XElement(ChartNs + "sizeRepresents", new XAttribute("val", BubbleSizeModeToken(chart.BubbleSizeMode))), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
@@ -645,9 +645,11 @@ internal static class OpenXmlChartSpaceCodec
         if (chart.Type is SpreadsheetChartType.Line or SpreadsheetChartType.Area)
         {
             if (!TryScalar(plot, "grouping", new[] { "standard", "stacked", "percentStacked" }, required: true, out var grouping) ||
+                !TryScalar(plot, "varyColors", BooleanValues, required: false, out var varyColors) ||
                 plot.Element(ChartNs + "gapWidth") is not null || plot.Element(ChartNs + "overlap") is not null || plot.Element(ChartNs + "barDir") is not null)
                 return false;
             chart.Grouping = NativeGrouping(grouping!);
+            if (varyColors is not null) chart.VaryColors = varyColors is "1" or "true";
             return true;
         }
 
@@ -730,6 +732,7 @@ internal static class OpenXmlChartSpaceCodec
         if (chart.Type == SpreadsheetChartType.Area)
         {
             SetRequiredScalar(plot, "grouping", GroupingToken(chart.Grouping, clustered: false));
+            PatchOptionalBool(plot, "varyColors", chart.HasVaryColors, chart.VaryColors);
             return;
         }
         if (chart.Type == SpreadsheetChartType.Line)
