@@ -235,6 +235,13 @@
       "reason": "The native reader/writer owns the finite marker catalog (none, dot, circle, square, diamond, triangle, x, star, plus, dash), sizes 2 through 72, direct RGB paint, bounded dash/width/cap/join/opacity, and line/scatter/radar family checks. Scatter series lines, theme/transformed colors, picture/effect marker graphs, unsupported family markers and irregular ChartML remain source-owned and fail closed."
     },
     {
+      "feature": "native chart series explosion",
+      "ppjPath": "pages[].elements[].data.series[].explosion",
+      "behavior": "partial",
+      "sourceBound": "Recognized imported ordinary pie and doughnut ChartParts project direct c:ser/c:explosion into the series field. A source-bound setChartSeriesStyle edit changes only the target ChartPart and reprojects explicit zero or nonzero explosion.",
+      "reason": "PPJ owns Kimi ChartSeriesConfig.explosion as a presence-aware integer from 0 through 400. Point-level dPt explosion remains under pointStyles; combo, 3D, extension and irregular ChartML remain source-owned or fail closed."
+    },
+    {
       "feature": "native chart trendlines and scalar error bars",
       "ppjPath": "pages[].elements[].data.series[].trendlines and pages[].elements[].data.series[].errorBars",
       "behavior": "partial",
