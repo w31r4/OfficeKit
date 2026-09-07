@@ -1,6 +1,10 @@
 using Google.Protobuf;
+using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Validation;
 using System.Text;
 using System.Text.Json.Nodes;
+using System.Xml.Linq;
 using OfficeKit.Artifact.Wire.V1;
 using Xunit;
 
@@ -11,6 +15,7 @@ public sealed partial class PptxCodecTests
     [Theory]
     [InlineData("combo")]
     [InlineData("column")]
+    [InlineData("scatter")]
     public void PpjChartVaryColorsAuthorAndEditSourceChart(string chartType)
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
@@ -47,6 +52,24 @@ public sealed partial class PptxCodecTests
                 seriesObject.Remove("marker");
             }
         }
+        else if (chartType == "scatter")
+        {
+            chart.Remove("styleRef");
+            chart["chartType"] = "scatter";
+            chart["data"] = new JsonObject
+            {
+                ["categories"] = new JsonArray(),
+                ["series"] = new JsonArray(new JsonObject
+                {
+                    ["id"] = "scatter-series",
+                    ["name"] = "Reach",
+                    ["xValues"] = new JsonArray(10, 20, 34),
+                    ["values"] = new JsonArray(35, 68, 84),
+                }),
+            };
+            chart["xAxis"] = new JsonObject { ["title"] = "Reach" };
+            chart["yAxis"] = new JsonObject { ["title"] = "Return" };
+        }
         chart["style"] = new JsonObject
         {
             ["legend"] = "right",
@@ -67,6 +90,18 @@ public sealed partial class PptxCodecTests
             },
         });
         Assert.True(authored.Ok, Diagnostics(authored));
+
+        string? scatterChartPath = null;
+        if (chartType == "scatter")
+        {
+            using var stream = new MemoryStream(authored.File.ToByteArray(), writable: false);
+            using var package = PresentationDocument.Open(stream, false);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            scatterChartPath = Assert.Single(package.PresentationPart!.SlideParts.SelectMany(slide => slide.ChartParts)).Uri.OriginalString.TrimStart('/');
+            var chartXml = XDocument.Parse(Encoding.UTF8.GetString(ZipBytes(authored.File.ToByteArray(), scatterChartPath)));
+            XNamespace chartNs = "http://schemas.openxmlformats.org/drawingml/2006/chart";
+            Assert.Equal("1", chartXml.Descendants(chartNs + "scatterChart").Single().Element(chartNs + "varyColors")!.Attribute("val")!.Value);
+        }
 
         var sourceBytes = RemoveEmbeddedPpj(authored.File.ToByteArray());
         var projected = Invoke(new CodecRequest
@@ -100,6 +135,16 @@ public sealed partial class PptxCodecTests
         Assert.True(edited.Ok, Diagnostics(edited));
         Assert.Single(edited.PresentationProgram.ChangedParts);
         Assert.Contains("/charts/", edited.PresentationProgram.ChangedParts[0], StringComparison.Ordinal);
+        if (scatterChartPath is not null)
+        {
+            Assert.Equal(new[] { scatterChartPath }, edited.PresentationProgram.ChangedParts);
+            using var stream = new MemoryStream(edited.File.ToByteArray(), writable: false);
+            using var package = PresentationDocument.Open(stream, false);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var chartXml = XDocument.Parse(Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), scatterChartPath)));
+            XNamespace chartNs = "http://schemas.openxmlformats.org/drawingml/2006/chart";
+            Assert.Equal("0", chartXml.Descendants(chartNs + "scatterChart").Single().Element(chartNs + "varyColors")!.Attribute("val")!.Value);
+        }
 
         var reprojected = Invoke(new CodecRequest
         {
