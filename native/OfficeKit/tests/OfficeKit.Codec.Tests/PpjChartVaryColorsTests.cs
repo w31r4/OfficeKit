@@ -15,6 +15,7 @@ public sealed partial class PptxCodecTests
     [Theory]
     [InlineData("combo")]
     [InlineData("column")]
+    [InlineData("area")]
     [InlineData("scatter")]
     public void PpjChartVaryColorsAuthorAndEditSourceChart(string chartType)
     {
@@ -41,9 +42,10 @@ public sealed partial class PptxCodecTests
             .SelectMany(page => page!["elements"]!.AsArray())
             .Select(item => item!.AsObject())
             .Single(item => item["type"]!.GetValue<string>() == "chart");
-        if (chartType == "column")
+        if (chartType is "column" or "area")
         {
-            chart["chartType"] = "column";
+            chart.Remove("styleRef");
+            chart["chartType"] = chartType;
             foreach (var series in chart["data"]!["series"]!.AsArray())
             {
                 var seriesObject = series!.AsObject();
@@ -91,16 +93,17 @@ public sealed partial class PptxCodecTests
         });
         Assert.True(authored.Ok, Diagnostics(authored));
 
-        string? scatterChartPath = null;
-        if (chartType == "scatter")
+        string? nativeChartPath = null;
+        if (chartType is "scatter" or "area")
         {
             using var stream = new MemoryStream(authored.File.ToByteArray(), writable: false);
             using var package = PresentationDocument.Open(stream, false);
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
-            scatterChartPath = Assert.Single(package.PresentationPart!.SlideParts.SelectMany(slide => slide.ChartParts)).Uri.OriginalString.TrimStart('/');
-            var chartXml = XDocument.Parse(Encoding.UTF8.GetString(ZipBytes(authored.File.ToByteArray(), scatterChartPath)));
+            nativeChartPath = Assert.Single(package.PresentationPart!.SlideParts.SelectMany(slide => slide.ChartParts)).Uri.OriginalString.TrimStart('/');
+            var chartXml = XDocument.Parse(Encoding.UTF8.GetString(ZipBytes(authored.File.ToByteArray(), nativeChartPath)));
             XNamespace chartNs = "http://schemas.openxmlformats.org/drawingml/2006/chart";
-            Assert.Equal("1", chartXml.Descendants(chartNs + "scatterChart").Single().Element(chartNs + "varyColors")!.Attribute("val")!.Value);
+            var plotName = chartType == "scatter" ? "scatterChart" : "areaChart";
+            Assert.Equal("1", chartXml.Descendants(chartNs + plotName).Single().Element(chartNs + "varyColors")!.Attribute("val")!.Value);
         }
 
         var sourceBytes = RemoveEmbeddedPpj(authored.File.ToByteArray());
@@ -135,15 +138,16 @@ public sealed partial class PptxCodecTests
         Assert.True(edited.Ok, Diagnostics(edited));
         Assert.Single(edited.PresentationProgram.ChangedParts);
         Assert.Contains("/charts/", edited.PresentationProgram.ChangedParts[0], StringComparison.Ordinal);
-        if (scatterChartPath is not null)
+        if (nativeChartPath is not null)
         {
-            Assert.Equal(new[] { scatterChartPath }, edited.PresentationProgram.ChangedParts);
+            Assert.Equal(new[] { nativeChartPath }, edited.PresentationProgram.ChangedParts);
             using var stream = new MemoryStream(edited.File.ToByteArray(), writable: false);
             using var package = PresentationDocument.Open(stream, false);
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
-            var chartXml = XDocument.Parse(Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), scatterChartPath)));
+            var chartXml = XDocument.Parse(Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), nativeChartPath)));
             XNamespace chartNs = "http://schemas.openxmlformats.org/drawingml/2006/chart";
-            Assert.Equal("0", chartXml.Descendants(chartNs + "scatterChart").Single().Element(chartNs + "varyColors")!.Attribute("val")!.Value);
+            var plotName = chartType == "scatter" ? "scatterChart" : "areaChart";
+            Assert.Equal("0", chartXml.Descendants(chartNs + plotName).Single().Element(chartNs + "varyColors")!.Attribute("val")!.Value);
         }
 
         var reprojected = Invoke(new CodecRequest
