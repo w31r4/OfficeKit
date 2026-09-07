@@ -193,6 +193,13 @@
       "reason": "PPJ owns the five Kimi `scatterOptions.style` values (`line`, `lineWithMarkers`, `marker`, `smooth`, `smoothWithMarkers`) through native `line`, `lineMarker`, `marker`, `smooth`, and `smoothMarker` tokens. Scatter series line styling remains a separate marker/stroke capability; numeric combo/vector fallback, 3D/effect/extension graphs, invalid topology, and XLSX's marker-only editable profile remain source-owned or fail closed."
     },
     {
+      "feature": "native scatter color variation",
+      "ppjPath": "pages[].elements[].style.varyColors",
+      "behavior": "partial",
+      "sourceBound": "Recognized imported ordinary scatter ChartParts project `style.varyColors` from direct c:scatterChart/c:varyColors/@val. A source-bound setChartPlot edit changes only the target ChartPart and reprojects explicit true or false.",
+      "reason": "PPJ owns the Kimi `scatterOptions.varyColors` boolean through presence-aware direct `c:varyColors` true/false values. Combo charts, bubble/radar plots, vector fallback, non-marker numeric combos and irregular ChartML remain source-owned or fail closed."
+    },
+    {
       "feature": "native radar chart style",
       "ppjPath": "pages[].elements[].style.radarStyle",
       "behavior": "partial",
