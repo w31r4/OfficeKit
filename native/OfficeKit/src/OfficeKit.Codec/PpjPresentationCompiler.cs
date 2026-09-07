@@ -5818,7 +5818,7 @@ internal static class PpjSourceBoundPresentationCompiler
         JsonElement grammarRoot,
         string path)
     {
-        RequireEqualExcept(before.Raw, after.Raw, path, "name", "values", "categoryFormula", "xValueFormula", "valueFormula", "bubbleSizeFormula", "fill", "stroke", "marker", "pointStyles", "dataLabels", "trendlines", "errorBars", "nullHandling");
+        RequireEqualExcept(before.Raw, after.Raw, path, "name", "values", "categoryFormula", "xValueFormula", "valueFormula", "bubbleSizeFormula", "fill", "stroke", "marker", "explosion", "pointStyles", "dataLabels", "trendlines", "errorBars", "nullHandling");
         if (before.Id != after.Id || before.ChartType != after.ChartType || before.Axis != after.Axis || before.Values.Count != after.Values.Count)
             throw Unsupported(path, "chart-series identity or topology change");
         var formulaChanged = !before.CategoryFormula.Equals(after.CategoryFormula, StringComparison.Ordinal) ||
@@ -5865,6 +5865,16 @@ internal static class PpjSourceBoundPresentationCompiler
             target.SeriesFill = after.Raw.TryGetProperty("fill", out var fill)
                 ? SourceBoundChartFill(fill, path + ".fill", grammarRoot)
                 : null;
+        }
+        if (PropertyChanged(before.Raw, after.Raw, "explosion"))
+        {
+            RequireCapability(capabilityOwner, "setChartSeriesStyle", path + ".explosion");
+            if (chartType is not (SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut))
+                throw Unsupported(path + ".explosion", "series explosion on a non-circular chart");
+            if (after.Raw.TryGetProperty("explosion", out var explosion))
+                target.Explosion = checked((uint)explosion.GetInt32());
+            else
+                target.ClearExplosion();
         }
         if (PropertyChanged(before.Raw, after.Raw, "pointStyles"))
         {

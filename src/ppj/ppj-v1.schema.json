@@ -1988,6 +1988,7 @@
               "chart.legendFill",
               "chart.data.series[].stroke",
               "chart.data.series[].marker",
+              "chart.data.series[].explosion",
               "chart.data.series[].trendlines",
               "chart.data.series[].errorBars",
               "chart.frame",
@@ -5555,6 +5556,12 @@
         },
         "stroke": {
           "$ref": "#/$defs/stroke"
+        },
+        "explosion": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 400,
+          "description": "Optional pie/doughnut series-level slice explosion in percentage points."
         },
         "symbol": {
           "$ref": "#/$defs/chartPictographSymbol"

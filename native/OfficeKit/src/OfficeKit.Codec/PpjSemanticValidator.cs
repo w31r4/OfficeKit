@@ -44,7 +44,7 @@ internal static class PpjSemanticValidator
             ["setChartData"] = Set("chart.data"),
             ["setChartTextStyle"] = Set("chart.textStyle", "chart.fontFamily"),
             ["setChartFill"] = Set("chart.fill", "chart.legendFill"),
-            ["setChartSeriesStyle"] = Set("chart.data.series[].stroke", "chart.data.series[].marker"),
+            ["setChartSeriesStyle"] = Set("chart.data.series[].stroke", "chart.data.series[].marker", "chart.data.series[].explosion"),
             ["setChartSeriesAnalytics"] = Set("chart.data.series[].trendlines", "chart.data.series[].errorBars"),
             ["setChartFrame"] = Set("chart.frame"),
             ["setChartLabels"] = Set("chart.labels"),
@@ -1296,6 +1296,20 @@ internal static class PpjSemanticValidator
                     diagnostics.Add(new("ppj.chart.xValueType", "xValues applies only to scatter and bubble charts.", seriesPath + ".xValues"));
                 if (series.BubbleSizes.Count != 0)
                     diagnostics.Add(new("ppj.chart.bubbleSizeType", "bubbleSizes applies only to bubble charts.", seriesPath + ".bubbleSizes"));
+            }
+            if (series.Raw.TryGetProperty("explosion", out var explosion))
+            {
+                if (seriesType is not ("pie" or "doughnut"))
+                    diagnostics.Add(new(
+                        "ppj.chart.seriesExplosionType",
+                        "Series explosion applies only to pie and doughnut charts.",
+                        seriesPath + ".explosion"));
+                else if (explosion.ValueKind != JsonValueKind.Number ||
+                         !explosion.TryGetInt32(out var explosionValue) || explosionValue is < 0 or > 400)
+                    diagnostics.Add(new(
+                        "ppj.chart.seriesExplosionValue",
+                        "Series explosion must be an integer from 0 through 400.",
+                        seriesPath + ".explosion"));
             }
             if ((chart.ChartType != "candlestick" || index > 0) &&
                 (series.OpenValues.Count != 0 || series.HighValues.Count != 0 || series.LowValues.Count != 0))

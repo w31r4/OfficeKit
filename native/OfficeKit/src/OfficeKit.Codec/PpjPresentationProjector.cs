@@ -1216,7 +1216,7 @@ internal static partial class PpjPresentationProjector
                 item.MissingValueIndexes.Count == 0 &&
                 item.Trendlines.Count == 0 && item.ErrorBars is null &&
                 item.Fill is null && item.Line is null && item.Marker is null &&
-                item.SeriesFill is null && item.DataLabels is null && item.PointStyles.Count == 0);
+                item.SeriesFill is null && item.DataLabels is null && !item.HasExplosion && item.PointStyles.Count == 0);
         }
         if (chart.Type is not (SpreadsheetChartType.Bar or SpreadsheetChartType.Line or SpreadsheetChartType.Area or
             SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut or SpreadsheetChartType.Radar) ||
@@ -1232,7 +1232,7 @@ internal static partial class PpjPresentationProjector
             item.MissingValueIndexes.Count == 0 &&
             item.Trendlines.Count == 0 && item.ErrorBars is null &&
             item.Fill is null && item.Line is null && item.Marker is null &&
-            item.SeriesFill is null && item.DataLabels is null && item.PointStyles.Count == 0);
+            item.SeriesFill is null && item.DataLabels is null && !item.HasExplosion && item.PointStyles.Count == 0);
     }
 
     private static JsonObject CanonicalDataset(
@@ -1294,6 +1294,7 @@ internal static partial class PpjPresentationProjector
             output["fill"] = new JsonObject { ["type"] = StringNode("solid"), ["color"] = StringNode(Color(series.Fill.Rgb)) };
         if (series.Line is not null && !string.IsNullOrEmpty(series.Line.Color?.Rgb))
             output["stroke"] = ProjectChartLine(series.Line);
+        if (series.HasExplosion) output["explosion"] = JsonValue.Create(series.Explosion);
         if (series.PointStyles.Count > 0)
         {
             var points = new JsonArray();
@@ -2918,6 +2919,7 @@ internal static partial class PpjPresentationProjector
                 output.Add(new("setChartSeriesStyle", [
                     "chart.data.series[].stroke",
                     "chart.data.series[].marker",
+                    "chart.data.series[].explosion",
                 ]));
                 // Trendlines and error bars are direct c:series children with
                 // bounded readers/writers of their own.  Keep them separate

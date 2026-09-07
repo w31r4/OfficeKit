@@ -238,6 +238,7 @@ internal static class OpenXmlChartSpaceCodec
             series.Values.Add(values);
             series.MissingValueIndexes.Add(missingValueIndexes);
         }
+        editable &= XlsxChartSeriesExplosionCodec.TryRead(source, series, chartType);
         editable &= XlsxChartSeriesStyleCodec.TryRead(source, series);
         editable &= XlsxChartSeriesLineStyleCodec.TryRead(source, series, chartType);
         editable &= XlsxChartSeriesMarkerCodec.TryRead(source, series, chartType);
@@ -255,6 +256,7 @@ internal static class OpenXmlChartSpaceCodec
             new XElement(ChartNs + "order", new XAttribute("val", index)),
             new XElement(ChartNs + "tx", new XElement(ChartNs + "v", series.Name)),
             XlsxChartSeriesStyleCodec.PropertiesElement(series, markerOnly: chartType == SpreadsheetChartType.Scatter),
+            XlsxChartSeriesExplosionCodec.Element(series),
             XlsxChartSeriesMarkerCodec.Element(series.Marker),
             XlsxChartPointStyleCodec.Elements(series),
             XlsxChartSeriesDataLabelsCodec.Element(series.DataLabels),
@@ -405,6 +407,7 @@ internal static class OpenXmlChartSpaceCodec
     {
         var name = native.Element(ChartNs + "tx")?.Element(ChartNs + "v") ?? throw Topology(errorCode, subject, "series name topology changed unexpectedly");
         name.Value = target.Name;
+        XlsxChartSeriesExplosionCodec.Patch(native, target, chartType, errorCode, subject);
         XlsxChartSeriesStyleCodec.Patch(native, target);
         XlsxChartSeriesLineStyleCodec.Patch(native, target, markerOnly: chartType == SpreadsheetChartType.Scatter);
         XlsxChartSeriesMarkerCodec.Patch(native, target);

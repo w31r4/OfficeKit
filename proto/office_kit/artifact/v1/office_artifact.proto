@@ -1101,6 +1101,10 @@ message SpreadsheetChartSeriesArtifact {
   // Sparse zero-based native c:dPt visual overrides. The first bounded
   // profile owns fill, outline and pie/doughnut explosion only.
   repeated SpreadsheetChartPointStyleArtifact point_styles = 17;
+  // Optional pie/doughnut series-level slice explosion mirrored from
+  // c:ser/c:explosion. Presence distinguishes an explicit zero from native
+  // absence; other chart families leave this field empty.
+  optional uint32 explosion = 18;
 }
 
 // Bounded primary-axis semantics for category/value worksheet charts. The x

@@ -4017,6 +4017,12 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (raw.TryGetProperty("fill", out _) && raw.TryGetProperty("color", out _))
             throw Unsupported(source.Id, "chart-series color and fill are aliases and cannot both be present");
         var series = new SpreadsheetChartSeriesArtifact { Name = source.Name };
+        if (raw.TryGetProperty("explosion", out var seriesExplosion))
+        {
+            if (chartType is not (SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut))
+                throw Unsupported(source.Id, "series explosion requires a pie or doughnut chart");
+            series.Explosion = checked((uint)seriesExplosion.GetInt32());
+        }
         for (var index = 0; index < source.Values.Count; index++)
         {
             var value = source.Values[index];
