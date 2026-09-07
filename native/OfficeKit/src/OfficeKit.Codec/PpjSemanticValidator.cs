@@ -44,7 +44,7 @@ internal static class PpjSemanticValidator
             ["setChartData"] = Set("chart.data"),
             ["setChartTextStyle"] = Set("chart.textStyle", "chart.fontFamily"),
             ["setChartFill"] = Set("chart.fill", "chart.legendFill"),
-            ["setChartSeriesStyle"] = Set("chart.data.series[].stroke", "chart.data.series[].marker", "chart.data.series[].explosion"),
+            ["setChartSeriesStyle"] = Set("chart.data.series[].stroke", "chart.data.series[].marker", "chart.data.series[].explosion", "chart.data.series[].valuesFormatCode"),
             ["setChartSeriesAnalytics"] = Set("chart.data.series[].trendlines", "chart.data.series[].errorBars"),
             ["setChartFrame"] = Set("chart.frame"),
             ["setChartLabels"] = Set("chart.labels"),
@@ -1310,6 +1310,16 @@ internal static class PpjSemanticValidator
                         "ppj.chart.seriesExplosionValue",
                         "Series explosion must be an integer from 0 through 400.",
                         seriesPath + ".explosion"));
+            }
+            if (series.Raw.TryGetProperty("valuesFormatCode", out var valuesFormatCode))
+            {
+                if (seriesType is not ("bar" or "column" or "line" or "area" or "pie" or "doughnut" or "scatter" or "bubble" or "radar"))
+                    diagnostics.Add(new("ppj.chart.valuesFormatCodeType", "valuesFormatCode applies only to native ChartPart series.", seriesPath + ".valuesFormatCode"));
+                else if (valuesFormatCode.ValueKind == JsonValueKind.String &&
+                         (valuesFormatCode.GetString()!.Length is < 1 or > 255 || valuesFormatCode.GetString()!.Any(char.IsControl)))
+                    diagnostics.Add(new("ppj.chart.valuesFormatCodeValue", "valuesFormatCode must contain 1 through 255 characters without controls.", seriesPath + ".valuesFormatCode"));
+                else if (valuesFormatCode.ValueKind is not (JsonValueKind.String or JsonValueKind.Object))
+                    diagnostics.Add(new("ppj.chart.valuesFormatCodeValue", "valuesFormatCode must be a string or string grammar token.", seriesPath + ".valuesFormatCode"));
             }
             if ((chart.ChartType != "candlestick" || index > 0) &&
                 (series.OpenValues.Count != 0 || series.HighValues.Count != 0 || series.LowValues.Count != 0))

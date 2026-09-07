@@ -1105,6 +1105,11 @@ message SpreadsheetChartSeriesArtifact {
   // c:ser/c:explosion. Presence distinguishes an explicit zero from native
   // absence; other chart families leave this field empty.
   optional uint32 explosion = 18;
+  // Optional custom number format for the series Y-value cache. The native
+  // c:numCache/c:numLit formatCode value "General" is the PPJ default and is
+  // represented by absence; xValues and bubbleSizes keep their native format
+  // codes source-owned until xValuesFormatCode is modeled separately.
+  optional string values_format_code = 19;
 }
 
 // Bounded primary-axis semantics for category/value worksheet charts. The x

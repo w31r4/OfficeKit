@@ -1256,7 +1256,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         for (var seriesIndex = 0; seriesIndex < seriesJson.Length; seriesIndex++)
         {
             var series = seriesJson[seriesIndex];
-            RejectProperties(series, element.Id, "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "parents", "sources", "targets", "chartType", "axis", "marker", "trendlines", "errorBars");
+            RejectProperties(series, element.Id, "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "parents", "sources", "targets", "chartType", "axis", "marker", "trendlines", "errorBars", "valuesFormatCode");
             if (series.TryGetProperty("color", out _) && series.TryGetProperty("fill", out _))
                 throw Unsupported(element.Id, "streamgraph series color and fill are aliases and cannot both be present");
             if (series.TryGetProperty("fill", out var fill) && fill.GetProperty("type").GetString() is not ("solid" or "gradient"))
@@ -1936,7 +1936,7 @@ internal static partial class PpjAuthoredPresentationCompiler
             element.Data.Series.SelectMany(series => series.Values).All(value => value is null))
             throw Unsupported(element.Id, "vector heatmap rows must match the category count and contain at least one numeric value");
         foreach (var series in element.Data.Series)
-            foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
+        foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars", "valuesFormatCode" })
                 if (series.Raw.TryGetProperty(property, out _))
                     throw Unsupported(element.Id, $"vector heatmap series do not support {property}");
         foreach (var property in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
@@ -2564,7 +2564,7 @@ internal static partial class PpjAuthoredPresentationCompiler
                 (series.OpenValues.Count != 0 && (series.OpenValues[index] < low || series.OpenValues[index] > high)))
                 throw Unsupported(element.Id, "every open and close must lie inside its low/high interval");
         }
-        foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
+        foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars", "valuesFormatCode" })
             if (series.Raw.TryGetProperty(property, out _))
                 throw Unsupported(element.Id, $"candlestick series do not support {property}");
         for (var index = 1; index < element.Data.Series.Count; index++)
@@ -2574,7 +2574,7 @@ internal static partial class PpjAuthoredPresentationCompiler
                 throw Unsupported(element.Id, "candlestick overlays support line, area and column series");
             if (overlay.Values.Count != count || overlay.Values.Any(value => value is null || !double.IsFinite(value.Value)))
                 throw Unsupported(element.Id, $"candlestick overlay {overlay.Id} requires one complete finite value per category");
-            RejectProperties(overlay.Raw, element.Id, "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "parents", "sources", "targets", "axis", "symbol", "trendlines", "errorBars");
+            RejectProperties(overlay.Raw, element.Id, "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "parents", "sources", "targets", "axis", "symbol", "trendlines", "errorBars", "valuesFormatCode");
             if (overlay.Raw.TryGetProperty("fill", out _) && overlay.Raw.TryGetProperty("color", out _))
                 throw Unsupported(element.Id, "candlestick overlay color and fill are aliases and cannot both be present");
             if (overlay.ChartType is "area" or "column" && overlay.Raw.TryGetProperty("marker", out _))
@@ -2764,7 +2764,7 @@ internal static partial class PpjAuthoredPresentationCompiler
             throw Unsupported(element.Id, "treemap display levels must be between one and eight");
         if (series.Values.Count != count || series.Values.Any(value => value is null || value <= 0) || series.Parents.Count != count)
             throw Unsupported(element.Id, "treemap values and parents must be complete, aligned, and strictly positive");
-        foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
+        foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars", "valuesFormatCode" })
             if (series.Raw.TryGetProperty(property, out _))
                 throw Unsupported(element.Id, $"treemap series do not support {property}");
         foreach (var property in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
@@ -3198,7 +3198,7 @@ internal static partial class PpjAuthoredPresentationCompiler
             throw Unsupported(element.Id, "sunburst display levels must be between one and six");
         if (series.Values.Count != count || series.Values.Any(value => value is null || value <= 0) || series.Parents.Count != count)
             throw Unsupported(element.Id, "sunburst values and parents must be complete, aligned, and strictly positive");
-        foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
+        foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars", "valuesFormatCode" })
             if (series.Raw.TryGetProperty(property, out _))
                 throw Unsupported(element.Id, $"sunburst series do not support {property}");
         foreach (var property in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
@@ -3738,7 +3738,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (edgeCount is < 1 or > 256 || series.Values.Any(value => value is null || value <= 0) ||
             series.Sources.Count != edgeCount || series.Targets.Count != edgeCount)
             throw Unsupported(element.Id, "sankey sources, targets, and positive flow values must align across 1..256 edges");
-        foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "parents", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
+        foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "parents", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars", "valuesFormatCode" })
             if (series.Raw.TryGetProperty(property, out _))
                 throw Unsupported(element.Id, $"sankey series do not support {property}");
         foreach (var property in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
@@ -3893,7 +3893,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             "trendlines",
             "errorBars",
             "xValues",
-            "bubbleSizes");
+            "bubbleSizes",
+            "valuesFormatCode");
         foreach (var name in new[] { "stacking", "showDataLabels", "dataLabelPosition", "dataLabels", "smooth", "varyColors", "legendOverlay" })
             if (FirstProperty(inlineStyle, namedStyle, name) is not null)
                 throw Unsupported(element.Id, $"{name} is outside the bounded waterfall style profile");
@@ -4023,6 +4024,8 @@ internal static partial class PpjAuthoredPresentationCompiler
                 throw Unsupported(source.Id, "series explosion requires a pie or doughnut chart");
             series.Explosion = checked((uint)seriesExplosion.GetInt32());
         }
+        if (raw.TryGetProperty("valuesFormatCode", out var valuesFormatCode))
+            series.ValuesFormatCode = catalog.StringToken(valuesFormatCode, "string", $"{source.Id} series valuesFormatCode");
         for (var index = 0; index < source.Values.Count; index++)
         {
             var value = source.Values[index];

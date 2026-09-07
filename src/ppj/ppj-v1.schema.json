@@ -1989,6 +1989,7 @@
               "chart.data.series[].stroke",
               "chart.data.series[].marker",
               "chart.data.series[].explosion",
+              "chart.data.series[].valuesFormatCode",
               "chart.data.series[].trendlines",
               "chart.data.series[].errorBars",
               "chart.frame",
@@ -5562,6 +5563,10 @@
           "minimum": 0,
           "maximum": 400,
           "description": "Optional pie/doughnut series-level slice explosion in percentage points."
+        },
+        "valuesFormatCode": {
+          "$ref": "#/$defs/stringOrToken",
+          "description": "Optional series Y-value number format code; a token reference must declare kind string. The native General default is omitted."
         },
         "symbol": {
           "$ref": "#/$defs/chartPictographSymbol"

@@ -5818,7 +5818,7 @@ internal static class PpjSourceBoundPresentationCompiler
         JsonElement grammarRoot,
         string path)
     {
-        RequireEqualExcept(before.Raw, after.Raw, path, "name", "values", "categoryFormula", "xValueFormula", "valueFormula", "bubbleSizeFormula", "fill", "stroke", "marker", "explosion", "pointStyles", "dataLabels", "trendlines", "errorBars", "nullHandling");
+        RequireEqualExcept(before.Raw, after.Raw, path, "name", "values", "categoryFormula", "xValueFormula", "valueFormula", "bubbleSizeFormula", "fill", "stroke", "marker", "explosion", "valuesFormatCode", "pointStyles", "dataLabels", "trendlines", "errorBars", "nullHandling");
         if (before.Id != after.Id || before.ChartType != after.ChartType || before.Axis != after.Axis || before.Values.Count != after.Values.Count)
             throw Unsupported(path, "chart-series identity or topology change");
         var formulaChanged = !before.CategoryFormula.Equals(after.CategoryFormula, StringComparison.Ordinal) ||
@@ -5875,6 +5875,16 @@ internal static class PpjSourceBoundPresentationCompiler
                 target.Explosion = checked((uint)explosion.GetInt32());
             else
                 target.ClearExplosion();
+        }
+        if (PropertyChanged(before.Raw, after.Raw, "valuesFormatCode"))
+        {
+            RequireCapability(capabilityOwner, "setChartSeriesStyle", path + ".valuesFormatCode");
+            if (chartType is not (SpreadsheetChartType.Bar or SpreadsheetChartType.Line or SpreadsheetChartType.Area or SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut or SpreadsheetChartType.Scatter or SpreadsheetChartType.Bubble or SpreadsheetChartType.Radar))
+                throw Unsupported(path + ".valuesFormatCode", "series valuesFormatCode on this chart family");
+            if (after.Raw.TryGetProperty("valuesFormatCode", out var valuesFormatCode))
+                target.ValuesFormatCode = ResolveGrammarStringToken(grammarRoot, valuesFormatCode, path + ".valuesFormatCode");
+            else
+                target.ClearValuesFormatCode();
         }
         if (PropertyChanged(before.Raw, after.Raw, "pointStyles"))
         {
