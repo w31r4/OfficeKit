@@ -1,0 +1,4 @@
+name: ppj-source-bound-custom-geometry-path-arc-sweep-angle
+schema: spec-driven
+created: 2026-09-06
+goal: Preserve and edit one bounded custom-geometry arc sweep angle through PPJ.

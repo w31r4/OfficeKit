@@ -2456,7 +2456,7 @@ internal static class PpjSourceBoundPresentationCompiler
     {
         RequireEqualExcept(before.Raw, after.Raw, path,
             "role", "tags", "hidden", "locked", "frame", "title", "data", "style",
-            "fontFamily", "titlePlacement", "displayBlanksAs", "styleIndex", "dataTable", "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis", "spokeAxis", "accessibility");
+            "fontFamily", "titlePlacement", "displayBlanksAs", "styleIndex", "roundedCorners", "dataTable", "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis", "spokeAxis", "accessibility");
         var changed = ApplyFrame(before, after, target, path);
         if (PropertyChanged(before.Raw, after.Raw, "displayBlanksAs"))
         {
@@ -2478,6 +2478,15 @@ internal static class PpjSourceBoundPresentationCompiler
                 target.StyleIndex = ResolveGrammarIntegerToken(program.Root, styleIndex, path + ".styleIndex", 1, 48);
             else
                 target.ClearStyleIndex();
+            changed = true;
+        }
+        if (PropertyChanged(before.Raw, after.Raw, "roundedCorners"))
+        {
+            RequireCapability(after, "setChartPlot", path + ".roundedCorners");
+            if (after.Raw.TryGetProperty("roundedCorners", out var roundedCorners))
+                target.RoundedCorners = ResolveGrammarBooleanToken(program.Root, roundedCorners, path + ".roundedCorners");
+            else
+                target.ClearRoundedCorners();
             changed = true;
         }
         if (PropertyChanged(before.Raw, after.Raw, "dataTable"))

@@ -1241,6 +1241,14 @@ internal static partial class PptxEditPlanCodec
             {
                 ProveLeafValue(shape, operation);
             }
+            else if (element is P.Shape textLeafShape &&
+                     projectedElement.ContentCase == PresentationElement.ContentOneofCase.Shape &&
+                     projectedElement.Source.TextEditable &&
+                     LeafKind(operation) == "textDefaultSoftEdgeRadiusEmu" &&
+                     PptxCodec.SupportsBoundTextLeaf(textLeafShape))
+            {
+                ProveLeafValue(textLeafShape, operation);
+            }
             else if (element is P.Shape bodyGapShape &&
                      projectedElement.ContentCase == PresentationElement.ContentOneofCase.Shape &&
                      projectedElement.Source.TextEditable &&

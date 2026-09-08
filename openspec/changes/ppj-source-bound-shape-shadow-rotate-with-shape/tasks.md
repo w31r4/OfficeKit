@@ -1,0 +1,4 @@
+- [x] Add the strict ordinary-shape shadow `rotWithShape` native leaf and edit-plan proof/patch support.
+- [x] Extend the focused source-bound shape-effect fixture and retain the complex-effect negative case.
+- [x] Update the PPJ schema, capability registry, reference, coverage, and gap evidence.
+- [x] Run the narrow build, focused tests, OpenSpec validation, and repository gates.

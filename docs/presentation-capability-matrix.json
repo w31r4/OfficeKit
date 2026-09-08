@@ -1,0 +1,3351 @@
+{
+  "schema": "office-kit/presentation-capability-matrix/v1",
+  "sources": {
+    "registry": "src/ppj/capability-registry.json",
+    "languageSchema": "src/ppj/ppj-v1.schema.json",
+    "generatedReference": "skills/presentations/skills/presentations/references/ppj.md",
+    "semanticValidator": "native/OfficeKit/src/OfficeKit.Codec/PpjSemanticValidator.cs",
+    "projector": "native/OfficeKit/src/OfficeKit.Codec/PpjPresentationProjector.cs",
+    "authoredCompiler": "native/OfficeKit/src/OfficeKit.Codec/PpjAuthoredPresentationCompiler.cs",
+    "chartCompiler": "native/OfficeKit/src/OfficeKit.Codec/PpjAuthoredChartCompiler.cs",
+    "previewCapabilities": "src/ppj/svg-preview-capabilities.json"
+  },
+  "counts": {
+    "schemaDefinitions": 181,
+    "ppjRootPaths": 11,
+    "ppjStateApiPaths": 66,
+    "authoredCompilerBoundaries": 46,
+    "nativeLeafKinds": 278,
+    "helpApis": 151,
+    "hostOnlyApis": 13
+  },
+  "surfaces": {
+    "ppjState": "schema + semantic validator + authored compiler + projector",
+    "nativeRef": "imported source proof + closed native leaf vocabulary",
+    "inspectReview": "CLI inspect/check/render/review and review evidence",
+    "visualPreview": "must consume validated projection and report supported/partial/opaque/unavailable",
+    "exportFidelity": "PPTX build + re-import + source/stable-id verification where applicable"
+  },
+  "previewCapabilities": {
+    "schema": "office-kit/presentation-svg-preview-capabilities/v1",
+    "supported": [
+      "shape",
+      "text",
+      "image",
+      "table",
+      "connector",
+      "group",
+      "placeholder",
+      "chart:bar",
+      "chart:column",
+      "chart:line",
+      "chart:area",
+      "chart:combo",
+      "chart:scatter",
+      "chart:pie"
+    ],
+    "partial": [
+      "component",
+      "chart:heatmap",
+      "chart:treemap",
+      "chart:sunburst",
+      "chart:sankey",
+      "chart:waterfall",
+      "chart:candlestick",
+      "chart:streamgraph",
+      "chart:pictographic"
+    ],
+    "opaque": [
+      "opaque",
+      "nativeRef",
+      "embeddedOle",
+      "unsupported"
+    ],
+    "contract": "Every unsupported or partial node must remain visible in render.json diagnostics; registry and fixtures are the source of truth for future additions."
+  },
+  "ppjRootPaths": [
+    {
+      "path": "$.schema",
+      "owner": "language",
+      "surface": "ppj-state",
+      "meaning": "Fixed PPJ language identifier."
+    },
+    {
+      "path": "$.meta",
+      "owner": "language",
+      "surface": "ppj-state",
+      "meaning": "Stable program identity and revision metadata."
+    },
+    {
+      "path": "$.intent",
+      "owner": "authoring",
+      "surface": "ppj-state",
+      "meaning": "Audience, narrative, editorial and delivery intent."
+    },
+    {
+      "path": "$.design",
+      "owner": "authored-compiler",
+      "surface": "ppj-state",
+      "meaning": "Canvas, theme, styles, design grammar and motion policy."
+    },
+    {
+      "path": "$.assets",
+      "owner": "asset-compiler",
+      "surface": "ppj-state",
+      "meaning": "Content-addressed local media, rights and accessibility metadata."
+    },
+    {
+      "path": "$.source",
+      "owner": "source-projector",
+      "surface": "native-ref",
+      "meaning": "Immutable third-party PPTX source binding and projection proof."
+    },
+    {
+      "path": "$.components",
+      "owner": "component-expander",
+      "surface": "ppj-state",
+      "meaning": "Finite parameterized reuse with bounded repeat and conditions."
+    },
+    {
+      "path": "$.pages",
+      "owner": "presentation-compiler",
+      "surface": "ppj-state",
+      "meaning": "Ordered pages, backgrounds, notes, motion and true element z-order, including capability-issued full-page or single-component sourceClone reuse and bounded topmost typed overlays."
+    },
+    {
+      "path": "$.sections",
+      "owner": "presentation-compiler",
+      "surface": "ppj-state",
+      "meaning": "Persistent section membership."
+    },
+    {
+      "path": "$.customShows",
+      "owner": "presentation-compiler",
+      "surface": "ppj-state",
+      "meaning": "Named ordered page subsets."
+    },
+    {
+      "path": "$.comments",
+      "owner": "presentation-compiler",
+      "surface": "ppj-state",
+      "meaning": "Persistent presentation comments and replies."
+    }
+  ],
+  "authoredCompilerBoundaries": [
+    {
+      "feature": "bounded hierarchy display levels",
+      "ppjPath": "pages[].elements[].data.series[0].levels for treemap and sunburst charts",
+      "behavior": "partial",
+      "sourceBound": "OfficeKit-authored PPTX restores the full hierarchy and exact display-level intent from its embedded PPJ program. Without that private program, only the generated visible shapes import as an editable group; omitted semantic descendants are never inferred from geometry.",
+      "reason": "Treemap supports 1..8 visible levels and sunburst supports 1..6 while validation retains the complete forest and parent totals. The compiler reflows visible rectangles or ring widths instead of deleting source data or reserving empty geometry. Other chart families, interactive drill-down and per-node visibility expressions fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "editable mixed numeric Cartesian overlays",
+      "ppjPath": "pages[].elements[] where chartType is combo and one data.series[].chartType is scatter or bubble",
+      "behavior": "partial",
+      "sourceBound": "OfficeKit-authored PPTX restores the exact numeric combo from its embedded PPJ program. Without that private program, axes and marks import truthfully as an editable group; arbitrary third-party shapes are never inferred as numeric chart data.",
+      "reason": "The bounded profile owns one shared value/value coordinate system, 2..8 scatter, bubble, line, area or column series and 2..64 strictly increasing finite X/Y points per series. It emits stable editable axes, fills, bars, segments and point marks. Secondary axes, chart formulas, statistical transforms, ChartPart build animation and unsupported styling fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "bounded visible bubble sizing",
+      "ppjPath": "pages[].elements[].style.bubbleSizeScale and pages[].elements[].style.bubbleRadiusRange on bubble or numeric combo charts",
+      "behavior": "partial",
+      "sourceBound": "OfficeKit-authored PPTX restores the exact size mapping from its embedded PPJ program. Without that private program, the generated ellipses and axes import truthfully as an editable group; third-party DrawingML groups are never inferred as bubble data.",
+      "reason": "PPJ can map one shared positive bubble-size domain through sqrt, linear or logarithmic scaling into a strictly increasing 2..72 point radius range. Declaring either field intentionally selects editable vector lowering because ChartML cannot promise exact visible radii or logarithmic transforms. Native ChartPart build animation, formulas, secondary axes, per-series ranges and reverse inference fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "editable candlestick overlays",
+      "ppjPath": "pages[].elements[] where chartType is candlestick and data.series has aligned line, area or column overlays after the OHLC/HLC body",
+      "behavior": "partial",
+      "sourceBound": "OfficeKit-authored PPTX restores the exact candlestick and overlay semantics from its embedded PPJ program. Without that private program, the generated price and overlay marks import truthfully as an editable group; arbitrary third-party groups are not inferred as financial charts.",
+      "reason": "The first series remains the bounded OHLC/HLC body and up to four aligned overlays may add line, area or column evidence on the same scale. Filled overlays render behind wicks and bodies while line overlays render above them. Numeric X channels, secondary axes, formulas and unsupported overlay topology fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "editable pictographic bars",
+      "ppjPath": "pages[].elements[] where chartType is bar or column and data.series[0].symbol is present",
+      "behavior": "partial",
+      "sourceBound": "OfficeKit-authored PPTX restores the exact pictographic chart from its embedded PPJ program. Without that private program, repeated units import truthfully as an editable group; arbitrary third-party shapes are never inferred as chart data and receive no pictographic mutation capability.",
+      "reason": "The compiler expands one bounded series into stable editable named-icon or preset-geometry units. It requires 2..12 categories, exact positive unit divisibility, at most 32 units per category and 192 total. Fractional symbols, multiple series, axes, ChartPart build animation and unsupported series options fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "editable streamgraph",
+      "ppjPath": "pages[].elements[] where chartType is area and style.stacking is stream",
+      "behavior": "partial",
+      "sourceBound": "OfficeKit-authored PPTX restores the exact streamgraph from its embedded PPJ program. Without that private program, the generated DrawingML imports truthfully as an editable group; arbitrary third-party paths are never inferred as stream semantics and receive no stream mutation capability.",
+      "reason": "The compiler owns a bounded centered silhouette with 2..12 complete non-negative series over 3..64 ordered categories. It emits stable editable cubic paths and labels. Native ChartParts have no centered-stream stacking mode, so ChartPart build animation, negative or missing values, secondary axes, per-point labels and unsupported series options fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "native chart labels, leader lines, data-label fills/lines, sparse point data-label fills/lines/text, plot scalars, legend placement/overlay/fill/line, column overlap and bar color variation, bubble scale, blank-cell modes, axis positions, axis lines, major/minor gridlines, minor units, major tick marks and minor tick marks",
+      "ppjPath": "pages[].elements[].displayBlanksAs; pages[].elements[].style.dataLabels, pages[].elements[].style.dataLabels.fill, pages[].elements[].style.dataLabels.line, pages[].elements[].data.series[].dataLabels, pages[].elements[].data.series[].dataLabels.points[].fill, pages[].elements[].data.series[].dataLabels.points[].line, pages[].elements[].data.series[].dataLabels.points[].text, pages[].elements[].style.legend/legendOverlay/legendFill/legendLine/stacking/gapWidth/overlap/smooth/varyColors/bubbleScale/bubbleSizeMode and pages[].elements[].xAxis/yAxis/secondaryXAxis/secondaryYAxis title/position/reverse/visible/numberFormat/tickLabelInterval/min/max/majorUnit/minorUnit/tickLabelsVisible/tickLabelPosition/majorTickMark/minorTickMark/axisLine/gridLine/minorGridLine",
+      "behavior": "partial",
+      "sourceBound": "Recognized imported ChartParts issue setChartLabels for plot defaults plus bounded series defaults and sparse zero-based point overrides, including presence-aware bubble-size and leader-line visibility at native plot and series-default scopes for charts, direct plot-level data-label fills and lines, sparse point literal text plus fills and outlines through direct c:dLbl/c:tx/c:rich and c:dLbl/c:spPr paint and line, setChartPlot for common legend placement/overlay, direct legend-line, stacking/gap/overlap/bar-vary-colors/axis visibility/gridline/line-option scalars, setChartFill for bounded legend surface fill, native bubble/circular size semantics, and chart-level displayBlanksAs, and setChartAxis for bounded axis titles/position/direction, number-format, numeric bounds/units, presence-aware value-axis minor units, bounded tick-label positions/visibility/intervals, presence-aware major and minor tick-mark positions, direct axis/major-grid/minor-grid line styling, and kind-checked grammar token references. Each capability owns only its declared field group and patches the existing ChartPart.",
+      "reason": "PPJ owns plot-, series- and sparse point-level label visibility, including presence-aware bubble-size visibility for bubble charts and bubble series plus leader-line visibility at native plot and series-default scopes, bounded none/solid/gradient data-label surface fills and direct RGB/preset-dash data-label outlines at the plot level, sparse point none/solid/gradient data-label fills, direct RGB/preset-dash data-label outlines, and single-run literal data-label text, common plot enums/integers/booleans including legend positions (`top`, `topRight`, `bottom`, `left`, `right`), presence-aware legend overlay, bounded legend none/solid/gradient surface fill, direct RGB/preset-dash legend outlines, signed column-series overlap from -100 through 100, and presence-aware bar/column `c:varyColors` true/false, chart-level displayBlanksAs (`zero`, `gap`, `span`) with presence and grammar-token resolution, native data-label positions, direct number format and bounded typography; bubble scale from 0 through 300; native area/width size semantics; presence-aware axis placement (`bottom`, `top` for horizontal axes and `left`, `right` for vertical axes), axis reversal, finite numeric bounds/units, value-axis minor units and tick intervals, native axis tick-label positions (`nextTo`, `high`, `low`, `none`), presence-aware native major and minor tick-mark positions (`cross`, `in`, `out`, `none`), direct RGB/no-fill axis, major-grid and minor-grid lines. Exact visible radii and logarithmic sizing are a separate authored vector capability, not a native source-bound ChartPart mutation. Point-level leader-line flags, formula-backed or multi-run custom label text, custom label layout/shape/effect/leader-line geometry, source-linked formats, theme/effect line graphs, category-axis and vector-fallback minor-unit/minor-grid forms, and unsupported topology remain source-owned and fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "native chart title placement",
+      "ppjPath": "pages[].elements[].titlePlacement",
+      "behavior": "partial",
+      "sourceBound": "Recognized ordinary and combo ChartParts project `none`, `aboveChart`, and `centeredOverlay` from the native chart title and its optional c:overlay. A source-bound setChartTitle edit changes only the target ChartPart and reprojects the selected placement.",
+      "reason": "PPJ owns the bounded Kimi titlePlacement enum: no title maps to none, the native above-chart default maps to aboveChart, and c:overlay val=1 maps to centeredOverlay. Formula-backed titles, title hyperlinks, WordArt, unsupported chart families, and irregular title topology remain source-owned and fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "native chart plot-area line",
+      "ppjPath": "pages[].elements[].style.plotAreaLine",
+      "behavior": "partial",
+      "sourceBound": "Recognized ordinary and combo ChartParts project `style.plotAreaLine` from the direct c:plotArea/c:spPr/a:ln outline. A source-bound setChartPlot edit changes only the target ChartPart and reprojects the bounded outline.",
+      "reason": "PPJ owns direct RGB color, finite width, and preset dash values for the plot-area outline while preserving the sibling plot-area fill in the shared shape-properties container. Theme/effect line graphs, vector fallback, unsupported chart families, and irregular shape-properties topology remain source-owned and fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "native chart style index",
+      "ppjPath": "pages[].elements[].styleIndex",
+      "behavior": "partial",
+      "sourceBound": "Recognized ordinary and combo ChartParts project `styleIndex` from the direct c:style/@val built-in style index. A source-bound setChartPlot edit changes only the target ChartPart and reprojects the bounded index.",
+      "reason": "PPJ owns the Kimi `ChartConfig.styleIndex` field through OfficeKit's bounded 1 through 48 native chart-style profile. Vector-lowered and advanced chart families, invalid style topology, and unsupported native chart content remain source-owned and fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "native chart data table",
+      "ppjPath": "pages[].elements[].dataTable",
+      "behavior": "partial",
+      "sourceBound": "Recognized ordinary and combo ChartParts project `dataTable` from the direct c:plotArea/c:dTable container. A source-bound setChartPlot edit changes only the target ChartPart and reprojects the bounded table state.",
+      "reason": "PPJ owns the Kimi `ChartConfig.dataTable` profile: four presence-aware border/key flags, direct none/solid/gradient fill, and direct RGB/preset-dash stroke. Text-property and extension children, theme/effect paint graphs, unsupported chart families, and irregular c:dTable topology remain source-owned and fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "native chart rounded corners",
+      "ppjPath": "pages[].elements[].roundedCorners",
+      "behavior": "partial",
+      "sourceBound": "Recognized ordinary and combo ChartParts project the direct c:roundedCorners flag. A source-bound setChartPlot edit changes only the target ChartPart and reprojects its presence and boolean value.",
+      "reason": "PPJ owns the bounded ChartSpace boolean while duplicate, malformed, external, and unsupported chart topology remains source-owned and fails closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "native scatter chart style",
+      "ppjPath": "pages[].elements[].style.scatterStyle",
+      "behavior": "partial",
+      "sourceBound": "Recognized imported ordinary scatter ChartParts project `style.scatterStyle` from direct c:scatterChart/c:scatterStyle/@val. A source-bound setChartPlot edit changes only the target ChartPart and reprojects the selected style.",
+      "reason": "PPJ owns the five Kimi `scatterOptions.style` values (`line`, `lineWithMarkers`, `marker`, `smooth`, `smoothWithMarkers`) through native `line`, `lineMarker`, `marker`, `smooth`, and `smoothMarker` tokens. Scatter series line styling remains a separate marker/stroke capability; numeric combo/vector fallback, 3D/effect/extension graphs, invalid topology, and XLSX's marker-only editable profile remain source-owned or fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "native scatter color variation",
+      "ppjPath": "pages[].elements[].style.varyColors",
+      "behavior": "partial",
+      "sourceBound": "Recognized imported ordinary scatter ChartParts project `style.varyColors` from direct c:scatterChart/c:varyColors/@val. A source-bound setChartPlot edit changes only the target ChartPart and reprojects explicit true or false.",
+      "reason": "PPJ owns the Kimi `scatterOptions.varyColors` boolean through presence-aware direct `c:varyColors` true/false values. Combo charts, bubble/radar plots, vector fallback, non-marker numeric combos and irregular ChartML remain source-owned or fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "native area color variation",
+      "ppjPath": "pages[].elements[].style.varyColors",
+      "behavior": "partial",
+      "sourceBound": "Recognized imported ordinary area ChartParts project `style.varyColors` from direct c:areaChart/c:varyColors/@val. A source-bound setChartPlot edit changes only the target ChartPart and reprojects explicit true or false.",
+      "reason": "PPJ owns the Kimi `areaOptions.varyColors` boolean through presence-aware direct `c:varyColors` true/false values. Area combos without a column plot, vector fallback, advanced effects/extensions and irregular ChartML remain source-owned or fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "native radar chart style",
+      "ppjPath": "pages[].elements[].style.radarStyle",
+      "behavior": "partial",
+      "sourceBound": "Recognized imported ordinary radar ChartParts project `style.radarStyle` from direct c:radarChart/c:radarStyle/@val. A source-bound setChartPlot edit changes only the target ChartPart and reprojects `standard`, `marker`, or `filled`.",
+      "reason": "PPJ owns the bounded native radar plot modes through the Office Open XML `standard`, `marker`, and `filled` tokens. 3D, extension/effect graphs, complex combinations, vector fallback, and irregular radar topology remain source-owned and fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "native chart series null handling",
+      "ppjPath": "pages[].elements[].data.series[].nullHandling",
+      "behavior": "partial",
+      "sourceBound": "Recognized ordinary line, area, and radar ChartParts project series `nullHandling` from the chart-level c:dispBlanksAs owner. A source-bound setChartPlot edit changes only that ChartPart and reprojects `zero`, `gap`, or `connect`.",
+      "reason": "PPJ owns Kimi `LinearSeriesBase.nullHandling` as a bounded series field. Declared values in one chart must agree; `zero` and `gap` map directly to native modes and `connect` maps to native `span`. Omitted series follow the chart mode. Combo, scatter/bubble, candlestick, streamgraph/vector fallback, extension, and irregular ChartML remain source-owned and fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "native sparse chart point styles",
+      "ppjPath": "pages[].elements[].data.series[].pointStyles",
+      "behavior": "partial",
+      "sourceBound": "Canonical imported bar, column, pie and doughnut ChartParts project bounded c:dPt state and reuse setChartFill. A source-bound edit adds, replaces or removes only sorted sparse point fill, outline or legal explosion state inside the existing ChartPart before a second projection proves the requested semantics.",
+      "reason": "PPJ owns zero-based point indexes, none/solid/gradient direct fill, bounded RGB outline and pie/doughnut explosion from 0 through 400. Missing points, marker overrides, picture options, 3D state, effects, extensions, unknown children and irregular paint or line graphs remain source-owned and fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "native chart series stroke and markers",
+      "ppjPath": "pages[].elements[].data.series[].stroke and pages[].elements[].data.series[].marker",
+      "behavior": "partial",
+      "sourceBound": "Recognized imported line, scatter and radar ChartParts expose line/scatter/radar marker identity, size, direct RGB/alpha fill and marker outline through setChartSeriesStyle; non-scatter series direct stroke uses the same capability. A bounded source-bound edit adds, replaces or removes only these series style nodes inside the existing ChartPart and then proves a second projection.",
+      "reason": "The native reader/writer owns the finite marker catalog (none, dot, circle, square, diamond, triangle, x, star, plus, dash), sizes 2 through 72, direct RGB paint, bounded dash/width/cap/join/opacity, and line/scatter/radar family checks. Scatter series lines, theme/transformed colors, picture/effect marker graphs, unsupported family markers and irregular ChartML remain source-owned and fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "native chart series explosion",
+      "ppjPath": "pages[].elements[].data.series[].explosion",
+      "behavior": "partial",
+      "sourceBound": "Recognized imported ordinary pie and doughnut ChartParts project direct c:ser/c:explosion into the series field. A source-bound setChartSeriesStyle edit changes only the target ChartPart and reprojects explicit zero or nonzero explosion.",
+      "reason": "PPJ owns Kimi ChartSeriesConfig.explosion as a presence-aware integer from 0 through 400. Point-level dPt explosion remains under pointStyles; combo, 3D, extension and irregular ChartML remain source-owned or fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "native chart trendlines and scalar error bars",
+      "ppjPath": "pages[].elements[].data.series[].trendlines and pages[].elements[].data.series[].errorBars",
+      "behavior": "partial",
+      "sourceBound": "Recognized imported bar/column or line ChartParts expose the existing bounded c:trendline and scalar c:errBars children through setChartSeriesAnalytics. A source-bound edit may replace the values of an existing same-count trendline list or existing scalar error-bar object inside the ChartPart and then proves a second projection; adding, removing, or changing child topology fails closed.",
+      "reason": "The shared ChartSpace codecs already own six trendline types, polynomial/moving-average constraints, forecast/intercept/display flags, bounded direct line styling, and fixed-value/percentage/standard-deviation/standard-error error bars. Custom error-bar data, formulas/workbook synchronization, extensions, 3D/complex combo semantics, and topology changes remain source-owned and fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "native chart axis arrowheads",
+      "ppjPath": "pages[].elements[].xAxis/yAxis/secondaryXAxis/secondaryYAxis.axisLineArrow.start/end",
+      "behavior": "partial",
+      "sourceBound": "Canonical imported ordinary chart axes project finite endpoint names and reuse setChartAxis. A bounded edit adds, replaces or removes only recognized a:headEnd/a:tailEnd state inside the existing editable axis line container and then re-proves the ChartPart semantics.",
+      "reason": "PPJ owns none, triangle, stealth, diamond, oval and open start/end axis arrowheads. Endpoint size metadata, effects, unknown children, arrows on grid/series/radar-spoke lines, generated vector axes and irregular native line topology remain source-owned and fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "native radar spoke coordinate system",
+      "ppjPath": "pages[].elements[] where chartType is radar and spokeAxis declares show/min/max/majorUnit/label/axisLine/gridLine",
+      "behavior": "partial",
+      "sourceBound": "Canonical imported standard-radar ChartParts project one semantic spokeAxis and issue setChartAxis, plus setChartTextStyle when label typography is editable. A bounded edit patches only the existing category/value axis pair and preserves the chart topology and unrelated native content.",
+      "reason": "PPJ maps axisLine to radial spokes, gridLine to concentric rings, and the numeric scale plus label visibility/format/typography to the native value axis. Custom label positions, reverse radar direction, logarithmic scales, axis arrows, theme/effect line graphs, filled or 3D radar variants, extensions and irregular axis topology remain source-owned and fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "circular chart geometry",
+      "ppjPath": "pages[].elements[].style.startAngle and pages[].elements[].style.holeSize",
+      "behavior": "partial",
+      "sourceBound": "Recognized imported pie and doughnut ChartParts issue setChartPlot for the bounded chart.plot field. PPJ may change first-slice angle and, for doughnuts, center-hole size without changing series topology or rebuilding the chart.",
+      "reason": "The compiler owns native c:firstSliceAng from 0 through 360 and c:holeSize from 10 through 90. Other plot options and incompatible chart families fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "native inline formulas",
+      "ppjPath": "pages[].elements[].text.paragraphs[].runs[].formula",
+      "behavior": "partial",
+      "sourceBound": "An authored formula may be added inside ordinary compiler-owned rich text, including one eligible topmost typed text overlay on a source-bound page. Third-party a14:m/OMML is preserved but is never reverse-translated into guessed LaTeX, and existing imported formulas receive no mutation capability.",
+      "reason": "PPJ compiles one bounded, non-executable LaTeX subset to canonical editable Office Math and restores the exact source only from an embedded PPJ snapshot. Arbitrary TeX, raw OMML, environments, macros and unsupported formula styling fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound paragraph tab stops",
+      "ppjPath": "pages[].elements[].text.paragraphs[].style.tabStops and noTabStops",
+      "behavior": "partial",
+      "sourceBound": "Recognized text bodies issue setTextParagraphStyle for fixed-topology tab-stop edits. PPJ positions are expressed in points and lower to the owning paragraph's a:tabLst; noTabStops explicitly removes only that modeled list.",
+      "reason": "Only a single direct tab-stop list with bounded left, center, right or decimal alignment is modeled. Inherited list styles, malformed lists, reflow and other paragraph extensions remain source-owned and fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound text-container body layout",
+      "ppjPath": "pages[].elements[].style or textStyle",
+      "behavior": "partial",
+      "sourceBound": "Recognized fixed-topology text, shape-text and placeholder bodies issue setTextBodyStyle when their direct a:bodyPr state is within the bounded profile. Existing body-property leaves can be changed in place without adding a body or rewriting paragraph/run topology.",
+      "reason": "The profile owns vertical alignment, wrapping, insets, columns, column gap/direction, vertical-text mode, rotation, overflow, upright, canonical normAutofit percentages, and the bounded direct flatTx z coordinate. Inheritance, explicit deletion and unknown/effect-rich bodyPr state remain source-owned and fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound table-cell text-body layout",
+      "ppjPath": "pages[].elements[].rows[].cells[].text.style",
+      "behavior": "partial",
+      "sourceBound": "Recognized fixed-topology table cells expose a structured rich-text text.style object and reuse setTableCellStyle/table.cell.textStyle to patch the existing a:bodyPr leaves.",
+      "reason": "The bounded profile owns direct vertical alignment, wrapping, insets, columns, column gap/direction, vertical-text, rotation, overflow, upright, canonical normAutofit percentages, and flatTextZ when those body-property values have a textBoxStyle spelling. Explicit delete markers, inheritance and unknown bodyPr extensions remain source-owned and fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "named icon catalog",
+      "ppjPath": "pages[].elements[] where type is icon",
+      "behavior": "partial",
+      "sourceBound": "An authored icon may be added as a topmost typed overlay on an eligible source-bound page. Ordinary third-party custom geometry projects truthfully as shape or opaque content and is never inferred back into an icon name.",
+      "reason": "PPJ resolves an exact bundled Font Awesome Free name to one finite editable DrawingML custom path. Unknown names, arbitrary SVG paths, external icon providers and semantic inference from native geometry fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "authored shape and image glow",
+      "ppjPath": "design.styles.shape[].style.glow, design.styles.image[].style.glow, and pages[].elements[] where type is shape, line, or image",
+      "behavior": "partial",
+      "sourceBound": "Source-free PPJ owns a bounded direct glow for compiler-owned shapes, lines and pictures. Imported/source-bound ordinary shape, line and picture glow now expose the same direct owner and scalar leaves; broader effect graphs remain source-preserved or fail closed.",
+      "reason": "The profile owns one direct RGB or theme color, a 0..1000 point radius and numeric or opacity-token opacity, lowering to a:glow before an optional a:outerShdw. The source-bound profile accepts only direct glow or glow followed by one bounded outer shadow and token-splices the selected owner scalar; reflection, inner shadow, 3-D and arbitrary multi-effect graphs remain outside this owner.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "authored shape and image inner shadow",
+      "ppjPath": "design.styles.shape[].style.innerShadow, design.styles.image[].style.innerShadow, and pages[].elements[] where type is shape, line, or image",
+      "behavior": "partial",
+      "sourceBound": "Source-free PPJ owns a bounded direct inner shadow for compiler-owned shapes, lines and pictures. Imported/source-bound ordinary shape, line and picture inner shadow now expose the same direct owner and scalar leaves; broader effect graphs remain source-preserved or fail closed.",
+      "reason": "The profile owns direct RGB or theme color, bounded blur/distance/angle and numeric or opacity-token opacity, lowering to a:innerShdw before an optional a:outerShdw. The source-bound profile accepts only direct inner shadow or inner shadow followed by one bounded outer shadow and token-splices the selected owner scalar; glow, reflection, soft edge, 3-D and arbitrary multi-effect graphs remain outside this owner.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "authored shape and image soft edge",
+      "ppjPath": "design.styles.shape[].style.softEdge, design.styles.image[].style.softEdge, and pages[].elements[] where type is shape, line, or image",
+      "behavior": "partial",
+      "sourceBound": "Source-free PPJ owns a bounded direct soft edge for compiler-owned shapes, lines and pictures. Imported/source-bound ordinary shape, line, and picture soft edge expose the same owner-specific radius leaf and SlidePart-only token splice; broader effect graphs remain source-preserved or fail closed.",
+      "reason": "The profile owns one 0..1000 point radius and lowers it to a:softEdge after the bounded glow and outer-shadow owners. The source-bound profile accepts direct soft edge, outer shadow followed by soft edge, or full-span reflection followed by soft edge, and preserves the preceding effect while splicing only rad. Glow, inner shadow, 3-D and arbitrary multi-effect graphs remain outside this owner.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "authored shape and image inner shadow",
+      "ppjPath": "design.styles.shape[].style.innerShadow, design.styles.image[].style.innerShadow, and pages[].elements[] where type is image",
+      "behavior": "partial",
+      "sourceBound": "Source-free PPJ owns a bounded direct inner shadow for compiler-owned shapes, lines and pictures. Imported/source-bound inner shadow and broader effect graphs remain source-preserved or fail closed.",
+      "reason": "The profile owns direct RGB or theme color, bounded blur/distance/angle, and numeric or opacity-token opacity, lowering to a:innerShdw between the glow and outer-shadow owners. Reflection, 3-D, arbitrary multi-effect graphs and source-bound inner-shadow editing are outside this authored owner.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "authored shape and image reflection",
+      "ppjPath": "design.styles.shape[].style.reflection, design.styles.image[].style.reflection, and pages[].elements[] where type is shape, line, or image",
+      "behavior": "partial",
+      "sourceBound": "Source-free PPJ owns a bounded direct reflection for compiler-owned shapes, lines and pictures. Imported/source-bound ordinary shapes, lines, and pictures expose the same direct owner and scalar leaves; broader effect graphs remain source-preserved or fail closed.",
+      "reason": "The profile owns bounded blur, start/end opacity, distance and direction, lowering to a:reflection with full-span positions after an optional outer shadow. The source-bound profile accepts only direct reflection or outer shadow followed by reflection and token-splices the selected owner scalar; glow, inner shadow, soft edge, 3-D, transform variants and arbitrary multi-effect graphs remain outside this owner.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "authored text glow",
+      "ppjPath": "textStyle.glow across paragraph defaultText, rich-text run styles, named text styles and authored layout/master text defaults",
+      "behavior": "partial",
+      "sourceBound": "Source-free PPJ owns a bounded direct text glow for authored runs and paragraph default runs. A strict imported/source-bound profile now projects direct rich-text run glow and issues radius, RGB/theme color, and existing explicit-alpha native leaves; paragraph defaultText also issues textDefaultGlowRadiusEmu, textDefaultGlowColorRgb, textDefaultGlowColorScheme, and textDefaultGlowOpacityThousandthPercent for the direct glow radius/RGB/theme color/explicit alpha, while other default-text glow scalars and effect graphs remain source-preserved or fail closed.",
+      "reason": "The authored profile reuses direct RGB/theme color, 0..1000 point radius and numeric or opacity-token opacity, lowering to a:glow before the existing bounded text outer-shadow owner. The source-bound profile accepts only one direct glow or glow followed by one bounded outer shadow, preserves color topology, and token-splices the selected run scalar as proven by PpjSourceBoundTextGlowEditsDirectRunOwnerAndReprojects. The paragraph defaultText profile proves the same owner and token-splices only glow/@rad, the direct glow/srgbClr/@val or glow/schemeClr/@val, or one existing direct color alpha a:alpha/@val. Text reflection, inner shadow, soft edge, WordArt and arbitrary effect lists remain outside this owner.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "authored text inner shadow",
+      "ppjPath": "textStyle.innerShadow across paragraph defaultText, rich-text run styles, named text styles and authored layout/master text defaults",
+      "behavior": "partial",
+      "sourceBound": "Source-free PPJ owns a bounded direct text inner shadow for authored runs and paragraph default runs. A strict imported/source-bound profile now projects direct rich-text run inner shadow and issues existing geometry, RGB/theme color, and explicit-alpha native leaves; paragraph defaultText exposes textDefaultInnerShadowBlurRadiusEmu, textDefaultInnerShadowDistanceEmu, textDefaultInnerShadowDirectionDegrees, textDefaultInnerShadowColorRgb, textDefaultInnerShadowColorScheme, and textDefaultInnerShadowOpacityThousandthPercent for direct blur/distance/direction/RGB/theme color/explicit alpha, while its separate glow-radius and soft-edge-radius leaves are documented below. Other text effect graphs remain source-preserved or fail closed.",
+      "reason": "The authored profile reuses direct RGB/theme color, bounded blur/distance/angle and numeric or opacity-token opacity, lowering to a:innerShdw between the bounded text glow and outer-shadow owners. The source-bound profile accepts only one direct inner shadow or inner shadow followed by one bounded outer shadow, preserves color topology, and token-splices the selected run scalar as proven by PpjSourceBoundTextInnerShadowEditsDirectRunOwnerAndReprojects. The paragraph defaultText profile proves the same owner and token-splices only innerShdw/@blurRad, innerShdw/@dist, innerShdw/@dir, the direct innerShdw/srgbClr/@val or innerShdw/schemeClr/@val, or one existing direct color/alpha innerShdw/*Clr/a:alpha/@val. Text glow, reflection, soft edge, WordArt and arbitrary effect lists remain outside this owner.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "authored text reflection",
+      "ppjPath": "textStyle.reflection across paragraph defaultText, rich-text run styles, named text styles and authored layout/master text defaults",
+      "behavior": "partial",
+      "sourceBound": "Source-free PPJ owns a bounded direct text reflection for authored runs and paragraph default runs. A strict imported/source-bound profile now projects one full-span direct rich-text run reflection, optionally preceded by one valid outer shadow, and issues the existing scalar leaves; paragraph defaultText also exposes textDefaultReflectionBlurRadiusEmu, textDefaultReflectionDistanceEmu, textDefaultReflectionStartOpacityThousandthPercent, textDefaultReflectionEndOpacityThousandthPercent, and textDefaultReflectionDirectionDegrees alongside the separate glow, inner-shadow and soft-edge radius leaves documented below. Other text effect graphs remain source-preserved or fail closed.",
+      "reason": "The profile reuses bounded blur, start/end opacity, distance and angle, lowering to a:reflection with deterministic full-span positions after the bounded text glow, inner-shadow and outer-shadow owners. The source-bound profile accepts only a full-span reflection or outer-shadow→reflection, preserves the owner proof and token-splices the selected run scalar as proven by PpjSourceBoundTextReflectionEditsDirectRunOwnerAndReprojects; the paragraph defaultText profile proves the same full-span owner and token-splices only reflection/@blurRad, reflection/@dist, reflection/@stA, reflection/@endA, or reflection/@dir. 3-D, reflection transform variants, WordArt and arbitrary effect lists remain outside this owner.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "authored text soft edge",
+      "ppjPath": "textStyle.softEdge across paragraph defaultText, rich-text run styles, named text styles and authored layout/master text defaults",
+      "behavior": "partial",
+      "sourceBound": "Source-free PPJ owns a bounded direct text soft edge for authored runs and paragraph default runs. A strict imported/source-bound profile now projects one direct rich-text run soft edge, optionally preceded by one valid outer shadow or full-span reflection, and issues the existing radius leaf; the matching paragraph defaultText owner issues textDefaultSoftEdgeRadiusEmu with a paragraph-index proof. Other text effect graphs remain source-preserved or fail closed.",
+      "reason": "The profile reuses a 0..1000 point radius, lowering to a:softEdge after the bounded text glow, inner-shadow, outer-shadow and reflection owners. The source-bound run profile accepts only a direct soft edge, outer-shadow→soft-edge or full-span reflection→soft-edge, preserves the preceding owner proof and token-splices the selected run radius; the defaultText profile proves direct a:p/a:pPr/a:defRPr ownership and token-splices its softEdge/@rad, as covered by PpjSourceBoundTextSoftEdgeEditsDirectRunOwnerAndReprojects and its focused default-text extension. 3-D, WordArt and arbitrary effect lists remain outside this authored owner.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "independently rotated connector frames",
+      "ppjPath": "connector.frame",
+      "behavior": "fail-closed",
+      "sourceBound": "Imported placement and transform topology remains source-preserved unless a matching typed capability is issued.",
+      "reason": "Shape, text, placeholder, image, chart, table and group frames own rotation/flips; connector orientation remains endpoint-derived.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "structured chart titles and other chart typography",
+      "ppjPath": "chart.title, chart.style.titleTextStyle.fill/underline/alignment, chart.style.legendTextStyle.fill/underline/alignment, chart.style.dataLabels.textStyle.fill/underline/alignment and chart axes textStyle.fill/underline/alignment/titleTextStyle.fill/underline/alignment",
+      "behavior": "partial",
+      "sourceBound": "Bounded multi-paragraph/run chart titles are projected and editable through setChartTitle; canonical legend, data-label, axis-title and axis tick-label typography, including bounded direct none/solid/gradient text paint, underline and paragraph-alignment tokens, remains editable through setChartTextStyle. Unsupported title containers remain source-preserved.",
+      "reason": "Authored ordinary and combo charts own structured title runs plus Latin/East Asian typefaces, size, bold, italic, bounded direct none/solid/gradient text paint, underline tokens, paragraph alignment and direct RGB/alpha. Solid text paint remains compatible with the existing color representation; formula-backed titles, hyperlinks, theme transforms, WordArt, shadows, effects and unknown title topology remain outside the bounded profile.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "native chart-wide font family",
+      "ppjPath": "pages[].elements[].fontFamily",
+      "behavior": "partial",
+      "sourceBound": "Recognized ordinary and combo ChartParts project a direct chart-wide Latin typeface from c:chartSpace/c:txPr and issue setChartTextStyle for chart.fontFamily. A source-bound edit changes only the target ChartPart and reprojects the selected font family.",
+      "reason": "PPJ owns Kimi Chart.fontFamily through one bounded direct a:defRPr/a:latin typeface. East Asian or complex-script fallbacks, other global text properties, irregular txPr graphs, vector-lowered charts and unsupported chart families remain source-owned or fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "third-party media playback graphs",
+      "ppjPath": "pages[].elements[] where type is media and nativeRef is present",
+      "behavior": "source-bound-only",
+      "sourceBound": "Imported audio/video pictures, media relationships and timing graphs remain opaque-preserved unless a future capability proves the complete playback closure.",
+      "reason": "Source-free PPJ owns a bounded canonical audio/video profile with an explicit poster, trim, loop and mute. It does not claim arbitrary third-party triggers, bookmarks, media effects or timing topology.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "third-party partial element lock profiles",
+      "ppjPath": "pages[].elements[].locked",
+      "behavior": "partial",
+      "sourceBound": "A recognized unlocked baseline or complete OfficeKit lock profile issues setLocked. Partial flags, extension-bearing locks and unknown combinations remain source-owned. Element visibility is proven separately and may still issue setHidden.",
+      "reason": "One PPJ boolean cannot preserve the intent of every type-specific DrawingML lock combination without erasing native information.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-free OLE",
+      "ppjPath": "pages[].elements[] where type is ole",
+      "behavior": "source-bound-only",
+      "sourceBound": "Imported OLE objects are classified and preserved; only issued nativeRef or typed capabilities may change them.",
+      "reason": "PPJ models OLE persistent state, but authored native OLE creation is not compiler-owned.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "native Office SmartArt parts",
+      "ppjPath": "pages[].elements[] where type is smartArt",
+      "behavior": "partial",
+      "sourceBound": "Authored PPJ emits one native diagram frame with data, layout, style, colors and cached-drawing parts. Custom definition assets execute bounded placement, gap, column and reverse operators and round-trip as content-addressed JSON. OfficeKit-owned native graphs issue text, connection, frame and verified detach capabilities; a picture-layout graph whose cached drawing has one embedded blip per node additionally projects canonical stretch/tile crop/opacity paint and issues setSmartArtImage/setSmartArtImagePaint for replacing an existing content-addressed node asset or its cached paint. Every closed third-party diagram projects as typed SmartArt: proven nodes and parent edges are editable by issued text leaves, while unknown graphs stay typed read-only with path-independent section hashes.",
+      "reason": "Arbitrary DiagramML programs, unsupported operator kinds, shared or external native closures, multiple/effect-bearing/linked picture blips and unverified caches fail closed. Picture asset/image add/remove and topology edits are not exposed. detachToShapes is explicit and reports semantic loss.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "native-theme bullet identity and uncommon numbering schemes",
+      "ppjPath": "text.paragraphs[].style.bullet",
+      "behavior": "partial",
+      "sourceBound": "Existing paragraph bullet leaves are editable only when capability-issued.",
+      "reason": "Authored bullets accept literal RGB/alpha or deck-local color tokens resolved to RGB/alpha, plus the documented decimal, alpha and Roman schemes. Existing native theme-token identity remains source-bound and leaf-editable rather than being guessed during source-free authoring.",
+      "visualStatus": "partial-or-opaque"
+    }
+  ],
+  "nativeLeafKinds": [
+    {
+      "name": "text",
+      "valueType": "string",
+      "unit": "text",
+      "ppjLocation": "text or visibleText",
+      "surface": "native-leaf",
+      "boundary": "A capability-issued text leaf only."
+    },
+    {
+      "name": "tableCellText",
+      "valueType": "string",
+      "unit": "text",
+      "ppjLocation": "table.rows[].cells[].text or nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One located table-cell text leaf."
+    },
+    {
+      "name": "tableHeaderRows",
+      "valueType": "number",
+      "unit": "integer",
+      "ppjLocation": "table.style.headerRows",
+      "surface": "native-leaf",
+      "boundary": "Direct imported table header-row flag; the source must contain one existing canonical a:tblPr/@firstRow token with value 0 or 1."
+    },
+    {
+      "name": "tableBandedRows",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "table.style.bandedRows",
+      "surface": "native-leaf",
+      "boundary": "Direct imported table banded-rows flag; the source must contain one existing canonical a:tblPr/@bandRow token."
+    },
+    {
+      "name": "tableBandedColumns",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "table.style.bandedColumns",
+      "surface": "native-leaf",
+      "boundary": "Direct imported table banded-columns flag; the source must contain one existing canonical a:tblPr/@bandCol token."
+    },
+    {
+      "name": "tableFirstColumnEmphasis",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "table.style.firstColumnEmphasis",
+      "surface": "native-leaf",
+      "boundary": "Direct imported table first-column flag; the source must contain one existing canonical a:tblPr/@firstCol token."
+    },
+    {
+      "name": "tableLastColumnEmphasis",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "table.style.lastColumnEmphasis",
+      "surface": "native-leaf",
+      "boundary": "Direct imported table last-column flag; the source must contain one existing canonical a:tblPr/@lastCol token."
+    },
+    {
+      "name": "tableLastRow",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "table.style.lastRow",
+      "surface": "native-leaf",
+      "boundary": "Direct imported table last-row flag; the source must contain one existing canonical a:tblPr/@lastRow token."
+    },
+    {
+      "name": "nativeText",
+      "valueType": "string",
+      "unit": "text",
+      "ppjLocation": "opaque.visibleText or nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One safe opaque DrawingML text leaf."
+    },
+    {
+      "name": "paragraphAlignment",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "paragraph.style.alignment",
+      "surface": "native-leaf",
+      "boundary": "Located paragraph only."
+    },
+    {
+      "name": "paragraphLineSpacingPoints",
+      "valueType": "number",
+      "unit": "pt",
+      "ppjLocation": "paragraph.style.lineSpacing",
+      "surface": "native-leaf",
+      "boundary": "Absolute paragraph line spacing."
+    },
+    {
+      "name": "paragraphLineSpacingMultiplier",
+      "valueType": "number",
+      "unit": "ratio",
+      "ppjLocation": "paragraph.style.lineSpacingMultiplier",
+      "surface": "native-leaf",
+      "boundary": "Relative paragraph line spacing."
+    },
+    {
+      "name": "paragraphSpaceBeforePoints",
+      "valueType": "number",
+      "unit": "pt",
+      "ppjLocation": "paragraph.style.spaceBefore",
+      "surface": "native-leaf",
+      "boundary": "Absolute space before one paragraph."
+    },
+    {
+      "name": "paragraphSpaceBeforeMultiplier",
+      "valueType": "number",
+      "unit": "ratio",
+      "ppjLocation": "paragraph.style.spaceBeforeMultiplier",
+      "surface": "native-leaf",
+      "boundary": "Relative space before one paragraph."
+    },
+    {
+      "name": "paragraphSpaceAfterPoints",
+      "valueType": "number",
+      "unit": "pt",
+      "ppjLocation": "paragraph.style.spaceAfter",
+      "surface": "native-leaf",
+      "boundary": "Absolute space after one paragraph."
+    },
+    {
+      "name": "paragraphSpaceAfterMultiplier",
+      "valueType": "number",
+      "unit": "ratio",
+      "ppjLocation": "paragraph.style.spaceAfterMultiplier",
+      "surface": "native-leaf",
+      "boundary": "Relative space after one paragraph."
+    },
+    {
+      "name": "paragraphMarginLeftEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "paragraph.style.indent",
+      "surface": "native-leaf",
+      "boundary": "Paragraph left margin; PPJ authored state uses points."
+    },
+    {
+      "name": "paragraphIndentEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "paragraph.style.hanging",
+      "surface": "native-leaf",
+      "boundary": "DrawingML paragraph indent; PPJ authored state uses points."
+    },
+    {
+      "name": "paragraphBulletCharacter",
+      "valueType": "string",
+      "unit": "text",
+      "ppjLocation": "paragraph.style.bullet.character",
+      "surface": "native-leaf",
+      "boundary": "Existing character bullet only."
+    },
+    {
+      "name": "paragraphBulletAutoNumberScheme",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "paragraph.style.bullet.scheme",
+      "surface": "native-leaf",
+      "boundary": "Existing auto-number bullet scheme."
+    },
+    {
+      "name": "paragraphBulletAutoNumberStartAt",
+      "valueType": "number",
+      "unit": "integer",
+      "ppjLocation": "paragraph.style.bullet.startAt",
+      "surface": "native-leaf",
+      "boundary": "Existing auto-number start value."
+    },
+    {
+      "name": "paragraphBulletFontFamily",
+      "valueType": "string",
+      "unit": "font-family",
+      "ppjLocation": "paragraph.style.bullet.fontFamily",
+      "surface": "native-leaf",
+      "boundary": "Existing bullet font leaf."
+    },
+    {
+      "name": "paragraphBulletColorRgb",
+      "valueType": "string",
+      "unit": "rgb",
+      "ppjLocation": "paragraph.style.bullet.color",
+      "surface": "native-leaf",
+      "boundary": "Explicit bullet RGB color."
+    },
+    {
+      "name": "paragraphBulletColorScheme",
+      "valueType": "string",
+      "unit": "theme-color",
+      "ppjLocation": "paragraph.style.bullet.color",
+      "surface": "native-leaf",
+      "boundary": "Theme-bound bullet color."
+    },
+    {
+      "name": "paragraphBulletSizePoints",
+      "valueType": "number",
+      "unit": "pt",
+      "ppjLocation": "paragraph.style.bullet.size",
+      "surface": "native-leaf",
+      "boundary": "Absolute bullet size."
+    },
+    {
+      "name": "paragraphBulletSizePercent",
+      "valueType": "number",
+      "unit": "percent",
+      "ppjLocation": "paragraph.style.bullet.sizePercent",
+      "surface": "native-leaf",
+      "boundary": "Bullet size relative to text."
+    },
+    {
+      "name": "paragraphLevel",
+      "valueType": "number",
+      "unit": "integer",
+      "ppjLocation": "paragraph.style.level",
+      "surface": "native-leaf",
+      "boundary": "Paragraph outline level 0 through 8."
+    },
+    {
+      "name": "verticalAnchor",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "textBoxStyle.verticalAlignment",
+      "surface": "native-leaf",
+      "boundary": "Text body vertical anchor."
+    },
+    {
+      "name": "textBodyAnchorCenter",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "textBoxStyle.anchorCenter",
+      "surface": "native-leaf",
+      "boundary": "Direct imported text-body anchorCtr flag; the source must contain one existing canonical a:bodyPr/@anchorCtr token."
+    },
+    {
+      "name": "textBodyForceAntiAlias",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "textBoxStyle.forceAntiAlias",
+      "surface": "native-leaf",
+      "boundary": "Direct imported text-body forceAA hint; the source must contain one existing canonical a:bodyPr/@forceAA token."
+    },
+    {
+      "name": "textBodySpaceFirstLastParagraph",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "textBoxStyle.spaceFirstLastParagraph",
+      "surface": "native-leaf",
+      "boundary": "Direct imported text-body spcFirstLastPara hint; the source must contain one existing canonical a:bodyPr/@spcFirstLastPara token."
+    },
+    {
+      "name": "textBodyCompatibleLineSpacing",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "textBoxStyle.compatibleLineSpacing",
+      "surface": "native-leaf",
+      "boundary": "Direct imported text-body compatLnSpc hint; the source must contain one existing canonical a:bodyPr/@compatLnSpc token."
+    },
+    {
+      "name": "textBodyFromWordArt",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "textBoxStyle.fromWordArt",
+      "surface": "native-leaf",
+      "boundary": "Direct imported text-body fromWordArt marker; the source must contain one existing canonical a:bodyPr/@fromWordArt token, and WordArt geometry/effects remain source-owned."
+    },
+    {
+      "name": "textBodyWarpPreset",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "textBoxStyle.textWarpPreset",
+      "surface": "native-leaf",
+      "boundary": "Direct imported a:prstTxWarp preset from the finite TextShapeValues vocabulary; the source must contain one existing child with only a canonical preset and optional literal adjustment list."
+    },
+    {
+      "name": "textBodyWarpAdjustment",
+      "valueType": "number",
+      "unit": "integer",
+      "ppjLocation": "textBoxStyle.textWarpAdjustments",
+      "surface": "native-leaf",
+      "boundary": "One ordered direct a:prstTxWarp/a:avLst/a:gd fmla=val N adjustment; the source must have unique names, no guide children, and no extension or formula topology."
+    },
+    {
+      "name": "textBodyFlatTextZ",
+      "valueType": "number",
+      "unit": "integer",
+      "ppjLocation": "textBoxStyle.flatTextZ",
+      "surface": "native-leaf",
+      "boundary": "One direct a:flatTx/@z canonical signed integer in the bounded 32-bit coordinate range; the child must have no other attributes or children, and surrounding 3D scene state remains source-owned."
+    },
+    {
+      "name": "textBodyInsetLeftEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "textBoxStyle.margins.left",
+      "surface": "native-leaf",
+      "boundary": "Left body inset; authored PPJ uses points."
+    },
+    {
+      "name": "textBodyInsetTopEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "textBoxStyle.margins.top",
+      "surface": "native-leaf",
+      "boundary": "Top body inset; authored PPJ uses points."
+    },
+    {
+      "name": "textBodyInsetRightEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "textBoxStyle.margins.right",
+      "surface": "native-leaf",
+      "boundary": "Right body inset; authored PPJ uses points."
+    },
+    {
+      "name": "textBodyInsetBottomEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "textBoxStyle.margins.bottom",
+      "surface": "native-leaf",
+      "boundary": "Bottom body inset; authored PPJ uses points."
+    },
+    {
+      "name": "textBodyWrap",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "textBoxStyle.wrap",
+      "surface": "native-leaf",
+      "boundary": "Text body wrapping mode."
+    },
+    {
+      "name": "textBodyColumnCount",
+      "valueType": "number",
+      "unit": "integer",
+      "ppjLocation": "textBoxStyle.columns",
+      "surface": "native-leaf",
+      "boundary": "Text body column count."
+    },
+    {
+      "name": "textBodyColumnGapEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "textBoxStyle.columnGap",
+      "surface": "native-leaf",
+      "boundary": "Direct imported text-body column spacing; the source must contain one existing non-negative a:bodyPr/@spcCol token."
+    },
+    {
+      "name": "textBodyRotationDegrees",
+      "valueType": "number",
+      "unit": "degrees",
+      "ppjLocation": "textBoxStyle.rotation",
+      "surface": "native-leaf",
+      "boundary": "Direct imported text-body rotation; the source must contain one existing bounded a:bodyPr/@rot token in 60000ths of a degree."
+    },
+    {
+      "name": "textBodyVerticalOverflow",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "textBoxStyle.verticalOverflow",
+      "surface": "native-leaf",
+      "boundary": "Direct imported text-body vertical overflow; the source must contain one existing bounded a:bodyPr/@vertOverflow token."
+    },
+    {
+      "name": "textBodyHorizontalOverflow",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "textBoxStyle.horizontalOverflow",
+      "surface": "native-leaf",
+      "boundary": "Direct imported text-body horizontal overflow; the source must contain one existing bounded a:bodyPr/@horzOverflow token."
+    },
+    {
+      "name": "textBodyUpright",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "textBoxStyle.upright",
+      "surface": "native-leaf",
+      "boundary": "Direct imported text-body upright flag; the source must contain one existing canonical a:bodyPr/@upright token."
+    },
+    {
+      "name": "textBodyAutoFit",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "textBoxStyle.autoFit",
+      "surface": "native-leaf",
+      "boundary": "Text body auto-fit mode."
+    },
+    {
+      "name": "textBodyNormalAutoFitFontScale",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "textBoxStyle.normalAutoFit.fontScale",
+      "surface": "native-leaf",
+      "boundary": "Direct canonical a:normAutofit fontScale from 1% through 100%, exposed as a percentage with three decimal places."
+    },
+    {
+      "name": "textBodyNormalAutoFitLineSpacingReduction",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "textBoxStyle.normalAutoFit.lineSpacingReduction",
+      "surface": "native-leaf",
+      "boundary": "Direct canonical a:normAutofit lnSpcReduction from 0% through 13200%, exposed as a percentage with three decimal places."
+    },
+    {
+      "name": "textBodyColumnDirection",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "textBoxStyle.columnDirection",
+      "surface": "native-leaf",
+      "boundary": "Existing right-to-left-columns flag; authored PPJ uses a direction enum."
+    },
+    {
+      "name": "textBodyVerticalText",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "textBoxStyle.verticalText",
+      "surface": "native-leaf",
+      "boundary": "DrawingML vertical text orientation."
+    },
+    {
+      "name": "fontSizePoints",
+      "valueType": "number",
+      "unit": "pt",
+      "ppjLocation": "run.style.size",
+      "surface": "native-leaf",
+      "boundary": "One located run property."
+    },
+    {
+      "name": "fontFamily",
+      "valueType": "string",
+      "unit": "font-family",
+      "ppjLocation": "run.style.fontFamily",
+      "surface": "native-leaf",
+      "boundary": "Latin typeface for one located run."
+    },
+    {
+      "name": "fontFamilyEastAsia",
+      "valueType": "string",
+      "unit": "font-family",
+      "ppjLocation": "run.style.fontFamilyEastAsia",
+      "surface": "native-leaf",
+      "boundary": "East Asian typeface for one located run."
+    },
+    {
+      "name": "fontFamilyComplexScript",
+      "valueType": "string",
+      "unit": "font-family",
+      "ppjLocation": "run.style.fontFamilyComplexScript",
+      "surface": "native-leaf",
+      "boundary": "Complex-script typeface for one located run."
+    },
+    {
+      "name": "fontLanguage",
+      "valueType": "string",
+      "unit": "bcp47",
+      "ppjLocation": "run.style.language",
+      "surface": "native-leaf",
+      "boundary": "One canonical direct run language tag."
+    },
+    {
+      "name": "fontBold",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "run.style.bold",
+      "surface": "native-leaf",
+      "boundary": "One located run property."
+    },
+    {
+      "name": "fontItalic",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "run.style.italic",
+      "surface": "native-leaf",
+      "boundary": "One located run property."
+    },
+    {
+      "name": "fontUnderline",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "run.style.underline",
+      "surface": "native-leaf",
+      "boundary": "Canonical DrawingML underline value."
+    },
+    {
+      "name": "fontStrike",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "run.style.strike",
+      "surface": "native-leaf",
+      "boundary": "Canonical DrawingML strike value."
+    },
+    {
+      "name": "fontColorRgb",
+      "valueType": "string",
+      "unit": "rgb",
+      "ppjLocation": "run.style.color",
+      "surface": "native-leaf",
+      "boundary": "Explicit run RGB color."
+    },
+    {
+      "name": "fontColorScheme",
+      "valueType": "string",
+      "unit": "theme-color",
+      "ppjLocation": "run.style.color",
+      "surface": "native-leaf",
+      "boundary": "Theme-bound run color."
+    },
+    {
+      "name": "fontKerningPoints",
+      "valueType": "number",
+      "unit": "pt",
+      "ppjLocation": "run.style.kerning",
+      "surface": "native-leaf",
+      "boundary": "Run kerning threshold."
+    },
+    {
+      "name": "fontBaselinePercent",
+      "valueType": "number",
+      "unit": "percent",
+      "ppjLocation": "run.style.baseline",
+      "surface": "native-leaf",
+      "boundary": "Superscript or subscript baseline shift."
+    },
+    {
+      "name": "fontSpacingPoints",
+      "valueType": "number",
+      "unit": "pt",
+      "ppjLocation": "run.style.letterSpacing",
+      "surface": "native-leaf",
+      "boundary": "Run character spacing."
+    },
+    {
+      "name": "fontCaps",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "run.style.capitalization",
+      "surface": "native-leaf",
+      "boundary": "Run capitalization mode."
+    },
+    {
+      "name": "fontHighlightRgb",
+      "valueType": "string",
+      "unit": "rgb",
+      "ppjLocation": "run.style.highlight",
+      "surface": "native-leaf",
+      "boundary": "Existing direct RGB text highlight only."
+    },
+    {
+      "name": "fontHighlightScheme",
+      "valueType": "string",
+      "unit": "theme-color",
+      "ppjLocation": "run.style.highlight",
+      "surface": "native-leaf",
+      "boundary": "Existing direct theme-bound text highlight only."
+    },
+    {
+      "name": "textGlowRadiusEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "run.style.glow.radius",
+      "surface": "native-leaf",
+      "boundary": "Existing direct text-run glow radius only; the source effect list must use the strict glow profile."
+    },
+    {
+      "name": "textDefaultGlowRadiusEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "paragraph.style.defaultText.glow.radius",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text glow radius; the paragraph a:defRPr effect list must use the strict glow profile."
+    },
+    {
+      "name": "textDefaultGlowColorRgb",
+      "valueType": "string",
+      "unit": "rgb",
+      "ppjLocation": "paragraph.style.defaultText.glow.color",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text glow RGB color; the paragraph a:defRPr effect list must use the strict glow profile and one direct srgbClr."
+    },
+    {
+      "name": "textDefaultGlowColorScheme",
+      "valueType": "string",
+      "unit": "theme-color",
+      "ppjLocation": "paragraph.style.defaultText.glow.color",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text glow theme color; the paragraph a:defRPr effect list must use the strict glow profile and one direct schemeClr."
+    },
+    {
+      "name": "textDefaultGlowOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "paragraph.style.defaultText.glow.opacity",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text glow alpha; an explicit direct a:alpha/@val must already exist under the strict paragraph default-text glow profile."
+    },
+    {
+      "name": "textDefaultShadowBlurRadiusEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "paragraph.style.defaultText.shadow.blur",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text outer-shadow blur radius; the paragraph a:defRPr effect list must use one strict direct outerShdw with an existing blurRad."
+    },
+    {
+      "name": "textDefaultShadowDistanceEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "paragraph.style.defaultText.shadow.distance",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text outer-shadow distance; the paragraph a:defRPr effect list must use one strict direct outerShdw with an existing dist."
+    },
+    {
+      "name": "textDefaultShadowDirectionDegrees",
+      "valueType": "number",
+      "unit": "degrees",
+      "ppjLocation": "paragraph.style.defaultText.shadow.angle",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text outer-shadow direction in 60000ths of a degree; the paragraph a:defRPr effect list must use one strict direct outerShdw with an existing dir."
+    },
+    {
+      "name": "textDefaultShadowAlignment",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "paragraph.style.defaultText.shadow.alignment",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text outer-shadow alignment; the paragraph a:defRPr effect list must use one strict direct outerShdw with an existing algn token."
+    },
+    {
+      "name": "textDefaultShadowColorRgb",
+      "valueType": "string",
+      "unit": "rgb",
+      "ppjLocation": "paragraph.style.defaultText.shadow.color",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text outer-shadow RGB color; the paragraph a:defRPr effect list must use one strict direct outerShdw with one direct srgbClr."
+    },
+    {
+      "name": "textDefaultShadowColorScheme",
+      "valueType": "string",
+      "unit": "theme-color",
+      "ppjLocation": "paragraph.style.defaultText.shadow.color",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text outer-shadow theme color; the paragraph a:defRPr effect list must use one strict direct outerShdw with one direct schemeClr."
+    },
+    {
+      "name": "textDefaultShadowOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "paragraph.style.defaultText.shadow.opacity",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text outer-shadow alpha; an explicit direct a:alpha/@val must already exist under the strict paragraph default-text outer-shadow profile."
+    },
+    {
+      "name": "textDefaultShadowRotateWithShape",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "paragraph.style.defaultText.shadow.rotateWithShape",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text outer-shadow rotWithShape flag; the paragraph a:defRPr effect list must use one strict direct outerShdw with an existing explicit 0/1 rotWithShape attribute."
+    },
+    {
+      "name": "textGlowColorRgb",
+      "valueType": "string",
+      "unit": "rgb",
+      "ppjLocation": "run.style.glow.color",
+      "surface": "native-leaf",
+      "boundary": "Existing direct text-run glow RGB color only; color topology is preserved."
+    },
+    {
+      "name": "textGlowColorScheme",
+      "valueType": "string",
+      "unit": "theme-color",
+      "ppjLocation": "run.style.glow.color",
+      "surface": "native-leaf",
+      "boundary": "Existing direct text-run glow theme color only; color topology is preserved."
+    },
+    {
+      "name": "textGlowOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "run.style.glow.opacity",
+      "surface": "native-leaf",
+      "boundary": "Existing direct text-run glow alpha only; an explicit direct alpha must already exist."
+    },
+    {
+      "name": "textInnerShadowBlurRadiusEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "run.style.innerShadow.blur",
+      "surface": "native-leaf",
+      "boundary": "Existing direct text-run inner-shadow blur only; the source effect list must use the strict inner-shadow profile."
+    },
+    {
+      "name": "textDefaultInnerShadowBlurRadiusEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "paragraph.style.defaultText.innerShadow.blur",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text inner-shadow blur radius; the paragraph a:defRPr effect list must use the strict inner-shadow profile."
+    },
+    {
+      "name": "textInnerShadowDistanceEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "run.style.innerShadow.distance",
+      "surface": "native-leaf",
+      "boundary": "Existing direct text-run inner-shadow distance only; the source effect list must use the strict inner-shadow profile."
+    },
+    {
+      "name": "textDefaultInnerShadowDistanceEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "paragraph.style.defaultText.innerShadow.distance",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text inner-shadow distance; the paragraph a:defRPr effect list must use the strict inner-shadow profile."
+    },
+    {
+      "name": "textInnerShadowDirectionDegrees",
+      "valueType": "number",
+      "unit": "degrees",
+      "ppjLocation": "run.style.innerShadow.angle",
+      "surface": "native-leaf",
+      "boundary": "Existing direct text-run inner-shadow direction only; the source effect list must use the strict inner-shadow profile."
+    },
+    {
+      "name": "textDefaultInnerShadowDirectionDegrees",
+      "valueType": "number",
+      "unit": "degrees",
+      "ppjLocation": "paragraph.style.defaultText.innerShadow.angle",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text inner-shadow direction; the paragraph a:defRPr effect list must use the strict inner-shadow profile."
+    },
+    {
+      "name": "textDefaultInnerShadowColorRgb",
+      "valueType": "string",
+      "unit": "rgb",
+      "ppjLocation": "paragraph.style.defaultText.innerShadow.color",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text inner-shadow RGB color; the paragraph a:defRPr effect list must use the strict inner-shadow profile and one direct srgbClr."
+    },
+    {
+      "name": "textDefaultInnerShadowColorScheme",
+      "valueType": "string",
+      "unit": "theme-color",
+      "ppjLocation": "paragraph.style.defaultText.innerShadow.color",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text inner-shadow theme color; the paragraph a:defRPr effect list must use the strict inner-shadow profile and one direct schemeClr."
+    },
+    {
+      "name": "textDefaultInnerShadowOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "paragraph.style.defaultText.innerShadow.opacity",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text inner-shadow alpha; the paragraph a:defRPr effect list must use the strict inner-shadow profile and one existing direct alpha."
+    },
+    {
+      "name": "textInnerShadowColorRgb",
+      "valueType": "string",
+      "unit": "rgb",
+      "ppjLocation": "run.style.innerShadow.color",
+      "surface": "native-leaf",
+      "boundary": "Existing direct text-run inner-shadow RGB color only; color topology is preserved."
+    },
+    {
+      "name": "textInnerShadowColorScheme",
+      "valueType": "string",
+      "unit": "theme-color",
+      "ppjLocation": "run.style.innerShadow.color",
+      "surface": "native-leaf",
+      "boundary": "Existing direct text-run inner-shadow theme color only; color topology is preserved."
+    },
+    {
+      "name": "textInnerShadowOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "run.style.innerShadow.opacity",
+      "surface": "native-leaf",
+      "boundary": "Existing direct text-run inner-shadow alpha only; an explicit direct alpha must already exist."
+    },
+    {
+      "name": "textReflectionBlurRadiusEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "run.style.reflection.blur",
+      "surface": "native-leaf",
+      "boundary": "Existing direct text-run reflection blur only; the source effect list must use the strict full-span reflection profile."
+    },
+    {
+      "name": "textDefaultReflectionBlurRadiusEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "paragraph.style.defaultText.reflection.blur",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text reflection blur radius; the paragraph a:defRPr effect list must use the strict full-span reflection profile."
+    },
+    {
+      "name": "textReflectionStartOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "run.style.reflection.startOpacity",
+      "surface": "native-leaf",
+      "boundary": "Existing direct text-run reflection start alpha only; full-span reflection ownership must already be proven."
+    },
+    {
+      "name": "textDefaultReflectionStartOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "paragraph.style.defaultText.reflection.startOpacity",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text reflection start alpha; the paragraph a:defRPr effect list must use the strict full-span reflection profile."
+    },
+    {
+      "name": "textReflectionEndOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "run.style.reflection.endOpacity",
+      "surface": "native-leaf",
+      "boundary": "Existing direct text-run reflection end alpha only; full-span reflection ownership must already be proven."
+    },
+    {
+      "name": "textDefaultReflectionEndOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "paragraph.style.defaultText.reflection.endOpacity",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text reflection end alpha; the paragraph a:defRPr effect list must use the strict full-span reflection profile."
+    },
+    {
+      "name": "textReflectionDistanceEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "run.style.reflection.distance",
+      "surface": "native-leaf",
+      "boundary": "Existing direct text-run reflection distance only; the source effect list must use the strict full-span reflection profile."
+    },
+    {
+      "name": "textDefaultReflectionDistanceEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "paragraph.style.defaultText.reflection.distance",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text reflection distance; the paragraph a:defRPr effect list must use the strict full-span reflection profile."
+    },
+    {
+      "name": "textReflectionDirectionDegrees",
+      "valueType": "number",
+      "unit": "degrees",
+      "ppjLocation": "run.style.reflection.angle",
+      "surface": "native-leaf",
+      "boundary": "Existing direct text-run reflection direction only; the source effect list must use the strict full-span reflection profile."
+    },
+    {
+      "name": "textDefaultReflectionDirectionDegrees",
+      "valueType": "number",
+      "unit": "degrees",
+      "ppjLocation": "paragraph.style.defaultText.reflection.angle",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text reflection direction; the paragraph a:defRPr effect list must use the strict full-span reflection profile."
+    },
+    {
+      "name": "textSoftEdgeRadiusEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "run.style.softEdge.radius",
+      "surface": "native-leaf",
+      "boundary": "Existing direct text-run soft-edge radius only; the source effect list must use the strict soft-edge profile."
+    },
+    {
+      "name": "textDefaultSoftEdgeRadiusEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "paragraph.style.defaultText.softEdge.radius",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text soft-edge radius; the paragraph a:defRPr effect list must use the strict soft-edge profile."
+    },
+    {
+      "name": "shapeGlowRadiusEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "style.glow.radius",
+      "surface": "native-leaf",
+      "boundary": "One direct imported shape or line glow radius; the effect list must use the strict glow profile."
+    },
+    {
+      "name": "shapeGlowColorRgb",
+      "valueType": "string",
+      "unit": "rgb",
+      "ppjLocation": "style.glow.color",
+      "surface": "native-leaf",
+      "boundary": "One direct imported shape or line glow RGB color; color topology is preserved."
+    },
+    {
+      "name": "shapeGlowColorScheme",
+      "valueType": "string",
+      "unit": "theme-color",
+      "ppjLocation": "style.glow.color",
+      "surface": "native-leaf",
+      "boundary": "One direct imported shape or line glow theme color; color topology is preserved."
+    },
+    {
+      "name": "shapeGlowOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "style.glow.opacity",
+      "surface": "native-leaf",
+      "boundary": "One direct imported shape or line glow alpha; an explicit direct alpha must already exist."
+    },
+    {
+      "name": "imageGlowRadiusEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "image.glow.radius",
+      "surface": "native-leaf",
+      "boundary": "One direct imported picture glow radius; the effect list must use the strict glow profile."
+    },
+    {
+      "name": "imageGlowColorRgb",
+      "valueType": "string",
+      "unit": "rgb",
+      "ppjLocation": "image.glow.color",
+      "surface": "native-leaf",
+      "boundary": "One direct imported picture glow RGB color; color topology is preserved."
+    },
+    {
+      "name": "imageGlowColorScheme",
+      "valueType": "string",
+      "unit": "theme-color",
+      "ppjLocation": "image.glow.color",
+      "surface": "native-leaf",
+      "boundary": "One direct imported picture glow theme color; color topology is preserved."
+    },
+    {
+      "name": "imageGlowOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "image.glow.opacity",
+      "surface": "native-leaf",
+      "boundary": "One direct imported picture glow alpha; an explicit direct alpha must already exist."
+    },
+    {
+      "name": "shapeInnerShadowBlurRadiusEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "style.innerShadow.blur",
+      "surface": "native-leaf",
+      "boundary": "One direct imported shape or line inner-shadow blur; the effect list must use the strict inner-shadow profile."
+    },
+    {
+      "name": "shapeInnerShadowDistanceEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "style.innerShadow.distance",
+      "surface": "native-leaf",
+      "boundary": "One direct imported shape or line inner-shadow distance; the effect list must use the strict inner-shadow profile."
+    },
+    {
+      "name": "shapeInnerShadowDirectionDegrees",
+      "valueType": "number",
+      "unit": "degrees",
+      "ppjLocation": "style.innerShadow.angle",
+      "surface": "native-leaf",
+      "boundary": "One direct imported shape or line inner-shadow direction; the effect list must use the strict inner-shadow profile."
+    },
+    {
+      "name": "shapeInnerShadowColorRgb",
+      "valueType": "string",
+      "unit": "rgb",
+      "ppjLocation": "style.innerShadow.color",
+      "surface": "native-leaf",
+      "boundary": "One direct imported shape or line inner-shadow RGB color; color topology is preserved."
+    },
+    {
+      "name": "shapeInnerShadowColorScheme",
+      "valueType": "string",
+      "unit": "theme-color",
+      "ppjLocation": "style.innerShadow.color",
+      "surface": "native-leaf",
+      "boundary": "One direct imported shape or line inner-shadow theme color; color topology is preserved."
+    },
+    {
+      "name": "shapeInnerShadowOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "style.innerShadow.opacity",
+      "surface": "native-leaf",
+      "boundary": "One direct imported shape or line inner-shadow alpha; an explicit direct alpha must already exist."
+    },
+    {
+      "name": "imageInnerShadowBlurRadiusEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "image.innerShadow.blur",
+      "surface": "native-leaf",
+      "boundary": "One direct imported picture inner-shadow blur; the effect list must use the strict inner-shadow profile."
+    },
+    {
+      "name": "imageInnerShadowDistanceEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "image.innerShadow.distance",
+      "surface": "native-leaf",
+      "boundary": "One direct imported picture inner-shadow distance; the effect list must use the strict inner-shadow profile."
+    },
+    {
+      "name": "imageInnerShadowDirectionDegrees",
+      "valueType": "number",
+      "unit": "degrees",
+      "ppjLocation": "image.innerShadow.angle",
+      "surface": "native-leaf",
+      "boundary": "One direct imported picture inner-shadow direction; the effect list must use the strict inner-shadow profile."
+    },
+    {
+      "name": "imageInnerShadowColorRgb",
+      "valueType": "string",
+      "unit": "rgb",
+      "ppjLocation": "image.innerShadow.color",
+      "surface": "native-leaf",
+      "boundary": "One direct imported picture inner-shadow RGB color; color topology is preserved."
+    },
+    {
+      "name": "imageInnerShadowColorScheme",
+      "valueType": "string",
+      "unit": "theme-color",
+      "ppjLocation": "image.innerShadow.color",
+      "surface": "native-leaf",
+      "boundary": "One direct imported picture inner-shadow theme color; color topology is preserved."
+    },
+    {
+      "name": "imageInnerShadowOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "image.innerShadow.opacity",
+      "surface": "native-leaf",
+      "boundary": "One direct imported picture inner-shadow alpha; an explicit direct alpha must already exist."
+    },
+    {
+      "name": "shapeReflectionBlurRadiusEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "style.reflection.blur",
+      "surface": "native-leaf",
+      "boundary": "One direct imported shape or line reflection blur; the effect list must use the strict full-span reflection profile."
+    },
+    {
+      "name": "shapeReflectionStartOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "style.reflection.startOpacity",
+      "surface": "native-leaf",
+      "boundary": "One direct imported shape or line reflection start alpha; full-span reflection ownership must already be proven."
+    },
+    {
+      "name": "shapeReflectionEndOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "style.reflection.endOpacity",
+      "surface": "native-leaf",
+      "boundary": "One direct imported shape or line reflection end alpha; full-span reflection ownership must already be proven."
+    },
+    {
+      "name": "shapeReflectionDistanceEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "style.reflection.distance",
+      "surface": "native-leaf",
+      "boundary": "One direct imported shape or line reflection distance; the effect list must use the strict full-span reflection profile."
+    },
+    {
+      "name": "shapeReflectionDirectionDegrees",
+      "valueType": "number",
+      "unit": "degrees",
+      "ppjLocation": "style.reflection.angle",
+      "surface": "native-leaf",
+      "boundary": "One direct imported shape or line reflection direction; the effect list must use the strict full-span reflection profile."
+    },
+    {
+      "name": "imageReflectionBlurRadiusEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "image.reflection.blur",
+      "surface": "native-leaf",
+      "boundary": "One direct imported picture reflection blur; the effect list must use the strict full-span reflection profile."
+    },
+    {
+      "name": "imageReflectionStartOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "image.reflection.startOpacity",
+      "surface": "native-leaf",
+      "boundary": "One direct imported picture reflection start alpha; full-span reflection ownership must already be proven."
+    },
+    {
+      "name": "imageReflectionEndOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "image.reflection.endOpacity",
+      "surface": "native-leaf",
+      "boundary": "One direct imported picture reflection end alpha; full-span reflection ownership must already be proven."
+    },
+    {
+      "name": "imageReflectionDistanceEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "image.reflection.distance",
+      "surface": "native-leaf",
+      "boundary": "One direct imported picture reflection distance; the effect list must use the strict full-span reflection profile."
+    },
+    {
+      "name": "imageReflectionDirectionDegrees",
+      "valueType": "number",
+      "unit": "degrees",
+      "ppjLocation": "image.reflection.angle",
+      "surface": "native-leaf",
+      "boundary": "One direct imported picture reflection direction; the effect list must use the strict full-span reflection profile."
+    },
+    {
+      "name": "shapeSoftEdgeRadiusEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "style.softEdge.radius",
+      "surface": "native-leaf",
+      "boundary": "One direct imported shape or line soft-edge radius; the effect list must use the strict direct, outer-shadow→soft-edge, or full-span reflection→soft-edge profile."
+    },
+    {
+      "name": "imageSoftEdgeRadiusEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "image.softEdge.radius",
+      "surface": "native-leaf",
+      "boundary": "One direct imported picture soft-edge radius; the effect list must use the strict direct, outer-shadow→soft-edge, or full-span reflection→soft-edge profile."
+    },
+    {
+      "name": "fillRgb",
+      "valueType": "string",
+      "unit": "rgb",
+      "ppjLocation": "fill.color",
+      "surface": "native-leaf",
+      "boundary": "Existing solid fill only."
+    },
+    {
+      "name": "fillOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "fill.opacity",
+      "surface": "native-leaf",
+      "boundary": "Existing solid fill alpha."
+    },
+    {
+      "name": "fillScheme",
+      "valueType": "string",
+      "unit": "theme-color",
+      "ppjLocation": "fill.color",
+      "surface": "native-leaf",
+      "boundary": "Existing theme-bound solid fill."
+    },
+    {
+      "name": "shadowBlurRadiusEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "style.shadow.blur",
+      "surface": "native-leaf",
+      "boundary": "Existing canonical direct outer-shadow blur radius only."
+    },
+    {
+      "name": "shadowDistanceEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "style.shadow.distance",
+      "surface": "native-leaf",
+      "boundary": "Existing canonical direct outer-shadow distance only."
+    },
+    {
+      "name": "shadowDirectionDegrees",
+      "valueType": "number",
+      "unit": "degrees",
+      "ppjLocation": "style.shadow.angle",
+      "surface": "native-leaf",
+      "boundary": "Existing canonical direct outer-shadow direction only."
+    },
+    {
+      "name": "shadowAlignment",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "style.shadow.alignment",
+      "surface": "native-leaf",
+      "boundary": "Existing canonical direct outer-shadow alignment only."
+    },
+    {
+      "name": "shadowColorRgb",
+      "valueType": "string",
+      "unit": "rgb",
+      "ppjLocation": "style.shadow.color",
+      "surface": "native-leaf",
+      "boundary": "Existing canonical direct outer-shadow explicit RGB color only."
+    },
+    {
+      "name": "shadowColorScheme",
+      "valueType": "string",
+      "unit": "theme-color",
+      "ppjLocation": "style.shadow.color",
+      "surface": "native-leaf",
+      "boundary": "Existing canonical direct outer-shadow theme color only."
+    },
+    {
+      "name": "shadowOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "style.shadow.opacity",
+      "surface": "native-leaf",
+      "boundary": "Existing canonical direct outer-shadow alpha only."
+    },
+    {
+      "name": "shadowRotateWithShape",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "style.shadow.rotateWithShape",
+      "surface": "native-leaf",
+      "boundary": "Direct imported ordinary-shape or line outer-shadow rotWithShape flag; the shape properties must use one strict direct outerShdw with an existing explicit 0/1 rotWithShape attribute."
+    },
+    {
+      "name": "imageShadowRotateWithShape",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "image.shadow.rotateWithShape",
+      "surface": "native-leaf",
+      "boundary": "Direct imported picture outer-shadow rotWithShape flag; the picture shape properties must use one strict direct outerShdw with an existing explicit 0/1 rotWithShape attribute."
+    },
+    {
+      "name": "imageShadowBlurRadiusEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "image.shadow.blur",
+      "surface": "native-leaf",
+      "boundary": "Direct imported picture outer-shadow blurRad; the picture shape properties must use one strict direct outerShdw with an existing canonical non-negative integer blurRad token."
+    },
+    {
+      "name": "imageShadowOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "image.shadow.opacity",
+      "surface": "native-leaf",
+      "boundary": "Direct imported picture outer-shadow alpha; the picture shape properties must use one strict direct outerShdw with one existing direct RGB/theme color alpha token."
+    },
+    {
+      "name": "imageShadowDistanceEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "image.shadow.distance",
+      "surface": "native-leaf",
+      "boundary": "Direct imported picture outer-shadow dist; the picture shape properties must use one strict direct outerShdw with an existing canonical non-negative integer dist token."
+    },
+    {
+      "name": "imageShadowDirectionDegrees",
+      "valueType": "number",
+      "unit": "degrees",
+      "ppjLocation": "image.shadow.angle",
+      "surface": "native-leaf",
+      "boundary": "Direct imported picture outer-shadow direction; the picture shape properties must use one strict direct outerShdw with an existing canonical 0 through 359 degree direction token."
+    },
+    {
+      "name": "imageShadowAlignment",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "image.shadow.alignment",
+      "surface": "native-leaf",
+      "boundary": "Direct imported picture outer-shadow alignment; the picture shape properties must use one strict direct outerShdw with an existing canonical tl/t/tr/l/ctr/r/bl/b/br token."
+    },
+    {
+      "name": "imageShadowColorRgb",
+      "valueType": "string",
+      "unit": "rgb",
+      "ppjLocation": "image.shadow.color",
+      "surface": "native-leaf",
+      "boundary": "Direct imported picture outer-shadow explicit RGB color; the picture shape properties must use one strict direct outerShdw with one direct RGB color token."
+    },
+    {
+      "name": "imageShadowColorScheme",
+      "valueType": "string",
+      "unit": "theme-color",
+      "ppjLocation": "image.shadow.color",
+      "surface": "native-leaf",
+      "boundary": "Direct imported picture outer-shadow theme color; the picture shape properties must use one strict direct outerShdw with one direct theme color token."
+    },
+    {
+      "name": "lineRgb",
+      "valueType": "string",
+      "unit": "rgb",
+      "ppjLocation": "stroke.color",
+      "surface": "native-leaf",
+      "boundary": "Existing line explicit color."
+    },
+    {
+      "name": "lineScheme",
+      "valueType": "string",
+      "unit": "theme-color",
+      "ppjLocation": "stroke.color",
+      "surface": "native-leaf",
+      "boundary": "Existing line theme color."
+    },
+    {
+      "name": "lineOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "stroke.opacity",
+      "surface": "native-leaf",
+      "boundary": "Direct imported shape or connector line alpha; one strict outline with one direct RGB or theme paint and one existing alpha token."
+    },
+    {
+      "name": "lineStyle",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "stroke.dash",
+      "surface": "native-leaf",
+      "boundary": "Existing explicit canonical DrawingML dash on an imported shape or connector."
+    },
+    {
+      "name": "lineCap",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "stroke.cap",
+      "surface": "native-leaf",
+      "boundary": "Existing explicit canonical cap on an imported shape or connector."
+    },
+    {
+      "name": "lineJoin",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "stroke.join",
+      "surface": "native-leaf",
+      "boundary": "Existing bare canonical join on an imported shape or connector."
+    },
+    {
+      "name": "lineStartArrow",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "stroke.startArrow",
+      "surface": "native-leaf",
+      "boundary": "Existing line head-end type on an imported line shape or connector."
+    },
+    {
+      "name": "lineEndArrow",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "stroke.endArrow",
+      "surface": "native-leaf",
+      "boundary": "Existing line tail-end type on an imported line shape or connector."
+    },
+    {
+      "name": "lineStartArrowWidth",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "stroke.startArrow.width",
+      "surface": "native-leaf",
+      "boundary": "Existing direct head-end width token on an imported shape or connector line; the endpoint must be a strict sm/med/lg arrow profile."
+    },
+    {
+      "name": "lineStartArrowLength",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "stroke.startArrow.length",
+      "surface": "native-leaf",
+      "boundary": "Existing direct head-end length token on an imported shape or connector line; the endpoint must be a strict sm/med/lg arrow profile."
+    },
+    {
+      "name": "lineEndArrowWidth",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "stroke.endArrow.width",
+      "surface": "native-leaf",
+      "boundary": "Existing direct tail-end width token on an imported shape or connector line; the endpoint must be a strict sm/med/lg arrow profile."
+    },
+    {
+      "name": "lineEndArrowLength",
+      "valueType": "string",
+      "unit": "enum",
+      "ppjLocation": "stroke.endArrow.length",
+      "surface": "native-leaf",
+      "boundary": "Existing direct tail-end length token on an imported shape or connector line; the endpoint must be a strict sm/med/lg arrow profile."
+    },
+    {
+      "name": "lineWidthEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "stroke.width",
+      "surface": "native-leaf",
+      "boundary": "Line width; authored PPJ uses points."
+    },
+    {
+      "name": "leftEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "frame.x",
+      "surface": "native-leaf",
+      "boundary": "Object x position; authored PPJ uses points. For an imported ordinary group, this is only outer grpSp off/@x."
+    },
+    {
+      "name": "topEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "frame.y",
+      "surface": "native-leaf",
+      "boundary": "Object y position; authored PPJ uses points. For an imported ordinary group, this is only outer grpSp off/@y."
+    },
+    {
+      "name": "widthEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "frame.width",
+      "surface": "native-leaf",
+      "boundary": "Object width; authored PPJ uses points. For an imported ordinary group, this is only outer grpSp ext/@cx."
+    },
+    {
+      "name": "heightEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "frame.height",
+      "surface": "native-leaf",
+      "boundary": "Object height; authored PPJ uses points. For an imported ordinary group, this is only outer grpSp ext/@cy."
+    },
+    {
+      "name": "childLeftEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "childFrame.x",
+      "surface": "native-leaf",
+      "boundary": "Imported ordinary-group local child coordinate origin, mapped to grpSp a:xfrm chOff/@x; editing this coordinate changes the group transform but not any child frame."
+    },
+    {
+      "name": "childTopEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "childFrame.y",
+      "surface": "native-leaf",
+      "boundary": "Imported ordinary-group local child coordinate origin, mapped to grpSp a:xfrm chOff/@y; editing this coordinate changes the group transform but not any child frame."
+    },
+    {
+      "name": "childWidthEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "childFrame.width",
+      "surface": "native-leaf",
+      "boundary": "Imported ordinary-group local child coordinate width, mapped to grpSp a:xfrm chExt/@cx; positive values only."
+    },
+    {
+      "name": "childHeightEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "childFrame.height",
+      "surface": "native-leaf",
+      "boundary": "Imported ordinary-group local child coordinate height, mapped to grpSp a:xfrm chExt/@cy; positive values only."
+    },
+    {
+      "name": "rotationDegrees",
+      "valueType": "number",
+      "unit": "degrees",
+      "ppjLocation": "frame.rotation",
+      "surface": "native-leaf",
+      "boundary": "Object rotation; for an imported ordinary group, only explicit outer grpSp rot is exposed."
+    },
+    {
+      "name": "flipHorizontal",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "frame.flipH",
+      "surface": "native-leaf",
+      "boundary": "Object horizontal flip; for an imported ordinary group, only explicit outer grpSp flipH is exposed."
+    },
+    {
+      "name": "flipVertical",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "frame.flipV",
+      "surface": "native-leaf",
+      "boundary": "Object vertical flip; for an imported ordinary group, only explicit outer grpSp flipV is exposed."
+    },
+    {
+      "name": "imageOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "image.opacity",
+      "surface": "native-leaf",
+      "boundary": "Existing direct picture alpha-modulation token only."
+    },
+    {
+      "name": "imageMaskPreset",
+      "valueType": "string",
+      "unit": "preset-geometry",
+      "ppjLocation": "image.mask.preset",
+      "surface": "native-leaf",
+      "boundary": "Recognized picture preset-mask identity; the native rectangle default is exposed as rect, direct native-leaf edits remain limited to no-adjustment masks, and typed semantic source-bound identity changes may replace complete adjustment lists across supported presets."
+    },
+    {
+      "name": "imageMaskAdjustment",
+      "valueType": "number",
+      "unit": "DrawingML signed integer",
+      "ppjLocation": "image.mask.adjustments[] or nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered picture preset adjustment whose formula is exactly val N; complete masks expose every slot, while a structurally simple opaque partial/formula graph may expose only independently literal siblings. Token-splice edits preserve the preset token, guide order, mask topology, and picture relationships; malformed, extension-bearing, child-bearing, calculated-target, or unknown graphs remain source-owned."
+    },
+    {
+      "name": "customGeometryAdjustment",
+      "valueType": "number",
+      "unit": "DrawingML signed integer",
+      "ppjLocation": "shape.geometry or nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered custom-geometry adjustment whose formula is exactly val N. Token-splice edits change only the numeric formula value and preserve guide names, path references, handles, and other topology. A strict image-filled shape may expose only independently literal siblings from a structurally simple partial/formula adjustment list; formula-valued adjustments, calculated guides, effects, extensions, and non-image opaque graphs remain source-owned."
+    },
+    {
+      "name": "customGeometryAdjustmentFormula",
+      "valueType": "string",
+      "unit": "DrawingML guide formula",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered custom-geometry avLst adjustment whose formula is a canonical, non-literal formula accepted by the existing bounded guide graph. Token-splice edits replace only that direct fmla value and preserve adjustment names, references, calculated guides, handles, connection sites, text rectangles, paths, literal siblings, and all other topology; partial image-fill graphs, graph changes, and noncanonical or unsupported formulas remain source-owned or fail closed."
+    },
+    {
+      "name": "customGeometryGuide",
+      "valueType": "number",
+      "unit": "DrawingML signed integer",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered custom-geometry gdLst guide whose formula is exactly val N and whose guide name is unique within the direct list. Token-splice edits change only that guide's numeric formula value; formula graphs, handles, connection sites, text rectangles, paths, duplicate-name lists, extensions, and other topology remain source-owned."
+    },
+    {
+      "name": "customGeometryGuideFormula",
+      "valueType": "string",
+      "unit": "DrawingML guide formula",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered custom-geometry gdLst guide whose formula is a canonical, non-literal formula accepted by the existing bounded guide graph. Token-splice edits replace only that direct fmla value and preserve guide names, references, handles, connection sites, text rectangles, paths, literal siblings, and all other topology; graph changes and noncanonical or unsupported formulas remain source-owned or fail closed."
+    },
+    {
+      "name": "customGeometryPathWidth",
+      "valueType": "number",
+      "unit": "DrawingML path coordinate units",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:path whose direct @w is a positive bounded integer. NativeLeafIndex is path order; token-splice edits change only @w and preserve @h, fill/stroke/extrusionOk, commands, sibling paths, and other topology. Omitted, zero, malformed, extension-bearing, or unsupported paths remain source-owned."
+    },
+    {
+      "name": "customGeometryPathHeight",
+      "valueType": "number",
+      "unit": "DrawingML path coordinate units",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:path whose direct @h is a positive bounded integer. NativeLeafIndex is path order; token-splice edits change only @h and preserve @w, fill/stroke/extrusionOk, commands, sibling paths, and other topology. Omitted, zero, malformed, extension-bearing, or unsupported paths remain source-owned."
+    },
+    {
+      "name": "customGeometryPathArcWidthRadius",
+      "valueType": "number",
+      "unit": "DrawingML path coordinate units",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:arcTo whose direct @wR is a positive bounded literal radius. NativeLeafIndex is path order and TextLeafIndex is direct command order; token-splice edits change only @wR and preserve @hR, start/sweep angles, path properties, other commands, sibling paths, and remaining geometry. Reference-backed, malformed, extension-bearing, or unsupported arc state remains source-owned."
+    },
+    {
+      "name": "customGeometryPathArcHeightRadius",
+      "valueType": "number",
+      "unit": "DrawingML path coordinate units",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:arcTo whose direct @hR is a positive bounded literal radius. NativeLeafIndex is path order and TextLeafIndex is direct command order; token-splice edits change only @hR and preserve @wR, start/sweep angles, path properties, other commands, sibling paths, and remaining geometry. Reference-backed, malformed, extension-bearing, or unsupported arc state remains source-owned."
+    },
+    {
+      "name": "customGeometryPathArcStartAngle60000",
+      "valueType": "number",
+      "unit": "DrawingML 1/60000-degree angle units",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:arcTo whose direct @stAng is a canonical literal angle within one signed turn. NativeLeafIndex is path order and TextLeafIndex is direct command order; token-splice edits change only @stAng and preserve @wR/@hR, sweep angle, path properties, other commands, sibling paths, and remaining geometry. Reference-backed, malformed, extension-bearing, or out-of-range arc state remains source-owned."
+    },
+    {
+      "name": "customGeometryPathArcSweepAngle60000",
+      "valueType": "number",
+      "unit": "DrawingML 1/60000-degree angle units",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:arcTo whose direct @swAng is a canonical non-zero literal angle within one signed turn. NativeLeafIndex is path order and TextLeafIndex is direct command order; token-splice edits change only @swAng and preserve @wR/@hR, start angle, path properties, other commands, sibling paths, and remaining geometry. Reference-backed, malformed, extension-bearing, zero, or out-of-range arc state remains source-owned."
+    },
+    {
+      "name": "customGeometryPathLineToX",
+      "valueType": "number",
+      "unit": "DrawingML path coordinate units",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:lnTo/a:pt/@x literal coordinate. NativeLeafIndex is path order and TextLeafIndex is direct command order; token-splice edits change only @x and preserve the paired y, path properties, other commands, sibling paths, and remaining geometry. Reference-backed, malformed, extension-bearing, or unsupported command state remains source-owned."
+    },
+    {
+      "name": "customGeometryPathLineToY",
+      "valueType": "number",
+      "unit": "DrawingML path coordinate units",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:lnTo/a:pt/@y literal coordinate. NativeLeafIndex is path order and TextLeafIndex is direct command order; token-splice edits change only @y and preserve the paired x, path properties, other commands, sibling paths, and remaining geometry. Reference-backed, malformed, extension-bearing, or unsupported command state remains source-owned."
+    },
+    {
+      "name": "customGeometryPathMoveToX",
+      "valueType": "number",
+      "unit": "DrawingML path coordinate units",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:moveTo/a:pt/@x literal coordinate. NativeLeafIndex is path order and TextLeafIndex is direct command order; token-splice edits change only @x and preserve the paired y, path properties, other commands, sibling paths, and remaining geometry. Reference-backed, malformed, extension-bearing, or unsupported command state remains source-owned."
+    },
+    {
+      "name": "customGeometryPathMoveToY",
+      "valueType": "number",
+      "unit": "DrawingML path coordinate units",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:moveTo/a:pt/@y literal coordinate. NativeLeafIndex is path order and TextLeafIndex is direct command order; token-splice edits change only @y and preserve the paired x, path properties, other commands, sibling paths, and remaining geometry. Reference-backed, malformed, extension-bearing, or unsupported command state remains source-owned."
+    },
+    {
+      "name": "customGeometryPathQuadraticEndX",
+      "valueType": "number",
+      "unit": "DrawingML path coordinate units",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:quadBezTo whose second direct a:pt/@x is a literal coordinate. NativeLeafIndex is path order and TextLeafIndex is direct command order; token-splice edits change only the quadratic end-point @x and preserve the control point, paired end-point y, path properties, other commands, sibling paths, and remaining geometry. Reference-backed, malformed, extension-bearing, or unsupported command state remains source-owned."
+    },
+    {
+      "name": "customGeometryPathQuadraticEndY",
+      "valueType": "number",
+      "unit": "DrawingML path coordinate units",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:quadBezTo whose second direct a:pt/@y is a literal coordinate. NativeLeafIndex is path order and TextLeafIndex is direct command order; token-splice edits change only the quadratic end-point @y and preserve the control point, paired end-point x, path properties, other commands, sibling paths, and remaining geometry. Reference-backed, malformed, extension-bearing, or unsupported command state remains source-owned."
+    },
+    {
+      "name": "customGeometryPathQuadraticControlX",
+      "valueType": "number",
+      "unit": "DrawingML path coordinate units",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:quadBezTo whose first direct a:pt/@x is a literal control-point coordinate. NativeLeafIndex is path order and TextLeafIndex is direct command order; token-splice edits change only the quadratic control-point @x and preserve the control-point y, end point, path properties, other commands, sibling paths, and remaining geometry. Reference-backed, malformed, extension-bearing, or unsupported command state remains source-owned."
+    },
+    {
+      "name": "customGeometryPathQuadraticControlY",
+      "valueType": "number",
+      "unit": "DrawingML path coordinate units",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:quadBezTo whose first direct a:pt/@y is a literal control-point coordinate. NativeLeafIndex is path order and TextLeafIndex is direct command order; token-splice edits change only the quadratic control-point @y and preserve the control-point x, end point, path properties, other commands, sibling paths, and remaining geometry. Reference-backed, malformed, extension-bearing, or unsupported command state remains source-owned."
+    },
+    {
+      "name": "customGeometryPathCubicEndX",
+      "valueType": "number",
+      "unit": "DrawingML path coordinate units",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:cubicBezTo whose third direct a:pt/@x is a literal end-point coordinate. NativeLeafIndex is path order and TextLeafIndex is direct command order; token-splice edits change only the cubic end-point @x and preserve both control points, paired end-point y, path properties, other commands, sibling paths, and remaining geometry. Reference-backed, malformed, extension-bearing, or unsupported command state remains source-owned."
+    },
+    {
+      "name": "customGeometryPathCubicEndY",
+      "valueType": "number",
+      "unit": "DrawingML path coordinate units",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:cubicBezTo whose third direct a:pt/@y is a literal end-point coordinate. NativeLeafIndex is path order and TextLeafIndex is direct command order; token-splice edits change only the cubic end-point @y and preserve both control points, paired end-point x, path properties, other commands, sibling paths, and remaining geometry. Reference-backed, malformed, extension-bearing, or unsupported command state remains source-owned."
+    },
+    {
+      "name": "customGeometryPathCubicControl1X",
+      "valueType": "number",
+      "unit": "DrawingML path coordinate units",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:cubicBezTo whose first direct a:pt/@x is a literal first-control-point coordinate. NativeLeafIndex is path order and TextLeafIndex is direct command order; token-splice edits change only the first cubic control-point @x and preserve its y, the second control point, end point, path properties, other commands, sibling paths, and remaining geometry. Reference-backed, malformed, extension-bearing, or unsupported command state remains source-owned."
+    },
+    {
+      "name": "customGeometryPathCubicControl1Y",
+      "valueType": "number",
+      "unit": "DrawingML path coordinate units",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:cubicBezTo whose first direct a:pt/@y is a literal first-control-point coordinate. NativeLeafIndex is path order and TextLeafIndex is direct command order; token-splice edits change only the first cubic control-point @y and preserve its x, the second control point, end point, path properties, other commands, sibling paths, and remaining geometry. Reference-backed, malformed, extension-bearing, or unsupported command state remains source-owned."
+    },
+    {
+      "name": "customGeometryPathCubicControl2X",
+      "valueType": "number",
+      "unit": "DrawingML path coordinate units",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:cubicBezTo whose second direct a:pt/@x is a literal second-control-point coordinate. NativeLeafIndex is path order and TextLeafIndex is direct command order; token-splice edits change only the second cubic control-point @x and preserve its y, the first control point, end point, path properties, other commands, sibling paths, and remaining geometry. Reference-backed, malformed, extension-bearing, or unsupported command state remains source-owned."
+    },
+    {
+      "name": "customGeometryPathCubicControl2Y",
+      "valueType": "number",
+      "unit": "DrawingML path coordinate units",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:cubicBezTo whose second direct a:pt/@y is a literal second-control-point coordinate. NativeLeafIndex is path order and TextLeafIndex is direct command order; token-splice edits change only the second cubic control-point @y and preserve its x, the first control point, end point, path properties, other commands, sibling paths, and remaining geometry. Reference-backed, malformed, extension-bearing, or unsupported command state remains source-owned."
+    },
+    {
+      "name": "customGeometryPathFill",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:path whose direct @fill is norm or none. NativeLeafIndex is path order; token-splice edits change only @fill and preserve @w/@h, stroke/extrusionOk, commands, sibling paths, and other topology. Omitted, unsupported, malformed, or extension-bearing fill state remains source-owned."
+    },
+    {
+      "name": "customGeometryPathStroke",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:path whose direct @stroke is an explicit canonical boolean. NativeLeafIndex is path order; token-splice edits change only @stroke and preserve @w/@h, fill/extrusionOk, commands, sibling paths, and other topology. Omitted, malformed, unsupported, or extension-bearing stroke state remains source-owned."
+    },
+    {
+      "name": "customGeometryPathExtrusionAllowed",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered recognized custom-geometry a:path whose direct @extrusionOk is an explicit canonical boolean. NativeLeafIndex is path order; token-splice edits change only @extrusionOk and preserve @w/@h, fill/stroke, commands, sibling paths, and other topology. Omitted, malformed, unsupported, or extension-bearing extrusion state remains source-owned."
+    },
+    {
+      "name": "shape3dExtrusionHeightEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:sp3d/@extrusionH or p:pic/p:spPr/a:sp3d/@extrusionH coordinate from a child-free 3-D shape-property owner. Token-splice edits change only the owning extrusionH token and preserve depth, contour, material, image relationships, masks, and all surrounding 3-D scene/effect state; missing, malformed, child-bearing, extension-bearing, duplicate, or out-of-range state remains source-owned."
+    },
+    {
+      "name": "shape3dDepthEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:sp3d/@z or p:pic/p:spPr/a:sp3d/@z coordinate from a child-free 3-D shape-property owner. Token-splice edits change only the owning z token and preserve extrusion height, contour, material, image relationships, masks, and all surrounding 3-D scene/effect state; missing, malformed, child-bearing, extension-bearing, duplicate, or out-of-range state remains source-owned."
+    },
+    {
+      "name": "shape3dContourWidthEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:sp3d/@contourW coordinate from a child-free 3-D shape-property owner. Token-splice edits change only contourW and preserve depth, extrusion height, material, and all surrounding 3-D scene/effect state; missing, malformed, child-bearing, extension-bearing, or out-of-range state remains source-owned."
+    },
+    {
+      "name": "shape3dPresetMaterial",
+      "valueType": "string",
+      "unit": "DrawingML preset material token",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:sp3d/@prstMaterial or p:pic/p:spPr/a:sp3d/@prstMaterial token from a child-free 3-D shape-property owner, limited to the canonical preset-material vocabulary. Token-splice edits change only prstMaterial and preserve depth, extrusion height, contour, image relationships, masks, and all surrounding 3-D scene/effect state; missing, malformed, child-bearing, extension-bearing, duplicate, unknown, or out-of-range state remains source-owned."
+    },
+    {
+      "name": "shape3dBevelTopWidthEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:sp3d/a:bevelT/@w or p:pic/p:spPr/a:sp3d/a:bevelT/@w coordinate from a strict top-bevel owner. Token-splice edits change only bevelT/@w and preserve bevelT height/preset, root 3-D attributes, image relationships, masks, and all surrounding scene/effect state; missing, malformed, duplicate, extension-bearing, child-bearing, unknown, or out-of-range state remains source-owned."
+    },
+    {
+      "name": "shape3dBevelTopHeightEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:sp3d/a:bevelT/@h or p:pic/p:spPr/a:sp3d/a:bevelT/@h coordinate from a strict top-bevel owner. Token-splice edits change only bevelT/@h and preserve bevelT width/preset, root 3-D attributes, image relationships, masks, and all surrounding scene/effect state; missing, malformed, duplicate, extension-bearing, child-bearing, unknown, or out-of-range state remains source-owned."
+    },
+    {
+      "name": "shape3dBevelTopPreset",
+      "valueType": "string",
+      "unit": "DrawingML bevel preset token",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:sp3d/a:bevelT/@prst or p:pic/p:spPr/a:sp3d/a:bevelT/@prst token from a strict top-bevel owner, limited to the bounded DrawingML bevel-preset vocabulary. Token-splice edits change only bevelT/@prst and preserve bevelT dimensions, root 3-D attributes, image relationships, masks, and all surrounding scene/effect state; missing, malformed, duplicate, extension-bearing, child-bearing, unknown, or out-of-vocabulary state remains source-owned."
+    },
+    {
+      "name": "shape3dBevelBottomWidthEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:sp3d/a:bevelB/@w or p:pic/p:spPr/a:sp3d/a:bevelB/@w coordinate from a strict bottom-bevel owner. Token-splice edits change only bevelB/@w and preserve bevelB height/preset, root 3-D attributes, image relationships, masks, and all surrounding scene/effect state; missing, malformed, duplicate, extension-bearing, child-bearing, unknown, or out-of-range state remains source-owned."
+    },
+    {
+      "name": "shape3dBevelBottomHeightEmu",
+      "valueType": "number",
+      "unit": "emu",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:sp3d/a:bevelB/@h or p:pic/p:spPr/a:sp3d/a:bevelB/@h coordinate from a strict bottom-bevel owner. Token-splice edits change only bevelB/@h and preserve bevelB width/preset, root 3-D attributes, image relationships, masks, and all surrounding scene/effect state; missing, malformed, duplicate, extension-bearing, child-bearing, unknown, or out-of-range state remains source-owned."
+    },
+    {
+      "name": "shape3dBevelBottomPreset",
+      "valueType": "string",
+      "unit": "DrawingML bevel preset token",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:sp3d/a:bevelB/@prst or p:pic/p:spPr/a:sp3d/a:bevelB/@prst token from a strict bottom-bevel owner, limited to the bounded DrawingML bevel-preset vocabulary. Token-splice edits change only bevelB/@prst and preserve bevelB dimensions, root 3-D attributes, image relationships, masks, and all surrounding scene/effect state; missing, malformed, duplicate, extension-bearing, child-bearing, unknown, or out-of-vocabulary state remains source-owned."
+    },
+    {
+      "name": "shape3dContourRgb",
+      "valueType": "string",
+      "unit": "rgb",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:sp3d/a:contourClr/a:srgbClr/@val or p:pic/p:spPr/a:sp3d/a:contourClr/a:srgbClr/@val token from a strict contour-color owner. The profile accepts only a bare six-digit RGB value; token-splice edits change only srgbClr/@val and preserve the 3-D owner, image relationships, masks, effects, and all surrounding scene/effect state. Missing, malformed, duplicate, transformed, alternate-color-model, extension-bearing, or child-bearing state remains source-owned."
+    },
+    {
+      "name": "shape3dContourColorScheme",
+      "valueType": "string",
+      "unit": "theme color token",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:sp3d/a:contourClr/a:schemeClr/@val or p:pic/p:spPr/a:sp3d/a:contourClr/a:schemeClr/@val token from a strict contour-color owner. The profile accepts only a bare canonical theme token without transforms; token-splice edits change only schemeClr/@val and preserve the 3-D owner, image relationships, masks, effects, and all surrounding scene/effect state. Missing, malformed, duplicate, transformed, alternate-color-model, extension-bearing, or child-bearing state remains source-owned."
+    },
+    {
+      "name": "shape3dExtrusionRgb",
+      "valueType": "string",
+      "unit": "rgb",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:sp3d/a:extrusionClr/a:srgbClr/@val or p:pic/p:spPr/a:sp3d/a:extrusionClr/a:srgbClr/@val token from a strict extrusion-color owner. The profile accepts only a bare six-digit RGB value; token-splice edits change only srgbClr/@val and preserve the 3-D owner, image relationships, masks, effects, and all surrounding scene/effect state. Missing, malformed, duplicate, transformed, alternate-color-model, extension-bearing, or child-bearing state remains source-owned."
+    },
+    {
+      "name": "shape3dExtrusionColorScheme",
+      "valueType": "string",
+      "unit": "theme color token",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:sp3d/a:extrusionClr/a:schemeClr/@val or p:pic/p:spPr/a:sp3d/a:extrusionClr/a:schemeClr/@val token from a strict extrusion-color owner. The profile accepts only a bare canonical theme token without transforms; token-splice edits change only schemeClr/@val and preserve the 3-D owner, image relationships, masks, effects, and all surrounding scene/effect state. Missing, malformed, duplicate, transformed, alternate-color-model, extension-bearing, or child-bearing state remains source-owned."
+    },
+    {
+      "name": "shape3dSceneCameraPreset",
+      "valueType": "string",
+      "unit": "DrawingML camera preset token",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:scene3d/a:camera/@prst or p:pic/p:spPr/a:scene3d/a:camera/@prst token from a strict two-child scene owner. The profile requires a bare recognized camera and light-rig pair; token-splice edits change only camera/@prst and preserve light rig, root 3-D state, image relationships, masks, effects, and all surrounding scene/effect state. Camera rotation/FOV/zoom, light rotation, backdrop, extension, malformed, duplicate, or unknown scene state remains source-owned."
+    },
+    {
+      "name": "shape3dSceneCameraZoomThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandths-of-a-percent",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One explicit direct p:sp/p:spPr/a:scene3d/a:camera/@zoom or p:pic/p:spPr/a:scene3d/a:camera/@zoom token from a strict two-child scene owner. The profile requires a recognized camera preset plus canonical non-negative zoom and a recognized light-rig pair; token-splice edits change only camera/@zoom and preserve camera preset, light-rig state, root 3-D state, image relationships, masks, effects, and all surrounding scene/effect state. Omitted/default zoom, rotation/FOV, light rotation, backdrop, extension, malformed, duplicate, or unknown scene state remains source-owned."
+    },
+    {
+      "name": "shape3dSceneCameraFov60000",
+      "valueType": "number",
+      "unit": "60000ths-of-a-degree",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One explicit direct p:sp/p:spPr/a:scene3d/a:camera/@fov or p:pic/p:spPr/a:scene3d/a:camera/@fov token from a strict two-child scene owner. The profile requires a recognized camera preset plus a canonical positive FOV below 180 degrees and a recognized light-rig pair; token-splice edits change only camera/@fov and preserve camera preset/zoom, light-rig state, root 3-D state, image relationships, masks, effects, and all surrounding scene/effect state. Omitted FOV, rotation, backdrop, extension, malformed, duplicate, out-of-range, or unknown scene state remains source-owned."
+    },
+    {
+      "name": "shape3dSceneCameraRotationLatitude60000",
+      "valueType": "number",
+      "unit": "60000ths-of-a-degree",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:scene3d/a:camera/a:rot/@lat or p:pic/p:spPr/a:scene3d/a:camera/a:rot/@lat token from a strict full camera-rotation owner. The profile requires a recognized camera preset with exactly one child-free a:rot carrying canonical non-negative lat/lon/rev values at or below 360 degrees, followed by a recognized light-rig pair; token-splice edits change only camera rot/@lat and preserve longitude, revolution, light-rig state, root 3-D state, image relationships, masks, effects, and all surrounding scene/effect state. Camera zoom/FOV, light rotation, backdrop, extension, malformed, duplicate, out-of-range, or unknown scene state remains source-owned."
+    },
+    {
+      "name": "shape3dSceneCameraRotationLongitude60000",
+      "valueType": "number",
+      "unit": "60000ths-of-a-degree",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:scene3d/a:camera/a:rot/@lon or p:pic/p:spPr/a:scene3d/a:camera/a:rot/@lon token from a strict full camera-rotation owner. The profile requires a recognized camera preset with exactly one child-free a:rot carrying canonical non-negative lat/lon/rev values at or below 360 degrees, followed by a recognized light-rig pair; token-splice edits change only camera rot/@lon and preserve latitude, revolution, light-rig state, root 3-D state, image relationships, masks, effects, and all surrounding scene/effect state. Camera zoom/FOV, light rotation, backdrop, extension, malformed, duplicate, out-of-range, or unknown scene state remains source-owned."
+    },
+    {
+      "name": "shape3dSceneCameraRotationRevolution60000",
+      "valueType": "number",
+      "unit": "60000ths-of-a-degree",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:scene3d/a:camera/a:rot/@rev or p:pic/p:spPr/a:scene3d/a:camera/a:rot/@rev token from a strict full camera-rotation owner. The profile requires a recognized camera preset with exactly one child-free a:rot carrying canonical non-negative lat/lon/rev values at or below 360 degrees, followed by a recognized light-rig pair; token-splice edits change only camera rot/@rev and preserve latitude, longitude, light-rig state, root 3-D state, image relationships, masks, effects, and all surrounding scene/effect state. Camera zoom/FOV, light rotation, backdrop, extension, malformed, duplicate, out-of-range, or unknown scene state remains source-owned."
+    },
+    {
+      "name": "shape3dSceneBackdropAnchorXEmu",
+      "valueType": "number",
+      "unit": "EMU",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:scene3d/a:backdrop/a:anchor/@x or p:pic/p:spPr/a:scene3d/a:backdrop/a:anchor/@x token from a strict complete backdrop owner. The profile requires a bare recognized camera, a bare recognized light-rig pair, and one backdrop with complete bare anchor/normal/up vectors whose coordinates are canonical signed ST_Coordinate literals; token-splice edits change only anchor/@x and preserve anchor Y/Z, both vectors, all other scene state, image relationships, masks, effects, and surrounding package bytes. Partial, guide-backed, malformed, extension-bearing, transformed, or unknown scene state remains source-owned."
+    },
+    {
+      "name": "shape3dSceneBackdropAnchorYEmu",
+      "valueType": "number",
+      "unit": "EMU",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:scene3d/a:backdrop/a:anchor/@y or p:pic/p:spPr/a:scene3d/a:backdrop/a:anchor/@y token from a strict complete backdrop owner. The profile requires a bare recognized camera, a bare recognized light-rig pair, and one backdrop with complete bare anchor/normal/up vectors whose coordinates are canonical signed ST_Coordinate literals; token-splice edits change only anchor/@y and preserve anchor X/Z, both vectors, all other scene state, image relationships, masks, effects, and surrounding package bytes. Partial, guide-backed, malformed, extension-bearing, transformed, or unknown scene state remains source-owned."
+    },
+    {
+      "name": "shape3dSceneBackdropAnchorZEmu",
+      "valueType": "number",
+      "unit": "EMU",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:scene3d/a:backdrop/a:anchor/@z or p:pic/p:spPr/a:scene3d/a:backdrop/a:anchor/@z token from a strict complete backdrop owner. The profile requires a bare recognized camera, a bare recognized light-rig pair, and one backdrop with complete bare anchor/normal/up vectors whose coordinates are canonical signed ST_Coordinate literals; token-splice edits change only anchor/@z and preserve anchor X/Y, both vectors, all other scene state, image relationships, masks, effects, and surrounding package bytes. Partial, guide-backed, malformed, extension-bearing, transformed, or unknown scene state remains source-owned."
+    },
+    {
+      "name": "shape3dSceneBackdropNormalDxEmu",
+      "valueType": "number",
+      "unit": "EMU",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:scene3d/a:backdrop/a:norm/@dx or p:pic/p:spPr/a:scene3d/a:backdrop/a:norm/@dx token from a strict complete backdrop owner. The profile requires a bare recognized camera, a bare recognized light-rig pair, and one backdrop with complete bare anchor/normal/up vectors whose coordinates are canonical signed ST_Coordinate literals; token-splice edits change only norm/@dx and preserve the anchor, normal dy/dz, up vector, all other scene state, image relationships, masks, effects, and surrounding package bytes. Partial, guide-backed, malformed, extension-bearing, transformed, or unknown scene state remains source-owned."
+    },
+    {
+      "name": "shape3dSceneBackdropNormalDyEmu",
+      "valueType": "number",
+      "unit": "EMU",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:scene3d/a:backdrop/a:norm/@dy or p:pic/p:spPr/a:scene3d/a:backdrop/a:norm/@dy token from a strict complete backdrop owner. The profile requires a bare recognized camera, a bare recognized light-rig pair, and one backdrop with complete bare anchor/normal/up vectors whose coordinates are canonical signed ST_Coordinate literals; token-splice edits change only norm/@dy and preserve the anchor, normal dx/dz, up vector, all other scene state, image relationships, masks, effects, and surrounding package bytes. Partial, guide-backed, malformed, extension-bearing, transformed, or unknown scene state remains source-owned."
+    },
+    {
+      "name": "shape3dSceneBackdropNormalDzEmu",
+      "valueType": "number",
+      "unit": "EMU",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:scene3d/a:backdrop/a:norm/@dz or p:pic/p:spPr/a:scene3d/a:backdrop/a:norm/@dz token from a strict complete backdrop owner. The profile requires a bare recognized camera, a bare recognized light-rig pair, and one backdrop with complete bare anchor/normal/up vectors whose coordinates are canonical signed ST_Coordinate literals; token-splice edits change only norm/@dz and preserve the anchor, normal dx/dy, up vector, all other scene state, image relationships, masks, effects, and surrounding package bytes. Partial, guide-backed, malformed, extension-bearing, transformed, or unknown scene state remains source-owned."
+    },
+    {
+      "name": "shape3dSceneBackdropUpDxEmu",
+      "valueType": "number",
+      "unit": "EMU",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:scene3d/a:backdrop/a:up/@dx or p:pic/p:spPr/a:scene3d/a:backdrop/a:up/@dx token from a strict complete backdrop owner. The profile requires a bare recognized camera, a bare recognized light-rig pair, and one backdrop with complete bare anchor/normal/up vectors whose coordinates are canonical signed ST_Coordinate literals; token-splice edits change only up/@dx and preserve the anchor, normal vector, up dy/dz, all other scene state, image relationships, masks, effects, and surrounding package bytes. Partial, guide-backed, malformed, extension-bearing, transformed, or unknown scene state remains source-owned."
+    },
+    {
+      "name": "shape3dSceneBackdropUpDyEmu",
+      "valueType": "number",
+      "unit": "EMU",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:scene3d/a:backdrop/a:up/@dy or p:pic/p:spPr/a:scene3d/a:backdrop/a:up/@dy token from a strict complete backdrop owner. The profile requires a bare recognized camera, a bare light-rig pair, and one backdrop with complete bare anchor/normal/up vectors whose coordinates are canonical signed ST_Coordinate literals; token-splice edits change only up/@dy and preserve the anchor, normal vector, up dx/dz, all other scene state, image relationships, masks, effects, and surrounding package bytes. Partial, guide-backed, malformed, extension-bearing, transformed, or unknown scene state remains source-owned."
+    },
+    {
+      "name": "shape3dSceneBackdropUpDzEmu",
+      "valueType": "number",
+      "unit": "EMU",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:scene3d/a:backdrop/a:up/@dz or p:pic/p:spPr/a:scene3d/a:backdrop/a:up/@dz token from a strict complete backdrop owner. The profile requires a bare recognized camera, a bare light-rig pair, and one backdrop with complete bare anchor/normal/up vectors whose coordinates are canonical signed ST_Coordinate literals; token-splice edits change only up/@dz and preserve the anchor, normal vector, up dx/dy, all other scene state, image relationships, masks, effects, and surrounding package bytes. Partial, guide-backed, malformed, extension-bearing, transformed, or unknown scene state remains source-owned."
+    },
+    {
+      "name": "shape3dSceneLightRigPreset",
+      "valueType": "string",
+      "unit": "DrawingML light-rig preset token",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:scene3d/a:lightRig/@rig or p:pic/p:spPr/a:scene3d/a:lightRig/@rig token from a strict two-child scene owner. The profile requires a bare recognized camera and light-rig pair; token-splice edits change only lightRig/@rig and preserve camera, light direction, root 3-D state, image relationships, masks, effects, and all surrounding scene/effect state. Camera rotation/FOV/zoom, light rotation/direction, backdrop, extension, malformed, duplicate, or unknown scene state remains source-owned."
+    },
+    {
+      "name": "shape3dSceneLightRigDirection",
+      "valueType": "string",
+      "unit": "DrawingML light-rig direction token",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:scene3d/a:lightRig/@dir or p:pic/p:spPr/a:scene3d/a:lightRig/@dir token from a strict two-child scene owner. The profile requires a bare recognized camera and light-rig pair; token-splice edits change only lightRig/@dir and preserve camera, light-rig preset, root 3-D state, image relationships, masks, effects, and all surrounding scene/effect state. Camera rotation/FOV/zoom, light rotation, backdrop, extension, malformed, duplicate, or unknown scene state remains source-owned."
+    },
+    {
+      "name": "shape3dSceneLightRigRotationLatitude60000",
+      "valueType": "number",
+      "unit": "60000ths-of-a-degree",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:scene3d/a:lightRig/a:rot/@lat or p:pic/p:spPr/a:scene3d/a:lightRig/a:rot/@lat token from a strict full light-rig-rotation owner. The profile requires a bare recognized camera and light-rig pair plus exactly one bare a:rot carrying canonical non-negative lat/lon/rev values at or below 360 degrees; token-splice edits change only rot/@lat and preserve longitude, revolution, camera, light-rig state, root 3-D state, image relationships, masks, effects, and all surrounding scene/effect state. Omitted rotation, partial rotation, backdrop, extension, malformed, duplicate, out-of-range, or unknown scene state remains source-owned."
+    },
+    {
+      "name": "shape3dSceneLightRigRotationLongitude60000",
+      "valueType": "number",
+      "unit": "60000ths-of-a-degree",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:scene3d/a:lightRig/a:rot/@lon or p:pic/p:spPr/a:scene3d/a:lightRig/a:rot/@lon token from a strict full light-rig-rotation owner. The profile requires a bare recognized camera and light-rig pair plus exactly one bare a:rot carrying canonical non-negative lat/lon/rev values at or below 360 degrees; token-splice edits change only rot/@lon and preserve latitude, revolution, camera, light-rig state, root 3-D state, image relationships, masks, effects, and all surrounding scene/effect state. Omitted rotation, partial rotation, backdrop, extension, malformed, duplicate, out-of-range, or unknown scene state remains source-owned."
+    },
+    {
+      "name": "shape3dSceneLightRigRotationRevolution60000",
+      "valueType": "number",
+      "unit": "60000ths-of-a-degree",
+      "ppjLocation": "shape.nativeRef.leaves[] or image.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One direct p:sp/p:spPr/a:scene3d/a:lightRig/a:rot/@rev or p:pic/p:spPr/a:scene3d/a:lightRig/a:rot/@rev token from a strict full light-rig-rotation owner. The profile requires a bare recognized camera and light-rig pair plus exactly one bare a:rot carrying canonical non-negative lat/lon/rev values at or below 360 degrees; token-splice edits change only rot/@rev and preserve latitude, longitude, camera, light-rig state, root 3-D state, image relationships, masks, effects, and all surrounding scene/effect state. Omitted rotation, partial rotation, backdrop, extension, malformed, duplicate, out-of-range, or unknown scene state remains source-owned."
+    },
+    {
+      "name": "customGeometryConnectionSiteAngle60000",
+      "valueType": "number",
+      "unit": "60000ths-of-a-degree",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered custom-geometry connection-site angle whose direct a:cxn/@ang token is a canonical bounded signed integer in 60000ths-of-a-degree units. Token-splice edits change only that angle and preserve position, guide/formula, handle, path, list order, and other topology; formula-backed, malformed, ambiguous, extension-bearing, or out-of-range state remains source-owned."
+    },
+    {
+      "name": "customGeometryConnectionSiteXEmu",
+      "valueType": "number",
+      "unit": "shape-local EMU",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered custom-geometry connection-site x coordinate whose direct a:pos/@x token is a canonical non-negative integer within the shape-local frame. Token-splice edits change only that x value and preserve y, angle, guide/formula, handle, path, list order, and other topology; formula-backed, malformed, extension-bearing, or out-of-frame state remains source-owned."
+    },
+    {
+      "name": "customGeometryConnectionSiteYEmu",
+      "valueType": "number",
+      "unit": "shape-local EMU",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered custom-geometry connection-site y coordinate whose direct a:pos/@y token is a canonical non-negative integer within the shape-local frame. Token-splice edits change only that y value and preserve x, angle, guide/formula, handle, path, list order, and other topology; formula-backed, malformed, extension-bearing, or out-of-frame state remains source-owned."
+    },
+    {
+      "name": "customGeometryAdjustmentHandleXEmu",
+      "valueType": "number",
+      "unit": "shape-local EMU",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered custom-geometry a:ahXY handle position x coordinate whose direct a:pos/@x token is a canonical non-negative integer within the shape-local frame. Token-splice edits change only that position value and preserve gdRef identity, range attributes, y, handle kind/order, polar siblings, guides, paths, and other topology; formula-backed, malformed, extension-bearing, non-XY, or out-of-frame state remains source-owned."
+    },
+    {
+      "name": "customGeometryAdjustmentHandleYEmu",
+      "valueType": "number",
+      "unit": "shape-local EMU",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered custom-geometry a:ahXY handle position y coordinate whose direct a:pos/@y token is a canonical non-negative integer within the shape-local frame. Token-splice edits change only that position value and preserve gdRef identity, range attributes, x, handle kind/order, polar siblings, guides, paths, and other topology; formula-backed, malformed, extension-bearing, non-XY, or out-of-frame state remains source-owned."
+    },
+    {
+      "name": "customGeometryAdjustmentHandleMinXEmu",
+      "valueType": "number",
+      "unit": "shape-local EMU",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered custom-geometry a:ahXY minimum-x bound whose direct @minX token is a canonical non-negative integer within the shape-local frame. Token-splice edits change only that bound and preserve gdRef identity, maxX, y bounds, position, handle kind/order, polar siblings, guides, paths, and other topology; reference-backed, malformed, extension-bearing, non-XY, or out-of-frame state remains source-owned."
+    },
+    {
+      "name": "customGeometryAdjustmentHandleMaxXEmu",
+      "valueType": "number",
+      "unit": "shape-local EMU",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered custom-geometry a:ahXY maximum-x bound whose direct @maxX token is a canonical non-negative integer within the shape-local frame. Token-splice edits change only that bound and preserve gdRef identity, minX, y bounds, position, handle kind/order, polar siblings, guides, paths, and other topology; reference-backed, malformed, extension-bearing, non-XY, or out-of-frame state remains source-owned."
+    },
+    {
+      "name": "customGeometryAdjustmentHandleMinYEmu",
+      "valueType": "number",
+      "unit": "shape-local EMU",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered custom-geometry a:ahXY minimum-y bound whose direct @minY token is a canonical non-negative integer within the shape-local frame. Token-splice edits change only that bound and preserve gdRef identity, x bounds, maxY, position, handle kind/order, polar siblings, guides, paths, and other topology; reference-backed, malformed, extension-bearing, non-XY, or out-of-frame state remains source-owned."
+    },
+    {
+      "name": "customGeometryAdjustmentHandleMaxYEmu",
+      "valueType": "number",
+      "unit": "shape-local EMU",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered custom-geometry a:ahXY maximum-y bound whose direct @maxY token is a canonical non-negative integer within the shape-local frame. Token-splice edits change only that bound and preserve gdRef identity, x bounds, minY, position, handle kind/order, polar siblings, guides, paths, and other topology; reference-backed, malformed, extension-bearing, non-XY, or out-of-frame state remains source-owned."
+    },
+    {
+      "name": "customGeometryAdjustmentHandlePolarMinRadiusEmu",
+      "valueType": "number",
+      "unit": "shape-local EMU",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered custom-geometry a:ahPolar minimum-radius bound whose direct @minR token is a canonical non-negative DrawingML integer. Token-splice edits change only that bound and preserve gdRefR/gdRefAng, maxR, angle bounds, position, handle kind/order, XY siblings, guides, paths, and other topology; reference-backed, malformed, extension-bearing, non-polar, or out-of-range state remains source-owned."
+    },
+    {
+      "name": "customGeometryAdjustmentHandlePolarMaxRadiusEmu",
+      "valueType": "number",
+      "unit": "shape-local EMU",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered custom-geometry a:ahPolar maximum-radius bound whose direct @maxR token is a canonical non-negative DrawingML integer. Token-splice edits change only that bound and preserve gdRefR/gdRefAng, minR, angle bounds, position, handle kind/order, XY siblings, guides, paths, and other topology; reference-backed, malformed, extension-bearing, non-polar, or out-of-range state remains source-owned."
+    },
+    {
+      "name": "customGeometryAdjustmentHandlePolarMinAngle60000",
+      "valueType": "number",
+      "unit": "1/60000 degree",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered custom-geometry a:ahPolar minimum-angle bound whose direct @minAng token is a canonical integer in the inclusive one-turn range. Token-splice edits change only that bound and preserve gdRefR/gdRefAng, radial bounds, maxAng, position, handle kind/order, XY siblings, guides, paths, and other topology; reference-backed, malformed, extension-bearing, non-polar, or out-of-range state remains source-owned."
+    },
+    {
+      "name": "customGeometryAdjustmentHandlePolarMaxAngle60000",
+      "valueType": "number",
+      "unit": "1/60000 degree",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered custom-geometry a:ahPolar maximum-angle bound whose direct @maxAng token is a canonical integer in the inclusive one-turn range. Token-splice edits change only that bound and preserve gdRefR/gdRefAng, minAng, radial bounds, position, handle kind/order, XY siblings, guides, paths, and other topology; reference-backed, malformed, extension-bearing, non-polar, or out-of-range state remains source-owned."
+    },
+    {
+      "name": "customGeometryAdjustmentHandlePolarXEmu",
+      "valueType": "number",
+      "unit": "shape-local EMU",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered custom-geometry a:ahPolar position x coordinate whose direct a:pos/@x token is a canonical non-negative integer within the shape-local frame. Token-splice edits change only that coordinate and preserve gdRefR/gdRefAng, radial and angular bounds, y, handle kind/order, XY siblings, guides, paths, and other topology; reference-backed, malformed, extension-bearing, non-polar, or out-of-frame state remains source-owned."
+    },
+    {
+      "name": "customGeometryAdjustmentHandlePolarYEmu",
+      "valueType": "number",
+      "unit": "shape-local EMU",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered custom-geometry a:ahPolar position y coordinate whose direct a:pos/@y token is a canonical non-negative integer within the shape-local frame. Token-splice edits change only that coordinate and preserve gdRefR/gdRefAng, radial and angular bounds, x, handle kind/order, XY siblings, guides, paths, and other topology; reference-backed, malformed, extension-bearing, non-polar, or out-of-frame state remains source-owned."
+    },
+    {
+      "name": "customGeometryTextRectangleLeftEmu",
+      "valueType": "number",
+      "unit": "shape-local EMU",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One recognized custom-geometry a:rect left edge whose four direct numeric or exact OfficeKit private scaled-guide coordinates are canonical non-negative values within the shape-local frame and whose rectangle is ordered. Token-splice edits change only the left coordinate, preserving direct versus private-guide representation, top/right/bottom, guide identity, handles, connection sites, paths, and other topology; reference-backed, malformed, extension-bearing, negative, out-of-frame, or unordered state remains source-owned."
+    },
+    {
+      "name": "customGeometryTextRectangleTopEmu",
+      "valueType": "number",
+      "unit": "shape-local EMU",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One recognized custom-geometry a:rect top edge whose four direct numeric or exact OfficeKit private scaled-guide coordinates are canonical non-negative values within the shape-local frame and whose rectangle is ordered. Token-splice edits change only the top coordinate, preserving direct versus private-guide representation, left/right/bottom, guide identity, handles, connection sites, paths, and other topology; reference-backed, malformed, extension-bearing, negative, out-of-frame, or unordered state remains source-owned."
+    },
+    {
+      "name": "customGeometryTextRectangleRightEmu",
+      "valueType": "number",
+      "unit": "shape-local EMU",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One recognized custom-geometry a:rect right edge whose four direct numeric or exact OfficeKit private scaled-guide coordinates are canonical non-negative values within the shape-local frame and whose rectangle is ordered. Token-splice edits change only the right coordinate, preserving direct versus private-guide representation, left/top/bottom, guide identity, handles, connection sites, paths, and other topology; reference-backed, malformed, extension-bearing, negative, out-of-frame, or unordered state remains source-owned."
+    },
+    {
+      "name": "customGeometryTextRectangleBottomEmu",
+      "valueType": "number",
+      "unit": "shape-local EMU",
+      "ppjLocation": "shape.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One recognized custom-geometry a:rect bottom edge whose four direct numeric or exact OfficeKit private scaled-guide coordinates are canonical non-negative values within the shape-local frame and whose rectangle is ordered. Token-splice edits change only the bottom coordinate, preserving direct versus private-guide representation, left/top/right, guide identity, handles, connection sites, paths, and other topology; reference-backed, malformed, extension-bearing, negative, out-of-frame, or unordered state remains source-owned."
+    },
+    {
+      "name": "presetGeometryAdjustment",
+      "valueType": "number",
+      "unit": "DrawingML signed integer",
+      "ppjLocation": "shape.geometry.adjustments[] or nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One ordered preset-shape adjustment whose formula is exactly val N and whose preset matches a known profile. Complete lists also project as typed geometry; structurally simple partial or formula-backed lists expose only independently literal sibling slots, without fabricating an incomplete PPJ adjustment vector. Token-splice edits change only the numeric formula value and preserve the preset token, guide order, shape topology, and non-target XML; malformed, child-bearing, extension-bearing, non-literal target, or unknown graphs remain source-owned."
+    },
+    {
+      "name": "imageAsset",
+      "valueType": "asset",
+      "unit": "asset-id",
+      "ppjLocation": "image.asset",
+      "surface": "typed-operation",
+      "boundary": "Same-format source-bound raster replacement."
+    },
+    {
+      "name": "imageSvgAsset",
+      "valueType": "asset",
+      "unit": "asset-id",
+      "ppjLocation": "image.asset",
+      "surface": "typed-operation",
+      "boundary": "Safe source-bound SVG replacement."
+    },
+    {
+      "name": "chartTitleText",
+      "valueType": "string",
+      "unit": "text",
+      "ppjLocation": "chart.title",
+      "surface": "typed-operation",
+      "boundary": "Existing chart title text."
+    },
+    {
+      "name": "chartDataCategory",
+      "valueType": "string",
+      "unit": "text",
+      "ppjLocation": "opaque.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One independently proven category cache point backed by direct ChartML c:strLit or a direct inline/string cell in a unique embedded worksheet; literal caches change only the ChartPart, while shared-string, formula, external, and irregular workbook cells remain opaque."
+    },
+    {
+      "name": "chartDataValue",
+      "valueType": "number",
+      "unit": "number",
+      "ppjLocation": "chart.data or opaque.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "A typed chart point, a literal ChartML c:numLit cache changed only in its ChartPart, or one opaque native category/value point with an independently proven ChartPart/cache/workbook binding; reference-backed points update their matching embedded worksheet cell with the cache."
+    },
+    {
+      "name": "chartDataXValue",
+      "valueType": "number",
+      "unit": "number",
+      "ppjLocation": "opaque.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One independently proven scatter/bubble X cache point; direct c:numLit caches are ChartPart-only, while c:numRef caches update with their unique embedded worksheet cell."
+    },
+    {
+      "name": "chartDataYValue",
+      "valueType": "number",
+      "unit": "number",
+      "ppjLocation": "opaque.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One independently proven scatter/bubble Y cache point; direct c:numLit caches are ChartPart-only, while c:numRef caches update with their unique embedded worksheet cell."
+    },
+    {
+      "name": "chartDataBubbleSize",
+      "valueType": "number",
+      "unit": "number",
+      "ppjLocation": "opaque.nativeRef.leaves[]",
+      "surface": "native-leaf",
+      "boundary": "One independently proven bubble-size cache point; direct c:numLit caches are ChartPart-only, while c:numRef caches update with their unique embedded worksheet cell."
+    },
+    {
+      "name": "diagramText",
+      "valueType": "string",
+      "unit": "text",
+      "ppjLocation": "smartArt.nodes[].text",
+      "surface": "typed-operation",
+      "boundary": "Located SmartArt diagram text leaf."
+    },
+    {
+      "name": "deleteElement",
+      "valueType": "boolean",
+      "unit": "operation",
+      "ppjLocation": "pages[].elements[]",
+      "surface": "typed-operation",
+      "boundary": "Capability-issued element deletion with relationship proof."
+    }
+  ],
+  "helpApis": [
+    {
+      "name": "Presentation.create",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "PresentationFile.exportPptx",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "PresentationFile.importPptx",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "PresentationFile.inspectPptx",
+      "surface": "inspect-review"
+    },
+    {
+      "name": "PresentationFile.patchPptx",
+      "surface": "inspect-review"
+    },
+    {
+      "name": "chart.accessibilityCapability",
+      "surface": "native-ref"
+    },
+    {
+      "name": "chart.delete",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "chart.deletionCapability",
+      "surface": "native-ref"
+    },
+    {
+      "name": "chart.setAccessibilityMetadata",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "compose.box",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "compose.chart",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "compose.column",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "compose.grid",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "compose.image",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "compose.layers",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "compose.paragraph",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "compose.row",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "compose.rule",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "compose.shape",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "compose.table",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "compose.text",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "connector.accessibilityCapability",
+      "surface": "native-ref"
+    },
+    {
+      "name": "connector.bringToFront",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "connector.delete",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "connector.deletionCapability",
+      "surface": "native-ref"
+    },
+    {
+      "name": "connector.sendToBack",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "connector.setAccessibilityMetadata",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "connector.setConnectorFrom",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "connector.setConnectorTo",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "element.bringToFront",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "element.moveAfter",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "element.moveBefore",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "element.sendToBack",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "element.stackIndex",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "element.zOrderCapability",
+      "surface": "native-ref"
+    },
+    {
+      "name": "exportPptxWithOfficeKit",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "group.accessibilityCapability",
+      "surface": "native-ref"
+    },
+    {
+      "name": "group.delete",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "group.deletionCapability",
+      "surface": "native-ref"
+    },
+    {
+      "name": "group.setAccessibilityMetadata",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "image.accessibilityCapability",
+      "surface": "native-ref"
+    },
+    {
+      "name": "image.delete",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "image.deletionCapability",
+      "surface": "native-ref"
+    },
+    {
+      "name": "image.editSvgLeaf",
+      "surface": "native-ref"
+    },
+    {
+      "name": "image.editSvgText",
+      "surface": "native-ref"
+    },
+    {
+      "name": "image.getSvgEditLeaves",
+      "surface": "native-ref"
+    },
+    {
+      "name": "image.getSvgTextNodes",
+      "surface": "native-ref"
+    },
+    {
+      "name": "image.setAccessibilityMetadata",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "image.svgEditCapability",
+      "surface": "native-ref"
+    },
+    {
+      "name": "image.svgTextCapability",
+      "surface": "native-ref"
+    },
+    {
+      "name": "importPptxWithOfficeKit",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "nativeObject.getEmbeddedOfficePackage",
+      "surface": "native-ref"
+    },
+    {
+      "name": "nativeObject.getEmbeddedWorkbook",
+      "surface": "native-ref"
+    },
+    {
+      "name": "nativeObject.replaceEmbeddedOfficePackage",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "nativeObject.replaceEmbeddedWorkbook",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "nativeObject.setDiagramNodeRunText",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "nativeObject.setDiagramNodeText",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "nativeObject.setName",
+      "surface": "native-ref"
+    },
+    {
+      "name": "nativeObject.setPosition",
+      "surface": "native-ref"
+    },
+    {
+      "name": "presentation.auditAccessibility",
+      "surface": "inspect-review"
+    },
+    {
+      "name": "presentation.customShows.add",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "presentation.customShows.getItem",
+      "surface": "inspect-review"
+    },
+    {
+      "name": "presentation.designProfile",
+      "surface": "inspect-review"
+    },
+    {
+      "name": "presentation.editComponentOccurrence",
+      "surface": "native-ref"
+    },
+    {
+      "name": "presentation.editNativeLeaf",
+      "surface": "native-ref"
+    },
+    {
+      "name": "presentation.export",
+      "surface": "inspect-review"
+    },
+    {
+      "name": "presentation.fontFamilies",
+      "surface": "inspect-review"
+    },
+    {
+      "name": "presentation.inspect",
+      "surface": "inspect-review"
+    },
+    {
+      "name": "presentation.layout.clearBackground",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "presentation.layout.placeholders.add",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "presentation.layout.placeholders.summary",
+      "surface": "inspect-review"
+    },
+    {
+      "name": "presentation.layout.setBackground",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "presentation.layouts.add",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "presentation.layouts.getById",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "presentation.master",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "presentation.master.clearBackground",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "presentation.master.setBackground",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "presentation.master.setTheme",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "presentation.masters.add",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "presentation.masters.getItem",
+      "surface": "inspect-review"
+    },
+    {
+      "name": "presentation.planTemplateGeneration",
+      "surface": "inspect-review"
+    },
+    {
+      "name": "presentation.resolve",
+      "surface": "inspect-review"
+    },
+    {
+      "name": "presentation.resolveComponentCandidate",
+      "surface": "inspect-review"
+    },
+    {
+      "name": "presentation.reuseSourceComponent",
+      "surface": "native-ref"
+    },
+    {
+      "name": "presentation.reuseSourceSlide",
+      "surface": "native-ref"
+    },
+    {
+      "name": "presentation.sections.add",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "presentation.sections.getItem",
+      "surface": "inspect-review"
+    },
+    {
+      "name": "presentation.slideSize",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "presentation.slides.add",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "presentation.slides.insert",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "presentation.textRange",
+      "surface": "inspect-review"
+    },
+    {
+      "name": "presentation.theme",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "presentation.validateLayout",
+      "surface": "inspect-review"
+    },
+    {
+      "name": "presentation.verify",
+      "surface": "inspect-review"
+    },
+    {
+      "name": "presentation.view",
+      "surface": "inspect-review"
+    },
+    {
+      "name": "presentation.view.capability",
+      "surface": "native-ref"
+    },
+    {
+      "name": "presentation.view.setSourceProperties",
+      "surface": "native-ref"
+    },
+    {
+      "name": "shape.accessibilityCapability",
+      "surface": "native-ref"
+    },
+    {
+      "name": "shape.delete",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "shape.deletionCapability",
+      "surface": "native-ref"
+    },
+    {
+      "name": "shape.setAccessibilityMetadata",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "shape.text.set",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "shape.useBackgroundFill",
+      "surface": "native-ref"
+    },
+    {
+      "name": "slide.addNotes",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slide.animations.add",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slide.animations.remove",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slide.applyLayout",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slide.autoLayout",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "slide.charts.add",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "slide.clearBackground",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slide.clearBackgroundImage",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slide.clearMorph",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slide.clearNativeBackgroundImage",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slide.clearTransition",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slide.cloneCapability",
+      "surface": "native-ref"
+    },
+    {
+      "name": "slide.comments.addThread",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slide.comments.capability",
+      "surface": "native-ref"
+    },
+    {
+      "name": "slide.compose",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "slide.connectors.add",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "slide.continuationCapability",
+      "surface": "native-ref"
+    },
+    {
+      "name": "slide.delete",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slide.deletionCapability",
+      "surface": "native-ref"
+    },
+    {
+      "name": "slide.duplicate",
+      "surface": "native-ref"
+    },
+    {
+      "name": "slide.elements",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slide.groups.add",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "slide.hide",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slide.images.add",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "slide.moveTo",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slide.placeholders.getItem",
+      "surface": "inspect-review"
+    },
+    {
+      "name": "slide.setBackground",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slide.setBackgroundImage",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slide.setHidden",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slide.setLayout",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slide.setMorph",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slide.setNativeBackgroundImage",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slide.setTransition",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slide.shapes.add",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "slide.shapes.connect",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "slide.shapes.getConnectionSiteIndex",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "slide.show",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slide.speakerNotes.capability",
+      "surface": "native-ref"
+    },
+    {
+      "name": "slide.tables.add",
+      "surface": "compiler-helper"
+    },
+    {
+      "name": "slide.visibilityCapability",
+      "surface": "native-ref"
+    },
+    {
+      "name": "slideCommentThread.addReply",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slideCommentThread.reopen",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "slideCommentThread.resolve",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "table.accessibilityCapability",
+      "surface": "native-ref"
+    },
+    {
+      "name": "table.delete",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "table.deletionCapability",
+      "surface": "native-ref"
+    },
+    {
+      "name": "table.merge",
+      "surface": "ppj-state"
+    },
+    {
+      "name": "table.setAccessibilityMetadata",
+      "surface": "ppj-state"
+    }
+  ],
+  "hostOnly": [
+    "powerpoint.read_presentation",
+    "powerpoint.read_slides",
+    "powerpoint.read_slide",
+    "powerpoint.read_selection",
+    "powerpoint.write_text",
+    "powerpoint.add_textbox",
+    "powerpoint.add_shape",
+    "powerpoint.add_image",
+    "powerpoint.update_shape",
+    "powerpoint.delete_shape",
+    "powerpoint.add_slide",
+    "powerpoint.read_slide_image",
+    "powerpoint.save"
+  ]
+}

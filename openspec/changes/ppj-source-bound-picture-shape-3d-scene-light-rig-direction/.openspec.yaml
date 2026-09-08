@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-09-06
+goal: Add the picture-side shape3dSceneLightRigDirection native leaf with strict
+  source-bound projection and token-splice editing.

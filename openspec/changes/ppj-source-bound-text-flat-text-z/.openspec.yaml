@@ -1,0 +1,4 @@
+name: ppj-source-bound-text-flat-text-z
+schema: spec-driven
+created: 2026-09-06
+goal: Preserve one bounded DrawingML flatTx z coordinate through PPJ.

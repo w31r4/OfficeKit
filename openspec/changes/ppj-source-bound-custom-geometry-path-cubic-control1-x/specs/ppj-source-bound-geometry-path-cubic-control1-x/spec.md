@@ -1,0 +1,36 @@
+# Custom geometry cubic first-control-point x coordinate
+
+## ADDED Requirements
+
+### Requirement: expose one bounded cubic first-control-point x coordinate
+
+The system MUST expose a `customGeometryPathCubicControl1X` native leaf only
+for a direct ordered `a:path/a:cubicBezTo` with exactly three direct `a:pt`
+children, where the first point's `x` is a canonical signed integer within the
+bounded DrawingML coordinate range and the geometry passes the existing
+recognition profile.
+
+#### Scenario: project a literal cubic control-point coordinate
+
+- **WHEN** an imported custom geometry contains a recognized path with a
+  literal cubic first-control-point x coordinate
+- **THEN** the projected shape exposes that coordinate with path order in
+  `nativeLeafIndex` and direct command order in `textLeafIndex`, while the
+  control-point y, second control point, end point, and rest of the path graph
+  remain source-owned
+
+#### Scenario: edit only the selected control-point x token
+
+- **WHEN** a source-bound PPJ edit changes an issued cubic first-control-point x
+  leaf to another canonical bounded coordinate
+- **THEN** only that first point's `x` value changes in the owning SlidePart and
+  a subsequent projection reports the new coordinate
+
+#### Scenario: reject reference-backed or unsupported command state
+
+- **WHEN** the selected x is formula/reference-backed, malformed, noncanonical,
+  extension-bearing, out of range, stale, the cubic point topology is not
+  exactly two control points plus one end point, or the surrounding geometry
+  cannot pass the bounded profile
+- **THEN** the system MUST keep the coordinate source-owned or fail closed
+  rather than issue or apply a partial path edit

@@ -1,0 +1,3 @@
+- [x] Add the optional rounded-corners field to PPJ schema, wire model, validator, compiler/projector, registry, and reference docs.
+- [x] Extend shared ChartML read/build/patch paths for ordinary and combo chart parts with presence-aware boolean validation.
+- [x] Add a focused authored/source-bound/reprojection test and run protocol, OpenSpec, and narrow codec gates.

@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-09-06
+goal: Add shape3dBevelBottomPreset with minimal projection, token-splice edit,
+  and reprojection coverage

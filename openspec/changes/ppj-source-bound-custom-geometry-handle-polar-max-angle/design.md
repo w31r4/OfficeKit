@@ -1,0 +1,56 @@
+## Context
+
+See `proposal.md` for the motivation. The custom-geometry importer already
+models `a:ahPolar` radial and angle adjustments as literal values or
+references, and retains handle identity by ordered index and controlled guide
+names. Generic PPJ native leaves are source-bound scalar operations proved
+against the original XML before a token splice.
+
+## Goals / Non-Goals
+
+**Goals:**
+
+- Give a direct literal `a:ahPolar/@maxAng` bound a stable native index and
+  explicit 1/60000-degree value.
+- Keep radial/angle guide identity, `minAng`, radial bounds, position, handle
+  order/kind, and custom-geometry topology source-bound.
+- Prove a SlidePart-only angle-bound edit and second projection with a valid
+  existing range.
+
+**Non-Goals:**
+
+- Editing `minAng`, radial bounds, polar position, guide identity, adjustment
+  values, formulas, XY handles, paths, or list topology.
+- Evaluating or rewriting guide formulas or inferring a new angle range.
+- Adding wire fields or changing the Office protocol version.
+
+## Decisions
+
+1. **Use the ordered handle index and polar kind as identity.** This matches
+   the existing native handle contract and includes any intervening XY handles.
+
+2. **Require a canonical bounded angle integer.** Angles use DrawingML's
+   1/60000-degree unit and are limited to one full turn in either direction;
+   exact round-tripping rejects references and non-canonical spellings while
+   retaining source-owned state.
+
+3. **Keep the paired range graph intact.** The writer proves all direct
+   `ahPolar` attributes and changes only `maxAng`; it does not add/remove the
+   range or edit `minAng`, radial state, current adjustment, or position. The
+   focused fixture chooses a replacement that remains inside the existing
+   angular range.
+
+4. **Use the generic native-leaf contract.** The new numeric kind relies on
+   already modeled Open XML attributes and needs no protobuf descriptor or
+   Office wire change.
+
+## Risks / Trade-offs
+
+- An invalid angular min/max/current-adjustment relationship could affect host
+  rendering. Restrict the regression to a valid replacement and preserve all
+  other range tokens; full range validation remains outside this leaf.
+- Changing an angular bound may alter how a host interprets a polar drag handle.
+  The operation is scalar source-bound and does not promise host UI behavior or
+  automatic path recalculation.
+- Legal but unmodeled extension attributes may be present. Reject unknown
+  attributes/children and keep the source opaque.

@@ -692,6 +692,8 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-07 Chart、ChartML、嵌入工作簿和扩展图表
 
+**本轮补充（2026-09-09）：** ChartSpace 的 `c:roundedCorners` 现在补齐为 PPJ `chart.roundedCorners`；ordinary/combo ChartPart 均支持 authored 导出、原生投影及 source-bound 增改删，二次投影恢复 presence/value，最小实验复用 `PpjChartStyleIndexAuthorAndEditSourceChart` 验证只改 ChartPart。
+
 **优先级：P0；状态：部分完成。**
 
 普通轴标题、轴与数据标签的 `numberFormat` grammar token 已纳入同一 bounded ChartPart profile；它只解决声明值的可复用解析，不扩展为 source-linked workbook 格式同步。

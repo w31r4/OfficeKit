@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-09-05
+goal: Make one validated custom image clip in compositing.clipStack use the
+  existing picture custom-mask owner.

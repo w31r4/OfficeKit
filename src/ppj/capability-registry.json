@@ -186,6 +186,13 @@
       "reason": "PPJ owns the Kimi `ChartConfig.dataTable` profile: four presence-aware border/key flags, direct none/solid/gradient fill, and direct RGB/preset-dash stroke. Text-property and extension children, theme/effect paint graphs, unsupported chart families, and irregular c:dTable topology remain source-owned and fail closed."
     },
     {
+      "feature": "native chart rounded corners",
+      "ppjPath": "pages[].elements[].roundedCorners",
+      "behavior": "partial",
+      "sourceBound": "Recognized ordinary and combo ChartParts project the direct c:roundedCorners flag. A source-bound setChartPlot edit changes only the target ChartPart and reprojects its presence and boolean value.",
+      "reason": "PPJ owns the bounded ChartSpace boolean while duplicate, malformed, external, and unsupported chart topology remains source-owned and fails closed."
+    },
+    {
       "feature": "native scatter chart style",
       "ppjPath": "pages[].elements[].style.scatterStyle",
       "behavior": "partial",

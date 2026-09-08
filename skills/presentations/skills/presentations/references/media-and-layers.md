@@ -47,22 +47,28 @@ playback and in static rendering.
   "startAtMs": 1200,
   "endAtMs": 400,
   "loop": false,
-  "mute": true
+  "mute": true,
+  "playback": { "trigger": "onSlideStart" }
 }
 ```
 
 `startAtMs` and `endAtMs` are bounded leading and trailing trim offsets, not
 timeline expressions. `loop` and `mute` compile to native playback state.
-OfficeKit owns the media relationships, click action, canonical timing nodes,
-poster relationship, and package part names; PPJ owns only the typed state
-above. Keep media below 64 MiB per asset and within the deck's aggregate asset
-budget.
+`playback.trigger` is the bounded authored start choice: `onClick` preserves
+the historical click-start condition, while `onSlideStart` writes an
+immediate media timing condition. OfficeKit owns the media relationships,
+click action, canonical timing nodes, poster relationship, and package part
+names; PPJ owns only the typed state above. Keep media below 64 MiB per asset
+and within the deck's aggregate asset budget.
 
 Static render and structural review prove the poster and package graph, not
 playback. Record desktop evidence separately when actual playback matters.
-Third-party media timing remains opaque/source-bound: importing it does not
-authorize rewriting triggers, bookmarks, effects, or an unfamiliar timing
-graph.
+Third-party media playback remains opaque/source-bound: importing it does not
+authorize rewriting payloads, poster relationships, triggers, bookmarks,
+effects, captions, or an unfamiliar timing graph. When the imported media
+picture has a canonical residual non-visual owner, OfficeKit may still expose
+the common `accessibility` metadata and a capability-gated metadata-only edit;
+that edit preserves the media graph and does not make playback editable.
 
 ## Imported paired SVG pictures
 

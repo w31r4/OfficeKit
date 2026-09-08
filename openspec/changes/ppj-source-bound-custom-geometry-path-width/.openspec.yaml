@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-09-05
+goal: Add a minimal source-bound
+  customGeometryPathWidth leaf with fail-closed proof,
+  SlidePart token splice, and focused reprojection evidence.

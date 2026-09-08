@@ -4677,6 +4677,10 @@
               ],
               "description": "Built-in native ChartML style index; a size grammar token must resolve to an integer from 1 through 48. It applies only to bounded native ChartPart charts."
             },
+            "roundedCorners": {
+              "$ref": "#/$defs/booleanOrToken",
+              "description": "Whether the native ChartSpace uses rounded corners."
+            },
             "dataTable": {
               "type": "object",
               "additionalProperties": false,

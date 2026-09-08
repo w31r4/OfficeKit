@@ -1,0 +1,4 @@
+- [x] Add the strict picture shadow direction native leaf and edit-plan proof/patch support.
+- [x] Add the focused source-bound picture fixture and verify non-target image and shadow state remains unchanged.
+- [x] Update the PPJ capability registry, generated reference, coverage, and gap evidence.
+- [x] Run the narrow build, focused test, OpenSpec validation, and repository gates.

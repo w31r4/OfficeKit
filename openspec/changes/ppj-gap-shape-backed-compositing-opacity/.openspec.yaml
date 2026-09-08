@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-09-05
+goal: Make the existing PPJ compositing.opacity field consistent for icon and
+  placeholder elements without changing the wire protocol.

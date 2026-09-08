@@ -1,0 +1,4 @@
+name: ppj-source-bound-custom-geometry-path-arc-start-angle
+schema: spec-driven
+created: 2026-09-06
+goal: Preserve and edit one bounded custom-geometry arc start angle through PPJ.

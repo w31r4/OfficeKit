@@ -24,6 +24,8 @@ internal static partial class PptxChartCodec
             : BuildChartDocument(ToSpreadsheet(chart, id, name));
         PptxChartFrameCodec.Patch(document.Root!, chart.Frame, chart.ChartAreaFill, $"Presentation chart {id} frame", chartContext);
         PptxChartTitleTextCodec.Apply(document, chart);
+        if (!chart.HasRoundedCorners)
+            foreach (var node in document.Root!.Elements(ChartNs + "roundedCorners").ToArray()) node.Remove();
         return document;
     }
 
@@ -41,6 +43,8 @@ internal static partial class PptxChartCodec
         PptxChartFrameCodec.Patch(document.Root!, chart.Frame, chart.ChartAreaFill, $"Presentation chart {id} frame", chartContext);
         if (rewritePlainTitle) PptxChartTitleTextCodec.ApplyPlain(document, chart);
         PptxChartTitleTextCodec.Apply(document, chart);
+        if (!chart.HasRoundedCorners)
+            foreach (var node in document.Root!.Elements(ChartNs + "roundedCorners").ToArray()) node.Remove();
     }
 
     private static bool PresentationChartTopologyMatches(PresentationChart requested, PresentationChart original)
@@ -155,6 +159,7 @@ internal static partial class PptxChartCodec
         };
         if (source.HasTitlePlacement) output.TitlePlacement = source.TitlePlacement;
         if (source.HasStyleIndex) output.StyleIndex = source.StyleIndex;
+        if (source.HasRoundedCorners) output.RoundedCorners = source.RoundedCorners;
         if (source.LegendTextStyle is not null) output.LegendTextStyle = source.LegendTextStyle.Clone();
         if (source.LegendFill is not null) output.LegendFill = source.LegendFill.Clone();
         if (source.LegendLine is not null) output.LegendLine = source.LegendLine.Clone();
@@ -273,6 +278,15 @@ internal static partial class PptxChartCodec
         chart.TitlePlacement = titlePlacement;
         if (!OpenXmlChartSpaceCodec.TryReadStyleIndex(root!, out var hasStyleIndex, out var styleIndex)) editable = false;
         else if (hasStyleIndex) chart.StyleIndex = styleIndex;
+        var roundedNodes = root!.Elements(ChartNs + "roundedCorners").ToArray();
+        if (roundedNodes.Length > 1) editable = false;
+        else if (roundedNodes.Length == 1)
+        {
+            var roundedToken = (string?)roundedNodes[0].Attribute("val");
+            if (roundedToken is "1" or "true" or "0" or "false")
+                chart.RoundedCorners = roundedToken is "1" or "true";
+            else editable = false;
+        }
         if (title is not null)
         {
             var richText = title.Descendants(DrawingNs + "t").ToArray();
@@ -556,7 +570,7 @@ internal static partial class PptxChartCodec
         nativeChart.Add(new XElement(ChartNs + "plotVisOnly", new XAttribute("val", "1")));
         if (chart.HasDisplayBlanksAs)
             nativeChart.Add(new XElement(ChartNs + "dispBlanksAs", new XAttribute("val", OpenXmlChartSpaceCodec.DisplayBlanksAsToken(chart.DisplayBlanksAs))));
-        var chartSpace = new XElement(ChartNs + "chartSpace", new XAttribute(XNamespace.Xmlns + "c", ChartNs), new XAttribute(XNamespace.Xmlns + "a", DrawingNs), chart.HasStyleIndex ? new XElement(ChartNs + "style", new XAttribute("val", chart.StyleIndex.ToString(CultureInfo.InvariantCulture))) : null, nativeChart);
+        var chartSpace = new XElement(ChartNs + "chartSpace", new XAttribute(XNamespace.Xmlns + "c", ChartNs), new XAttribute(XNamespace.Xmlns + "a", DrawingNs), chart.HasRoundedCorners ? new XElement(ChartNs + "roundedCorners", new XAttribute("val", chart.RoundedCorners ? "1" : "0")) : null, chart.HasStyleIndex ? new XElement(ChartNs + "style", new XAttribute("val", chart.StyleIndex.ToString(CultureInfo.InvariantCulture))) : null, nativeChart);
         if (XlsxChartSurfaceFillCodec.Element(chart.ChartAreaFill, "Presentation combo chart area") is { } chartFill) chartSpace.Add(chartFill);
         return new XDocument(new XDeclaration("1.0", "UTF-8", "yes"), chartSpace);
     }
@@ -589,6 +603,10 @@ internal static partial class PptxChartCodec
     {
         var nativeChart = document.Root!.Element(ChartNs + "chart")!;
         OpenXmlChartSpaceCodec.PatchStyleIndex(document.Root, target.HasStyleIndex, target.StyleIndex, "unsupported_presentation_edit", "Presentation combo chart");
+        var rounded = document.Root.Element(ChartNs + "roundedCorners");
+        if (!target.HasRoundedCorners) rounded?.Remove();
+        else if (rounded is not null) rounded.SetAttributeValue("val", target.RoundedCorners ? "1" : "0");
+        else (document.Root.Element(ChartNs + "chart") ?? throw new CodecException("unsupported_presentation_edit", "Presentation combo chart is missing c:chart")).AddBeforeSelf(new XElement(ChartNs + "roundedCorners", new XAttribute("val", target.RoundedCorners ? "1" : "0")));
         if (patchTitle)
             OpenXmlChartSpaceCodec.PatchTitle(nativeChart, target.Title, target.TitleTextStyle, target.HasTitlePlacement ? target.TitlePlacement : string.Empty, "unsupported_presentation_edit", "Presentation combo chart");
         OpenXmlChartSpaceCodec.PatchLegend(nativeChart, target.HasLegend, target.LegendPosition, target.LegendTextStyle, target.HasLegendOverlay, target.LegendOverlay, target.LegendFill, target.LegendLine);
@@ -635,6 +653,8 @@ internal static partial class PptxChartCodec
         XlsxChartSurfaceFillCodec.Patch(document.Root!, target.ChartAreaFill, "Presentation combo chart area", allowFrameDecorations: true);
         XlsxChartTextStyleCodec.PatchTextProperties(document.Root!, target.TextStyle, new HashSet<string>(StringComparer.Ordinal) { "externalData", "printSettings", "userShapes", "extLst" });
         XlsxChartPlotAreaStyleCodec.Patch(plotArea, target.PlotAreaFill, target.PlotAreaLine, "Presentation combo chart plot area");
+        if (!target.HasRoundedCorners)
+            foreach (var node in document.Root!.Elements(ChartNs + "roundedCorners").ToArray()) node.Remove();
     }
 
     private static void PatchComboScalar(XElement plot, string name, string value)

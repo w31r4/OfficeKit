@@ -22,6 +22,7 @@ export const PPJ_USAGE = `Usage:
   officekit ppj check <deck.ppj> [--fix] [--task <id>] [--json]
   officekit ppj build <deck.ppj> -o <deck.pptx> [--task <id>] [--json]
   officekit ppj render <deck.ppj> -o <previews/> [--pages <spec>] [--json]
+  officekit ppj preview <deck.ppj> -o <previews/> [--json]
   officekit ppj review <deck.ppj> [--task <id>] [--json]`;
 
 export async function runPpjCommand(args, {
@@ -40,6 +41,7 @@ export async function runPpjCommand(args, {
     check: parseCheckArguments,
     build: parseBuildArguments,
     render: parseRenderArguments,
+    preview: parseRenderArguments,
     review: parseReviewArguments,
   }[subcommand];
   if (!parser) throw new Error(`Unknown or unavailable PPJ command "${subcommand}". Run "officekit ppj --help".`);
@@ -50,6 +52,8 @@ export async function runPpjCommand(args, {
   }
   const handler = subcommand === "render" || subcommand === "review"
     ? (await import("./render-review.mjs"))[subcommand === "render" ? "renderPpj" : "reviewPpj"]
+    : subcommand === "preview"
+      ? async (request, options) => (await import("./svg-preview.mjs")).renderPpjToSvg(request.inputPath, { ...options, outputDir: path.resolve(options.cwd, request.outputPath) })
     : ({
       resume: resumePpjTask,
       import: importPptxAsPpj,

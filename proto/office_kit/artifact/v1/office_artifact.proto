@@ -1046,6 +1046,8 @@ message SpreadsheetChartArtifact {
   // Bounded chart-wide c:chartSpace/c:txPr typography. The initial profile
   // owns only the direct Latin typeface used by PPJ chart.fontFamily.
   SpreadsheetChartTextStyleArtifact text_style = 48;
+  // Presence-aware direct c:chartSpace/c:roundedCorners flag.
+  optional bool rounded_corners = 49;
 }
 
 message SpreadsheetChartSeriesArtifact {
@@ -2899,6 +2901,8 @@ message PresentationChart {
   // Bounded chart-wide c:chartSpace/c:txPr typography. The initial profile
   // owns only the direct Latin typeface used by PPJ chart.fontFamily.
   SpreadsheetChartTextStyleArtifact text_style = 48;
+  // Presence-aware direct c:chartSpace/c:roundedCorners flag.
+  optional bool rounded_corners = 49;
 }
 
 // Bounded literal c:chartSpace/c:spPr container paint for Presentation charts.

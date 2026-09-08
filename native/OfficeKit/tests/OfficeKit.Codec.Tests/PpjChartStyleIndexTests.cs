@@ -35,6 +35,7 @@ public sealed partial class PptxCodecTests
             .Select(item => item!.AsObject())
             .Single(item => item["type"]!.GetValue<string>() == "chart");
         chart["styleIndex"] = 12;
+        chart["roundedCorners"] = true;
 
         var programBytes = Encoding.UTF8.GetBytes(program.ToJsonString());
         var validation = PpjProgramValidator.Validate(programBytes);
@@ -67,8 +68,10 @@ public sealed partial class PptxCodecTests
             .Select(item => item!.AsObject())
             .Single(item => item["type"]!.GetValue<string>() == "chart");
         Assert.Equal(12, projectedChart["styleIndex"]!.GetValue<int>());
+        Assert.True(projectedChart["roundedCorners"]!.GetValue<bool>());
 
         projectedChart["styleIndex"] = 24;
+        projectedChart["roundedCorners"] = false;
         var edited = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
@@ -99,5 +102,40 @@ public sealed partial class PptxCodecTests
             .Select(item => item!.AsObject())
             .Single(item => item["type"]!.GetValue<string>() == "chart");
         Assert.Equal(24, reprojectedChart["styleIndex"]!.GetValue<int>());
+        Assert.False(reprojectedChart["roundedCorners"]!.GetValue<bool>());
+
+        var removalProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var removalChart = removalProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "chart");
+        removalChart.Remove("roundedCorners");
+        var removed = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(removalProgram.ToJsonString()),
+            },
+        });
+        Assert.True(removed.Ok, Diagnostics(removed));
+        Assert.Single(removed.PresentationProgram.ChangedParts);
+        var removedProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(removed.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest { SourceUri = "chart-style-index/removed.pptx" },
+        });
+        Assert.True(removedProjection.Ok, Diagnostics(removedProjection));
+        var removedChart = JsonNode.Parse(removedProjection.PresentationProgram.ProgramJson.ToByteArray())!["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "chart");
+        Assert.Null(removedChart["roundedCorners"]);
     }
 }

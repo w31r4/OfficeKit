@@ -40,6 +40,8 @@ internal static class OpenXmlChartSpaceCodec
         else if (textStyle is not null) chart.TextStyle = textStyle;
         if (!TryReadStyleIndex(root, out var hasStyleIndex, out var styleIndex)) editable = false;
         else if (hasStyleIndex) chart.StyleIndex = styleIndex;
+        if (!TryReadBoolean(root, "roundedCorners", out var hasRoundedCorners, out var roundedCorners)) editable = false;
+        else if (hasRoundedCorners) chart.RoundedCorners = roundedCorners;
         var plots = plotArea.Elements().Where(item => item.Name == ChartNs + "barChart" || item.Name == ChartNs + "lineChart" || item.Name == ChartNs + "pieChart" || item.Name == ChartNs + "areaChart" || item.Name == ChartNs + "doughnutChart" || item.Name == ChartNs + "scatterChart" || item.Name == ChartNs + "bubbleChart" || item.Name == ChartNs + "radarChart").ToArray();
         if (plots.Length != 1 || plotArea.Elements().Any(item => item.Name.LocalName.EndsWith("Chart", StringComparison.Ordinal) && !plots.Contains(item))) return false;
         var plot = plots[0];
@@ -143,7 +145,7 @@ internal static class OpenXmlChartSpaceCodec
         nativeChart.Add(new XElement(ChartNs + "plotVisOnly", new XAttribute("val", "1")));
         if (chart.HasDisplayBlanksAs)
             nativeChart.Add(new XElement(ChartNs + "dispBlanksAs", new XAttribute("val", DisplayBlanksAsToken(chart.DisplayBlanksAs))));
-        var chartSpace = new XElement(ChartNs + "chartSpace", new XAttribute(XNamespace.Xmlns + "c", ChartNs), new XAttribute(XNamespace.Xmlns + "a", DrawingNs), chart.HasStyleIndex ? new XElement(ChartNs + "style", new XAttribute("val", chart.StyleIndex.ToString(CultureInfo.InvariantCulture))) : null, nativeChart);
+        var chartSpace = new XElement(ChartNs + "chartSpace", new XAttribute(XNamespace.Xmlns + "c", ChartNs), new XAttribute(XNamespace.Xmlns + "a", DrawingNs), chart.HasRoundedCorners ? new XElement(ChartNs + "roundedCorners", new XAttribute("val", chart.RoundedCorners ? "1" : "0")) : null, chart.HasStyleIndex ? new XElement(ChartNs + "style", new XAttribute("val", chart.StyleIndex.ToString(CultureInfo.InvariantCulture))) : null, nativeChart);
         if (XlsxChartSurfaceFillCodec.Element(chart.ChartAreaFill, "Chart area") is { } chartFill) chartSpace.Add(chartFill);
         if (chart.TextStyle is not null) chartSpace.Add(XlsxChartTextStyleCodec.TextPropertiesElement(chart.TextStyle));
         return new XDocument(new XDeclaration("1.0", "UTF-8", "yes"), chartSpace);
@@ -159,6 +161,7 @@ internal static class OpenXmlChartSpaceCodec
     {
         var nativeChart = document.Root?.Element(ChartNs + "chart") ?? throw Topology(errorCode, subject, "is missing c:chart");
         PatchStyleIndex(document.Root!, target.HasStyleIndex, target.StyleIndex, errorCode, subject);
+        PatchBoolean(document.Root!, "roundedCorners", target.HasRoundedCorners, target.RoundedCorners, errorCode, subject);
         if (patchTitle) PatchTitle(nativeChart, target.Title, target.TitleTextStyle, target.HasTitlePlacement ? target.TitlePlacement : string.Empty, errorCode, subject);
         PatchLegend(nativeChart, target.HasLegend, target.LegendPosition, target.LegendTextStyle, target.HasLegendOverlay, target.LegendOverlay, target.LegendFill, target.LegendLine);
         PatchDisplayBlanksAs(nativeChart, target.HasDisplayBlanksAs, target.DisplayBlanksAs, errorCode, subject);
@@ -465,6 +468,30 @@ internal static class OpenXmlChartSpaceCodec
 
     internal static bool TryReadStyleIndex(XElement chartSpace, out bool present, out uint value) =>
         TryOptionalUInt(chartSpace, "style", 1, 48, out present, out value);
+
+    private static bool TryReadBoolean(XElement parent, string localName, out bool present, out bool value)
+    {
+        var nodes = parent.Elements(ChartNs + localName).ToArray();
+        present = nodes.Length == 1;
+        value = false;
+        if (nodes.Length > 1) return false;
+        if (nodes.Length == 0) return true;
+        var token = (string?)nodes[0].Attribute("val");
+        if (token is null) return false;
+        if (token is "1" or "true") { value = true; return true; }
+        if (token is "0" or "false") return true;
+        return false;
+    }
+
+    private static void PatchBoolean(XElement parent, string localName, bool present, bool value, string errorCode, string subject)
+    {
+        var existing = parent.Elements(ChartNs + localName).ToArray();
+        if (existing.Length > 1) throw Topology(errorCode, subject, $"has duplicate c:{localName}");
+        if (!present) { foreach (var node in existing) node.Remove(); return; }
+        if (existing.Length == 1) { existing[0].ReplaceWith(new XElement(ChartNs + localName, new XAttribute("val", value ? "1" : "0"))); return; }
+        var chart = parent.Element(ChartNs + "chart") ?? throw Topology(errorCode, subject, "is missing c:chart");
+        chart.AddBeforeSelf(new XElement(ChartNs + localName, new XAttribute("val", value ? "1" : "0")));
+    }
 
     internal static void PatchStyleIndex(
         XElement chartSpace,

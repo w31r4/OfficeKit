@@ -1209,6 +1209,8 @@ internal static class PpjSemanticValidator
                     "styleIndex must be an integer or a size grammar token reference.",
                     path + ".styleIndex"));
         }
+        if (chart.Raw.TryGetProperty("roundedCorners", out var roundedCorners) && roundedCorners.ValueKind is not (JsonValueKind.True or JsonValueKind.False or JsonValueKind.Object))
+            diagnostics.Add(new("ppj.chart.roundedCornersValue", "roundedCorners must be a boolean or boolean grammar token reference.", path + ".roundedCorners"));
         if (chart.Raw.TryGetProperty("dataTable", out _))
         {
             var supportsNativeDataTable = chart.ChartType is "bar" or "column" or "line" or "area" or "pie" or "doughnut" or "scatter" or "bubble" or "radar" or "combo" or "waterfall";

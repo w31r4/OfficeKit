@@ -1,0 +1,4 @@
+name: ppj-source-bound-custom-geometry-path-cubic-control1-y
+schema: spec-driven
+created: 2026-09-06
+goal: Preserve and edit one bounded custom-geometry cubic first-control-point y coordinate through PPJ.

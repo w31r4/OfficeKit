@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-09-05
+goal: Preserve one direct canonical a:bodyPr/@fromWordArt token through authored
+  and source-bound PPJ.

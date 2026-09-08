@@ -280,6 +280,7 @@ internal static partial class PptxChartCodec
         output.Series.Add(source.Series.Select(series => series.Clone()));
         if (source.HasTitlePlacement) output.TitlePlacement = source.TitlePlacement;
         if (source.HasStyleIndex) output.StyleIndex = source.StyleIndex;
+        if (source.HasRoundedCorners) output.RoundedCorners = source.RoundedCorners;
         if (source.XAxis is not null) output.XAxis = source.XAxis.Clone();
         if (source.YAxis is not null) output.YAxis = source.YAxis.Clone();
         if (source.HasShowCategoryAxis)
@@ -341,6 +342,7 @@ internal static partial class PptxChartCodec
         output.Series.Add(source.Series.Select(series => series.Clone()));
         if (source.HasTitlePlacement) output.TitlePlacement = source.TitlePlacement;
         if (source.HasStyleIndex) output.StyleIndex = source.StyleIndex;
+        if (source.HasRoundedCorners) output.RoundedCorners = source.RoundedCorners;
         if (source.XAxis is not null) output.XAxis = source.XAxis.Clone();
         if (source.YAxis is not null) output.YAxis = source.YAxis.Clone();
         if (source.XAxis?.HasVisible == true) output.ShowCategoryAxis = source.XAxis.Visible;

@@ -1035,6 +1035,7 @@ internal static partial class PpjPresentationProjector
         if (chart.HasDisplayBlanksAs && !projectSeriesNullHandling)
             output["displayBlanksAs"] = StringNode(chart.DisplayBlanksAs);
         if (chart.HasStyleIndex) output["styleIndex"] = JsonValue.Create(chart.StyleIndex);
+        if (chart.HasRoundedCorners) output["roundedCorners"] = JsonValue.Create(chart.RoundedCorners);
         if (chart.DataTable is not null) output["dataTable"] = ProjectChartDataTable(chart.DataTable);
         var categories = new JsonArray();
         foreach (var value in chart.Categories) categories.Add(StringNode(value));

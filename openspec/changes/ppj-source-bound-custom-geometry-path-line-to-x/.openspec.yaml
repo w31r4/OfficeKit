@@ -1,0 +1,4 @@
+name: ppj-source-bound-custom-geometry-path-line-to-x
+schema: spec-driven
+created: 2026-09-06
+goal: Preserve and edit one bounded custom-geometry line-to x coordinate through PPJ.

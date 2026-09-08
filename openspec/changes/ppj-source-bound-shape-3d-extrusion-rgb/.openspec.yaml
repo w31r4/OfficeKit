@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-09-06
+goal: Let PPJ change one canonical a:sp3d/a:extrusionClr/a:srgbClr/@val token
+  while preserving the rest of the slide package

@@ -71,7 +71,7 @@ route:
 | `line` | `id`, `frame`, `stroke` | `name`, `role`, `compositing`, `action`, `hoverAction`, `accessibility`, `hidden`, `locked`, `nativeRef`, `tags`, `path`, `viewBox`, `points`, `curve`, `styleRef`, `style`, `startArrow`, `endArrow`, `opacity`, `shadow`, `glow`, `softEdge`, `innerShadow`, `reflection` |
 | `icon` | `id`, `frame`, `iconName` | `name`, `role`, `compositing`, `action`, `hoverAction`, `accessibility`, `hidden`, `locked`, `nativeRef`, `tags`, `styleRef`, `style` |
 | `image` | `id`, `frame`, `asset` | `name`, `role`, `compositing`, `action`, `hoverAction`, `accessibility`, `hidden`, `locked`, `nativeRef`, `tags`, `svgAsset`, `styleRef`, `style`, `fit`, `crop`, `focus`, `opacity`, `mask`, `border`, `shadow`, `glow`, `softEdge`, `innerShadow`, `reflection` |
-| `chart` | `id`, `frame`, `data` | `name`, `role`, `compositing`, `action`, `hoverAction`, `accessibility`, `hidden`, `locked`, `nativeRef`, `tags`, `chartType`, `styleRef`, `title`, `fontFamily`, `titlePlacement`, `displayBlanksAs`, `styleIndex`, `dataTable`, `style`, `xAxis`, `yAxis`, `spokeAxis`, `secondaryXAxis`, `secondaryYAxis` |
+| `chart` | `id`, `frame`, `data` | `name`, `role`, `compositing`, `action`, `hoverAction`, `accessibility`, `hidden`, `locked`, `nativeRef`, `tags`, `chartType`, `styleRef`, `title`, `fontFamily`, `titlePlacement`, `displayBlanksAs`, `styleIndex`, `roundedCorners`, `dataTable`, `style`, `xAxis`, `yAxis`, `spokeAxis`, `secondaryXAxis`, `secondaryYAxis` |
 | `table` | `id`, `frame`, `columns`, `rows` | `name`, `role`, `compositing`, `action`, `hoverAction`, `accessibility`, `hidden`, `locked`, `nativeRef`, `tags`, `styleRef`, `style` |
 | `connector` | `id`, `frame`, `connectorType`, `from`, `to`, `stroke` | `name`, `role`, `compositing`, `action`, `hoverAction`, `accessibility`, `hidden`, `locked`, `nativeRef`, `tags`, `startArrow`, `endArrow` |
 | `group` | `id`, `frame`, `elements` | `name`, `role`, `compositing`, `action`, `hoverAction`, `accessibility`, `hidden`, `locked`, `nativeRef`, `tags`, `childFrame`, `readingOrder` |
@@ -2154,6 +2154,7 @@ array of `number`.
 | `data` | yes | `chartData` | none |
 | `displayBlanksAs` | no | `"zero"` | `"gap"` | `"span"` or `grammarTokenRef` | How blank cells are plotted; a string grammar token must resolve to zero, gap, or span. |
 | `styleIndex` | no | `integer` or `grammarTokenRef` | Built-in native ChartML style index; a size grammar token must resolve to an integer from 1 through 48. It applies only to bounded native ChartPart charts. |
+| `roundedCorners` | no | `boolean` or `grammarTokenRef` | Whether the native ChartSpace uses rounded corners. |
 | `dataTable` | no | `object` | Bounded native chart data table; the four border/key flags and direct fill/stroke map to c:plotArea/c:dTable. |
 | `style` | no | `chartStyle` | none |
 | `xAxis` | no | `chartAxis` or array of `chartAxis` | none |
