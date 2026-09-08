@@ -26,6 +26,14 @@
     "visualPreview": "must consume validated projection and report supported/partial/opaque/unavailable",
     "exportFidelity": "PPTX build + re-import + source/stable-id verification where applicable"
   },
+  "rendererReuse": {
+    "input": "compilePpjWorkspace(...).programJson",
+    "semanticOwner": "native/OfficeKit/src/OfficeKit.Codec/PpjPresentationProjector.cs",
+    "layoutOwner": "native/OfficeKit/src/OfficeKit.Codec/PpjPresentationCompiler.cs",
+    "rasterBackend": "sharp (SVG to PNG)",
+    "officeCompatibilityBackend": "optional src/renderers/libreoffice.mjs",
+    "driftRule": "Do not add renderer-only capability lists; update registry, compiler/projector, preview capability map, fixture, and test together."
+  },
   "previewCapabilities": {
     "schema": "office-kit/presentation-svg-preview-capabilities/v1",
     "supported": [
