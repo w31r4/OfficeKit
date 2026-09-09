@@ -285,6 +285,72 @@ public sealed partial class PptxCodecTests
         }
     }
 
+    [Theory]
+    [InlineData("noop")]
+    [InlineData("text")]
+    [InlineData("frame")]
+    [InlineData("semantic")]
+    public void PpjPreviewCandidateSceneIsCollectibleWhileSourceAndRequestStayAlive(string mode)
+    {
+        var source = PreviewSource();
+        var original = source.ToArray();
+        using var projected = PpjPresentationProjector.Project(source,
+            new PresentationProgramRequest { SourceUri = "deck.assets/source/release.pptx" }, EffectiveCodecLimits.From(null));
+        var json = JsonNode.Parse(projected.Program.ProgramJson.ToStringUtf8())!;
+        var elements = json["pages"]![0]!["elements"]!.AsArray();
+        var text = elements.First(element => element?["text"] is not null)!;
+        if (mode == "text")
+        {
+            if (text["text"] is JsonValue) text["text"] = "Released candidate text";
+            else text["text"]!["paragraphs"]![0]!["runs"]![0]!["text"] = "Released candidate text";
+        }
+        if (mode == "frame") text["frame"]!["x"] = 93;
+        if (mode == "semantic") elements[1]!["style"]!["fill"] =
+            JsonNode.Parse("""{"type":"solid","color":"#AB1234"}""");
+        var request = new PresentationProgramRequest { ProgramJson = ByteString.CopyFromUtf8(json.ToJsonString()) };
+        var references = CompileAndReleaseCandidateScene(request, source, mode);
+        GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+        Assert.All(references, reference => Assert.False(reference.IsAlive));
+        Assert.Equal(original, source);
+        GC.KeepAlive(request);
+        GC.KeepAlive(source);
+        GC.KeepAlive(projected);
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static List<WeakReference> CompileAndReleaseCandidateScene(
+        PresentationProgramRequest request, byte[] source, string mode)
+    {
+        var originalRequest = request.ToByteArray();
+        request.IncludePreviewScene = true;
+        var preview = PpjPresentationCompiler.Compile(request, source, EffectiveCodecLimits.From(null));
+        AssertCandidateScene(preview.Program, preview.File);
+        var scene = preview.Program.PreviewScene;
+        Assert.Equal(PresentationPreviewSceneOrigin.CandidateImport, scene.Origin);
+        if (mode == "noop") Assert.Equal(source, preview.File);
+        else Assert.NotEqual(PreviewSha(source), PreviewSha(preview.File));
+        var references = new List<WeakReference> { new(preview.Program), new(scene), new(scene.Presentation) };
+        foreach (var slide in scene.Presentation.Slides)
+        {
+            references.Add(new(slide));
+            foreach (var element in slide.Elements)
+            {
+                references.Add(new(element));
+                if (element.Shape is { } shape) references.Add(new(shape));
+                if (element.Opaque is { } opaque) references.Add(new(opaque));
+                if (element.Image is { } image) references.Add(new(image));
+            }
+        }
+        references.AddRange(scene.Bindings.Select(binding => new WeakReference(binding)));
+        references.AddRange(scene.Assets.Select(asset => new WeakReference(asset)));
+        request.IncludePreviewScene = false;
+        var ordinary = PpjPresentationCompiler.Compile(request, source, EffectiveCodecLimits.From(null));
+        Assert.Null(ordinary.Program.PreviewScene);
+        Assert.Equal(preview.File, ordinary.File);
+        Assert.Equal(originalRequest, request.ToByteArray());
+        return references;
+    }
+
     private static void AssertCandidateScene(PresentationProgramResult receipt, byte[] candidate)
     {
         var scene = receipt.PreviewScene;

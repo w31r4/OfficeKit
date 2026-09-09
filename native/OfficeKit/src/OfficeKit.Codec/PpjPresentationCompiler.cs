@@ -5529,36 +5529,39 @@ internal static partial class PpjSourceBoundPresentationCompiler
     {
         if (JsonEqual(beforeRaw, afterRaw)) return false;
         var tabStopsChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true),
-            MaskTextValues(afterRaw, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true));
+            MaskTextValues(beforeRaw, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true),
+            MaskTextValues(afterRaw, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true));
         var alignmentChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true));
         var defaultBoldChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true));
         var defaultItalicChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true));
         var defaultSizeChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true));
         var defaultFontFamilyChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true));
         var defaultEastAsianFontChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultComplexScriptFont: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultComplexScriptFont: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true));
         var defaultComplexScriptFontChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultLanguage: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultLanguage: true));
+        var defaultLanguageChanged = !JsonEqual(
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true));
         if (!JsonEqual(
-                MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true),
-                MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true)))
+                MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true),
+                MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true)))
             throw Unsupported(path, "rich-text topology or styling change");
         if (target.TextBody is null)
             throw Unsupported(path, "text edit without one imported bounded text body");
-        if (tabStopsChanged || alignmentChanged || defaultBoldChanged || defaultItalicChanged || defaultSizeChanged || defaultFontFamilyChanged || defaultEastAsianFontChanged || defaultComplexScriptFontChanged)
+        if (tabStopsChanged || alignmentChanged || defaultBoldChanged || defaultItalicChanged || defaultSizeChanged || defaultFontFamilyChanged || defaultEastAsianFontChanged || defaultComplexScriptFontChanged || defaultLanguageChanged)
         {
             if (tabStopsChanged)
                 RequireCapabilityField(
@@ -5590,8 +5593,11 @@ internal static partial class PpjSourceBoundPresentationCompiler
             if (defaultComplexScriptFontChanged)
                 RequireCapabilityField(nativeRef, "setTextParagraphStyle",
                     "text.paragraphs[].style.defaultText.fontFamilyComplexScript", path + ".paragraphStyle.defaultText.fontFamilyComplexScript");
+            if (defaultLanguageChanged)
+                RequireCapabilityField(nativeRef, "setTextParagraphStyle",
+                    "text.paragraphs[].style.defaultText.language", path + ".paragraphStyle.defaultText.language");
             ApplyTextParagraphStyleMutation(afterRaw, target, programRoot, path,
-                tabStopsChanged, alignmentChanged, defaultBoldChanged, defaultItalicChanged, defaultSizeChanged, defaultFontFamilyChanged, defaultEastAsianFontChanged, defaultComplexScriptFontChanged);
+                tabStopsChanged, alignmentChanged, defaultBoldChanged, defaultItalicChanged, defaultSizeChanged, defaultFontFamilyChanged, defaultEastAsianFontChanged, defaultComplexScriptFontChanged, defaultLanguageChanged);
             mutations.SemanticChanges = true;
         }
 
@@ -6763,7 +6769,8 @@ internal static partial class PpjSourceBoundPresentationCompiler
         bool maskDefaultSize = false,
         bool maskDefaultFontFamily = false,
         bool maskDefaultEastAsianFont = false,
-        bool maskDefaultComplexScriptFont = false)
+        bool maskDefaultComplexScriptFont = false,
+        bool maskDefaultLanguage = false)
     {
         if (value.ValueKind == JsonValueKind.String)
         {
@@ -6783,7 +6790,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                         if (run["field"] is System.Text.Json.Nodes.JsonObject field)
                             field["text"] = string.Empty;
                     }
-                if ((maskTabStops || maskAlignment || maskDefaultBold || maskDefaultItalic || maskDefaultSize || maskDefaultFontFamily || maskDefaultEastAsianFont || maskDefaultComplexScriptFont) && paragraph["style"] is System.Text.Json.Nodes.JsonObject style)
+                if ((maskTabStops || maskAlignment || maskDefaultBold || maskDefaultItalic || maskDefaultSize || maskDefaultFontFamily || maskDefaultEastAsianFont || maskDefaultComplexScriptFont || maskDefaultLanguage) && paragraph["style"] is System.Text.Json.Nodes.JsonObject style)
                 {
                     if (maskTabStops)
                     {
@@ -6791,7 +6798,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                         style.Remove("noTabStops");
                     }
                     if (maskAlignment) style.Remove("alignment");
-                    if ((maskDefaultBold || maskDefaultItalic || maskDefaultSize || maskDefaultFontFamily || maskDefaultEastAsianFont || maskDefaultComplexScriptFont) && style["defaultText"] is System.Text.Json.Nodes.JsonObject defaults)
+                    if ((maskDefaultBold || maskDefaultItalic || maskDefaultSize || maskDefaultFontFamily || maskDefaultEastAsianFont || maskDefaultComplexScriptFont || maskDefaultLanguage) && style["defaultText"] is System.Text.Json.Nodes.JsonObject defaults)
                     {
                         if (maskDefaultBold) defaults.Remove("bold");
                         if (maskDefaultItalic) defaults.Remove("italic");
@@ -6799,6 +6806,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                         if (maskDefaultFontFamily) defaults.Remove("fontFamily");
                         if (maskDefaultEastAsianFont) defaults.Remove("fontFamilyEastAsia");
                         if (maskDefaultComplexScriptFont) defaults.Remove("fontFamilyComplexScript");
+                        if (maskDefaultLanguage) defaults.Remove("language");
                         if (defaults.Count == 0) style.Remove("defaultText");
                     }
                     if (style.Count == 0) paragraph.Remove("style");
@@ -6821,7 +6829,8 @@ internal static partial class PpjSourceBoundPresentationCompiler
         bool defaultSizeChanged,
         bool defaultFontFamilyChanged,
         bool defaultEastAsianFontChanged,
-        bool defaultComplexScriptFontChanged)
+        bool defaultComplexScriptFontChanged,
+        bool defaultLanguageChanged)
     {
         PresentationTextBody requested;
         try
@@ -6852,7 +6861,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 current.ClearNoTabStops();
                 if (next.HasNoTabStops && next.NoTabStops) current.NoTabStops = true;
             }
-            if (defaultBoldChanged || defaultItalicChanged || defaultSizeChanged || defaultFontFamilyChanged || defaultEastAsianFontChanged || defaultComplexScriptFontChanged)
+            if (defaultBoldChanged || defaultItalicChanged || defaultSizeChanged || defaultFontFamilyChanged || defaultEastAsianFontChanged || defaultComplexScriptFontChanged || defaultLanguageChanged)
             {
                 var defaults = current.DefaultRunProperties?.Clone() ?? new PresentationTextStyle();
                 if (defaultBoldChanged)
@@ -6903,6 +6912,12 @@ internal static partial class PpjSourceBoundPresentationCompiler
                     defaults.ClearFontFamilyComplexScript();
                     if (next.DefaultRunProperties is { HasFontFamilyComplexScript: true } nextComplexScript)
                         defaults.FontFamilyComplexScript = nextComplexScript.FontFamilyComplexScript;
+                }
+                if (defaultLanguageChanged)
+                {
+                    defaults.ClearLanguage();
+                    if (next.DefaultRunProperties is { HasLanguage: true } nextLanguage)
+                        defaults.Language = nextLanguage.Language;
                 }
                 if (PptxDefaultRunStyleCodec.HasFields(defaults))
                     current.DefaultRunProperties = defaults;

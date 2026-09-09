@@ -1,5 +1,25 @@
 # OfficeKit 本地 PPT 预览渲染器差距审计
 
+显式文字锚定进展（2026-09-10）：内部 top/center/bottom 按现有逻辑文字块高度与上下 inset 定位，显式零底边距保留；未知锚定及无法确定的居中/底部溢出明确失败。九项合成正例、三项反例和 6r8OMm 的 12 项作者/去快照源 no-op 像素回归通过；原源不变，Presentation 4/4 通过。行高仍为简化 review 度量，完整文字布局和源属性编辑/删除未验收；整套仍有四项变换删除失败，见[当前差距 G-02](ppj-preview-current-gaps.zh-CN.md#g-02文字和形状)。
+
+文本框边距证据修正（2026-09-10）：bodyProperties 改为逐原生字段检查，已绘制的 left/right/top inset 不再整体误报，bottom inset 等仍保留具体限制。PgPOma 的四项作者像素对照验证右 inset 对右对齐/居中的 -30/-15px 位移和墨迹不变；六项合成案例通过。未提升完整文本布局支持，四项源删除失败仍保留，见[当前差距 G-02](ppj-preview-current-gaps.zh-CN.md#g-02文字和形状)。
+
+小字号基线修复（2026-09-10）：非空行不再被已覆盖的默认字号撑高，空行保留默认值。合成反例先失败后通过；真实 oYWAyO 的作者/源 no-op 8pt 文字验证实际基线、墨迹及源保留。Presentation 4/4 通过，整套仍有四项删除失败；完整文字布局与正式接入仍缺，见[当前差距 G-02](ppj-preview-current-gaps.zh-CN.md#g-02文字和形状)。
+
+平铺防误画修复（2026-09-10）：内部 painter 不再把无裁切 tiled 图片画成单张 stretch；有/无裁切均明确失败并保留占位。jHmDS0 的作者/源 no-op 四例和合成裁切存在性检查通过，源不变。完整 tile 绘制仍缺原生固有尺寸/DPI 语义与真实重复像素验收，不能将此防误画修复当作 tile 已支持；G-05 与整体仍开放，见[当前差距 G-05](ppj-preview-current-gaps.zh-CN.md#g-05图片)。
+
+真实上限恢复（2026-09-10）：AperkA 在同一 NativeAOT 进程验证 4096 字节预算明确失败、无候选/截断 scene，恢复默认上限后完整 41 绑定和候选摘要正确，输入不变。证据写入 performance.json 并以摘要关联；四项已知删除失败仍使整套失败。仅关闭限定字节预算恢复证据缺口，5.3 及整体仍开放，见[当前差距 G-16](ppj-preview-current-gaps.zh-CN.md#g-16性能和稳定性)。
+
+源候选释放回归（2026-09-10）：新增 source no-op、文字、frame、语义填充四条托管编译路径，验证保留源/请求/投影时 scene 可回收、候选重新导入一致及后续 scene 关闭不返回旧场景。固定源码副本 preview 47/47、零跳过。未重建 NativeAOT，宿主分配与保留峰值仍缺，5.3 继续开放，见[当前差距 G-16](ppj-preview-current-gaps.zh-CN.md#g-16性能和稳定性)。
+
+作者响应释放回归（2026-09-10）：新增两种输入 × 两个托管协议入口的弱引用测试，保留原请求时，丢弃编译响应后的 scene 对象图可被 GC 回收；再次关闭 scene 编译不返回旧场景且候选不变。固定源码副本托管 preview 43/43 通过。未重建 NativeAOT，source-bound/AOT 保留及零分配等仍未验证，5.3 保持开放；见[当前差距 G-16](ppj-preview-current-gaps.zh-CN.md#g-16性能和稳定性)。
+
+原生内存证据（2026-09-10）：FfHlHq 对重复组件和源候选分别运行 scene 开/关独立 PPJ 进程，记录实际 PID、RSS/VmHWM、启动/调用耗时与响应体积，性能文件摘要绑定到集成报告。四例测量及输入/候选不变断言通过，整套仍有四项删除失败。操作系统驻留高水位不证明对象释放，5.3 仍开放，数值与范围见[当前差距 G-16](ppj-preview-current-gaps.zh-CN.md#g-16性能和稳定性)。
+
+局部性能基线（2026-09-10）：真实 DsJ91a 集成新增 performance.json，覆盖 20 重复组件与源文字候选的 scene 开/关、三次预热样本、实际响应字节和编译/SVG/PNG 分阶段耗时，并检查候选与输入不变。仅记录 JS 内存快照，不声称原生峰值、释放后保留或完整性能达标；任务 5.3 仍开放。整套仍有四项删除失败，数值和边界见[当前差距 G-16](ppj-preview-current-gaps.zh-CN.md#g-16性能和稳定性)。
+
+成对案例任务 5.1 完成（2026-09-10）：新增 dataset/explicit 的 vector heatmap 对照，六格几何/实际颜色、缺失绿色与零值黑色、完整原生组/整页像素及来源归属均通过。报告 `tmp/officekit-native-scene-paint-bt1cbj/integration.json` 同时通过 native line、嵌套/repeat/slot、命名样式/grammar 及组合对照，指定案例类别已齐，任务数更新为 10/15。整套集成仍因四项源变换删除失败退出 1，G-14 外部源/完整字段覆盖及 G-01 正式接入等仍开放。下方 9/15 和任务 5.1 开放是历史记录，详见[当前差距 G-14](ppj-preview-current-gaps.zh-CN.md#g-14测试覆盖)。
+
 嵌套样式组合进展（2026-09-10）：原 plain 案例保留，新增 named-style/grammar 经两层组件、repeat 与定义 slot 的 styled 对照。真实报告 `tmp/officekit-native-scene-paint-x2Cj1e/integration.json` 两个 variants 均通过完整视觉载荷/整页像素、重复文字颜色/字体、来源与实例身份及缺失值断言。整套仍因四项原生删除失败退出 1；未重建 C# 或切换 CLI，任务 5.1 仍开放，见[当前差距 G-14](ppj-preview-current-gaps.zh-CN.md#g-14测试覆盖)。
 
 命名样式/grammar 等价性进展（2026-09-10）：固定 named/explicit 对照已在既有 runtime-slot-fixed 验证完整视觉载荷、整页栅格、颜色墨迹、字体/字号、显式 false 覆盖及缺失/真实零。报告 `tmp/officekit-native-scene-paint-BhbhbY/integration.json` 的 styleGrammarPair 通过，嵌套/dataset 对照仍通过；整套仍因四项源变换删除失败退出 1。首轮 token 与主题重名导致错误预期，被像素断言捕获后修正 fixture，没有修改解析规则。完整主题/源样式生命周期和其余组合仍缺，任务 5.1 未完成，详见[当前差距 G-14](ppj-preview-current-gaps.zh-CN.md#g-14测试覆盖)。

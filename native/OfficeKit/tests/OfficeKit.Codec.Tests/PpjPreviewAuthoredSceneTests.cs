@@ -269,6 +269,59 @@ public sealed class PpjPreviewAuthoredSceneTests
         return root;
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void ReleasedPreviewResponseDoesNotRemainRootedByLiveRequest(bool ppjOnly, bool canonical)
+    {
+        var request = Request(Fixture(canonical
+            ? "test/fixtures/presentation/evidence-ledger-canonical.ppj"
+            : "examples/ppj/minimum.ppj"));
+        var references = CompileAndReleaseResponse(request, ppjOnly);
+        GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+        Assert.All(references, reference => Assert.False(reference.IsAlive));
+        // Keep the original request (including assets) alive across collection:
+        // response release must not depend on collecting the input request.
+        GC.KeepAlive(request);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static List<WeakReference> CompileAndReleaseResponse(CodecRequest request, bool ppjOnly)
+    {
+        var original = request.ToByteArray();
+        request.PresentationProgram.IncludePreviewScene = true;
+        var response = Invoke(request, ppjOnly);
+        var scene = response.PresentationProgram.PreviewScene;
+        Assert.NotNull(scene);
+        var references = new List<WeakReference>
+        {
+            new(response), new(response.PresentationProgram), new(scene), new(scene.Presentation),
+        };
+        foreach (var slide in scene.Presentation.Slides)
+        {
+            references.Add(new(slide));
+            foreach (var element in Walk(slide.Elements))
+            {
+                references.Add(new(element));
+                if (element.Shape is { } shape) references.Add(new(shape));
+                if (element.Group is { } group) references.Add(new(group));
+                if (element.Chart is { } chart) references.Add(new(chart));
+            }
+        }
+        Assert.NotEmpty(scene.Bindings);
+        references.AddRange(scene.Bindings.Select(binding => new WeakReference(binding)));
+        // A subsequent scene-disabled compile on the same live request must
+        // neither return the previous scene nor alter its candidate.
+        request.PresentationProgram.IncludePreviewScene = false;
+        var ordinary = Invoke(request, ppjOnly);
+        Assert.Null(ordinary.PresentationProgram.PreviewScene);
+        Assert.Equal(response.File, ordinary.File);
+        Assert.Equal(original, request.ToByteArray());
+        return references;
+    }
+
     private static PresentationElement ResolveSceneNode(PresentationPreviewScene scene, string path)
     {
         var indexes = Regex.Matches(path, "\\[(\\d+)\\]").Select(match => int.Parse(match.Groups[1].Value)).ToArray();

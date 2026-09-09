@@ -199,12 +199,23 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
     // Rich paragraphs are authoritative. The compatibility string must never
     // duplicate or replace their run boundaries.
     const paragraphs = body?.paragraphs ?? [{ runs: [{ content: { case: "text", value: source.text } }] }];
-    if (body) unused(PresentationTextBodySchema, body, ["paragraphs"], node, `${ownerField}.textBody.`);
     const properties = body?.bodyProperties;
+    const anchor = properties?.anchor?.case === "verticalAnchor" ? properties.anchor.value : undefined;
+    const anchored = ["top", "center", "bottom"].includes(anchor);
+    if (body) {
+      unused(PresentationTextBodySchema, body, ["paragraphs", "bodyProperties"], node, `${ownerField}.textBody.`);
+      if (body.bodyProperties) unused(PresentationTextBodySchema.fields.find(field => field.localName === "bodyProperties").message,
+        body.bodyProperties, ["leftInsetEmu", "rightInsetEmu", "topInsetEmu", ...(anchored ? ["verticalAnchor", "bottomInsetEmu"] : [])], node, `${ownerField}.textBody.bodyProperties.`);
+    }
+    if (anchor !== undefined && !anchored) {
+      limit(node, `${ownerField}.textBody.bodyProperties.verticalAnchor`, "preview.scene.paint.text-anchor", anchor, "unavailable");
+      return placeholder(node, "Text anchor unavailable");
+    }
     const inset = (key, selected, fallback) => properties?.[key]?.case === selected ? scenePoints(properties[key].value) : fallback;
     const left = f.x + inset("leftInset", "leftInsetEmu", 7.2), right = f.x + f.width - inset("rightInset", "rightInsetEmu", 7.2);
     let y = f.y + inset("topInset", "topInsetEmu", 3.6);
-    return paragraphs.map((paragraph, pi) => {
+    const top = y;
+    const paintedText = paragraphs.map((paragraph, pi) => {
       const defaults = paragraph.defaultRunStyle?.case === "defaultRunProperties" ? paragraph.defaultRunStyle.value : {};
       const prefix = `${ownerField}.textBody.paragraphs[${pi}].`;
       const leftAligned = !paragraph.alignment || paragraph.alignment === "left";
@@ -268,7 +279,10 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
       }
       let previousSize = 0;
       const paragraphSvg = lines.map((line, index) => {
-        const size = Math.max(sceneFontPoints(defaults.fontSizePoints ?? fallback.fontSizePoints ?? 18), ...line.map(run => run.size));
+        // Each run already resolved its own inheritance above. A default that
+        // every run overrides must not enlarge this line's baseline advance.
+        const size = line.length ? Math.max(...line.map(run => run.size))
+          : sceneFontPoints(defaults.fontSizePoints ?? fallback.fontSizePoints ?? 18);
         y += index === 0 ? size : lineSpacing ?? previousSize * .2 + size;
         previousSize = size;
         let previousShift = 0;
@@ -285,6 +299,18 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
       y += previousSize * .2 + spaceAfter;
       return paragraphSvg;
     }).join("");
+    if (!anchored) return paintedText;
+    // Align the complete explicit-line block, including paragraph spacing and
+    // our existing logical descent. This is not font-metric/AutoFit evidence:
+    // the text-layout limitation remains even when direct anchoring is used.
+    const height = y - top, available = f.y + f.height - inset("bottomInset", "bottomInsetEmu", 3.6) - top;
+    if (available < 0 || anchor !== "top" && height > available) {
+      limit(node, `${ownerField}.textBody.bodyProperties.verticalAnchor`, "preview.scene.paint.text-anchor-overflow",
+        "Text block exceeds inset bounds; overflow placement is unresolved", "unavailable");
+      return placeholder(node, "Text anchor overflow unavailable");
+    }
+    const shift = anchor === "center" ? (available - height) / 2 : anchor === "bottom" ? available - height : 0;
+    return `<g data-officekit-text-anchor="${anchor}" transform="translate(0 ${n(shift)})">${paintedText}</g>`;
   }
   function shape(node) {
     const s = node.native, f = node.frame;
@@ -320,6 +346,13 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
     const s = node.native, asset = view.asset(s.svgAssetId || s.assetId);
     unused(content.get("image"), s, [...frameFields, "assetId", "svgAssetId", "opacityThousandthPercent", "transform", "altText", "accessibilityTitle", "accessibilityDecorative", "crop", "maskPreset", "maskPresetAdjustments", "customMaskPaths", "border"], node, "image.");
     if (!asset?.data?.byteLength) { limit(node, "image.assetId", "preview.scene.paint.asset", s.assetId, "unavailable"); return placeholder(node, "image unavailable"); }
+    // A parameter-free native tile is not a stretch. Until intrinsic sizing
+    // and DPI semantics are available, drawing one stretched image invents
+    // visible coverage and can conceal missing/repeated content.
+    if (s.tiled) {
+      limit(node, "image.tiled", "preview.scene.paint.image-tile", "Native tile sizing/DPI is not resolved", "unavailable");
+      return placeholder(node, "Tiled image unavailable");
+    }
     const href = `data:${asset.contentType};base64,${Buffer.from(asset.data).toString("base64")}`;
     let mask = "";
     const f = node.frame;
@@ -364,10 +397,6 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
       if (edges.some(v => !Number.isInteger(v) || v < -100000 || v > 100000) || left + right >= 100000 || top + bottom >= 100000) {
         limit(node, "image.crop", "preview.scene.paint.image-crop", "Invalid native source rectangle", "unavailable");
         return placeholder(node, "Image crop unavailable");
-      }
-      if (s.tiled) {
-        limit(node, "image.tiled", "preview.scene.paint.image-tile", "Cropped tile placement is not mapped", "unavailable");
-        return placeholder(node, "Tiled image unavailable");
       }
       const f = node.frame, width = f.width / (1 - (left + right) / 100000), height = f.height / (1 - (top + bottom) / 100000);
       // A nested viewport clips to the picture frame without shared clip IDs.

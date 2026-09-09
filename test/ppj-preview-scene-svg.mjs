@@ -423,6 +423,87 @@ assert.match(svg, /data-officekit-path="1" d="M 110 150 A 100 25 0 0 1 20.557280
 assert.match(svg, /translate\(355 90\) rotate\(-90\) scale\(-1 1\) translate\(-355 -90\)/);
 assert.match(svg, /<image x="330" y="40" width="50" height="100"[^>]*preserveAspectRatio="none" opacity="0"/);
 assert.equal(Buffer.from(svg.match(/href="data:image\/png;base64,([^"]+)"/)[1], "base64").compare(receipt.assets[0].data), 0);
+for (const alignment of ["left", "center", "right"]) for (const rightInset of [0, 30]) {
+  const input = fixture(scene => {
+    const body = scene.presentation.slides[0].elements[0].content.value.textBody;
+    const bodySchema = content.get("shape").fields.find(f => f.localName === "textBody").message;
+    body.bodyProperties = create(bodySchema.fields.find(f => f.localName === "bodyProperties").message, {
+      leftInset: { case: "leftInsetEmu", value: emu(10) }, rightInset: { case: "rightInsetEmu", value: emu(rightInset) },
+      topInset: { case: "topInsetEmu", value: emu(0) }, bottomInset: { case: "bottomInsetEmu", value: emu(5) },
+    });
+    body.paragraphs[0].alignment = alignment;
+  });
+  const original = toBinary(PresentationPreviewSceneSchema, input.previewScene), result = paintPpjSceneSvg(input);
+  const x = alignment === "left" ? 20 : alignment === "right" ? 210 - rightInset : (230 - rightInset) / 2;
+  assert.ok(result.pages[0].svg.includes(`<text x="${x}"`));
+  assert.ok(!result.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && /\.(leftInsetEmu|rightInsetEmu|topInsetEmu)$/.test(d.scenePath)));
+  assert.ok(result.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && d.scenePath?.endsWith("bodyProperties.bottomInsetEmu")), "unpainted body properties remain field-addressable");
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+for (const anchor of ["top", "center", "bottom"]) for (const bottom of [0, 10, 30]) {
+  const input = fixture(scene => {
+    const body = scene.presentation.slides[0].elements[0].content.value.textBody;
+    const schema = content.get("shape").fields.find(f => f.localName === "textBody").message;
+    body.bodyProperties = create(schema.fields.find(f => f.localName === "bodyProperties").message, {
+      anchor: { case: "verticalAnchor", value: anchor },
+      topInset: { case: "topInsetEmu", value: emu(10) }, bottomInset: { case: "bottomInsetEmu", value: emu(bottom) },
+    });
+    const p = body.paragraphs[0];
+    p.alignment = "left";
+    p.runs = [create(PresentationTextParagraphSchema.fields.find(f => f.localName === "runs").message,
+      { content: { case: "text", value: "First\nSecond" }, fontSizePoints: 20 })];
+  });
+  const bytes = toBinary(PresentationPreviewSceneSchema, input.previewScene), result = paintPpjSceneSvg(input);
+  const shift = anchor === "top" ? 0 : (100 - 10 - bottom - 48) / (anchor === "center" ? 2 : 1);
+  assert.ok(result.pages[0].svg.includes(`data-officekit-text-anchor="${anchor}" transform="translate(0 ${shift})"`));
+  assert.match(result.pages[0].svg, /<text x="17\.2" y="70"/);
+  assert.match(result.pages[0].svg, /<text x="17\.2" y="94"/);
+  assert.ok(!result.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && /\.(verticalAnchor|bottomInsetEmu)$/.test(d.scenePath)));
+  assert.ok(result.diagnostics.some(d => d.reason === "preview.scene.paint.text-layout"));
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), bytes);
+}
+for (const [anchor, bottom, reason] of [["distributed", 10, "text-anchor"], ["center", 90, "text-anchor-overflow"], ["bottom", 110, "text-anchor-overflow"]]) {
+  const input = fixture(scene => {
+    const body = scene.presentation.slides[0].elements[0].content.value.textBody;
+    const schema = content.get("shape").fields.find(f => f.localName === "textBody").message;
+    body.bodyProperties = create(schema.fields.find(f => f.localName === "bodyProperties").message, {
+      anchor: { case: "verticalAnchor", value: anchor }, bottomInset: { case: "bottomInsetEmu", value: emu(bottom) },
+    });
+  });
+  const original = toBinary(PresentationPreviewSceneSchema, input.previewScene), result = paintPpjSceneSvg(input);
+  assert.equal(result.reliability.status, "failed");
+  assert.ok(result.diagnostics.some(d => d.reason === `preview.scene.paint.${reason}` && d.scenePath?.endsWith("bodyProperties.verticalAnchor")));
+  assert.match(result.pages[0].svg, /Text anchor.*unavailable/);
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+for (const explicitSize of [0, 8, 32]) {
+  const input = fixture(scene => {
+    const p = scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0];
+    p.alignment = "left";
+    p.defaultRunStyle.value.fontSizePoints = 32;
+    p.runs = explicitSize ? [create(PresentationTextParagraphSchema.fields.find(f => f.localName === "runs").message,
+      { content: { case: "text", value: "Small" }, fontSizePoints: explicitSize })] : [];
+  });
+  const original = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const result = paintPpjSceneSvg(input);
+  assert.ok(result.pages[0].svg.includes(`<text x="17.2" y="${43.6 + (explicitSize || 32)}"`), "only an empty line falls back to its default size");
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+for (const crop of [undefined, {}, { leftThousandthPercent: 50000 }]) {
+  const input = fixture(scene => {
+    const photo = scene.presentation.slides[0].elements.find(e => e.content.case === "image").content.value;
+    photo.tiled = true;
+    photo.opacityThousandthPercent = 100000;
+    if (crop) photo.crop = create(content.get("image").fields.find(f => f.localName === "crop").message, crop);
+  });
+  const snapshot = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const result = paintPpjSceneSvg(input);
+  assert.equal(result.reliability.status, "failed");
+  assert.match(result.pages[0].svg, /Tiled image unavailable/);
+  assert.doesNotMatch(result.pages[0].svg, /<image /);
+  assert.ok(result.diagnostics.some(d => d.reason === "preview.scene.paint.image-tile" && d.scenePath?.endsWith("image.tiled")));
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), snapshot);
+}
 for (const [crop, position] of [
   [{ leftThousandthPercent: 50000 }, 'x="-50" y="0" width="100" height="100"'],
   [{ topThousandthPercent: 50000 }, 'x="0" y="-100" width="50" height="200"'],

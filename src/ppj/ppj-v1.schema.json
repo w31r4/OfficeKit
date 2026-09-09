@@ -1940,6 +1940,7 @@
             "text.paragraphs[].style.defaultText.fontFamily",
             "text.paragraphs[].style.defaultText.fontFamilyEastAsia",
             "text.paragraphs[].style.defaultText.fontFamilyComplexScript",
+            "text.paragraphs[].style.defaultText.language",
               "text.style",
               "textStyle",
               "textStyles",

@@ -28,9 +28,17 @@ const javascriptAtStart = await javascriptIdentity();
 const packageJsonPath = path.resolve(process.argv[2], "package.json");
 const descriptors = await Promise.all(["office", "ppj"].map(profile => loadOfficeKitNativeDescriptor({ packageJsonPath, profile })));
 const started = [];
+let measuredTransport;
 globalThis[Symbol.for("officekit.preview.native.test")] = async (options) => {
   const client = await startOfficeKitNativeClient({ ...options, packageJsonPath });
   started.push(options.profile);
+  const invoke = client.invoke.bind(client);
+  client.invoke = async (...args) => {
+    const start = performance.now(), response = await invoke(...args);
+    if (measuredTransport) measuredTransport.push({ requestBytes: args[0].byteLength,
+      responseBytes: response.byteLength, invokeMs: performance.now() - start });
+    return response;
+  };
   return client;
 };
 const stub = `export const OFFICE_KIT_NATIVE_TRANSPORT_VERSION=2;
@@ -104,7 +112,7 @@ try {
       /<Override\b(?=[^>]*\bPartName="\/officeKit\/)[^>]*(?:\/>|>[\s\S]*?<\/Override>)/g, ""));
     return archive.generateAsync({ type: "uint8array" });
   }
-  const fullWireCompile = async (workspace, { includePreviewScene = true, validationOnly = false } = {}) => {
+  const fullWireCompile = async (workspace, { includePreviewScene = true, validationOnly = false, measureNativeMemory = false } = {}) => {
     const request = create(CodecRequestSchema, {
     protocolVersion: 2, operation: 11, family: 2,
     presentationProgram: { programJson: workspace.program, includePreviewScene, validationOnly, includeNodeMap: true,
@@ -113,12 +121,37 @@ try {
     // Independent comparisons can be separated by a long raster/edit suite.
     // Own the client per comparison; never reuse a handle after idle retirement
     // or change production idle policy to keep this test's handle alive.
+    const startupStart = performance.now();
     const client = await startOfficeKitNativeClient({ packageJsonPath, profile: "ppj" });
+    const startupMs = performance.now() - startupStart;
     try {
-      const response = fromBinary(CodecResponseSchema,
-        await client.invoke(toBinary(CodecRequestSchema, request), workspace.source), { recursionLimit: 136 });
+      const memorySnapshot = async () => {
+        if (process.platform !== "linux") return { status: "unavailable", reason: "Linux procfs measurement only" };
+        const pid = client.child.pid;
+        assert.ok(Number.isSafeInteger(pid) && pid > 0);
+        const status = await readFile(`/proc/${pid}/status`, "utf8");
+        const field = name => {
+          const match = status.match(new RegExp(`^${name}:\\s+(\\d+)\\s+kB$`, "m"));
+          assert.ok(match, `native ${name} measurement must exist`);
+          return Number(match[1]) * 1024;
+        };
+        return { status: "measured", pid, rssBytes: field("VmRSS"), lifetimeHighWaterBytes: field("VmHWM") };
+      };
+      const before = measureNativeMemory ? await memorySnapshot() : undefined;
+      const requestBytes = toBinary(CodecRequestSchema, request), invokeStart = performance.now();
+      const responseBytes = await client.invoke(requestBytes, workspace.source);
+      const invokeMs = performance.now() - invokeStart;
+      const after = measureNativeMemory ? await memorySnapshot() : undefined;
+      if (before?.status === "measured") {
+        assert.equal(before.pid, after.pid);
+        assert.ok(after.lifetimeHighWaterBytes >= before.lifetimeHighWaterBytes);
+      }
+      const response = fromBinary(CodecResponseSchema, responseBytes, { recursionLimit: 136 });
       assert.equal(response.ok, true, JSON.stringify(response.diagnostics));
       return { file: response.file, program: response.presentationProgram,
+        ...(measureNativeMemory ? { nativeMemory: { before, after, startupMs, invokeMs,
+          requestBytes: requestBytes.byteLength, responseBytes: responseBytes.byteLength,
+          scope: "Fresh process: handshake plus one compile; OS resident high-water, not managed live-object retention. includeNodeMap=true." } } : {}),
         ...(includePreviewScene ? { previewScene: readPpjPreviewScene(response.presentationProgram, response.file) } : {}) };
     } finally { await client.retire(); }
   };
@@ -194,6 +227,156 @@ try {
   formatProgram.pages[0].elements = [{ id: "formatted", type: "text", frame: { x: 100, y: 100, width: 300, height: 100 },
     text: { paragraphs: [{ runs: [{ text: "HHHH", style: { size: 40, color: "#000000", baseline: 0, letterSpacing: 0, underline: "none", strike: "noStrike" } }] }] } }];
   const compileFormat = program => compilePpjWorkspace({ ...sourceWorkspace, program: Buffer.from(JSON.stringify(program)) }, { includePreviewScene: true });
+  const smallTextProgram = structuredClone(formatProgram);
+  smallTextProgram.pages[0].elements[0].text.paragraphs[0].runs[0].style.size = 8;
+  const smallTextAuthored = await compileFormat(smallTextProgram);
+  const smallTextSource = await withoutAuthoredSnapshot(smallTextAuthored.file), smallTextHash = sha256(smallTextSource);
+  const smallTextProjection = await projectPptxToPpj(smallTextSource, { sourceUri: "small-text.pptx", assetRootUri: "assets" });
+  const smallTextNoop = await compilePpjWorkspace({ program: smallTextProjection.programJson, source: smallTextSource, assets: smallTextProjection.assets }, { includePreviewScene: true });
+  assert.deepEqual(smallTextNoop.file, smallTextSource);
+  for (const [name, receipt] of [["authored", smallTextAuthored], ["source", smallTextNoop]]) {
+    const painted = await savePaint(`small-text-${name}`, receipt);
+    assert.match(painted.pages[0].svg, /<text x="107\.2" y="111\.6"/);
+    const raster = await sharp(Buffer.from(painted.pages[0].svg)).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const darkCount = (start, end) => {
+      let count = 0;
+      for (let y = start; y < end; y++) for (let x = 100; x < 200; x++) {
+        const offset = (y * raster.info.width + x) * raster.info.channels;
+        if ([...raster.data.subarray(offset, offset + 3)].every(v => v < 200)) count++;
+      }
+      return count;
+    };
+    assert.ok(darkCount(103, 113) > 0, "8pt glyphs must use the 8pt baseline");
+    assert.equal(darkCount(120, 136), 0, "default 18pt must not displace an explicitly small run");
+  }
+  assert.equal(sha256(smallTextSource), smallTextHash);
+  for (const alignment of ["right", "center"]) {
+    const inkBounds = [];
+    for (const right of [0, 30]) {
+      const program = structuredClone(formatProgram);
+      program.pages[0].elements[0].style = { margins: { left: 0, right, top: 0, bottom: 0 } };
+      program.pages[0].elements[0].text.paragraphs[0].style = { alignment };
+      const receipt = await compileFormat(program), painted = await savePaint(`inset-${alignment}-${right}`, receipt);
+      const expectedX = alignment === "right" ? 400 - right : (500 - right) / 2;
+      assert.ok(painted.pages[0].svg.includes(`<text x="${expectedX}"`));
+      assert.ok(!painted.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && /\.(leftInsetEmu|rightInsetEmu|topInsetEmu)$/.test(d.scenePath)));
+      const raster = await sharp(Buffer.from(painted.pages[0].svg)).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+      let min = Infinity, max = -Infinity, pixels = 0;
+      for (let y = 100; y < 190; y++) for (let x = 100; x < 410; x++) {
+        const offset = (y * raster.info.width + x) * raster.info.channels;
+        if ([...raster.data.subarray(offset, offset + 3)].every(v => v < 80)) { min = Math.min(min, x); max = Math.max(max, x); pixels++; }
+      }
+      assert.ok(pixels > 0);
+      inkBounds.push({ min, max, pixels });
+    }
+    const shift = alignment === "right" ? -30 : -15;
+    assert.equal(inkBounds[1].min - inkBounds[0].min, shift);
+    assert.equal(inkBounds[1].max - inkBounds[0].max, shift);
+    assert.equal(inkBounds[1].pixels, inkBounds[0].pixels);
+  }
+  const textAnchorCases = [], textAnchorEdits = [], textAnchorFailures = [];
+  for (const bottom of [10, 30]) for (const verticalAlignment of ["top", "middle", "bottom"]) {
+    const program = structuredClone(formatProgram);
+    program.pages[0].elements[0].style = { verticalAlignment, margins: { left: 0, right: 0, top: 10, bottom } };
+    const originalProgram = JSON.stringify(program), authored = await compileFormat(program);
+    const source = await withoutAuthoredSnapshot(authored.file), sourceHash = sha256(source);
+    const projected = await projectPptxToPpj(source, { sourceUri: "text-anchor.pptx", assetRootUri: "assets" });
+    const noop = await compilePpjWorkspace({ program: projected.programJson, source, assets: projected.assets }, { includePreviewScene: true });
+    assert.deepEqual(noop.file, source);
+    const anchor = verticalAlignment === "middle" ? "center" : verticalAlignment;
+    const shift = anchor === "top" ? 0 : (100 - 10 - bottom - 48) / (anchor === "center" ? 2 : 1);
+    for (const [origin, receipt] of [["authored", authored], ["source", noop]]) {
+      const shape = receipt.previewScene.presentation.slides[0].elements[0].content.value;
+      assert.equal(shape.textBody.bodyProperties.anchor.value, anchor);
+      assert.equal(shape.textBody.bodyProperties.bottomInset.value, BigInt(bottom * 12700));
+      const painted = await savePaint(`text-anchor-${origin}-${anchor}-${bottom}`, receipt);
+      assert.ok(painted.pages[0].svg.includes(`data-officekit-text-anchor="${anchor}" transform="translate(0 ${shift})"`));
+      assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.text-layout"));
+      assert.ok(!painted.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && /\.(verticalAnchor|bottomInsetEmu)$/.test(d.scenePath)));
+      const raster = await sharp(Buffer.from(painted.pages[0].svg)).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+      let min = Infinity, max = -Infinity, pixels = 0;
+      for (let y = 100; y < 200; y++) for (let x = 100; x < 390; x++) {
+        const offset = (y * raster.info.width + x) * raster.info.channels;
+        if ([...raster.data.subarray(offset, offset + 3)].every(v => v < 80)) { min = Math.min(min, y); max = Math.max(max, y); pixels++; }
+      }
+      assert.ok(pixels > 0);
+      textAnchorCases.push({ origin, anchor, bottom, shift, min, max, pixels, sourceSha256: sourceHash, candidateSha256: sha256(receipt.file) });
+    }
+    if (bottom === 30 && anchor === "bottom") {
+      await writeFile(path.join(artifacts, "text-anchor-edit-source.pptx"), source, { flag: "wx" });
+      const originalZip = await JSZip.loadAsync(source);
+      for (const operation of ["middle", "top", "zero-bottom", "delete-anchor", "delete-bottom", "delete-both"]) {
+        try {
+          // Every edit starts from the original package, never the previous candidate.
+          const projection = await projectPptxToPpj(source, { sourceUri: "text-anchor.pptx", assetRootUri: "assets" });
+          const request = JSON.parse(Buffer.from(projection.programJson).toString("utf8"));
+          const styleOf = p => {
+            const element = p.pages[0].elements[0];
+            return element.type === "text" ? element.style : element.textStyle;
+          };
+          const requestedStyle = styleOf(request), expectedProgram = structuredClone(program);
+          assert.equal(requestedStyle.verticalAlignment, "bottom");
+          assert.equal(requestedStyle.margins.bottom, 30);
+          for (const style of [requestedStyle, expectedProgram.pages[0].elements[0].style]) {
+            if (operation === "middle" || operation === "top") style.verticalAlignment = operation;
+            if (operation === "zero-bottom") style.margins.bottom = 0;
+            if (operation === "delete-anchor" || operation === "delete-both") delete style.verticalAlignment;
+            if (operation === "delete-bottom" || operation === "delete-both") delete style.margins.bottom;
+          }
+          const requestBytes = Buffer.from(JSON.stringify(request)), requestHash = sha256(requestBytes);
+          const candidate = await compilePpjWorkspace({ program: requestBytes, source, assets: projection.assets }, { includePreviewScene: true });
+          await writeFile(path.join(artifacts, `text-anchor-${operation}.pptx`), candidate.file, { flag: "wx" });
+          const fresh = await projectPptxToPpj(candidate.file, { sourceUri: "text-anchor-candidate.pptx", assetRootUri: "assets" });
+          await writeFile(path.join(artifacts, `text-anchor-${operation}.reprojected.ppj`), fresh.programJson, { flag: "wx" });
+          const actualStyle = styleOf(JSON.parse(Buffer.from(fresh.programJson).toString("utf8")));
+          assert.equal(Object.hasOwn(actualStyle, "verticalAlignment"), Object.hasOwn(requestedStyle, "verticalAlignment"));
+          assert.equal(actualStyle.verticalAlignment, requestedStyle.verticalAlignment);
+          assert.equal(Object.hasOwn(actualStyle.margins, "bottom"), Object.hasOwn(requestedStyle.margins, "bottom"));
+          assert.equal(actualStyle.margins.bottom, requestedStyle.margins.bottom);
+          const properties = candidate.previewScene.presentation.slides[0].elements[0].content.value.textBody.bodyProperties;
+          assert.equal(properties.anchor.case, requestedStyle.verticalAlignment === undefined ? undefined : "verticalAnchor");
+          assert.equal(properties.anchor.value, requestedStyle.verticalAlignment === "middle" ? "center" : requestedStyle.verticalAlignment);
+          assert.equal(properties.bottomInset.case, requestedStyle.margins.bottom === undefined ? undefined : "bottomInsetEmu");
+          assert.equal(properties.bottomInset.value, requestedStyle.margins.bottom === undefined ? undefined : BigInt(requestedStyle.margins.bottom * 12700));
+          const candidateZip = await JSZip.loadAsync(candidate.file);
+          assert.deepEqual(Object.keys(candidateZip.files).sort(), Object.keys(originalZip.files).sort());
+          const changedParts = [];
+          for (const name of Object.keys(originalZip.files)) if (!originalZip.files[name].dir &&
+            !Buffer.from(await originalZip.file(name).async("uint8array")).equals(Buffer.from(await candidateZip.file(name).async("uint8array")))) changedParts.push(name);
+          assert.deepEqual(changedParts, ["ppt/slides/slide1.xml"]);
+          const xml = await candidateZip.file("ppt/slides/slide1.xml").async("string");
+          const bodyPr = xml.match(/<a:bodyPr\b[^>]*>/)?.[0];
+          assert.ok(bodyPr);
+          assert.equal(/\banchor=/.test(bodyPr), requestedStyle.verticalAlignment !== undefined);
+          assert.equal(/\bbIns=/.test(bodyPr), requestedStyle.margins.bottom !== undefined);
+          if (operation === "top") assert.match(bodyPr, /\banchor="t"/);
+          if (operation === "zero-bottom") assert.match(bodyPr, /\bbIns="0"/);
+          const painted = await savePaint(`text-anchor-${operation}`, candidate);
+          const explicit = await savePaint(`text-anchor-${operation}-explicit`, await compileFormat(expectedProgram));
+          // Compare the actual glyph region, not the source/author warning banners.
+          const pixels = async p => sharp(Buffer.from(p.pages[0].svg)).extract({ left: 100, top: 100, width: 300, height: 100 })
+            .removeAlpha().raw().toBuffer();
+          assert.deepEqual(await pixels(painted), await pixels(explicit));
+          assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.text-layout"));
+          assert.equal(sha256(requestBytes), requestHash);
+          assert.equal(sha256(source), sourceHash);
+          textAnchorEdits.push({ operation, sourceSha256: sourceHash, candidateSha256: sha256(candidate.file),
+            actualStyle, changedParts, actualGlyphRegionEqual: true });
+        } catch (error) {
+          textAnchorFailures.push({ operation, message: error.message, code: error.code ?? null });
+          console.error(`Text anchor ${operation} failed: ${error.message}`);
+        }
+      }
+    }
+    assert.equal(sha256(source), sourceHash);
+    assert.equal(JSON.stringify(program), originalProgram);
+  }
+  for (const row of textAnchorCases) {
+    const top = textAnchorCases.find(c => c.origin === row.origin && c.anchor === "top" && c.bottom === row.bottom);
+    assert.equal(row.min - top.min, row.shift);
+    assert.equal(row.max - top.max, row.shift);
+    assert.equal(row.pixels, top.pixels);
+  }
   const { assessPpjPreviewInput } = await import("../src/ppj/preview-input-assessment.mjs");
   const hiddenProgram = structuredClone(pairBase);
   hiddenProgram.pages[0].elements = [{ id: "hidden-probe", type: "shape", hidden: true,
@@ -812,35 +995,64 @@ try {
   } catch (error) { nestedPairFailures.push({ variant, name: "equivalence", code: error.code, message: error.message }); }
   }
   const datasetFixture = JSON.parse(await readFile(new URL("./fixtures/presentation/preview-dataset-equivalence.json", import.meta.url)));
-  const datasetPair = [], datasetPairFailures = [];
+  const datasetPairFailures = [];
+  for (const chartType of ["line", "heatmap"]) {
+  const datasetPair = [];
   for (const name of ["encoded", "explicit"]) try {
     const program = structuredClone(pairBase);
-    program.pages[0].elements = [{ id: "dataset-line", type: "chart", chartType: "line", frame: datasetFixture.frame, data: datasetFixture[name] }];
+    program.pages[0].elements = [{ id: "dataset-line", type: "chart", chartType, frame: datasetFixture.frame, data: datasetFixture[name] }];
+    if (chartType === "heatmap") program.pages[0].elements[0].style = { heatmap: {
+      colors: ["#000000", "#FF0000"], domain: [0, 5], missingFill: "#00FF00", showColorBar: false, showValues: false, cellGap: 0,
+    } };
     const original = JSON.stringify(program);
-    await writeFile(path.join(artifacts, `dataset-pair-${name}.ppj`), original, { flag: "wx" });
+    await writeFile(path.join(artifacts, `dataset-pair-${chartType}-${name}.ppj`), original, { flag: "wx" });
     const ordinary = await compilePpjWorkspace({ ...sourceWorkspace, program: Buffer.from(original) });
-    const compiled = await compileFormat(program), painted = await savePaint(`dataset-pair-${name}`, compiled);
+    const compiled = await compileFormat(program), painted = await savePaint(`dataset-pair-${chartType}-${name}`, compiled);
     assert.deepEqual(compiled.file, ordinary.file);
     const node = createPpjSceneView(compiled).pages[0].nodes[0];
-    assert.equal(node.kind, "chart");
     assert.deepEqual(node.frame, datasetFixture.frame);
+    if (chartType === "line") {
+    assert.equal(node.kind, "chart");
     assert.deepEqual(node.native.series.map(s => s.name), ["Alpha", "Beta"]);
     assert.deepEqual(node.native.series.map(s => s.values), [[1, 0, 0], [0, 4, 5]]);
     assert.deepEqual(node.native.series.map(s => s.missingValueIndexes), [[1], []]);
     assert.equal((painted.pages[0].svg.match(/data-officekit-review-point="isolated"/g) || []).length, 2);
     assert.equal((painted.pages[0].svg.match(/data-officekit-line-segment=/g) || []).length, 1);
+    } else {
+      assert.equal(node.kind, "group", "vector heatmap must consume the compiler's actual children");
+      const cells = node.native.children.filter(c => c.name.startsWith("heatmap cell "));
+      assert.equal(cells.length, 6);
+      const fills = ["330000", "00FF00", "000000", "000000", "CC0000", "FF0000"];
+      assert.deepEqual(cells.map(c => c.content.value.fillRgb), fills);
+      const raster = await sharp(Buffer.from(painted.pages[0].svg)).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+      // Fixed expected layout: 52pt row-label gutter, 27pt bottom labels,
+      // three columns and two rows in the 600x300 frame.
+      for (const [i, cell] of cells.entries()) {
+        const shape = cell.content.value, row = Math.floor(i / 3), col = i % 3;
+        assert.ok(Math.abs(Number(shape.leftEmu) / 12700 - (152 + col * 548 / 3)) < 0.0001);
+        assert.equal(Number(shape.topEmu) / 12700, 100 + row * 136.5);
+        assert.ok(Math.abs(Number(shape.widthEmu) / 12700 - 548 / 3) < 0.0001);
+        assert.equal(Number(shape.heightEmu) / 12700, 136.5);
+        const x = Math.floor(152 + (col + 0.5) * 548 / 3), y = Math.floor(100 + (row + 0.5) * 136.5);
+        const offset = (y * raster.info.width + x) * raster.info.channels;
+        assert.deepEqual([...raster.data.subarray(offset, offset + 3)], fills[i].match(/../g).map(v => parseInt(v, 16)));
+      }
+      assert.equal(new Set(compiled.previewScene.bindings.map(b => b.scenePath)).size, compiled.previewScene.bindings.length);
+      assert.ok(compiled.previewScene.bindings.length > 6, "generated children retain individual scene addresses");
+    }
     assert.ok(compiled.previewScene.bindings.every(b => b.programPath === "$.pages[0].elements[0]" && b.semanticId === "dataset-line"));
     const raster = await sharp(Buffer.from(painted.pages[0].svg)).removeAlpha().raw().toBuffer();
     assert.equal(JSON.stringify(program), original);
-    datasetPair.push({ visual: toBinary(nativeContentSchemas.get("chart"), node.native), raster });
+    datasetPair.push({ visual: toBinary(nativeContentSchemas.get(node.kind), node.native), raster });
   } catch (error) {
-    datasetPairFailures.push({ name, code: error.code, message: error.message });
+    datasetPairFailures.push({ chartType, name, code: error.code, message: error.message });
     console.error(`Dataset pair ${name} failed: ${error.message}`);
   }
   if (datasetPair.length === 2) try {
     assert.deepEqual(datasetPair[0].visual, datasetPair[1].visual);
     assert.deepEqual(datasetPair[0].raster, datasetPair[1].raster);
-  } catch (error) { datasetPairFailures.push({ name: "equivalence", code: error.code, message: error.message }); }
+  } catch (error) { datasetPairFailures.push({ chartType, name: "equivalence", code: error.code, message: error.message }); }
+  }
   assert.equal(styleFixture.base, "examples/ppj/minimum.ppj");
   const stylePair = [], stylePairFailures = [];
   for (const name of ["named", "explicit"]) try {
@@ -1339,6 +1551,26 @@ try {
   cropProgram.pages[0].elements = [{ id: "crop-picture", type: "image", asset: cropAsset.id, frame: { x: 100, y: 100, width: 100, height: 100 }, fit: "stretch", crop: { left: 0.5 } }];
   cropProgram.pages[0].elements.unshift({ ...structuredClone(primitive), id: "crop-background", geometry: { kind: "preset", preset: "rect" }, frame: { x: 100, y: 100, width: 100, height: 100 }, text: undefined, style: { fill: { type: "solid", color: "#0000FF" } } });
   const cropAuthored = await compilePpjWorkspace({ ...sourceWorkspace, program: Buffer.from(JSON.stringify(cropProgram)), assets: [{ ...cropAsset, data: cropData }] }, { includePreviewScene: true });
+  for (const cropped of [false, true]) {
+    const tiledProgram = structuredClone(cropProgram), picture = tiledProgram.pages[0].elements.find(e => e.type === "image");
+    picture.fit = "tile";
+    if (!cropped) delete picture.crop;
+    const authoredTile = await compilePpjWorkspace({ ...sourceWorkspace, program: Buffer.from(JSON.stringify(tiledProgram)), assets: [{ ...cropAsset, data: cropData }] }, { includePreviewScene: true });
+    const tileSource = await withoutAuthoredSnapshot(authoredTile.file), originalTileHash = sha256(tileSource);
+    const tileProjected = await projectPptxToPpj(tileSource, { sourceUri: "tile.pptx", assetRootUri: "assets" });
+    const sourceTile = await compilePpjWorkspace({ program: tileProjected.programJson, source: tileSource, assets: tileProjected.assets }, { includePreviewScene: true });
+    assert.deepEqual(sourceTile.file, tileSource);
+    for (const [kind, receipt] of [["authored", authoredTile], ["source", sourceTile]]) {
+      const node = createPpjSceneView(receipt).pages[0].nodes.find(n => n.kind === "image");
+      assert.equal(node.native.tiled, true);
+      const painted = await savePaint(`tile-${cropped}-${kind}`, receipt);
+      assert.equal(painted.reliability.status, "failed");
+      assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.image-tile" && d.scenePath?.endsWith("image.tiled")));
+      assert.match(painted.pages[0].svg, /Tiled image unavailable/);
+      assert.doesNotMatch(painted.pages[0].svg, /<image /, "tile cannot silently become a stretched picture");
+    }
+    assert.equal(sha256(tileSource), originalTileHash);
+  }
   async function cropPixels(receipt, name, samples) {
     const painted = await savePaint(name, receipt);
     for (const [x, rgb, y = 150] of samples) {
@@ -1524,6 +1756,101 @@ try {
   const candidateView = createPpjSceneView(candidate);
   const candidatePaint = await savePaint("source-edited", candidate);
   assert.match(candidatePaint.pages[0].svg, /Actual candidate scene text/);
+  const repeatedBenchmark = structuredClone(pairBase);
+  repeatedBenchmark.design.canvas.width = 4000;
+  repeatedBenchmark.components = structuredClone(nestedFixture.components);
+  const repeatedInstance = structuredClone(nestedFixture.instance);
+  repeatedInstance.frame.width = 3800;
+  repeatedInstance.repeat.items = Array.from({ length: 20 }, (_, i) => ({ key: `sample-${i}`, arguments: {} }));
+  repeatedBenchmark.pages[0].elements = [repeatedInstance, nestedFixture.risk];
+  const performanceCases = [];
+  for (const [name, input] of [["repeated-20", { ...sourceWorkspace, program: Buffer.from(JSON.stringify(repeatedBenchmark)) }],
+    ["source-candidate", editInput]]) {
+    const inputHash = sha256(input.program), sourceHash = input.source ? sha256(input.source) : null;
+    // Warm both paths before measurement. These samples are not cold-start
+    // claims, memory peaks, or a full G-16 performance acceptance threshold.
+    await compilePpjWorkspace(input);
+    await compilePpjWorkspace(input, { includePreviewScene: true });
+    const samples = [];
+    for (let round = 0; round < 3; round++) {
+      let ordinaryHash;
+      for (const includePreviewScene of [false, true]) {
+        measuredTransport = [];
+        const memoryBefore = process.memoryUsage(), start = performance.now();
+        let compiled, transport;
+        try {
+          compiled = await compilePpjWorkspace(input, { includePreviewScene });
+          transport = measuredTransport;
+        } finally { measuredTransport = undefined; }
+        const compileMs = performance.now() - start, memoryAfterCompile = process.memoryUsage();
+        assert.equal(transport.length, 1, "one measured compile request, no hidden second pass");
+        const candidateHash = sha256(compiled.file);
+        if (!includePreviewScene) {
+          assert.equal(Object.hasOwn(compiled, "previewScene"), false);
+          ordinaryHash = candidateHash;
+        } else assert.equal(candidateHash, ordinaryHash, "scene collection cannot change the candidate");
+        let svgMs = null, pngMs = null, svgBytes = 0, pngBytes = 0, nodeBindings = 0;
+        if (includePreviewScene) {
+          nodeBindings = compiled.previewScene.bindings.length;
+          if (name === "repeated-20") assert.equal(nodeBindings, 41);
+          if (name === "source-candidate") assert.equal(compiled.previewScene.origin, 2);
+          const paintStart = performance.now(), painted = paintPpjSceneSvg(compiled);
+          svgMs = performance.now() - paintStart;
+          svgBytes = painted.pages.reduce((sum, page) => sum + Buffer.byteLength(page.svg), 0);
+          const rasterStart = performance.now();
+          for (const page of painted.pages) pngBytes += (await sharp(Buffer.from(page.svg)).png().toBuffer()).byteLength;
+          pngMs = performance.now() - rasterStart;
+        }
+        assert.equal(sha256(input.program), inputHash);
+        assert.equal(input.source ? sha256(input.source) : null, sourceHash);
+        samples.push({ round, includePreviewScene, ...transport[0], compileMs, svgMs, pngMs,
+          candidateBytes: compiled.file.byteLength, candidateHash, nodeBindings, svgBytes, pngBytes,
+          jsMemorySnapshots: { before: memoryBefore, afterCompile: memoryAfterCompile, afterRaster: process.memoryUsage() } });
+      }
+    }
+    const isolatedNative = [];
+    let isolatedCandidate;
+    for (const includePreviewScene of [false, true]) {
+      const result = await fullWireCompile(input, { includePreviewScene, measureNativeMemory: true });
+      if (!includePreviewScene) {
+        assert.equal(result.program.previewScene, undefined);
+        isolatedCandidate = sha256(result.file);
+      } else assert.equal(sha256(result.file), isolatedCandidate);
+      assert.equal(sha256(input.program), inputHash);
+      assert.equal(input.source ? sha256(input.source) : null, sourceHash);
+      isolatedNative.push({ includePreviewScene, candidateHash: sha256(result.file), ...result.nativeMemory });
+    }
+    let sceneBudgetRecovery;
+    if (name === "repeated-20") {
+      const client = await startOfficeKitNativeClient({ packageJsonPath, profile: "ppj" });
+      try {
+        const request = create(CodecRequestSchema, { protocolVersion: 2, operation: 11, family: 2,
+          limits: { maxUncompressedBytes: 4096n },
+          presentationProgram: { programJson: input.program, includePreviewScene: true, includeNodeMap: true } });
+        const invoke = async () => fromBinary(CodecResponseSchema,
+          await client.invoke(toBinary(CodecRequestSchema, request)), { recursionLimit: 136 });
+        const failed = await invoke();
+        assert.equal(failed.ok, false);
+        assert.ok(failed.diagnostics.some(d => d.code === "preview_scene_budget_exceeded"), JSON.stringify(failed.diagnostics));
+        assert.equal(failed.file.byteLength, 0, "budget failure must not publish a candidate");
+        assert.equal(failed.presentationProgram?.previewScene, undefined, "budget failure must not publish a truncated scene");
+        request.limits = undefined;
+        const recovered = await invoke();
+        assert.equal(recovered.ok, true, JSON.stringify(recovered.diagnostics));
+        const recoveredScene = readPpjPreviewScene(recovered.presentationProgram, recovered.file);
+        assert.equal(recoveredScene.bindings.length, 41);
+        assert.equal(sha256(recovered.file), isolatedCandidate);
+        assert.equal(sha256(input.program), inputHash);
+        sceneBudgetRecovery = { status: "passed", maxUncompressedBytes: 4096, error: "preview_scene_budget_exceeded",
+          emptyFailedCandidate: true, noTruncatedScene: true, sameProcessRecovery: true, recoveredBindings: 41 };
+      } finally { await client.retire(); }
+    }
+    performanceCases.push({ name, inputHash, sourceHash, samples, isolatedNative, sceneBudgetRecovery });
+  }
+  await writeFile(path.join(artifacts, "performance.json"), JSON.stringify({
+    scope: "Three warm samples per mode plus separate fresh native processes for scene-off/on RSS/high-water. JS snapshots and native OS residency do not prove retained-object release. No performance threshold claim.",
+    node: process.version, platform: process.platform, arch: process.arch, cases: performanceCases,
+  }, null, 2), { flag: "wx" });
   for (const [name, input, compiled, painted] of [
     ["source-noop", sourceInput, noop, noopPaint], ["source-edited", editInput, candidate, candidatePaint],
   ]) {
@@ -1722,6 +2049,9 @@ try {
     descriptor.manifest.files.find(file => file.path === descriptor.manifest.profiles[descriptor.profile].executable).sha256,
     "Executed package identity must still match its validated manifest");
   const report = { status: relationFailures.length || diagramFailures.length || transformProfileFailures.length || nestedPairFailures.length || datasetPairFailures.length || stylePairFailures.length ? "failed" : "passed", scope: "PPJ NativeAOT wire/view and internal SVG foundations; not production scene routing or complete paint coverage",
+    performance: { file: "performance.json", cases: performanceCases.map(c => ({ name: c.name, samples: c.samples.length })),
+      sha256: sha256(await readFile(path.join(artifacts, "performance.json"))),
+      scope: "warm size/time plus isolated native RSS/high-water; retained-object release and full 5.3/G-16 remain unverified" },
     stylePairFailures,
     datasetPairFailures,
     nestedPairFailures,
@@ -1746,6 +2076,9 @@ try {
       reprojection: true, connectedMode: "unavailable: writer noFill verified; no invented SVG lines", changedParts: scatterChangedParts, sourceSha256: sha256(scatterSource), candidateSha256: sha256(scatterCandidate.file), workbook: "not present in literal-data fixture" },
     relationFailures: relationFailures.map(({ shift, actual, error }) => ({ shift, actual, message: error.message })),
     internalPainting: { artifacts, pairedComponent: 1,
+      smallTextBaseline: { authoredAndSource: true, actualGlyphPixels: true, noDefaultSizeInflation: true, sourceNoop: true },
+      textInsets: { authoredCases: 4, rightAlignedShift: -30, centeredShift: -15, identicalInkCount: true, fieldDiagnostics: true },
+      textAnchors: { cases: textAnchorCases, actualGlyphPixels: true, sourceNoop: true, approximateLineMetrics: true },
       styleGrammarPair: { fixture: "test/fixtures/presentation/preview-style-grammar-equivalence.json", status: stylePairFailures.length ? "failed" : "passed",
         ...(stylePairFailures.length ? {} : { visualPayloadBytesEqual: true, completeRasterEqual: true, sceneOnOffCandidateEqual: true,
           explicitFalseOverride: true, originalOwners: true, missingAndZero: true, resolvedColorPixels: true }) },
@@ -1754,6 +2087,7 @@ try {
         ...(nestedPairFailures.length ? {} : { visualPayloadBytesEqual: true, completeRasterEqual: true, sceneOnOffCandidateEqual: true,
           originalOwners: true, distinctInstances: true, missingAndZero: true }) },
       datasetPair: { fixture: "test/fixtures/presentation/preview-dataset-equivalence.json", status: datasetPairFailures.length ? "failed" : "passed",
+        chartTypes: ["line", "heatmap"],
         ...(datasetPairFailures.length ? {} : { visualPayloadBytesEqual: true, completeRasterEqual: true, sceneOnOffCandidateEqual: true,
           multiSeries: true, originalOwners: true, missingAndZero: true }) },
       customArcPath, generatedBezierPaths: paths, sourceTextEdit: true, directedAnchorCases, requiredDirectedAnchorCases: 2,
@@ -1764,6 +2098,8 @@ try {
         ownership: { source: diagramOldGraph.targets, candidate: diagramNewGraph.targets, outsideGraphPreserved: diagramFailures.length === 0 },
         importedPainting: "unavailable: importer omits cached connection and paint state; explicit failure asserted" },
       imageCrop: { positiveCrop: true, negativeLetterbox: true, sourceNoop: true, sourceEditReprojection: true, pixels: true },
+      imageTile: { authoredAndSourceCases: 4, croppedAndUncropped: true, noInventedStretch: true,
+        status: "unavailable: intrinsic tile sizing/DPI not resolved; not a tile rendering pass" },
       imageBorder: { authoredAndSourceEdit: true, rgbPixels: true, reprojection: true, nonTargetPreserved: true },
       imageMasks: { presets: ["ellipse", "diamond", "roundRect"], roundRectZeroEdit: true, customPath: true, authoredAndSourceEdit: true, cropCombinedPixels: true, reprojection: true },
       explicitCoordinateConnector: true, elbowBend: { authored: 25000, edited: 75000, sourceNoop: true, pixels: true, reprojection: true, changedParts: bendChangedParts },

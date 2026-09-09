@@ -115,8 +115,8 @@ internal static class PptxDefaultRunStyleCodec
         var after = source.DefaultRunProperties;
         var beforeWithoutScalars = before.Clone();
         var afterWithoutScalars = after.Clone();
-        beforeWithoutScalars.ClearBold(); beforeWithoutScalars.ClearItalic(); beforeWithoutScalars.ClearFontSizePoints(); beforeWithoutScalars.ClearFontFamily(); beforeWithoutScalars.ClearFontFamilyEastAsia(); beforeWithoutScalars.ClearFontFamilyComplexScript();
-        afterWithoutScalars.ClearBold(); afterWithoutScalars.ClearItalic(); afterWithoutScalars.ClearFontSizePoints(); afterWithoutScalars.ClearFontFamily(); afterWithoutScalars.ClearFontFamilyEastAsia(); afterWithoutScalars.ClearFontFamilyComplexScript();
+        beforeWithoutScalars.ClearBold(); beforeWithoutScalars.ClearItalic(); beforeWithoutScalars.ClearFontSizePoints(); beforeWithoutScalars.ClearFontFamily(); beforeWithoutScalars.ClearFontFamilyEastAsia(); beforeWithoutScalars.ClearFontFamilyComplexScript(); beforeWithoutScalars.ClearLanguage();
+        afterWithoutScalars.ClearBold(); afterWithoutScalars.ClearItalic(); afterWithoutScalars.ClearFontSizePoints(); afterWithoutScalars.ClearFontFamily(); afterWithoutScalars.ClearFontFamilyEastAsia(); afterWithoutScalars.ClearFontFamilyComplexScript(); afterWithoutScalars.ClearLanguage();
         if (beforeWithoutScalars.Equals(afterWithoutScalars))
         {
             // Patch changed scalars without rebuilding unrelated font/fill/effect
@@ -133,6 +133,12 @@ internal static class PptxDefaultRunStyleCodec
                 ApplyEastAsianFont(properties, after);
             if (before.HasFontFamilyComplexScript != after.HasFontFamilyComplexScript || before.FontFamilyComplexScript != after.FontFamilyComplexScript)
                 ApplyComplexScriptFont(properties, after);
+            if (before.HasLanguage != after.HasLanguage || before.Language != after.Language)
+            {
+                if (properties.Language is { } nativeLanguage && !PptxLanguageTag.IsValid(nativeLanguage.Value))
+                    throw Unsupported("Source-preserving PPTX export cannot replace unmodeled default-run language.");
+                properties.Language = after.HasLanguage ? PptxLanguageTag.Validate(after.Language) : null;
+            }
             RemoveIfEmpty(properties);
             return;
         }
