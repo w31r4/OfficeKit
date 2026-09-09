@@ -1152,6 +1152,10 @@ internal static partial class PpjAuthoredPresentationCompiler
         ApplyLine(connector, raw.GetProperty("stroke"), catalog);
         connector.StartArrow = Arrow(OptionalString(raw, "startArrow"));
         connector.EndArrow = Arrow(OptionalString(raw, "endArrow"));
+        connector.StartArrowWidth = OptionalString(raw, "startArrowWidth") ?? string.Empty;
+        connector.StartArrowLength = OptionalString(raw, "startArrowLength") ?? string.Empty;
+        connector.EndArrowWidth = OptionalString(raw, "endArrowWidth") ?? string.Empty;
+        connector.EndArrowLength = OptionalString(raw, "endArrowLength") ?? string.Empty;
         ApplyAccessibility(connector, element.Accessibility);
         return connector;
     }

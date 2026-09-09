@@ -168,8 +168,18 @@ bend guides; unsupported imported geometry remains source-owned.
 on fresh projection. Editable source connectors issue `setConnectorArrows`:
 change or add either field directly, or remove it/set `none` to delete that end.
 A changed arrow retains its native width/length; deletion removes its own size
-state. The other arrow and endpoint bindings stay intact. Native arrow-size
-leaves remain a separate surface; this adds no PPJ size fields.
+state. The other arrow and endpoint bindings stay intact.
+
+Set `startArrowWidth`, `startArrowLength`, `endArrowWidth` and `endArrowLength`
+independently to `sm`, `med` or `lg` (relative native sizes, not points). For
+example, `endArrow: "triangle", endArrowWidth: "lg", endArrowLength: "sm"`
+creates a wide, short end arrow. Omitted dimensions retain native defaults and
+stay absent on fresh projection. With `setConnectorArrows`, changing one size
+preserves the others; removing that property removes only its native attribute.
+An authored size requires its arrow. Removing an arrow clears its unchanged
+projected dimensions; explicitly changing a nonempty size while removing that
+arrow is rejected. Production preview remains partial (`preview.connector.limited`);
+internal scene arrows approximate contours and do not prove host-exact sizes.
 
 On a fresh source projection, use the issued `setConnectorEndpoints` capability
 to edit `from`/`to`. Moving a supported target frame or its group frame/childFrame,

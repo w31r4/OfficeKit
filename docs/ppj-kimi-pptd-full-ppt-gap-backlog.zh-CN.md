@@ -512,6 +512,8 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 **连接线类型增量（2026-09-10）：** `connectorType` 通过 `setConnectorType` 支持 source-bound 的 straight/elbow/curved 切换，复用原生 canonical geometry 替换，保留端点、绑定、箭头和线样式。相关 Connector/preview 回归 67/67 通过；最小回归按 straight→elbow→curved→straight 核对实际 `prstGeom`、每个源的 no-op、SlidePart-only 差异与二次投影；非法类型及修改过的权限证据继续拒绝。此字段仍必填，不代表自动避障或任意 bend/guide 编辑。
 
+**连接线箭头尺寸增量（2026-09-10）：** PPJ 新增 `startArrowWidth/startArrowLength/endArrowWidth/endArrowLength`，各取 `sm/med/lg`，省略保持原生默认且再投影不补默认值。`setConnectorArrows` 支持逐个修改或删除尺寸属性；整端箭头删除时清掉该端尺寸，显式尺寸与箭头删除冲突则拒绝。`PpjConnectorObjectAnchorTests` 覆盖创建、去嵌入投影、同一原源逐字段增改删、no-op 字节相同、绑定和非目标 ZIP 保留；相关专项 68/68 通过，零跳过。生产预览仍以 `preview.connector.limited` 标记部分支持，未重建 NativeAOT 或做宿主外观验收；F-04 整体继续开放。
+
 **连接线箭头增量（2026-09-10）：** `startArrow/endArrow` 通过 `setConnectorArrows` 支持 source-bound 增改删；省略或 `none` 删除该端及其尺寸，换形状保留原宽高，另一端与端点绑定保持不变。PPJ `open` 与原生 `arrow` 双向转换，修复 authored/去嵌入投影的枚举断层。相关回归 67/67 通过；`PpjConnectorObjectAnchorTests` 用同一原源分别修改、删除和新增箭头，核对 native 尺寸/绑定、SlidePart-only 和二次投影；opaque owner 不因此取得编辑权限。
 
 **有符号端点增量（2026-09-10）：** `connector.from/to.x/y` 及对象锚点换算结果保留负值，旋转跨组后的端点可落在 childFrame 原点之前；写入、导入、源绑定端点和 frame 修改使用同一坐标范围。极端越界在运算前拒绝，原生异常对象保持 opaque；若其 frame 超过 PPJ 上限，则投影明确失败。最小实验沿用 `PpjConnectorObjectAnchorTests`，相关 Connector/preview 回归 65/65 通过，核对负端点的真实 XML、原源 no-op、修改后再投影和非目标 ZIP 成员保留；宿主范围兼容性与正式预览接入仍独立验证。

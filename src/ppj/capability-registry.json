@@ -1064,10 +1064,10 @@
     },
     {
       "feature": "source-bound connector arrow fields",
-      "ppjPath": "pages[].elements[].startArrow/endArrow where type is connector",
+      "ppjPath": "pages[].elements[].startArrow/endArrow/startArrowWidth/startArrowLength/endArrowWidth/endArrowLength where type is connector",
       "behavior": "partial",
-      "sourceBound": "Editable connectors issue setConnectorArrows. Add/change/delete either end through the PPJ field; omission or none removes that arrow and its own dimensions. Retained arrows preserve native width/length, endpoint coordinates and frame-anchor/native-site binding state. Non-target ZIP members remain unchanged.",
-      "reason": "PpjConnectorObjectAnchorTests covers original-source no-op, separate add/change/none/omission and open-arrow edits, native size/binding preservation, fresh reprojection and denied capability. PPJ open maps to native arrow in both authored and source lowering and back to open in projection. Unsupported source topology remains opaque; new arrow-size syntax, full routing and host rendering are outside this increment."
+      "sourceBound": "Editable connectors issue setConnectorArrows. Add/change/delete either end through the PPJ field; omission or none removes that arrow and its own dimensions. The optional startArrowWidth/startArrowLength/endArrowWidth/endArrowLength fields use sm/med/lg, preserve native absence and allow independent source change/removal. Retained dimensions, endpoint coordinates and frame-anchor/native-site binding state are preserved. Non-target ZIP members remain unchanged.",
+      "reason": "PpjConnectorObjectAnchorTests covers original-source no-op, separate add/change/none/omission and open-arrow edits, native size/binding preservation, fresh reprojection and denied capability. PPJ open maps to native arrow in both authored and source lowering and back to open in projection. Unsupported source topology remains opaque; ArrowDimensionsPreservePresenceAndIndependentSourceEdits covers authored/fresh size presence, independent original-source dimension edits/removal, arrow cleanup and orphan/conflicting dimensions. Production preview remains partial with preview.connector.limited; full routing and host rendering are outside this increment."
     },
     {
       "feature": "source-bound connector type",

@@ -14,6 +14,14 @@ assert.equal(result.children[0].children[0].children[0].id, "text");
 assert.ok(reasonsAt(result, "$.pages[0].elements[0].elements[0].text").includes("preview.text.unassessed"));
 assert.ok(!result.diagnostics.some((d) => d.path.endsWith(".frame.x")));
 
+const sizedConnector = assessPpjPreviewInput(deck([{ type: "connector", id: "edge", frame,
+  connectorType: "straight", from: { x: 1, y: 2 }, to: { x: 101, y: 62 },
+  stroke: { color: "#112233", width: 2 }, startArrow: "open", endArrow: "triangle",
+  startArrowWidth: "sm", startArrowLength: "lg", endArrowWidth: "med", endArrowLength: "sm" }]));
+assert.notEqual(sizedConnector.status, "supported");
+for (const field of ["startArrowWidth", "startArrowLength", "endArrowWidth", "endArrowLength"])
+  assert.ok(sizedConnector.diagnostics.some(d => d.path.endsWith(`.${field}`) && d.status !== "supported"));
+
 const repeated = { pages: [{ id: "p1", elements: [text] }, { id: "p2", elements: [text] }] };
 const diagnostics = assessPpjPreviewInput(repeated).diagnostics.filter((d) => d.path.endsWith(".text") && d.reason === "preview.text.unassessed");
 assert.deepEqual(diagnostics.map((d) => d.pageId).sort(), ["p1", "p2"]);

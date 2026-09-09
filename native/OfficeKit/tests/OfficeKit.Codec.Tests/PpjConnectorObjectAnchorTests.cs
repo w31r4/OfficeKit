@@ -539,6 +539,80 @@ public sealed class PpjConnectorObjectAnchorTests
     }
 
     [Fact]
+    public void ArrowDimensionsPreservePresenceAndIndependentSourceEdits()
+    {
+        var edge = Edge("edge", Anchor("target", "right"), Literal(400, 300));
+        edge["startArrow"] = "open";
+        edge["startArrowWidth"] = "sm";
+        edge["startArrowLength"] = "lg";
+        edge["endArrowWidth"] = "med";
+        edge["endArrowLength"] = "sm";
+        var program = Program(Box("target", 100, 100, 80, 40), edge);
+        var all = Find(Compile(program), "edge").Connector;
+        Assert.Equal("sm", all.StartArrowWidth);
+        Assert.Equal("lg", all.StartArrowLength);
+        Assert.Equal("med", all.EndArrowWidth);
+        Assert.Equal("sm", all.EndArrowLength);
+        edge.Remove("endArrowLength");
+        var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
+        var original = source.ToArray();
+        var baseline = ByName(Projected(source), "edge");
+        Assert.Equal("sm", baseline["startArrowWidth"]!.GetValue<string>());
+        Assert.Equal("lg", baseline["startArrowLength"]!.GetValue<string>());
+        Assert.Equal("med", baseline["endArrowWidth"]!.GetValue<string>());
+        Assert.Null(baseline["endArrowLength"]);
+        using (var document = PresentationDocument.Open(new MemoryStream(source), false))
+        {
+            var head = document.PresentationPart!.SlideParts.Single().Slide.Descendants<A.HeadEnd>().Single();
+            var tail = document.PresentationPart.SlideParts.Single().Slide.Descendants<A.TailEnd>().Single();
+            Assert.Equal(A.LineEndWidthValues.Small, head.Width!.Value);
+            Assert.Equal(A.LineEndLengthValues.Large, head.Length!.Value);
+            Assert.Equal(A.LineEndWidthValues.Medium, tail.Width!.Value);
+            Assert.Null(tail.Length);
+        }
+        Assert.Equal(source, Compile(Projected(source), source: source).File.ToByteArray());
+        foreach (var (field, value) in new (string, string?)[] {
+            ("startArrowWidth", "lg"), ("startArrowLength", null),
+            ("endArrowWidth", null), ("endArrowLength", "sm") })
+        {
+            var request = Projected(source);
+            var requested = ByName(request, "edge");
+            if (value is null) requested.Remove(field); else requested[field] = value;
+            var result = Compile(request, source: source);
+            var fresh = ByName(Projected(result.File.ToByteArray()), "edge");
+            foreach (var retained in new[] { "from", "to", "stroke", "startArrow", "endArrow",
+                "startArrowWidth", "startArrowLength", "endArrowWidth", "endArrowLength" })
+                Assert.True(JsonNode.DeepEquals(requested[retained], fresh[retained]), retained);
+            AssertSlideOnly(source, result.File.ToByteArray());
+        }
+        var removal = Projected(source);
+        ByName(removal, "edge").Remove("startArrow"); // Unchanged projected dimensions clear with the arrow.
+        var removed = Compile(removal, source: source);
+        var afterRemoval = ByName(Projected(removed.File.ToByteArray()), "edge");
+        Assert.Null(afterRemoval["startArrowWidth"]);
+        Assert.Null(afterRemoval["startArrowLength"]);
+        Assert.Equal("med", afterRemoval["endArrowWidth"]!.GetValue<string>());
+        AssertSlideOnly(source, removed.File.ToByteArray());
+        ByName(removal, "edge")["startArrowWidth"] = "lg";
+        var conflict = Compile(removal, source: source, success: false);
+        Assert.Empty(conflict.File);
+        Assert.Contains(conflict.Diagnostics, d => d.Message.Contains("an arrow dimension requires its arrow type"));
+        var invalid = Projected(source);
+        ByName(invalid, "edge")["endArrowLength"] = "xl";
+        Assert.Contains(Compile(invalid, source: source, success: false).Diagnostics, d => d.Code == "ppj.schema.enum");
+        var denied = Projected(source);
+        var deniedEdge = ByName(denied, "edge");
+        deniedEdge["endArrowLength"] = "sm";
+        var fields = deniedEdge["nativeRef"]!["capabilities"]!.AsArray()
+            .Single(c => c!["operation"]!.GetValue<string>() == "setConnectorArrows")!["fields"]!.AsArray();
+        fields.Remove(fields.Single(f => f!.GetValue<string>() == "endArrowLength"));
+        Assert.Contains(Compile(denied, source: source, success: false).Diagnostics, d => d.Code == "ppj.nativeRef.stale");
+        edge.Remove("startArrow");
+        Assert.Empty(Compile(program, success: false).File);
+        Assert.Equal(original, source);
+    }
+
+    [Fact]
     public void SourceConnectorTypeChangesCanonicalGeometryAndPreservesBindings()
     {
         var program = Program(Box("target", 100, 100, 80, 40), Edge("edge", Anchor("target", "right"), Literal(400, 300)));

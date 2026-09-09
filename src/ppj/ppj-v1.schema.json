@@ -1943,6 +1943,10 @@
               "connectorType",
               "startArrow",
               "endArrow",
+              "startArrowWidth",
+              "startArrowLength",
+              "endArrowWidth",
+              "endArrowLength",
               "from",
               "to",
               "line.path",
@@ -7575,6 +7579,42 @@
             "endArrow": {
               "description": "Arrow shape; open maps to native arrow. Source edits require setConnectorArrows. Omission or none removes this end and its own dimensions; a retained arrow keeps its native sizes and the opposite end.",
               "$ref": "#/$defs/arrowHead"
+            },
+            "startArrowWidth": {
+              "type": "string",
+              "enum": [
+                "sm",
+                "med",
+                "lg"
+              ],
+              "description": "Optional native arrow width; sm/med/lg are relative sizes. Omit to use the native default; source-bound omission removes this attribute."
+            },
+            "startArrowLength": {
+              "type": "string",
+              "enum": [
+                "sm",
+                "med",
+                "lg"
+              ],
+              "description": "Optional native arrow length; sm/med/lg are relative sizes. Omit to use the native default; source-bound omission removes this attribute."
+            },
+            "endArrowWidth": {
+              "type": "string",
+              "enum": [
+                "sm",
+                "med",
+                "lg"
+              ],
+              "description": "Optional native arrow width; sm/med/lg are relative sizes. Omit to use the native default; source-bound omission removes this attribute."
+            },
+            "endArrowLength": {
+              "type": "string",
+              "enum": [
+                "sm",
+                "med",
+                "lg"
+              ],
+              "description": "Optional native arrow length; sm/med/lg are relative sizes. Omit to use the native default; source-bound omission removes this attribute."
             }
           }
         }

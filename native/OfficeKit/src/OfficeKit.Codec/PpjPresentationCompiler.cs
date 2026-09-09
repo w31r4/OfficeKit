@@ -4484,7 +4484,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
 
     private static bool ApplyConnectorElement(PpjProgramModel program, PpjConnectorElementModel before, PpjConnectorElementModel after, PresentationConnector target, string path)
     {
-        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "stroke", "accessibility", "from", "to", "startArrow", "endArrow", "connectorType");
+        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "stroke", "accessibility", "from", "to", "startArrow", "endArrow", "startArrowWidth", "startArrowLength", "endArrowWidth", "endArrowLength", "connectorType");
         var endpointsChanged = ConnectorEndpointsChanged(before, after);
         if (endpointsChanged) RequireCapability(after, "setConnectorEndpoints", path);
         if (FrameChanged(before, after) && (endpointsChanged || target.StartFrameAnchor is not null || target.EndFrameAnchor is not null))
@@ -4509,6 +4509,42 @@ internal static partial class PpjSourceBoundPresentationCompiler
             RequireCapabilityField(after.NativeRef, "setConnectorArrows", "endArrow", path + ".endArrow");
             target.EndArrow = ArrowValue(after.Raw, "endArrow");
             if (target.EndArrow.Length == 0) target.EndArrowWidth = target.EndArrowLength = string.Empty;
+            changed = true;
+        }
+        if (PropertyChanged(before.Raw, after.Raw, "startArrowWidth"))
+        {
+            RequireCapabilityField(after.NativeRef, "setConnectorArrows", "startArrowWidth", path + ".startArrowWidth");
+            var value = OptionalString(after.Raw, "startArrowWidth") ?? string.Empty;
+            if (value.Length > 0 && target.StartArrow.Length == 0)
+                throw Unsupported(path + ".startArrowWidth", "an arrow dimension requires its arrow type");
+            target.StartArrowWidth = value;
+            changed = true;
+        }
+        if (PropertyChanged(before.Raw, after.Raw, "startArrowLength"))
+        {
+            RequireCapabilityField(after.NativeRef, "setConnectorArrows", "startArrowLength", path + ".startArrowLength");
+            var value = OptionalString(after.Raw, "startArrowLength") ?? string.Empty;
+            if (value.Length > 0 && target.StartArrow.Length == 0)
+                throw Unsupported(path + ".startArrowLength", "an arrow dimension requires its arrow type");
+            target.StartArrowLength = value;
+            changed = true;
+        }
+        if (PropertyChanged(before.Raw, after.Raw, "endArrowWidth"))
+        {
+            RequireCapabilityField(after.NativeRef, "setConnectorArrows", "endArrowWidth", path + ".endArrowWidth");
+            var value = OptionalString(after.Raw, "endArrowWidth") ?? string.Empty;
+            if (value.Length > 0 && target.EndArrow.Length == 0)
+                throw Unsupported(path + ".endArrowWidth", "an arrow dimension requires its arrow type");
+            target.EndArrowWidth = value;
+            changed = true;
+        }
+        if (PropertyChanged(before.Raw, after.Raw, "endArrowLength"))
+        {
+            RequireCapabilityField(after.NativeRef, "setConnectorArrows", "endArrowLength", path + ".endArrowLength");
+            var value = OptionalString(after.Raw, "endArrowLength") ?? string.Empty;
+            if (value.Length > 0 && target.EndArrow.Length == 0)
+                throw Unsupported(path + ".endArrowLength", "an arrow dimension requires its arrow type");
+            target.EndArrowLength = value;
             changed = true;
         }
         if (PropertyChanged(before.Raw, after.Raw, "connectorType"))

@@ -1780,6 +1780,10 @@ internal static partial class PpjPresentationProjector
             connector.LineScheme);
         if (Arrow(connector.StartArrow) is { } startArrow) output["startArrow"] = startArrow;
         if (Arrow(connector.EndArrow) is { } endArrow) output["endArrow"] = endArrow;
+        if (connector.StartArrowWidth.Length > 0) output["startArrowWidth"] = connector.StartArrowWidth;
+        if (connector.StartArrowLength.Length > 0) output["startArrowLength"] = connector.StartArrowLength;
+        if (connector.EndArrowWidth.Length > 0) output["endArrowWidth"] = connector.EndArrowWidth;
+        if (connector.EndArrowLength.Length > 0) output["endArrowLength"] = connector.EndArrowLength;
         return output;
     }
 
@@ -3040,7 +3044,7 @@ internal static partial class PpjPresentationProjector
                 break;
             case PresentationElement.ContentOneofCase.Connector when source.Editable:
                 output.Add(new("setStroke", ["stroke"]));
-                output.Add(new("setConnectorArrows", ["startArrow", "endArrow"]));
+                output.Add(new("setConnectorArrows", ["startArrow", "endArrow", "startArrowWidth", "startArrowLength", "endArrowWidth", "endArrowLength"]));
                 output.Add(new("setConnectorType", ["connectorType"]));
                 if (element.Connector.StartTargetId.Length == 0 && element.Connector.EndTargetId.Length == 0)
                     output.Add(new("setConnectorEndpoints", ["from", "to"]));
