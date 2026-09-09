@@ -325,7 +325,12 @@ export function paintPpjSceneSvg(receipt) {
     const blank = s.displayBlanksAs ?? "gap";
     if (!["gap", "zero", "span"].includes(blank) || (missing.size && blank !== "gap"))
       fail("chart.displayBlanksAs", "Missing circular observations require gap until explicit display-policy evidence is mapped.");
-    if (entry.explosion) fail(`${prefix}.explosion`, "Exploded slice placement is not yet mapped.");
+    const explosionValue = (value, field) => {
+      if (value !== undefined && (!Number.isSafeInteger(value) || value < 0 || value > 400))
+        fail(field, "Circular explosion must be an integer in 0..400.");
+      return value ?? 0;
+    };
+    const seriesExplosion = explosionValue(entry.explosion, `${prefix}.explosion`);
     let maximum = 0;
     entry.values.forEach((value, i) => {
       if (!missing.has(i) && value < 0) fail(`${prefix}.values[${i}]`, "Negative circular values need an explicit signed display policy, not an implicit absolute value.");
@@ -339,9 +344,13 @@ export function paintPpjSceneSvg(receipt) {
       if (!Number.isSafeInteger(style.index) || style.index <= previousStyle || style.index >= entry.values.length || missing.has(style.index))
         fail(`${field}.index`, "Point-style indexes must increase, address a real observation and be in range.");
       previousStyle = style.index;
-      if (style.explosion) fail(`${field}.explosion`, "Exploded point placement is not yet mapped.");
+      explosionValue(style.explosion, `${field}.explosion`);
       pointStyles.set(style.index, { style, field });
     }
+    // A present point-level zero overrides series explosion, not inherits it.
+    const explosions = entry.values.map((value, i) => missing.has(i) || value === 0 ? 0
+      : pointStyles.get(i)?.style.explosion ?? seriesExplosion);
+    const maxExplosion = explosions.reduce((maximum, value) => Math.max(maximum, value), 0);
     const palette = ["#2563EB", "#B45309", "#047857", "#9333EA", "#BE123C", "#0E7490"];
     function fill(surface, legacy, fallback, field) {
       if (surface && legacy) fail(field, "Conflicting native solid/series fill owners.");
@@ -369,10 +378,16 @@ export function paintPpjSceneSvg(receipt) {
     }
     // Fixed review plot, not a second PPJ layout pass. Clockwise from up is
     // the native firstSliceAngle convention. Two arcs also handle a full turn.
-    const cx = f.x + f.width / 2, cy = f.y + f.height * .52, radius = Math.min(f.width * .4, f.height * .34), inner = radius * hole / 100;
+    // Review layout follows the radial ring-thickness/bisector construction
+    // used by LibreOffice's non-concentric PieChart::createDataPoint. Do not
+    // clamp native 100..400 values or claim Office's exact plot fitting.
+    const fit = 1 + (1 - hole / 100) * maxExplosion / 100;
+    const cx = f.x + f.width / 2, cy = f.y + f.height * .52,
+      radius = Math.min(f.width * .4, f.height * .34) / fit, inner = radius * hole / 100;
     if (radius <= 0) fail("chart", "Nonpositive circular plot extent.");
     const point = (r, a) => `${n(cx + r * Math.sin(a * Math.PI / 180))} ${n(cy - r * Math.cos(a * Math.PI / 180))}`;
     limit(node, "chart", "preview.scene.paint.chart-layout", "Circular proportions and direct point paint mapped; fixed plot margins, labels/legend, inheritance and host layout remain incomplete.");
+    if (maxExplosion) limit(node, prefix, "preview.scene.paint.chart-explosion-layout", "Radial review layout offsets slices by ring thickness and fits them within the plot; exact Office explosion spacing/concentric layout remains unverified.");
     if (missing.size) limit(node, `${prefix}.missingValueIndexes`, "preview.scene.paint.chart-missing-share", "Fractions describe observed positive values only; missing observations are unknown, not zero.");
     let cumulative = 0;
     const slices = entry.values.map((value, i) => {
@@ -383,6 +398,9 @@ export function paintPpjSceneSvg(receipt) {
       cumulative += fraction;
       const end = angle + cumulative * 360, middle = (start + end) / 2;
       const selected = pointStyles.get(i);
+      const explosion = selected?.style.explosion ?? seriesExplosion;
+      const distance = (radius - inner) * explosions[i] / 100;
+      const dx = distance * Math.sin(middle * Math.PI / 180), dy = -distance * Math.cos(middle * Math.PI / 180);
       const paint = selected?.style.fill
         ? fill(selected.style.fill, null, palette[i % palette.length], `${selected.field}.fill`)
         : fill(entry.seriesFill, entry.fill, palette[i % palette.length], `${prefix}.${entry.fill ? "fill" : "seriesFill"}`);
@@ -391,14 +409,15 @@ export function paintPpjSceneSvg(receipt) {
       if (fraction > 0) {
         const outerArc = `M ${point(radius, start)} A ${n(radius)} ${n(radius)} 0 0 1 ${point(radius, middle)} A ${n(radius)} ${n(radius)} 0 0 1 ${point(radius, end)}`;
         const d = ring ? `${outerArc} L ${point(inner, end)} A ${n(inner)} ${n(inner)} 0 0 0 ${point(inner, middle)} A ${n(inner)} ${n(inner)} 0 0 0 ${point(inner, start)} Z` : `${outerArc} L ${n(cx)} ${n(cy)} Z`;
-        geometry = `<path data-officekit-slice="${i}" d="${d}" ${paint} ${stroke}/>`;
+        geometry = `<path data-officekit-slice="${i}" d="${d}"${distance ? ` transform="translate(${n(dx)} ${n(dy)})"` : ""} ${paint} ${stroke}/>`;
       }
-      return `<g data-officekit-point="${i}" data-officekit-value="${n(value)}" data-officekit-fraction="${n(fraction)}" data-officekit-start-angle="${n(start)}" data-officekit-sweep-angle="${n(fraction * 360)}"><title>${esc(entry.name)} / ${esc(s.categories[i])}: ${n(value)} (${n(fraction * 100)}% of observed values)</title>${geometry}</g>`;
+      return `<g data-officekit-point="${i}" data-officekit-value="${n(value)}" data-officekit-fraction="${n(fraction)}" data-officekit-start-angle="${n(start)}" data-officekit-sweep-angle="${n(fraction * 360)}" data-officekit-explosion="${n(explosion)}" data-officekit-explosion-owner="${selected?.style.explosion !== undefined ? "point" : entry.explosion !== undefined ? "series" : "default"}" data-officekit-offset-x="${n(dx)}" data-officekit-offset-y="${n(dy)}"><title>${esc(entry.name)} / ${esc(s.categories[i])}: ${n(value)} (${n(fraction * 100)}% of observed values)</title>${geometry}</g>`;
     }).join("");
     const heading = text({ ...node, frame: { x: f.x, y: f.y, width: f.width, height: f.height * .16 } }, { text: s.title, textBody: s.titleBody }, "chart");
     const zeroCount = entry.values.filter((v, i) => !missing.has(i) && v === 0).length;
-    const note = !denominator ? "No positive observed data" : missing.size || zeroCount ? `Observed values only; ${missing.size} missing; ${zeroCount} zero` : "";
-    return `<g data-officekit-chart="${ring ? "doughnut" : "pie"}" data-officekit-first-slice-angle="${angle}" data-officekit-hole-size="${hole}">${heading}<g data-officekit-series="0" data-officekit-series-name="${esc(entry.name)}">${slices}</g>${note ? `<text data-officekit-circular-data-note="true" x="${n(f.x + 4)}" y="${n(f.y + f.height - 6)}" font-size="10">${esc(note)}</text>` : ""}</g>`;
+    const counts = `${missing.size} missing; ${zeroCount} zero`;
+    const note = !denominator ? `No positive observed data; ${counts}` : missing.size || zeroCount ? `Observed values only; ${counts}` : "";
+    return `<g data-officekit-chart="${ring ? "doughnut" : "pie"}" data-officekit-first-slice-angle="${angle}" data-officekit-hole-size="${hole}" data-officekit-outer-radius="${n(radius)}" data-officekit-inner-radius="${n(inner)}" data-officekit-explosion-layout="radial-review">${heading}<g data-officekit-series="0" data-officekit-series-name="${esc(entry.name)}">${slices}</g>${note ? `<text data-officekit-circular-data-note="true" x="${n(f.x + 4)}" y="${n(f.y + f.height - 6)}" font-size="10">${esc(note)}</text>` : ""}</g>`;
   }
   function chart(node) {
     const s = node.native, f = node.frame;

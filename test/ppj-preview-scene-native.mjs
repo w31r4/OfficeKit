@@ -34,7 +34,6 @@ const hook = registerHooks({ resolve(specifier, context, resolve) {
 // CodecProtocol library entrypoint is covered by the native test suite, not by
 // routing presentation operations into officekit-codec. Exercise the generated
 // full wire reader independently against the real PPJ executable here.
-const fullWireClient = await startOfficeKitNativeClient({ packageJsonPath, profile: "ppj" });
 try {
   const artifacts = await mkdtemp(path.join(os.tmpdir(), "officekit-native-scene-paint-"));
   console.log(`Native scene integration artifacts: ${artifacts}`);
@@ -70,11 +69,17 @@ try {
     presentationProgram: { programJson: workspace.program, includePreviewScene, validationOnly, includeNodeMap: true,
       assets: workspace.assets.map(asset => ({ id: asset.id, contentType: asset.mimeType, sha256: asset.sha256, data: asset.data })) },
     });
-    const response = fromBinary(CodecResponseSchema,
-      await fullWireClient.invoke(toBinary(CodecRequestSchema, request), workspace.source), { recursionLimit: 136 });
-    assert.equal(response.ok, true, JSON.stringify(response.diagnostics));
-    return { file: response.file, program: response.presentationProgram,
-      ...(includePreviewScene ? { previewScene: readPpjPreviewScene(response.presentationProgram, response.file) } : {}) };
+    // Independent comparisons can be separated by a long raster/edit suite.
+    // Own the client per comparison; never reuse a handle after idle retirement
+    // or change production idle policy to keep this test's handle alive.
+    const client = await startOfficeKitNativeClient({ packageJsonPath, profile: "ppj" });
+    try {
+      const response = fromBinary(CodecResponseSchema,
+        await client.invoke(toBinary(CodecRequestSchema, request), workspace.source), { recursionLimit: 136 });
+      assert.equal(response.ok, true, JSON.stringify(response.diagnostics));
+      return { file: response.file, program: response.presentationProgram,
+        ...(includePreviewScene ? { previewScene: readPpjPreviewScene(response.presentationProgram, response.file) } : {}) };
+    } finally { await client.retire(); }
   };
   await assert.rejects(invokeOfficeKitLazy(() => ({ protocolVersion: 2, operation: 11, family: 2,
     presentationProgram: { programJson: new TextEncoder().encode("{}"), includePreviewScene: true },
@@ -263,8 +268,72 @@ try {
     assert.deepEqual(changed.sort(), ["ppt/slides/charts/chart1.xml"]);
     assert.ok(!Object.keys(sourceZip.files).some(name => name.endsWith(".xlsx")));
     assert.deepEqual(circularSource, original);
+    const explosionProgram = structuredClone(circularProgram);
+    const explosionSeries = explosionProgram.pages[0].elements[1].data.series[0];
+    explosionSeries.values = [1, null, 0, 1]; explosionSeries.explosion = 100;
+    explosionSeries.pointStyles[0].explosion = 25;
+    async function checkExplosion(receipt, name, seriesValue, pointValue) {
+      const painted = await savePaint(name, receipt), svg = painted.pages[0].svg;
+      const native = createPpjSceneView(receipt).pages[0].nodes.find(n => n.kind === "chart").native.series[0];
+      assert.equal(native.explosion, seriesValue);
+      assert.equal(native.pointStyles[0].explosion, pointValue);
+      assert.deepEqual(native.values, [1, 0, 0, 1]); assert.deepEqual(native.missingValueIndexes, [1]);
+      assert.ok(!painted.diagnostics.some(d => ["preview.scene.paint.chart-semantics", "preview.scene.paint.failed"].includes(d.reason)));
+      const effective = [pointValue ?? seriesValue ?? 0, seriesValue ?? 0];
+      const thickness = type === "pie" ? 1 : .4;
+      const radius = 102 / (1 + thickness * Math.max(...effective) / 100), inner = type === "pie" ? 0 : radius * .6;
+      const dx = effective.map(e => (radius - inner) * e / 100);
+      const points = [...svg.matchAll(/data-officekit-point="(\d+)"[^>]*data-officekit-explosion="([^"]+)" data-officekit-explosion-owner="([^"]+)" data-officekit-offset-x="([^"]+)" data-officekit-offset-y="([^"]+)"/g)];
+      assert.deepEqual(points.map(m => +m[1]), [0, 2, 3]);
+      assert.ok(Math.abs(+points[0][4] - dx[0]) < 1e-10); assert.ok(Math.abs(+points[2][4] + dx[1]) < 1e-10);
+      assert.equal(points[0][3], pointValue !== undefined ? "point" : seriesValue !== undefined ? "series" : "default");
+      assert.equal(+points[1][4], 0); assert.equal(+points[1][5], 0);
+      assert.doesNotMatch(svg, /data-officekit-slice="[12]"|data-officekit-point="1"/);
+      for (const [left, top, rgb] of [
+        [Math.floor(260 + dx[0] + radius * .8), 236, [204, 34, 0]],
+        [Math.floor(260 - dx[1] - radius * .8), 236, [0, 68, 204]],
+        ...(type === "doughnut" ? [[Math.floor(260 + dx[0] + inner - 4), 236, [255, 238, 221]]] : dx[0] > 8 ? [[264, 236, [255, 238, 221]]] : []),
+      ]) {
+        const pixel = await sharp(Buffer.from(svg)).extract({ left, top, width: 1, height: 1 }).removeAlpha().raw().toBuffer();
+        assert.deepEqual([...pixel], rgb, `${name} exploded pixel ${left},${top}`);
+      }
+      assert.equal(painted.diagnostics.some(d => d.reason === "preview.scene.paint.chart-explosion-layout"), effective.some(e => e > 0));
+    }
+    const explosionAuthored = await compileCircular(explosionProgram);
+    await checkExplosion(explosionAuthored, `${type}-explosion-authored`, 100, 25);
+    const explosionSource = await withoutAuthoredSnapshot(explosionAuthored.file), explosionOriginal = explosionSource.slice();
+    const explosionProjected = await projectPptxToPpj(explosionSource, { sourceUri: `${type}-explosion-source.pptx`, assetRootUri: "assets" });
+    assert.equal(explosionProjected.sourceBound, true);
+    const explosionInput = { program: explosionProjected.programJson, source: explosionSource, assets: explosionProjected.assets };
+    const explosionNoop = await compilePpjWorkspace(explosionInput, { includePreviewScene: true });
+    assert.deepEqual(explosionNoop.file, explosionSource);
+    await checkExplosion(explosionNoop, `${type}-explosion-noop`, 100, 25);
+    const explosionEdits = [];
+    for (const [name, seriesValue, pointValue] of [["point-zero", 100, 0], ["point-delete", 100, undefined],
+      ["series-zero", 0, 25], ["series-delete", undefined, 25], ["both-delete", undefined, undefined]]) {
+      // Every edit is reconstructed from the ORIGINAL source projection.
+      const edit = JSON.parse(new TextDecoder().decode(explosionProjected.programJson));
+      const series = edit.pages[0].elements.find(e => e.type === "chart").data.series[0];
+      if (seriesValue === undefined) delete series.explosion; else series.explosion = seriesValue;
+      if (pointValue === undefined) delete series.pointStyles[0].explosion; else series.pointStyles[0].explosion = pointValue;
+      const candidate = await compilePpjWorkspace({ ...explosionInput, program: Buffer.from(JSON.stringify(edit)) }, { includePreviewScene: true });
+      await checkExplosion(candidate, `${type}-explosion-${name}`, seriesValue, pointValue);
+      const reprojected = await projectPptxToPpj(candidate.file, { sourceUri: `${type}-${name}.pptx`, assetRootUri: "assets" });
+      const projectedSeries = JSON.parse(new TextDecoder().decode(reprojected.programJson)).pages[0].elements.find(e => e.type === "chart").data.series[0];
+      assert.equal(projectedSeries.explosion, seriesValue); assert.equal(projectedSeries.pointStyles[0].explosion, pointValue);
+      assert.deepEqual(projectedSeries.values, [1, null, 0, 1]);
+      const originalZip = await JSZip.loadAsync(explosionSource), editedZip = await JSZip.loadAsync(candidate.file);
+      assert.deepEqual(Object.keys(editedZip.files).sort(), Object.keys(originalZip.files).sort());
+      const changedParts = [];
+      for (const member of Object.keys(originalZip.files)) if (!originalZip.files[member].dir &&
+        !Buffer.from(await originalZip.file(member).async("uint8array")).equals(Buffer.from(await editedZip.file(member).async("uint8array")))) changedParts.push(member);
+      assert.deepEqual(changedParts.sort(), ["ppt/slides/charts/chart1.xml"]);
+      assert.deepEqual(explosionSource, explosionOriginal);
+      explosionEdits.push({ name, sourceSha256: sha256(explosionSource), candidateSha256: sha256(candidate.file), changedParts, reprojection: true, pixels: true });
+    }
     nativeCircular.push({ type, authoredRatioSwap: true, rotated: true, sourceNoop: true, sourceValueEdit: true, reprojection: true,
       ratioPixels: true, transparentHole: type === "doughnut", changedParts: changed,
+      explosion: { authored: true, sourceNoop: true, layout: "radial-review; exact Office spacing unverified", edits: explosionEdits },
       sourceSha256: sha256(circularSource), candidateSha256: sha256(circularCandidate.file), workbook: "not present in literal-data fixture" });
   }
   const vectorProgram = structuredClone(pairBase);
@@ -443,7 +512,6 @@ try {
   console.log(JSON.stringify(report, null, 2));
   if (relationFailures.length) throw new AggregateError(relationFailures.map(f => f.error), "Authored object-anchor regressions failed; independent table/source checks executed, not a passing integration.");
 } finally {
-  fullWireClient.kill();
   hook.deregister();
   delete globalThis[Symbol.for("officekit.preview.native.test")];
 }

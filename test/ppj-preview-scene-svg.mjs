@@ -354,11 +354,21 @@ for (const type of [3, 5]) {
   assert.equal((full.pages[0].svg.match(/ A /g) || []).length, type === 3 ? 2 : 4);
   const noPositive = paintPpjSceneSvg(circularFixture(c => { c.series[0].values = [0, 0, 0, 0]; }, type));
   assert.match(noPositive.pages[0].svg, /No positive observed data/);
+  assert.match(noPositive.pages[0].svg, /1 missing; 3 zero/);
   assert.doesNotMatch(noPositive.pages[0].svg, /data-officekit-slice=/);
   const noObservations = paintPpjSceneSvg(circularFixture(c => {
     c.series[0].values = [0, 0, 0, 0]; c.series[0].missingValueIndexes = [0, 1, 2, 3];
+    c.series[0].pointStyles = [];
   }, type));
+  assert.equal(noObservations.reliability.status, "requires-review");
   assert.doesNotMatch(noObservations.pages[0].svg, /data-officekit-point=|data-officekit-slice=/);
+  assert.match(noObservations.pages[0].svg, /4 missing; 0 zero/);
+  const invalidMissingStyles = paintPpjSceneSvg(circularFixture(c => {
+    c.series[0].values = [0, 0, 0, 0]; c.series[0].missingValueIndexes = [0, 1, 2, 3];
+  }, type));
+  assert.equal(invalidMissingStyles.reliability.status, "failed");
+  assert.ok(invalidMissingStyles.diagnostics.some(d => d.reason === "preview.scene.paint.chart-semantics" && d.scenePath.endsWith("pointStyles[0].index")));
+  assert.doesNotMatch(invalidMissingStyles.pages[0].svg, /data-officekit-slice=/);
 }
 const circularAlpha = paintPpjSceneSvg(circularFixture(c => {
   c.series[0].pointStyles[0].fill.opacityThousandthPercent = 0;
@@ -368,13 +378,53 @@ assert.match(circularAlpha.pages[0].svg, /data-officekit-slice="0"[^>]*fill="#CC
 assert.match(circularAlpha.pages[0].svg, /data-officekit-slice="3"[^>]*fill="none"/);
 const largeCircular = paintPpjSceneSvg(circularFixture(c => { c.series[0].values = [1e308, 0, 0, 1e308]; }));
 near(sliceAttributes(largeCircular.pages[0].svg)[0].fraction, .5);
+const explosionPoints = svg => [...svg.matchAll(/data-officekit-point="(\d+)"[^>]*data-officekit-explosion="([^"]+)" data-officekit-explosion-owner="([^"]+)" data-officekit-offset-x="([^"]+)" data-officekit-offset-y="([^"]+)"/g)]
+  .map(m => ({ index: +m[1], value: +m[2], owner: m[3], x: +m[4], y: +m[5] }));
+for (const type of [3, 5]) {
+  const makeExploded = (pointZero = false, angle = 0, amount = 100) => circularFixture(c => {
+    c.series[0].values = [1, 0, 0, 1]; c.series[0].explosion = amount;
+    c.firstSliceAngle = angle;
+    if (type === 5) c.doughnutHoleSize = 60;
+    if (pointZero) c.series[0].pointStyles[0].explosion = 0;
+  }, type);
+  for (const amount of [0, 25, 100, 400]) {
+    const receipt = makeExploded(false, 0, amount), before = toBinary(PresentationPreviewSceneSchema, receipt.previewScene);
+    const result = paintPpjSceneSvg(receipt), svg = result.pages[0].svg;
+    assert.equal(result.reliability.status, "requires-review");
+    assert.deepEqual(toBinary(PresentationPreviewSceneSchema, receipt.previewScene), before);
+    const points = explosionPoints(svg), thickness = type === 5 ? .4 : 1;
+    const radius = 102 / (1 + thickness * amount / 100), offset = radius * thickness * amount / 100;
+    near(+svg.match(/data-officekit-outer-radius="([^"]+)"/)[1], radius);
+    near(points[0].x, offset); near(points[0].y, 0);
+    near(points[2].x, -offset); near(points[2].y, 0);
+    near(points[1].x, 0); near(points[1].y, 0); // Real zero cannot move or resize the plot.
+    assert.deepEqual(points.map(p => p.owner), ["series", "series", "series"]);
+    assert.deepEqual(sliceAttributes(svg).map(p => p.fraction), [.5, 0, .5]);
+    assert.equal(result.diagnostics.some(d => d.reason === "preview.scene.paint.chart-explosion-layout"), amount > 0);
+    assert.equal((svg.match(/transform="translate\([^)]*\)"/g) || []).length, amount > 0 ? 2 : 0);
+    assert.ok(radius + offset <= 102 + 1e-10, "whole exploded circle remains within review plot");
+  }
+  const overridden = paintPpjSceneSvg(makeExploded(true)), points = explosionPoints(overridden.pages[0].svg);
+  assert.equal(points[0].value, 0); assert.equal(points[0].owner, "point"); near(points[0].x, 0); near(points[0].y, 0);
+  assert.equal(points[2].value, 100); assert.equal(points[2].owner, "series"); assert.ok(points[2].x < 0);
+  const rotated = explosionPoints(paintPpjSceneSvg(makeExploded(false, 90)).pages[0].svg);
+  near(rotated[0].x, 0); assert.ok(rotated[0].y > 0); near(rotated[2].x, 0); assert.ok(rotated[2].y < 0);
+  const zeroOnly = paintPpjSceneSvg(circularFixture(c => {
+    c.series[0].pointStyles.push(create(SpreadsheetChartPointStyleArtifactSchema, { index: 2, explosion: 400 }));
+    c.series[0].pointStyles.sort((a, b) => a.index - b.index);
+  }, type));
+  near(+zeroOnly.pages[0].svg.match(/data-officekit-outer-radius="([^"]+)"/)[1], 102);
+  assert.ok(!zeroOnly.diagnostics.some(d => d.reason === "preview.scene.paint.chart-explosion-layout"));
+}
 for (const edit of [
   c => { c.series[0].values[0] = -1; }, c => { c.series[0].values[0] = NaN; },
   c => { c.series[0].values.pop(); }, c => { c.series[0].missingValueIndexes = [1, 1]; },
   c => { c.series[0].values[1] = 2; }, c => { c.firstSliceAngle = 361; },
-  c => { c.doughnutHoleSize = 50; }, c => { c.series[0].explosion = 20; },
-  c => { c.series[0].pointStyles[0].explosion = 10; },
+  c => { c.doughnutHoleSize = 50; }, c => { c.series[0].explosion = 401; },
+  c => { c.series[0].pointStyles[0].explosion = 401; },
   c => { c.series[0].pointStyles[1].index = 0; }, c => { c.series[0].pointStyles[1].index = 9; },
+  c => { c.series[0].pointStyles[0].index = 1; },
+  c => { c.series[0].pointStyles.reverse(); },
   c => { c.series.push(clone(SpreadsheetChartSeriesArtifactSchema, c.series[0])); },
   c => { c.displayBlanksAs = "zero"; }, c => { c.displayBlanksAs = "span"; },
   c => { c.series[0].values = [1e-308, 0, 0, 1e308]; },
