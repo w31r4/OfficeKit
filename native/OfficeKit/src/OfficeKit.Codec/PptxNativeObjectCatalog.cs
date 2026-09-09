@@ -387,15 +387,12 @@ internal sealed class PptxNativeObjectCatalog
             // bindings.  Moving that direct frame does not rewrite the
             // connection topology or any unknown descendants, so it belongs
             // to the same bounded source-bound placement surface as a normal
-            // connector.  Keep offsets non-negative and reject missing,
-            // duplicate, or negative frames as before.
+            // connector. Signed offsets are valid; keep the coordinate/extent
+            // bounds and reject missing or duplicate transforms.
             var width = transform?.Extents?.Cx?.Value;
             var height = transform?.Extents?.Cy?.Value;
             return connector.NonVisualConnectionShapeProperties?.NonVisualDrawingProperties is not null &&
-                   transform?.Offset?.X?.Value is >= 0 &&
-                   transform.Offset.Y?.Value is >= 0 &&
-                   width is >= 0 &&
-                   height is >= 0 &&
+                   PptxConnectorCodec.IsFrame(transform?.Offset?.X?.Value, transform?.Offset?.Y?.Value, width, height) &&
                    (width > 0 || height > 0);
         }
         return false;

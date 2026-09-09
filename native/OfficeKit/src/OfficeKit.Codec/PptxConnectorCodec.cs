@@ -121,6 +121,19 @@ internal static class PptxConnectorCodec
             properties.Append(line);
     }
 
+    // DrawingML ST_Coordinate / ST_PositiveCoordinate schema bounds.
+    internal const long MinimumCoordinate = -27_273_042_329_600;
+    internal const long MaximumCoordinate = 27_273_042_316_900;
+    internal static bool IsCoordinate(long value) => value is >= MinimumCoordinate and <= MaximumCoordinate;
+
+    internal static bool IsEndpointPair(long startX, long startY, long endX, long endY) =>
+        IsCoordinate(startX) && IsCoordinate(startY) && IsCoordinate(endX) && IsCoordinate(endY) &&
+        Math.Abs(endX - startX) <= MaximumCoordinate && Math.Abs(endY - startY) <= MaximumCoordinate;
+
+    internal static bool IsFrame(long? left, long? top, long? width, long? height) =>
+        left is { } x && top is { } y && width is >= 0 and <= MaximumCoordinate && height is >= 0 and <= MaximumCoordinate &&
+        IsCoordinate(x) && IsCoordinate(y) && IsCoordinate(x + width.Value) && IsCoordinate(y + height.Value);
+
     internal static void Validate(
         PresentationConnector? source,
         string elementId,
@@ -130,7 +143,7 @@ internal static class PptxConnectorCodec
         if (source is null) throw new CodecException("invalid_presentation_connector", $"Presentation connector {elementId} payload is missing.");
         if (name.Length > 1_024) throw new CodecException("invalid_presentation_connector", $"Presentation connector {elementId} name exceeds 1024 characters.");
         if (!ConnectorTypes.Contains(source.ConnectorType)) throw new CodecException("unsupported_presentation_connector", $"Presentation connector {elementId} uses unsupported type {source.ConnectorType}.");
-        if (source.StartXEmu < 0 || source.StartYEmu < 0 || source.EndXEmu < 0 || source.EndYEmu < 0)
+        if (!IsEndpointPair(source.StartXEmu, source.StartYEmu, source.EndXEmu, source.EndYEmu))
             throw new CodecException("invalid_presentation_connector", $"Presentation connector {elementId} has invalid endpoints.");
         PptxNonVisualAccessibilityCodec.Validate(source.Accessibility, elementId, "connector");
         PptxLineStyleCodec.Validate(source, elementId);
@@ -196,7 +209,7 @@ internal static class PptxConnectorCodec
         var top = transform.Offset?.Y?.Value;
         var width = transform.Extents?.Cx?.Value;
         var height = transform.Extents?.Cy?.Value;
-        if (left is null || top is null || width is null or < 0 || height is null or < 0 ||
+        if (!IsFrame(left, top, width, height) ||
             transform.ChildElements.Any(child => child is not A.Offset and not A.Extents) || transform.ExtendedAttributes.Any()) return false;
 
         var localStartX = transform.HorizontalFlip?.Value == true ? left.Value + width.Value : left.Value;
@@ -208,7 +221,7 @@ internal static class PptxConnectorCodec
         var centerY = top.Value + height.Value / 2d;
         (startX, startY) = RotatePoint(localStartX, localStartY, centerX, centerY, rotation);
         (endX, endY) = RotatePoint(localEndX, localEndY, centerX, centerY, rotation);
-        return startX >= 0 && startY >= 0 && endX >= 0 && endY >= 0;
+        return IsEndpointPair(startX, startY, endX, endY);
     }
 
     private static (long X, long Y) RotatePoint(long x, long y, double centerX, double centerY, int rotation)

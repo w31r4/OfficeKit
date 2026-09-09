@@ -2078,11 +2078,11 @@ const PRESENTATION_HELP_SCHEMAS = {
   "connector.setConnectorFrom": helpSchema({
     target: { type: "Shape|string", required: true, description: "Modeled same-tree start shape." },
     index: { type: "number", required: true, description: "Unsigned connection-site index valid for that shape's modeled site table." },
-  }, "connector", "ConnectorElement", "The same connector with its start target and site changed atomically. This facade API uses native geometry sites. PPJ from/to instead use {element, anchor} frame anchors; source projections issue setConnectorEndpoints for the supported PPJ edit profile."),
+  }, "connector", "ConnectorElement", "The same connector with its start target and site changed atomically. This facade API uses native geometry sites. PPJ from/to instead use signed {x, y} parent-space points or {element, anchor} frame anchors; source projections issue setConnectorEndpoints for the supported PPJ edit profile."),
   "connector.setConnectorTo": helpSchema({
     target: { type: "Shape|string", required: true, description: "Modeled same-tree end shape." },
     index: { type: "number", required: true, description: "Unsigned connection-site index valid for that shape's modeled site table." },
-  }, "connector", "ConnectorElement", "The same connector with its end target and site changed atomically. This facade API uses native geometry sites. PPJ from/to instead use {element, anchor} frame anchors; source projections issue setConnectorEndpoints for the supported PPJ edit profile."),
+  }, "connector", "ConnectorElement", "The same connector with its end target and site changed atomically. This facade API uses native geometry sites. PPJ from/to instead use signed {x, y} parent-space points or {element, anchor} frame anchors; source projections issue setConnectorEndpoints for the supported PPJ edit profile."),
   "connector.bringToFront": helpSchema({}, "connector", "ConnectorElement", "Move the connector to the front of its owner scene stack. Imported direct connectors require fresh editable zOrderCapability evidence."),
   "connector.sendToBack": helpSchema({}, "connector", "ConnectorElement", "Move the connector to the back of its owner scene stack. Imported direct connectors require fresh editable zOrderCapability evidence."),
   "presentation.customShows.add": helpSchema({

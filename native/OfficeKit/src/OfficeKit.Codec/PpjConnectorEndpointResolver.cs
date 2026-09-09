@@ -103,9 +103,9 @@ internal sealed class PpjConnectorEndpointResolver
     private static long Emu(double value, string id)
     {
         var rounded = Math.Round(value * 12_700, MidpointRounding.ToEven);
-        // The native connector profile requires nonnegative local coordinates.
-        // Small round-off around zero is settled by EMU quantization, not clamp.
-        if (!double.IsFinite(rounded) || rounded < 0 || rounded >= long.MaxValue)
+        // Negative parent-space positions are meaningful; validate the native
+        // signed range after EMU quantization without clamping around zero.
+        if (!double.IsFinite(rounded) || rounded < PptxConnectorCodec.MinimumCoordinate || rounded > PptxConnectorCodec.MaximumCoordinate)
             throw Invalid(id, "resolved endpoint is outside the native coordinate profile");
         return checked((long)rounded);
     }

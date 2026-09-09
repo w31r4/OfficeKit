@@ -7574,7 +7574,7 @@
       "unevaluatedProperties": false
     },
     "connectorEndpoint": {
-      "description": "A literal point in connector-parent coordinates, or an expanded same-page object frame anchor. Sides and center follow target rotation/flips and ancestor child frames. Auto minimizes squared slide-space distance among top/right/bottom/left midpoint pairs in that tie order. Native metadata preserves frame-anchor identity; source-bound from/to edits require issued setConnectorEndpoints. Native geometry sites retain separate authority.",
+      "description": "A signed literal point in connector-parent coordinates, or an expanded same-page object frame anchor. Negative positions are retained without clamping; native coordinate and extent bounds are validated after EMU rounding. Sides and center follow target rotation/flips and ancestor child frames. Auto minimizes squared slide-space distance among top/right/bottom/left midpoint pairs in that tie order. Native metadata preserves frame-anchor identity; source-bound from/to edits require issued setConnectorEndpoints. Native geometry sites retain separate authority.",
       "oneOf": [
         {
           "type": "object",

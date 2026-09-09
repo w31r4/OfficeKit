@@ -3932,7 +3932,7 @@ internal static class PptxCodec
 
     private static bool HasValidSourceBoundNativeFrame(PresentationOpaqueElement frame, bool allowNegativeOffset = false)
     {
-        var negativeOffsetAllowed = allowNegativeOffset || frame.NativeKind == "picture";
+        var negativeOffsetAllowed = allowNegativeOffset || frame.NativeKind is "picture" or "connector" or "cxnSp";
         if ((!negativeOffsetAllowed && (frame.LeftEmu < 0 || frame.TopEmu < 0)) ||
             frame.WidthEmu < 0 || frame.HeightEmu < 0)
             return false;
@@ -3947,7 +3947,8 @@ internal static class PptxCodec
         // the native catalog before this validation runs.  Treat the empty
         // and native element-name forms as the same connector profile.
         if (frame.NativeKind is "connector" or "cxnSp" or "")
-            return frame.WidthEmu > 0 || frame.HeightEmu > 0;
+            return PptxConnectorCodec.IsFrame(frame.LeftEmu, frame.TopEmu, frame.WidthEmu, frame.HeightEmu) &&
+                (frame.WidthEmu > 0 || frame.HeightEmu > 0);
 
         return frame.WidthEmu > 0 && frame.HeightEmu > 0;
     }

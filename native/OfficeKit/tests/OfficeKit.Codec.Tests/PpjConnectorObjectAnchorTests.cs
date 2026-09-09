@@ -100,10 +100,14 @@ public sealed class PpjConnectorObjectAnchorTests
         // The original point (196,172) maps to (328,304).
         outer["frame"]!["flipH"] = true;
         outer["frame"]!["rotation"] = 90;
-        var rejected = Compile(program, success: false);
-        Assert.Contains(rejected.Diagnostics, d => d.Code == "ppj.connector.endpoint" && d.Message.Contains("coordinate profile"));
-        // The outside target was at negative connector-local y after rotation.
-        // Move it into the supported local space; do not clamp that endpoint.
+        result = Compile(program);
+        Coordinates(Find(result, "cross").Connector, 328, 304, 500, 300);
+        Coordinates(Find(result, "inside").Connector, 7, 4, 1.25, -18.75);
+        var signedSource = PptxCodecTests.RemoveEmbeddedPpj(result.File.ToByteArray());
+        var signedProjection = Projected(signedSource);
+        Assert.Equal("center", ByName(signedProjection, "inside")["to"]!["anchor"]!.GetValue<string>());
+        Assert.Equal(signedSource, Compile(signedProjection, source: signedSource).File.ToByteArray());
+        // Moving the outside target recomputes the same local-space endpoint.
         program["pages"]![0]!["elements"]![1]!["frame"] = Frame(200, 200, 20, 20);
         result = Compile(program);
         Coordinates(Find(result, "cross").Connector, 328, 304, 500, 300);
@@ -396,6 +400,73 @@ public sealed class PpjConnectorObjectAnchorTests
         edge["from"]!["anchor"] = "left";
         var rejected = Compile(request, source: source, success: false);
         Assert.Contains(rejected.Diagnostics, d => d.Code == "ppj.nativeRef.capabilityMissing");
+    }
+
+    [Fact]
+    public void SignedLiteralEndpointsReprojectAndEditWithoutChangingOtherParts()
+    {
+        var authored = Compile(Program(Edge("signed", Literal(-20, -10), Literal(40, 30))));
+        Coordinates(Find(authored, "signed").Connector, -20, -10, 40, 30);
+        var source = PptxCodecTests.RemoveEmbeddedPpj(authored.File.ToByteArray());
+        using (var document = PresentationDocument.Open(new MemoryStream(source), false))
+        {
+            var transform = document.PresentationPart!.SlideParts.Single().Slide.Descendants<P.ConnectionShape>().Single()
+                .ShapeProperties!.GetFirstChild<A.Transform2D>()!;
+            Assert.Equal(-20 * 12_700L, transform.Offset!.X!.Value);
+            Assert.Equal(-10 * 12_700L, transform.Offset.Y!.Value);
+        }
+        var request = Projected(source);
+        Assert.Equal(source, Compile(request, source: source).File.ToByteArray());
+        ByName(request, "signed")["from"]!["x"] = -40;
+        var edited = Compile(request, source: source);
+        var fresh = ByName(Projected(edited.File.ToByteArray()), "signed");
+        Assert.Equal(-40, fresh["from"]!["x"]!.GetValue<double>());
+        Assert.Equal(-10, fresh["from"]!["y"]!.GetValue<double>());
+        Assert.Equal(40, fresh["to"]!["x"]!.GetValue<double>());
+        AssertSlideOnly(source, edited.File.ToByteArray());
+
+        request = Projected(source);
+        ByName(request, "signed")["frame"]!["x"] = -40;
+        edited = Compile(request, source: source);
+        fresh = ByName(Projected(edited.File.ToByteArray()), "signed");
+        Assert.Equal(-40, fresh["from"]!["x"]!.GetValue<double>());
+        Assert.Equal(20, fresh["to"]!["x"]!.GetValue<double>());
+        AssertSlideOnly(source, edited.File.ToByteArray());
+
+    }
+
+    [Fact]
+    public void CoordinateBoundsRejectOverflowAndPreserveMalformedNativeSource()
+    {
+        var rejected = Compile(Program(Edge("bad", Literal(-3e9, 0), Literal(40, 30))), success: false);
+        Assert.Contains(rejected.Diagnostics, d => d.Code == "ppj.connector.endpoint");
+        Assert.Empty(rejected.File);
+        var oversized = new PresentationConnector { ConnectorType = "straight", StartXEmu = PptxConnectorCodec.MinimumCoordinate,
+            EndXEmu = PptxConnectorCodec.MaximumCoordinate };
+        Assert.Throws<CodecException>(() => PptxConnectorCodec.Validate(oversized, "bad", ""));
+        oversized.StartXEmu = long.MinValue; oversized.EndXEmu = long.MaxValue;
+        Assert.Throws<CodecException>(() => PptxConnectorCodec.Validate(oversized, "bad", ""));
+        Assert.True(PptxConnectorCodec.IsEndpointPair(PptxConnectorCodec.MinimumCoordinate, 0, PptxConnectorCodec.MinimumCoordinate, 1));
+        Assert.True(PptxConnectorCodec.IsEndpointPair(PptxConnectorCodec.MaximumCoordinate, 0, PptxConnectorCodec.MaximumCoordinate, 1));
+
+        var valid = Compile(Program(Edge("bad", Literal(10, 10), Literal(40, 30))));
+        using var stream = new MemoryStream();
+        stream.Write(PptxCodecTests.RemoveEmbeddedPpj(valid.File.ToByteArray())); stream.Position = 0;
+        using (var document = PresentationDocument.Open(stream, true))
+            document.PresentationPart!.SlideParts.Single().Slide.Descendants<A.Transform2D>().Single().Offset!.X = long.MaxValue;
+        var source = stream.ToArray();
+        var limits = EffectiveCodecLimits.From(null);
+        var imported = PptxCodec.Import(source, limits).Artifact;
+        Assert.NotNull(Assert.Single(imported.Presentation.Slides[0].Elements).Opaque);
+        Assert.Equal(source, PptxCodec.Export(imported, limits).File);
+        var projection = new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion, Operation = CodecOperation.ProjectPptxToPpj, Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source), PresentationProgram = new PresentationProgramRequest { SourceUri = "malformed.pptx" },
+        }.ToByteArray();
+        var response = PpjCodecProtocol.InvokeResponse(ref projection, null);
+        Assert.False(response.Ok);
+        Assert.Contains(response.Diagnostics, d => d.Code == "ppj.schema.maximum");
     }
 
     private static JsonObject Projected(byte[] source) => JsonNode.Parse(Project(source).PresentationProgram.ProgramJson.ToByteArray())!.AsObject();

@@ -9,7 +9,11 @@ Group child frames and component placement retain their coordinate spaces;
 issued target frame leaves also recompute dependent endpoints. The focused
 native suite passes 69/69, with original-source no-op and non-target ZIP checks.
 Native geometry-site bindings keep separate authority; opaque/connector targets,
-virtual component ports and negative connector-local coordinates fail closed.
+virtual component ports and out-of-range coordinates fail closed. Signed connector
+coordinates now retain negative positions through authored/source endpoint/frame
+edits; extreme malformed native offsets stay opaque and may exceed PPJ frame
+limits, in which case projection rejects explicitly. The signed-coordinate
+connector/preview regression run passes 65/65 (zero skipped).
 This is source-library evidence, not a rebuilt NativeAOT or PowerPoint drag test.
 Production preview adoption and full connector routing remain incomplete.
 

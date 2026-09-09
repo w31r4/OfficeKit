@@ -150,9 +150,12 @@ start then end order: top, right, bottom, left. Center is explicit only.
 
 Literal coordinates belong to the connector's parent space. Component placement
 transforms its literal endpoints and sibling frames together; group descendants
-remain in their `childFrame` space. Current native endpoints require nonnegative
-local coordinates. Missing IDs, opaque or connector targets, unresolved component
-instance ports and unrepresentable coordinates fail with a diagnostic.
+remain in their `childFrame` space. Endpoint coordinates are signed: negative
+values locate an endpoint before the page or group origin, without clamping.
+Native coordinates and extents are checked against DrawingML bounds; fresh PPJ
+projection also requires its existing frame limits. Missing IDs, opaque or
+connector targets, unresolved component instance ports and unrepresentable
+coordinates fail with a diagnostic.
 
 On a fresh source projection, use the issued `setConnectorEndpoints` capability
 to edit `from`/`to`. Moving a supported target frame or its group frame/childFrame,
