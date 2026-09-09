@@ -1360,7 +1360,7 @@ internal static partial class PpjPresentationProjector
             if (trendlines.Count > 0) output["trendlines"] = trendlines;
         }
         if (series.ErrorBars is { } errorBars &&
-            string.IsNullOrEmpty(errorBars.Plus?.Formula) && string.IsNullOrEmpty(errorBars.Minus?.Formula) &&
+            CanProjectErrorBarData(errorBars.Plus) && CanProjectErrorBarData(errorBars.Minus) &&
             ErrorBarDirection(errorBars.Direction) is { } direction &&
             ErrorBarType(errorBars.Type) is { } barType &&
             ErrorBarValueType(errorBars.ValueType) is { } valueType)
@@ -1386,9 +1386,14 @@ internal static partial class PpjPresentationProjector
     private static JsonObject ProjectErrorBarData(SpreadsheetChartErrorBarDataArtifact source)
     {
         var data = new JsonObject { ["values"] = new JsonArray(source.Values.Select(value => (JsonNode?)JsonValue.Create(value)).ToArray()) };
+        if (source.Formula.Length > 0) data["formula"] = StringNode(source.Formula);
         if (source.FormatCode.Length > 0) data["formatCode"] = StringNode(source.FormatCode);
         return data;
     }
+
+    private static bool CanProjectErrorBarData(SpreadsheetChartErrorBarDataArtifact? source) =>
+        source is null || source.Values.Count > 0 && (source.Formula.Length == 0 ||
+            PptxChartErrorDataWorkbookCodec.TryParseRange(source.Formula, out var range) && range.Length == source.Values.Count);
 
     private static JsonObject ProjectSeriesDataLabels(SpreadsheetChartSeriesDataLabelsArtifact source)
     {

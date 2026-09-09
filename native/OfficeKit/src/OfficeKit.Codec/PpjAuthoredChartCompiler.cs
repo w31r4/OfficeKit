@@ -4386,6 +4386,8 @@ internal static partial class PpjAuthoredPresentationCompiler
 
     private static SpreadsheetChartErrorBarDataArtifact BuildChartErrorBarData(JsonElement source, Catalog catalog)
     {
+        if (source.TryGetProperty("formula", out _))
+            throw Unsupported("errorBars", "formula-backed error data requires an existing source workbook");
         var data = new SpreadsheetChartErrorBarDataArtifact();
         data.Values.Add(source.GetProperty("values").EnumerateArray().Select(value => value.GetDouble()));
         if (source.TryGetProperty("formatCode", out var format))

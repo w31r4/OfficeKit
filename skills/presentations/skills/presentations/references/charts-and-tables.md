@@ -496,9 +496,20 @@ characters without controls. Side data can be changed, removed when switching
 sides, or recreated; converting between local custom and scalar modes is also
 supported. Omitting the entire errorBars object deletes it.
 
-Formula-backed error-bar data, formula/workbook synchronization, trendline labels,
-extensions and complex ChartML remain source-owned and fail closed. An absent
-PPJ object does not authorize overwriting unprojected native formula data.
+Imported custom error data can carry an existing local absolute row/column range,
+for example `"plus": { "formula": "'Sheet1'!$D$2:$D$5", "values": [0, 0.5, 1, 2] }`.
+Keep the formula and point count unchanged. Editing values updates both the
+native chart cache and matching numeric cells in its uniquely owned embedded
+XLSX, including categorical combo series and grouped charts. The cache must
+cover the complete range and agree with its worksheet cells. No-op preserves
+source bytes; cap/stroke/format-only edits leave the workbook alone.
+Missing/shared workbooks, overlapping chart consumers, formula cells and
+unsupported workbook dependencies reject value edits without an output file.
+Other workbook-backed data channels cannot change through this operation.
+
+Creating, deleting or retargeting a formula, source-free formula authoring,
+trendline labels, extensions and complex ChartML remain source-owned and fail
+closed. An absent PPJ object does not authorize overwriting unprojected data.
 Local SVG preview reports `chart-error-bars-not-rendered` as partial; verify
 exported error-bar semantics through native inspection and fresh projection.
 

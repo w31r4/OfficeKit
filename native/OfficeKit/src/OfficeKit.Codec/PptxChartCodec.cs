@@ -31,7 +31,8 @@ internal static partial class PptxChartCodec
         IReadOnlyCollection<string> AddedRelationshipKeys,
         IReadOnlyCollection<string> AddedPartPaths,
         IReadOnlyCollection<string> RemovedRelationshipKeys,
-        IReadOnlyCollection<string> RemovedPartPaths);
+        IReadOnlyCollection<string> RemovedPartPaths,
+        IReadOnlyDictionary<string, string> ReplacedPartHashes);
 
     internal static bool TryRead(P.GraphicFrame source, PptxPartContext context, out PresentationChart chart, out bool editable)
     {
@@ -133,7 +134,7 @@ internal static partial class PptxChartCodec
             new A.Graphic(new A.GraphicData(new C.ChartReference { Id = relationshipId }) { Uri = ChartGraphicDataUri }));
     }
 
-    internal static Replacement Apply(P.GraphicFrame source, PresentationElement requested, PptxPartContext context)
+    internal static Replacement Apply(P.GraphicFrame source, PresentationElement requested, PptxPartContext context, EffectiveCodecLimits limits)
     {
         if (!TryRead(source, context, out var original, out var editable) || !editable)
             throw new CodecException("unsupported_presentation_edit", $"Presentation chart {requested.Id} no longer matches the editable literal-data chart profile.");
@@ -154,8 +155,14 @@ internal static partial class PptxChartCodec
             context.Assets,
             context.CustomShows);
         var document = XDocument.Parse(ReadXml(part), LoadOptions.PreserveWhitespace);
+        var workbookReplacement = PptxChartErrorDataWorkbookCodec.Prepare(part, document, original, requested.Chart, limits);
         PatchPresentationChart(document, requested.Chart, requested.Id, requested.Name, chartContext);
         WriteXml(part, document);
+        if (workbookReplacement is not null)
+        {
+            using var workbookOutput = workbookReplacement.Part.GetStream(FileMode.Create, FileAccess.Write);
+            workbookOutput.Write(workbookReplacement.Bytes);
+        }
         var accessibilityChanged = !object.Equals(requested.Chart.Accessibility, original.Accessibility);
         if (accessibilityChanged)
             PptxNonVisualAccessibilityCodec.ApplyBound(
@@ -179,6 +186,7 @@ internal static partial class PptxChartCodec
         var addedPartPaths = chartContext.AddedPartPaths.ToArray();
         var removedPartPaths = chartContext.RemovedPartPaths.ToArray();
         var changedPartPaths = contextChangedParts
+            .Concat(workbookReplacement is null ? [] : new[] { workbookReplacement.Path })
             .Concat(addedPartPaths)
             .Concat(removedPartPaths)
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -191,7 +199,8 @@ internal static partial class PptxChartCodec
             chartContext.AddedRelationshipIds.Select(id => $"{chartPartPath}\0{id}").ToArray(),
             addedPartPaths,
             chartContext.RemovedRelationshipIds.Select(id => $"{chartPartPath}\0{id}").ToArray(),
-            removedPartPaths);
+            removedPartPaths,
+            workbookReplacement is null ? new Dictionary<string, string>() : new Dictionary<string, string> { [workbookReplacement.Path] = workbookReplacement.Sha256 });
     }
 
     internal static void Validate(PresentationChart? chart, string elementId, string name, bool allowFormulas = false)
@@ -375,7 +384,8 @@ internal static partial class PptxChartCodec
 
     private static bool TryReadChart(string xml, out SpreadsheetChartArtifact chart, out XDocument document, out bool editable)
     {
-        if (!OpenXmlChartSpaceCodec.TryRead(xml, out chart, out document, out editable, allowRichTitle: true, allowChartFrameDecorations: true, allowScatterStyleVariants: true)) return false;
+        if (!OpenXmlChartSpaceCodec.TryRead(xml, out chart, out document, out editable, allowRichTitle: true, allowChartFrameDecorations: true, allowScatterStyleVariants: true, allowEmbeddedWorkbook: true) ||
+            !PptxChartErrorDataWorkbookCodec.SupportsExternalData(document.Root!)) return false;
         return chart.Series.All(series => FormulaProfileIsSafe(series.CategoryFormula) &&
             FormulaProfileIsSafe(series.XValueFormula) &&
             FormulaProfileIsSafe(series.ValueFormula) &&

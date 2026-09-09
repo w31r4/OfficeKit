@@ -1370,7 +1370,7 @@ internal static class PptxCodec
                              requested.ContentCase == PresentationElement.ContentOneofCase.Chart &&
                              PptxChartCodec.TryRead(sourceChart, slideContext, out _, out var chartEditable) && chartEditable)
                     {
-                        var replacement = PptxChartCodec.Apply(sourceChart, requested, slideContext);
+                        var replacement = PptxChartCodec.Apply(sourceChart, requested, slideContext, limits);
                         changedParts.Add(replacement.PartPath);
                         changedParts.UnionWith(replacement.ChangedPartPaths);
                         addedRelationshipIds.UnionWith(replacement.AddedRelationshipKeys);
@@ -1378,6 +1378,7 @@ internal static class PptxCodec
                         removedSourceRelationshipKeys.UnionWith(replacement.RemovedRelationshipKeys);
                         removedSourcePartPaths.UnionWith(replacement.RemovedPartPaths);
                         replacedOpaquePartHashes.Add(replacement.PartPath, replacement.Sha256);
+                        foreach (var entry in replacement.ReplacedPartHashes) replacedOpaquePartHashes.Add(entry.Key, entry.Value);
                         changed |= replacement.SlideChanged;
                     }
                     else if (sourceElement is P.GroupShape sourceGroup &&
@@ -1385,7 +1386,7 @@ internal static class PptxCodec
                              original.ContentCase == PresentationElement.ContentOneofCase.Group &&
                              TryReadGroup(sourceGroup, original.Id, slideContext, elementIdsByNativeId, out _))
                     {
-                        if (ApplyGroup(sourceGroup, original, requested, slideContext, elementIdsByNativeId, nativeIdsByElementId, changedParts, replacedOpaquePartHashes, slideIndex, $"element {elementIndex + 1}"))
+                        if (ApplyGroup(sourceGroup, original, requested, slideContext, elementIdsByNativeId, nativeIdsByElementId, changedParts, replacedOpaquePartHashes, slideIndex, $"element {elementIndex + 1}", limits))
                             changed = true;
                     }
                     else if (requested.ContentCase == PresentationElement.ContentOneofCase.Opaque &&
@@ -2982,7 +2983,8 @@ internal static class PptxCodec
         ISet<string> changedParts,
         IDictionary<string, string> replacedOpaquePartHashes,
         int slideIndex,
-        string location)
+        string location,
+        EffectiveCodecLimits limits)
     {
         if (original.ContentCase != PresentationElement.ContentOneofCase.Group || requested.ContentCase != PresentationElement.ContentOneofCase.Group)
             throw new CodecException("presentation_group_content_changed", $"Presentation slide {slideIndex + 1} {location} changed its group content type.", PartPath(slideContext.Owner));
@@ -3091,8 +3093,7 @@ internal static class PptxCodec
                 }
                 throw new CodecException("unsupported_presentation_edit", $"Presentation slide {slideIndex + 1} {location} child {requestedIndex + 1} is read-only.", PartPath(slideContext.Owner));
             }
-            ApplyGroupChild(sourceChild, originalChild, requestedChild, slideContext, elementIdsByNativeId, nativeIdsByElementId, changedParts, replacedOpaquePartHashes, slideIndex, $"{location} child {requestedIndex + 1}");
-            changed = true;
+            changed |= ApplyGroupChild(sourceChild, originalChild, requestedChild, slideContext, elementIdsByNativeId, nativeIdsByElementId, changedParts, replacedOpaquePartHashes, slideIndex, $"{location} child {requestedIndex + 1}", limits);
         }
         if (sourceOrderChanged)
         {
@@ -3102,7 +3103,7 @@ internal static class PptxCodec
         return changed;
     }
 
-    private static void ApplyGroupChild(
+    private static bool ApplyGroupChild(
         OpenXmlElement source,
         PresentationElement original,
         PresentationElement requested,
@@ -3112,7 +3113,8 @@ internal static class PptxCodec
         ISet<string> changedParts,
         IDictionary<string, string> replacedOpaquePartHashes,
         int slideIndex,
-        string location)
+        string location,
+        EffectiveCodecLimits limits)
     {
         if (source is P.Shape shape && requested.ContentCase == PresentationElement.ContentOneofCase.Shape && IsSimpleShape(shape, slideContext, allowNegativeOffset: Geometry(shape) == "line"))
             ApplyShape(shape, requested, slideContext);
@@ -3124,12 +3126,15 @@ internal static class PptxCodec
             PptxConnectorCodec.Apply(connector, requested, nativeIdsByElementId);
         else if (source is P.GraphicFrame chart && requested.ContentCase == PresentationElement.ContentOneofCase.Chart && PptxChartCodec.TryRead(chart, slideContext, out _, out var chartEditable) && chartEditable)
         {
-            var replacement = PptxChartCodec.Apply(chart, requested, slideContext);
+            var replacement = PptxChartCodec.Apply(chart, requested, slideContext, limits);
             changedParts.Add(replacement.PartPath);
+            changedParts.UnionWith(replacement.ChangedPartPaths);
             replacedOpaquePartHashes.Add(replacement.PartPath, replacement.Sha256);
+            foreach (var entry in replacement.ReplacedPartHashes) replacedOpaquePartHashes.Add(entry.Key, entry.Value);
+            return replacement.SlideChanged;
         }
         else if (source is P.GroupShape group && requested.ContentCase == PresentationElement.ContentOneofCase.Group && original.ContentCase == PresentationElement.ContentOneofCase.Group && TryReadGroup(group, original.Id, slideContext, elementIdsByNativeId, out _))
-            _ = ApplyGroup(group, original, requested, slideContext, elementIdsByNativeId, nativeIdsByElementId, changedParts, replacedOpaquePartHashes, slideIndex, location);
+            return ApplyGroup(group, original, requested, slideContext, elementIdsByNativeId, nativeIdsByElementId, changedParts, replacedOpaquePartHashes, slideIndex, location, limits);
         else if (requested.ContentCase == PresentationElement.ContentOneofCase.Opaque &&
                  PptxNativeObjectCatalog.SupportsPlacementEditing(source))
         {
@@ -3143,6 +3148,7 @@ internal static class PptxCodec
         }
         else
             throw new CodecException("unsupported_presentation_edit", $"Presentation slide {slideIndex + 1} {location} changed outside the bounded group-child profile.", PartPath(slideContext.Owner));
+        return true;
     }
 
     private static void ValidateNativePlacementRequest(PresentationElement original, PresentationElement requested)

@@ -5962,13 +5962,17 @@ internal static class PpjSourceBoundPresentationCompiler
         if (PropertyChanged(before.Raw, after.Raw, "errorBars"))
         {
             RequireCapability(capabilityOwner, "setChartSeriesAnalytics", path + ".errorBars");
-            // Formula-backed plus/minus sources are not projected as literals.
+            // Incomplete or unsupported sources are not projected as editable data.
             // Absence in JSON must not make that owner an empty slot.
             if (target.ErrorBars is not null && !before.Raw.TryGetProperty("errorBars", out _))
                 throw Unsupported(path + ".errorBars", "replacement of unprojected source error bars");
-            target.ErrorBars = after.Raw.TryGetProperty("errorBars", out var newErrorBars)
+            var replacement = after.Raw.TryGetProperty("errorBars", out var newErrorBars)
                 ? SourceBoundChartErrorBars(newErrorBars, path + ".errorBars", grammarRoot)
                 : null;
+            if ((target.ErrorBars?.Plus?.Formula ?? "") != (replacement?.Plus?.Formula ?? "") ||
+                (target.ErrorBars?.Minus?.Formula ?? "") != (replacement?.Minus?.Formula ?? ""))
+                throw Unsupported(path + ".errorBars", "error-data formula binding topology change");
+            target.ErrorBars = replacement;
         }
     }
 
@@ -6050,6 +6054,7 @@ internal static class PpjSourceBoundPresentationCompiler
     private static SpreadsheetChartErrorBarDataArtifact SourceBoundChartErrorBarData(JsonElement source, string path, JsonElement? grammarRoot)
     {
         var data = new SpreadsheetChartErrorBarDataArtifact();
+        if (source.TryGetProperty("formula", out var formula)) data.Formula = formula.GetString()!;
         data.Values.Add(source.GetProperty("values").EnumerateArray().Select(value => value.GetDouble()));
         if (source.TryGetProperty("formatCode", out var format))
         {

@@ -122,11 +122,11 @@ public sealed partial class PptxCodecTests
             if (variant == "custom")
             {
                 var series = TrendlineListSeries(program, seriesIndex);
-                Assert.Null(series["errorBars"]);
+                Assert.Equal("'Sheet1'!$D$2:$D$5", series["errorBars"]!["plus"]!["formula"]!.GetValue<string>());
                 series["errorBars"] = JsonNode.Parse("""{"valueType":"fixed-value","value":1}""");
                 var rejected = CompileTrendlineList(program, input);
                 Assert.False(rejected.Ok);
-                Assert.Contains("unprojected source error bars", Diagnostics(rejected));
+                Assert.Contains("formula binding topology change", Diagnostics(rejected));
             }
             else
             {

@@ -5,6 +5,19 @@ namespace OfficeKit.Codec;
 
 internal static partial class PptxEditPlanCodec
 {
+    internal static byte[] PatchEmbeddedNumericCells(byte[] package, IReadOnlyList<PresentationEditOperation> operations)
+    {
+        var parts = PackageParts(package);
+        var replacements = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+        foreach (var group in operations.GroupBy(operation => operation.EmbeddedWorksheetPartPath, StringComparer.OrdinalIgnoreCase))
+        {
+            var proofs = group.Select(operation => new PptxEditPlanProof(operation, string.Empty, group.Key)).ToArray();
+            var patches = CompileWorksheetValueXmlPatches(parts[group.Key], proofs);
+            replacements.Add(group.Key, ApplyPatches(parts[group.Key], patches, new List<PresentationEditOperationResult>()));
+        }
+        return ReplaceParts(package, replacements);
+    }
+
     private const string SpreadsheetNamespace = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 
     [GeneratedRegex("^</?(?:(?<prefix>[A-Za-z_][\\w.-]*):)?(?<name>[A-Za-z_][\\w.-]*)\\b", RegexOptions.CultureInvariant)]

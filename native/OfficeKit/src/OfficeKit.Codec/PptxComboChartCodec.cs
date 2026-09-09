@@ -224,7 +224,7 @@ internal static partial class PptxChartCodec
         var root = document.Root;
         var nativeChart = root?.Element(ChartNs + "chart");
         var plotArea = nativeChart?.Element(ChartNs + "plotArea");
-        if (root?.Name != ChartNs + "chartSpace" || nativeChart is null || plotArea is null || root.Element(ChartNs + "externalData") is not null) return false;
+        if (root?.Name != ChartNs + "chartSpace" || nativeChart is null || plotArea is null || !PptxChartErrorDataWorkbookCodec.SupportsExternalData(root)) return false;
         if (!XlsxChartTextStyleCodec.TryReadGlobalFontFamily(root, out var textStyle)) editable = false;
         else if (textStyle is not null) chart.TextStyle = textStyle;
         var plots = plotArea.Elements().Where(item => item.Name.LocalName.EndsWith("Chart", StringComparison.Ordinal)).ToArray();

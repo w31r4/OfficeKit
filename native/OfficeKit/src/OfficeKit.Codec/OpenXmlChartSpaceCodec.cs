@@ -26,7 +26,8 @@ internal static class OpenXmlChartSpaceCodec
         out bool editable,
         bool allowRichTitle = false,
         bool allowChartFrameDecorations = false,
-        bool allowScatterStyleVariants = false)
+        bool allowScatterStyleVariants = false,
+        bool allowEmbeddedWorkbook = false)
     {
         chart = new SpreadsheetChartArtifact();
         editable = true;
@@ -35,7 +36,7 @@ internal static class OpenXmlChartSpaceCodec
         var root = document.Root;
         var nativeChart = root?.Element(ChartNs + "chart");
         var plotArea = nativeChart?.Element(ChartNs + "plotArea");
-        if (root?.Name != ChartNs + "chartSpace" || nativeChart is null || plotArea is null || root.Element(ChartNs + "externalData") is not null) return false;
+        if (root?.Name != ChartNs + "chartSpace" || nativeChart is null || plotArea is null || !allowEmbeddedWorkbook && root.Element(ChartNs + "externalData") is not null) return false;
         if (!XlsxChartTextStyleCodec.TryReadGlobalFontFamily(root, out var textStyle)) editable = false;
         else if (textStyle is not null) chart.TextStyle = textStyle;
         if (!TryReadStyleIndex(root, out var hasStyleIndex, out var styleIndex)) editable = false;

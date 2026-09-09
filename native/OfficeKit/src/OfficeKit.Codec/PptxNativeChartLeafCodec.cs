@@ -451,7 +451,7 @@ internal static partial class PptxNativeChartLeafCodec
         return ValidNumber(value);
     }
 
-    private static bool TryParseRange(string formula, out PptxCellRange range)
+    internal static bool TryParseRange(string formula, out PptxCellRange range, uint maxPoints = MaxDataPointLeaves)
     {
         range = default;
         var match = CellRangeFormulaPattern().Match(formula);
@@ -462,11 +462,12 @@ internal static partial class PptxNativeChartLeafCodec
         var startColumn = ColumnNumber(match.Groups["startColumn"].Value);
         var endColumn = match.Groups["endColumn"].Success ? ColumnNumber(match.Groups["endColumn"].Value) : startColumn;
         if (!uint.TryParse(match.Groups["startRow"].Value, out var startRow)) return false;
-        var endRow = match.Groups["endRow"].Success && uint.TryParse(match.Groups["endRow"].Value, out var parsedEndRow) ? parsedEndRow : startRow;
-        if (startColumn <= 0 || endColumn <= 0 || startRow == 0 || endRow == 0 ||
+        var endRow = startRow;
+        if (match.Groups["endRow"].Success && !uint.TryParse(match.Groups["endRow"].Value, out endRow)) return false;
+        if (startColumn <= 0 || endColumn <= 0 || startRow is 0 or > 1_048_576 || endRow is 0 or > 1_048_576 ||
             (startColumn != endColumn && startRow != endRow) || endColumn < startColumn || endRow < startRow) return false;
         var length = checked((uint)(endColumn - startColumn) + (endRow - startRow) + 1);
-        if (length is 0 or > MaxDataPointLeaves) return false;
+        if (length == 0 || length > maxPoints) return false;
         range = new PptxCellRange(sheetName, startColumn, startRow, endColumn, endRow, length);
         return true;
     }
@@ -490,7 +491,7 @@ internal static partial class PptxNativeChartLeafCodec
         return result;
     }
 
-    private readonly record struct PptxCellRange(
+    internal readonly record struct PptxCellRange(
         string SheetName,
         int StartColumn,
         uint StartRow,

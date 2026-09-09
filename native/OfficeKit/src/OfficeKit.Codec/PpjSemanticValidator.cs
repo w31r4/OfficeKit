@@ -645,7 +645,7 @@ internal static class PpjSemanticValidator
         }
         if (value.ValueKind != JsonValueKind.Object) return;
 
-        if (value.TryGetProperty("formula", out var formula))
+        if (value.TryGetProperty("formula", out var formula) && formula.ValueKind == JsonValueKind.Object)
         {
             var sourcePath = PathWithProperties(path, "formula", "source");
             try

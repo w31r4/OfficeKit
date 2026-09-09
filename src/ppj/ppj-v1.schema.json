@@ -6968,6 +6968,10 @@
       "additionalProperties": false,
       "required": ["values"],
       "properties": {
+        "formula": {
+          "$ref": "#/$defs/chartFormula",
+          "description": "Imported local range binding. Keep it unchanged; editing values requires proven cache/embedded-worksheet ownership. Source-free formula authoring is unsupported."
+        },
         "values": {
           "type": "array",
           "minItems": 1,
