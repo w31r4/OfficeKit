@@ -132,55 +132,63 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     }
 
     [Theory]
-    [InlineData("shape")]
-    [InlineData("text")]
-    [InlineData("master")]
-    [InlineData("layout")]
-    [InlineData("table")]
-    public void ColumnGapSourceRemovalAndRestorationPreserveOtherState(string kind)
+    [InlineData("shape", "columnGap")]
+    [InlineData("shape", "columns")]
+    [InlineData("text", "columnGap")]
+    [InlineData("text", "columns")]
+    [InlineData("master", "columnGap")]
+    [InlineData("master", "columns")]
+    [InlineData("layout", "columnGap")]
+    [InlineData("layout", "columns")]
+    [InlineData("table", "columnGap")]
+    [InlineData("table", "columns")]
+    public void NumericColumnPropertySourceRemovalAndRestorationPreserveOtherState(string kind, string field)
     {
         var program = Program(kind); var style = Style(program, kind);
         style["columnGap"] = 12.5; style["columns"] = 3; style["columnDirection"] = "right-to-left";
         var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
         var original = source.ToArray();
         var request = Project(source);
-        Assert.Equal(12.5, Style(request, kind)["columnGap"]!.GetValue<double>());
+        Assert.Equal(field == "columns" ? 3 : 12.5, Style(request, kind)[field]!.GetValue<double>());
         Assert.Equal(source, Compile(request, source).File.ToByteArray());
-        Assert.Equal(158750, Body(source, kind).ColumnSpacing!.Value);
-        Style(request, kind).Remove("columnGap");
+        Assert.Equal(field == "columns" ? 3 : 158750, NumericColumnProperty(source, kind, field));
+        Style(request, kind).Remove(field);
         var deleted = Compile(request, source).File.ToByteArray();
-        Assert.Null(Body(deleted, kind).ColumnSpacing);
-        Assert.False(Style(Project(deleted), kind).ContainsKey("columnGap"));
-        AssertOnlyBodyPropertyChanged(source, deleted, kind, "columnGap");
-        foreach (var value in new[] { 0d, 12.5d, 10000d })
+        Assert.Null(NumericColumnProperty(deleted, kind, field));
+        Assert.False(Style(Project(deleted), kind).ContainsKey(field));
+        AssertOnlyBodyPropertyChanged(source, deleted, kind, field);
+        foreach (var value in field == "columns" ? new[] { 1d, 3d, 16d } : new[] { 0d, 12.5d, 10000d })
         {
             var restore = Project(deleted);
-            Style(restore, kind)["columnGap"] = value;
+            Style(restore, kind)[field] = value;
             var restored = Compile(restore, deleted).File.ToByteArray();
-            Assert.Equal(checked((int)(value * 12700)), Body(restored, kind).ColumnSpacing!.Value);
-            Assert.Equal(value, Style(Project(restored), kind)["columnGap"]!.GetValue<double>());
-            AssertOnlyBodyPropertyChanged(deleted, restored, kind, "columnGap");
+            Assert.Equal(checked((int)(value * (field == "columns" ? 1 : 12700))), NumericColumnProperty(restored, kind, field));
+            Assert.Equal(value, Style(Project(restored), kind)[field]!.GetValue<double>());
+            AssertOnlyBodyPropertyChanged(deleted, restored, kind, field);
             var removeAgain = Project(restored);
-            Style(removeAgain, kind).Remove("columnGap");
-            Assert.Null(Body(Compile(removeAgain, restored).File.ToByteArray(), kind).ColumnSpacing);
+            Style(removeAgain, kind).Remove(field);
+            Assert.Null(NumericColumnProperty(Compile(removeAgain, restored).File.ToByteArray(), kind, field));
         }
         Assert.Equal(original, source);
     }
 
     [Theory]
-    [InlineData("shape")]
-    [InlineData("table")]
-    public void ColumnGapOnlyAndCombinedRemovableStylesPreservePresence(string kind)
+    [InlineData("shape", "columnGap")]
+    [InlineData("shape", "columns")]
+    [InlineData("table", "columnGap")]
+    [InlineData("table", "columns")]
+    public void NumericColumnPropertyOnlyAndCombinedRemovableStylesPreservePresence(string kind, string field)
     {
         foreach (var withOtherProperties in new[] { false, true })
         {
             var program = Program(kind); var style = Style(program, kind);
-            style.Clear(); style["columnGap"] = 12.5;
+            style.Clear(); style[field] = field == "columns" ? 3 : 12.5;
             if (withOtherProperties)
             {
                 style["upright"] = false; style["rotation"] = 12;
-                foreach (var field in new[] { "columnDirection", "verticalText", "wrap", "horizontalOverflow", "verticalOverflow", "verticalAlignment" })
-                    style[field] = BodyPropertyValues(field).First();
+                style[field == "columns" ? "columnGap" : "columns"] = field == "columns" ? 12.5 : 3;
+                foreach (var otherField in new[] { "columnDirection", "verticalText", "wrap", "horizontalOverflow", "verticalOverflow", "verticalAlignment" })
+                    style[otherField] = BodyPropertyValues(otherField).First();
             }
             var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
             var request = Project(source);
@@ -188,29 +196,34 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                 request["pages"]![0]!["elements"]![0]!["rows"]![0]!["cells"]![0]!["text"])!.AsObject();
             owner.Remove(kind == "shape" ? "textStyle" : "style");
             var deleted = Compile(request, source).File.ToByteArray();
-            Assert.Null(Body(deleted, kind).ColumnSpacing);
+            Assert.Null(NumericColumnProperty(deleted, kind, field));
             Assert.Null(Body(deleted, kind).UpRight);
             if (withOtherProperties)
             {
                 Assert.Null(Body(deleted, kind).Rotation);
-                foreach (var field in new[] { "columnDirection", "verticalText", "wrap", "horizontalOverflow", "verticalOverflow", "verticalAlignment" })
-                    AssertBodyPropertyValue(deleted, kind, field, null);
+                Assert.Null(Body(deleted, kind).ColumnCount);
+                Assert.Null(Body(deleted, kind).ColumnSpacing);
+                foreach (var otherField in new[] { "columnDirection", "verticalText", "wrap", "horizontalOverflow", "verticalOverflow", "verticalAlignment" })
+                    AssertBodyPropertyValue(deleted, kind, otherField, null);
             }
-            if (!withOtherProperties) AssertOnlyBodyPropertyChanged(source, deleted, kind, "columnGap");
+            if (!withOtherProperties) AssertOnlyBodyPropertyChanged(source, deleted, kind, field);
             var restore = Project(deleted);
             var element = restore["pages"]![0]!["elements"]![0]!;
-            if (kind == "shape") element["textStyle"] = new JsonObject { ["columnGap"] = 0 };
+            if (kind == "shape") element["textStyle"] = new JsonObject { [field] = field == "columns" ? 1 : 0 };
             else element["rows"]![0]!["cells"]![0]!["text"] = new JsonObject
             {
-                ["style"] = new JsonObject { ["columnGap"] = 0 },
+                ["style"] = new JsonObject { [field] = field == "columns" ? 1 : 0 },
                 ["paragraphs"] = new JsonArray(new JsonObject { ["runs"] = new JsonArray(new JsonObject { ["text"] = "Retain this text" }) }),
             };
             var restored = Compile(restore, deleted).File.ToByteArray();
-            Assert.Equal(0, Body(restored, kind).ColumnSpacing!.Value);
-            Assert.Equal(0, Style(Project(restored), kind)["columnGap"]!.GetValue<double>());
-            AssertOnlyBodyPropertyChanged(deleted, restored, kind, "columnGap");
+            Assert.Equal(field == "columns" ? 1 : 0, NumericColumnProperty(restored, kind, field));
+            Assert.Equal(field == "columns" ? 1 : 0, Style(Project(restored), kind)[field]!.GetValue<double>());
+            AssertOnlyBodyPropertyChanged(deleted, restored, kind, field);
         }
     }
+
+    private static int? NumericColumnProperty(byte[] bytes, string kind, string field) =>
+        field == "columns" ? Body(bytes, kind).ColumnCount?.Value : Body(bytes, kind).ColumnSpacing?.Value;
 
     [Theory]
     [InlineData("shape")]
@@ -506,6 +519,11 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         {
             Assert.Single(oldSlide.Descendants<A.BodyProperties>()).ColumnSpacing = null;
             Assert.Single(newSlide.Descendants<A.BodyProperties>()).ColumnSpacing = null;
+        }
+        else if (field == "columns")
+        {
+            Assert.Single(oldSlide.Descendants<A.BodyProperties>()).ColumnCount = null;
+            Assert.Single(newSlide.Descendants<A.BodyProperties>()).ColumnCount = null;
         }
         else if (field == "verticalAlignment")
         {

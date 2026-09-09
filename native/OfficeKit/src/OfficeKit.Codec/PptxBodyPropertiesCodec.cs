@@ -152,7 +152,8 @@ internal static class PptxBodyPropertiesCodec
             (source.AutoFitCase is PresentationTextBodyProperties.AutoFitOneofCase.None or PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode) &&
             (source.VerticalTextCase is PresentationTextBodyProperties.VerticalTextOneofCase.None or PresentationTextBodyProperties.VerticalTextOneofCase.VerticalTextMode ||
                 source.VerticalTextCase == PresentationTextBodyProperties.VerticalTextOneofCase.NoVerticalTextMode && source.NoVerticalTextMode) &&
-            (source.ColumnCountCase is PresentationTextBodyProperties.ColumnCountOneofCase.None or PresentationTextBodyProperties.ColumnCountOneofCase.Columns) &&
+            (source.ColumnCountCase is PresentationTextBodyProperties.ColumnCountOneofCase.None or PresentationTextBodyProperties.ColumnCountOneofCase.Columns ||
+                source.ColumnCountCase == PresentationTextBodyProperties.ColumnCountOneofCase.NoColumns && source.NoColumns) &&
             (source.ColumnSpacingCase is PresentationTextBodyProperties.ColumnSpacingOneofCase.None or PresentationTextBodyProperties.ColumnSpacingOneofCase.ColumnSpacingEmu ||
                 source.ColumnSpacingCase == PresentationTextBodyProperties.ColumnSpacingOneofCase.NoColumnSpacing && source.NoColumnSpacing) &&
             (source.ColumnDirectionCase is PresentationTextBodyProperties.ColumnDirectionOneofCase.None or PresentationTextBodyProperties.ColumnDirectionOneofCase.RightToLeftColumns ||

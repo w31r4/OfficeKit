@@ -463,6 +463,14 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+2026-09-10 增量：`columns`（整数 1..16）补齐 source-bound 删除与恢复；
+显式单栏 `1` 与缺失分开保留。删除映射为移除原生 `numCol`，保留
+`columnGap` 和 `columnDirection`。现有数值属性实验增加 7 个场景，覆盖
+text/shape/master/layout/table、1/3/16 恢复、简单样式整组删除、表格紧凑文字
+恢复、no-op 字节及非目标 XML/ZIP 保留。相关原生回归 89/89、0 跳过；
+schema、Help、registry、Skill 与预览限制已同步。完整继承和宿主分栏排版仍待补齐。
+
+
 **分栏间距删除增量（2026-09-10）：** `columnGap` 以 points 表达 0..10000，显式 0 保留原生零间距，删除移除 `bodyPr/@spcCol`。文本、shape、master/layout placeholder 和表格已闭合源删除及恢复；新增 7 个共享生命周期用例验证 0/12.5/10000 的实际 EMU、原源 no-op、简单样式删除、表格纯文本后的结构化恢复，以及 columns/columnDirection/其它 XML/非目标 ZIP 保留。相关专项 82/82、零跳过；简单样式删除字段新增 columnGap。预览保留分栏诊断，宿主排版、完整继承和其它属性删除仍开放。
 
 **垂直对齐删除增量（2026-09-10）：** `verticalAlignment` 已闭合 top/middle/bottom/省略的源编辑与恢复；middle 保持原生 Center 映射，删除移除 `bodyPr/@anchor`，独立的 anchorCenter 保留。文本、shape、master/layout placeholder 和表格共用枚举实验，新增 7 例，相关专项 75/75、零跳过；覆盖原源 no-op、三值恢复、简单样式整体删除、表格纯文本后的结构化恢复及其它 XML/非目标 ZIP 保留。简单样式删除字段新增 verticalAlignment；anchorCenter 等其它字段仍受既有删除边界约束。预览保留布局诊断，宿主排版和完整继承仍开放。
@@ -711,6 +719,10 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 **本轮继续拆出同一图片 owner 的 bottom bevel 枚举：** 已有 `shape3dBevelBottomPreset` 也绑定严格图片 owner 的 `p:pic/p:spPr/a:sp3d/a:bevelB/@prst`；新增 additive `PresentationImage.shape_3d_bevel_bottom_preset` source-bound 载体，`PpjSourceBoundPictureShape3dBevelBottomPresetLeafEditsAndReprojects` 验证 `angle` → `softRound` 的单 `bevelB/@prst` token splice、仅目标 SlidePart、图片关系/crop/mask/effect、bevel 尺寸与其它 3-D 状态保留、Open XML 和二次投影。未知属性、额外子节点、顶面 bevel、scene、颜色和复杂/扩展 3-D graph 仍 source-owned。
 
 ### F-06 Table、Cell Style 和 Table Layout
+
+2026-09-10：表格 `text.style.columns` 的删除、显式 1/3/16 恢复及简单样式
+删除后的紧凑文字恢复已进入共享回归，见 F-03；保持固定段落/run 拓扑与编辑权限边界。
+
 
 **分栏间距删除增量（2026-09-10）：** 表格 `text.style.columnGap` 的显式 0、小数、上限、删除和恢复已闭合，列数和方向保留；简单样式删除及纯文本规范化/恢复证据见 F-03。
 

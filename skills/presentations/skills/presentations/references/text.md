@@ -32,7 +32,7 @@ Simple PPJ text is a string. Mixed formatting uses `paragraphs[]` and `runs[]`.
 Do not put Markdown, HTML, CSS, or invented inline markup into a text string.
 Assign language and font roles explicitly for mixed-script runs.
 
-`columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
+`columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.
 Explicit `true`/`false` for upright and signed degrees/zero for rotation retain
 direct native values. Column direction uses `left-to-right` (explicit native false)
@@ -49,9 +49,11 @@ Vertical alignment uses `top`, `middle` or `bottom`; middle maps to native cente
 Source removal deletes `anchor` without changing the independent `anchorCenter`.
 Column spacing uses `columnGap` in points (0..10000). Explicit zero remains a
 direct value; source removal deletes `spcCol` and preserves columns/direction.
+Column count uses `columns` (integers 1..16). Explicit 1 remains a direct value;
+source removal deletes `numCol` and preserves spacing/direction.
 On a fresh source PPJ, delete any of these properties to remove that native attribute and
 restore inherited/default behavior. You may remove a style object containing only
-`columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and/or `verticalOverflow`. If a table cell then projects as plain text, add the
+`columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and/or `verticalOverflow`. If a table cell then projects as plain text, add the
 body style through structured text while retaining its native paragraph/run topology.
 Keep other body properties and use the issued `setTextBodyStyle` or table-cell
 text-style capability; unsupported placeholder owners retain their source boundary.

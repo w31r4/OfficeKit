@@ -2,6 +2,16 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ text-body `columns` lifecycle (2026-09-10): explicit counts 1..16 and
+absence now retain distinct native numCol states. The shared numeric regression
+adds seven cases across text/shape/master/layout/table, restoring 1/3/16,
+preserving gap/direction, testing simple-style deletion and compact table
+restoration, exact no-op bytes and surrounding XML/non-target ZIP entries.
+Related native body/placeholder/table-text selection passes 89/89, zero skipped
+(SDK 8.0.128). Preview input/capability, generated reference/matrix, Skill
+portability/reference sync and strict OpenSpec pass. No wire change, NativeAOT
+rebuild or host column-layout acceptance; other deletion/inheritance gaps remain.
+
 PPJ text-body `columnGap` lifecycle (2026-09-10): explicit zero/fractional spacing
 and source removal now retain distinct native spcCol states. Seven new cases in
 the shared lifecycle fixture cover text/shape/master/layout/table, 0/12.5/10000

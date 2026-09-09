@@ -266,6 +266,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             if (requested.ColumnCountCase == PresentationTextBodyProperties.ColumnCountOneofCase.Columns)
                 current.Columns = requested.Columns;
         }
+        else if (previousStyle is { ValueKind: JsonValueKind.Object } previousColumns && previousColumns.TryGetProperty("columns", out _))
+            current.NoColumns = true;
         if (style.TryGetProperty("columnGap", out _))
         {
             current.ClearColumnSpacing();
