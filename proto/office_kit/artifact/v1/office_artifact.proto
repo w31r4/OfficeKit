@@ -3511,6 +3511,9 @@ message PresentationTextBodyProperties {
   // Source-edit intent only. Must be true when present and cannot coexist
   // with anchor_center, including an explicit false setter.
   optional bool no_anchor_center = 40;
+  // Source-edit intent only. Must be true when present and cannot coexist
+  // with force_anti_alias, including an explicit false setter.
+  optional bool no_force_anti_alias = 41;
 }
 
 message PresentationTextStyle {

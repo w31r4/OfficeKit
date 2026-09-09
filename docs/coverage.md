@@ -2,6 +2,17 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ text-body `forceAntiAlias` lifecycle (2026-09-10): explicit true/false and
+source absence are distinct; deletion removes forceAA while preserving
+anchorCenter/verticalAlignment. Seven shared boolean cases and one additional
+wire case cover supported owners, compact table restoration, authority and
+other-field guards. Related native selection passes 120/120, zero skipped
+(SDK 8.0.128). Optional no_force_anti_alias field 41 preserves field 33 encoding;
+C#/JS wire experiments, proto:check, scene wire, preview input/capability,
+generated reference/matrix, portability/reference sync and strict OpenSpec pass.
+Deletion requires updated codec; no NativeAOT rebuild or anti-alias rendering
+acceptance. Other-field rejection now uses spaceFirstLastParagraph.
+
 PPJ text-body `anchorCenter` lifecycle (2026-09-10): true/false/source absence
 are distinct across supported text/shape/master/layout/table owners. Seven
 shared boolean cases cover deletion/restoration, simple-style/compact table

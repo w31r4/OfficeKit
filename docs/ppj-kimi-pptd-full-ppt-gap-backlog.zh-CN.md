@@ -463,6 +463,14 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+2026-09-10 增量：`forceAntiAlias` 已区分 true/false/缺失，删除移除原生
+`forceAA`，保留 `anchorCenter` 与垂直对齐。新增删除标记
+`no_force_anti_alias=41`，旧字段 33 编码不变；false 删除及设置/删除并存被拒绝。
+复用 7 个布尔生命周期场景和 1 个协议场景，相关原生 120/120、0 跳过，
+C#/JS 编码、proto:check 与资料检查通过。新删除需要更新 codec；未重建
+NativeAOT，提示字段不代表宿主抗锯齿效果已验收。
+
+
 2026-09-10 增量：`anchorCenter` 已区分 true/false/省略；删除移除原生
 `anchorCtr`，保留 `verticalAlignment`。协议新增可选删除标记
 `no_anchor_center=40`，旧布尔字段 32 编码不变；拒绝 false 删除命令及设置/删除
@@ -743,6 +751,10 @@ schema、Help、registry、Skill 与预览限制已同步。完整继承和宿�
 **本轮继续拆出同一图片 owner 的 bottom bevel 枚举：** 已有 `shape3dBevelBottomPreset` 也绑定严格图片 owner 的 `p:pic/p:spPr/a:sp3d/a:bevelB/@prst`；新增 additive `PresentationImage.shape_3d_bevel_bottom_preset` source-bound 载体，`PpjSourceBoundPictureShape3dBevelBottomPresetLeafEditsAndReprojects` 验证 `angle` → `softRound` 的单 `bevelB/@prst` token splice、仅目标 SlidePart、图片关系/crop/mask/effect、bevel 尺寸与其它 3-D 状态保留、Open XML 和二次投影。未知属性、额外子节点、顶面 bevel、scene、颜色和复杂/扩展 3-D graph 仍 source-owned。
 
 ### F-06 Table、Cell Style 和 Table Layout
+
+2026-09-10：`text.style.forceAntiAlias` 删除与布尔恢复已进入共享回归，
+包含简单样式整组删除和表格紧凑文字恢复；见 F-03 的 120/120 专项。
+
 
 2026-09-10：表格 `text.style.anchorCenter` 删除/布尔恢复、简单样式删除后
 紧凑文字恢复已进入共享回归，保留垂直对齐和固定文字拓扑；见 F-03 的 112/112。

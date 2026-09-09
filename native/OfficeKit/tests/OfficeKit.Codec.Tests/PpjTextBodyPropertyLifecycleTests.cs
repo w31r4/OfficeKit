@@ -12,26 +12,30 @@ namespace OfficeKit.Codec.Tests;
 
 public sealed class PpjTextBodyPropertyLifecycleTests
 {
-    [Fact]
-    public void AnchorCenterDeletionWireIntentIsUnambiguous()
+    [Theory]
+    [InlineData(32, 40)]
+    [InlineData(33, 41)]
+    public void OptionalBooleanDeletionWireIntentIsUnambiguous(int setterNumber, int deleteNumber)
     {
+        var setter = PresentationTextBodyProperties.Descriptor.FindFieldByNumber(setterNumber).Accessor;
+        var deleter = PresentationTextBodyProperties.Descriptor.FindFieldByNumber(deleteNumber).Accessor;
         foreach (var value in new[] { false, true })
         {
-            var properties = new PresentationTextBodyProperties { AnchorCenter = value };
-            Assert.Equal(new byte[] { 0x80, 0x02, value ? (byte)1 : (byte)0 }, properties.ToByteArray());
+            var properties = new PresentationTextBodyProperties();
+            setter.SetValue(properties, value);
+            Assert.Equal(new byte[] { (byte)(0x80 | ((setterNumber << 3) & 0x7f)), 0x02, value ? (byte)1 : (byte)0 }, properties.ToByteArray());
             PptxBodyPropertiesCodec.Validate(new PresentationTextBody { BodyProperties = properties });
         }
-        var remove = PresentationTextBodyProperties.Parser.ParseFrom(new PresentationTextBodyProperties { NoAnchorCenter = true }.ToByteArray());
-        Assert.True(remove.HasNoAnchorCenter); Assert.True(remove.NoAnchorCenter); Assert.False(remove.HasAnchorCenter);
+        var command = new PresentationTextBodyProperties(); deleter.SetValue(command, true);
+        var remove = PresentationTextBodyProperties.Parser.ParseFrom(command.ToByteArray());
+        Assert.True(deleter.HasValue(remove)); Assert.Equal(true, deleter.GetValue(remove)); Assert.False(setter.HasValue(remove));
         PptxBodyPropertiesCodec.Validate(new PresentationTextBody { BodyProperties = remove });
         Assert.True(PptxBodyPropertiesCodec.SupportsBoundedDirectLayout(remove));
-        foreach (var invalid in new[]
+        foreach (bool? setterValue in new bool?[] { null, false, true })
         {
-            new PresentationTextBodyProperties { NoAnchorCenter = false },
-            new PresentationTextBodyProperties { NoAnchorCenter = true, AnchorCenter = false },
-            new PresentationTextBodyProperties { NoAnchorCenter = true, AnchorCenter = true },
-        })
-        {
+            var invalid = new PresentationTextBodyProperties();
+            deleter.SetValue(invalid, setterValue is not null);
+            if (setterValue is { } value) setter.SetValue(invalid, value);
             Assert.Throws<CodecException>(() => PptxBodyPropertiesCodec.Validate(new PresentationTextBody { BodyProperties = invalid }));
             Assert.False(PptxBodyPropertiesCodec.SupportsBoundedDirectLayout(invalid));
         }
@@ -527,8 +531,10 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [Theory]
     [InlineData("shape", "upright")]
     [InlineData("shape", "anchorCenter")]
+    [InlineData("shape", "forceAntiAlias")]
     [InlineData("table", "upright")]
     [InlineData("table", "anchorCenter")]
+    [InlineData("table", "forceAntiAlias")]
     public void BooleanBodyStyleCanBeRemovedWithExistingAuthority(string kind, string field)
     {
         var program = Program(kind);
@@ -563,7 +569,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         Assert.Empty(Compile(denied, source, success: false).File);
 
         var otherProgram = Program(kind);
-        Style(otherProgram, kind)["forceAntiAlias"] = true;
+        Style(otherProgram, kind)["spaceFirstLastParagraph"] = true;
         var otherSource = PptxCodecTests.RemoveEmbeddedPpj(Compile(otherProgram).File.ToByteArray());
         var otherEdit = Project(otherSource);
         StyleOwner(otherEdit).Remove(kind == "shape" ? "textStyle" : "style");
@@ -573,18 +579,24 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [Theory]
     [InlineData("shape", "upright")]
     [InlineData("shape", "anchorCenter")]
+    [InlineData("shape", "forceAntiAlias")]
     [InlineData("text", "upright")]
     [InlineData("text", "anchorCenter")]
+    [InlineData("text", "forceAntiAlias")]
     [InlineData("master", "upright")]
     [InlineData("master", "anchorCenter")]
+    [InlineData("master", "forceAntiAlias")]
     [InlineData("layout", "upright")]
     [InlineData("layout", "anchorCenter")]
+    [InlineData("layout", "forceAntiAlias")]
     [InlineData("table", "upright")]
     [InlineData("table", "anchorCenter")]
+    [InlineData("table", "forceAntiAlias")]
     public void BooleanBodySourceRemovalAndRestorationPreserveOtherState(string kind, string field)
     {
         var program = Program(kind);
         Style(program, kind)[field] = true;
+        if (field == "forceAntiAlias") Style(program, kind)["anchorCenter"] = false;
         Style(program, kind)["verticalAlignment"] = "middle";
         var authored = Compile(program);
         var source = PptxCodecTests.RemoveEmbeddedPpj(authored.File.ToByteArray());
@@ -615,7 +627,8 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     }
 
     private static bool? BooleanBodyProperty(byte[] bytes, string kind, string field) =>
-        field == "anchorCenter" ? Body(bytes, kind).AnchorCenter?.Value : Body(bytes, kind).UpRight?.Value;
+        field switch { "anchorCenter" => Body(bytes, kind).AnchorCenter?.Value,
+            "forceAntiAlias" => Body(bytes, kind).ForceAntiAlias?.Value, _ => Body(bytes, kind).UpRight?.Value };
 
     private static string[] BodyPropertyValues(string field) => field switch
     {
@@ -785,6 +798,11 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         {
             Assert.Single(oldSlide.Descendants<A.BodyProperties>()).AnchorCenter = null;
             Assert.Single(newSlide.Descendants<A.BodyProperties>()).AnchorCenter = null;
+        }
+        else if (field == "forceAntiAlias")
+        {
+            Assert.Single(oldSlide.Descendants<A.BodyProperties>()).ForceAntiAlias = null;
+            Assert.Single(newSlide.Descendants<A.BodyProperties>()).ForceAntiAlias = null;
         }
         else if (field == "columnGap")
         {

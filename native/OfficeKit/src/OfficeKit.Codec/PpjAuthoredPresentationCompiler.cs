@@ -190,7 +190,15 @@ internal static partial class PpjAuthoredPresentationCompiler
             current.NoAnchorCenter = true;
         }
         if (style.TryGetProperty("forceAntiAlias", out _))
+        {
+            current.ClearNoForceAntiAlias();
             current.ForceAntiAlias = requested.ForceAntiAlias;
+        }
+        else if (previousStyle is { ValueKind: JsonValueKind.Object } previousAntiAlias && previousAntiAlias.TryGetProperty("forceAntiAlias", out _))
+        {
+            current.ClearForceAntiAlias();
+            current.NoForceAntiAlias = true;
+        }
         if (style.TryGetProperty("spaceFirstLastParagraph", out _))
             current.SpaceFirstLastParagraph = requested.SpaceFirstLastParagraph;
         if (style.TryGetProperty("compatibleLineSpacing", out _))
