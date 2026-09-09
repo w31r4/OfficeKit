@@ -93,7 +93,7 @@ internal static class XlsxChartTextStyleCodec
         !style.HasLanguage &&
         !style.HasStrike &&
         !style.HasBaselineThousandthPercent &&
-        style.Shadow is null && !style.HasHighlightRgb && !style.HasKerningHundredthPoints && !style.HasLetterSpacingHundredthPoints && !style.HasCapitalization &&
+        style.Glow is null && style.Shadow is null && !style.HasHighlightRgb && !style.HasKerningHundredthPoints && !style.HasLetterSpacingHundredthPoints && !style.HasCapitalization &&
         !style.HasFontSizePoints &&
         !style.HasBold &&
         !style.HasItalic &&
@@ -210,7 +210,7 @@ internal static class XlsxChartTextStyleCodec
             style.HasCapitalization ? style.Capitalization : "default-capitalization",
             style.HasLetterSpacingHundredthPoints ? style.LetterSpacingHundredthPoints.ToString(CultureInfo.InvariantCulture) : "default-letter-spacing",
             style.HasKerningHundredthPoints ? style.KerningHundredthPoints.ToString(CultureInfo.InvariantCulture) : "default-kerning",
-            style.Shadow is not null ? PptxShadowCodec.TextEffectsElement(style.Shadow).ToString(SaveOptions.DisableFormatting) : "default-shadow",
+            XlsxChartTextEffectsCodec.Semantics(style),
             style.HasHighlightRgb ? style.HighlightRgb.ToUpperInvariant() : "default-highlight",
             style.HasBold ? style.Bold.ToString(CultureInfo.InvariantCulture) : "default-bold",
             style.HasItalic ? style.Italic.ToString(CultureInfo.InvariantCulture) : "default-italic",
@@ -251,7 +251,7 @@ internal static class XlsxChartTextStyleCodec
     {
         if (style is null) return;
         if (!style.HasFontSizePoints && style.FontFamily.Length == 0 && style.FontFamilyEastAsia.Length == 0 && style.FontFamilyComplexScript.Length == 0 &&
-            style.Shadow is null && !style.HasHighlightRgb && !style.HasKerningHundredthPoints && !style.HasLetterSpacingHundredthPoints && !style.HasCapitalization && !style.HasBaselineThousandthPercent && !style.HasStrike && !style.HasLanguage && !style.HasBold && !style.HasItalic && style.Alignment.Length == 0 && style.Underline.Length == 0 && style.ColorRgb.Length == 0 && !style.HasOpacityThousandthPercent && style.Fill is null)
+            style.Glow is null && style.Shadow is null && !style.HasHighlightRgb && !style.HasKerningHundredthPoints && !style.HasLetterSpacingHundredthPoints && !style.HasCapitalization && !style.HasBaselineThousandthPercent && !style.HasStrike && !style.HasLanguage && !style.HasBold && !style.HasItalic && style.Alignment.Length == 0 && style.Underline.Length == 0 && style.ColorRgb.Length == 0 && !style.HasOpacityThousandthPercent && style.Fill is null)
             throw Invalid(worksheetId, chartId, $"{field} must declare at least one bounded property.");
         if (style.HasFontSizePoints && (!double.IsFinite(style.FontSizePoints) || style.FontSizePoints < MinimumFontSizePoints || style.FontSizePoints > MaximumFontSizePoints))
             throw Invalid(worksheetId, chartId, $"{field}.font_size_points must be from 1 through 4000.");
@@ -270,6 +270,7 @@ internal static class XlsxChartTextStyleCodec
             throw Invalid(worksheetId, chartId, $"{field}.letterSpacing must be between -768pt and 768pt.");
         if (style.HasCapitalization && !CapitalizationValues.Contains(style.Capitalization))
             throw Invalid(worksheetId, chartId, $"{field}.capitalization must be none, small or all.");
+        PptxGlowCodec.Validate(style.Glow, chartId, field + ".glow");
         PptxShadowCodec.Validate(style.Shadow, chartId, field + ".shadow");
         if (style.Shadow is { } shadow &&
             (shadow.HasBlurRadiusEmu && shadow.BlurRadiusEmu > 12_700_000 ||
@@ -418,7 +419,8 @@ internal static class XlsxChartTextStyleCodec
         }
         if (index < children.Length && children[index].Name == DrawingNs + "effectLst")
         {
-            if (!PptxShadowCodec.TryReadTextEffects(children[index++], out var shadow)) return false;
+            if (!XlsxChartTextEffectsCodec.TryRead(children[index++], out var glow, out var shadow)) return false;
+            style.Glow = glow;
             style.Shadow = shadow;
         }
         if (index < children.Length && children[index].Name == DrawingNs + "highlight")
@@ -443,7 +445,7 @@ internal static class XlsxChartTextStyleCodec
         }
         return index == children.Length &&
             (style.HasFontSizePoints || style.FontFamily.Length > 0 || style.FontFamilyEastAsia.Length > 0 || style.FontFamilyComplexScript.Length > 0 ||
-             style.Shadow is not null || style.HasHighlightRgb || style.HasKerningHundredthPoints || style.HasLetterSpacingHundredthPoints || style.HasCapitalization || style.HasBaselineThousandthPercent || style.HasStrike || style.HasLanguage || style.HasBold || style.HasItalic || style.Underline.Length > 0 || style.ColorRgb.Length > 0 || style.Fill is not null);
+             style.Glow is not null || style.Shadow is not null || style.HasHighlightRgb || style.HasKerningHundredthPoints || style.HasLetterSpacingHundredthPoints || style.HasCapitalization || style.HasBaselineThousandthPercent || style.HasStrike || style.HasLanguage || style.HasBold || style.HasItalic || style.Underline.Length > 0 || style.ColorRgb.Length > 0 || style.Fill is not null);
     }
 
     private static void ApplyParsedFill(SpreadsheetChartTextStyleArtifact style, SpreadsheetChartSurfaceFill fill)
@@ -483,7 +485,7 @@ internal static class XlsxChartTextStyleCodec
 
     private static bool HasCharacterStyle(SpreadsheetChartTextStyleArtifact style) =>
         style.HasFontSizePoints || style.FontFamily.Length > 0 || style.FontFamilyEastAsia.Length > 0 || style.FontFamilyComplexScript.Length > 0 ||
-        style.Shadow is not null || style.HasHighlightRgb || style.HasKerningHundredthPoints || style.HasLetterSpacingHundredthPoints || style.HasCapitalization || style.HasBaselineThousandthPercent || style.HasStrike || style.HasLanguage || style.HasBold || style.HasItalic || style.Underline.Length > 0 || style.ColorRgb.Length > 0 || style.HasOpacityThousandthPercent || style.Fill is not null;
+        style.Glow is not null || style.Shadow is not null || style.HasHighlightRgb || style.HasKerningHundredthPoints || style.HasLetterSpacingHundredthPoints || style.HasCapitalization || style.HasBaselineThousandthPercent || style.HasStrike || style.HasLanguage || style.HasBold || style.HasItalic || style.Underline.Length > 0 || style.ColorRgb.Length > 0 || style.HasOpacityThousandthPercent || style.Fill is not null;
 
     private static bool HasAnyStyle(SpreadsheetChartTextStyleArtifact style) => HasCharacterStyle(style) || style.Alignment.Length > 0;
 
@@ -509,7 +511,7 @@ internal static class XlsxChartTextStyleCodec
                 color.Add(new XElement(DrawingNs + "alpha", new XAttribute("val", style.OpacityThousandthPercent)));
             output.Add(new XElement(DrawingNs + "solidFill", color));
         }
-        if (style.Shadow is not null) output.Add(PptxShadowCodec.TextEffectsElement(style.Shadow));
+        if (style.Glow is not null || style.Shadow is not null) output.Add(XlsxChartTextEffectsCodec.Element(style));
         if (style.HasHighlightRgb)
             output.Add(new XElement(DrawingNs + "highlight",
                 new XElement(DrawingNs + "srgbClr", new XAttribute("val", style.HighlightRgb.ToUpperInvariant()))));

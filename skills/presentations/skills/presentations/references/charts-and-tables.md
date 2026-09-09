@@ -381,6 +381,19 @@ chart text use the same field, with explicit title-run strike taking
 precedence over title defaults. Like ordinary text strike, this is a literal
 boolean/token-enum field, not a grammar token reference.
 
+`glow` adds direct chart text glow using the ordinary text field:
+`{"glow":{"color":"#FFD966","radius":3,"opacity":0.5}}`.
+Color and radius are required; radius is 0–1000 pt and rounds to native EMU
+precision with ties to even. Zero radius and opacity remain explicit, while
+omitting opacity preserves its absence unless color alpha supplies a value.
+Color/opacity token resolution and theme identity follow chart text shadow.
+Glow and shadow can coexist and be removed independently; native order is
+`glow` then `outerShdw`. The same field applies to chart and trendline rich
+styles and generated vector labels, with explicit run glow overriding title
+defaults independently of shadow. Missing native radius, duplicate/reordered
+effects and unsupported descendants remain source-owned. Host glow appearance
+has not been verified.
+
 `shadow` adds a direct outer shadow to chart text, for example
 `{"shadow":{"color":"#000000","blur":2,"distance":3,"angle":45,"opacity":0.25}}`.
 Only `color` is required. `blur` (0–1000 pt), `distance` (0–100000 pt),
@@ -393,7 +406,7 @@ transforms; undeclared standard theme tokens keep theme identity and support
 alpha, with tint/shade rejected. Opacity accepts opacity tokens and overrides
 color alpha. Chart and trendline paragraph/run/end styles share this field;
 vector labels retain it and explicit run shadows override title defaults.
-Mixed/unknown effect graphs stay source-owned. This is native structure and
+Unrecognized effect graphs stay source-owned. This is native structure and
 round-trip support; host shadow appearance has not been verified.
 
 `highlight` sets opaque text highlight paint, for example

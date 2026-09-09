@@ -3305,6 +3305,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (source.TryGetProperty("letterSpacing", out var spacing)) output.LetterSpacingHundredthPoints = XlsxChartTextStyleCodec.LetterSpacingHundredthPoints(spacing.GetDouble());
         if (source.TryGetProperty("kerning", out var kerning)) output.KerningHundredthPoints = XlsxChartTextStyleCodec.KerningHundredthPoints(kerning.GetDouble());
         if (source.TryGetProperty("capitalization", out var capitalization)) output.Capitalization = capitalization.GetString()!;
+        if (source.TryGetProperty("glow", out var glow)) output.Glow = BuildChartTextGlow(glow, catalog);
         if (source.TryGetProperty("shadow", out var shadow)) output.Shadow = BuildChartTextShadow(shadow, catalog);
         if (source.TryGetProperty("highlight", out var highlight)) output.HighlightRgb = BuildChartHighlight(highlight, catalog);
         if (source.TryGetProperty("bold", out var bold)) output.Bold = catalog.BooleanToken(bold, "boolean", "chart text bold");
@@ -3350,7 +3351,7 @@ internal static partial class PpjAuthoredPresentationCompiler
     }
 
     private static readonly string[] ChartTextStyleFields =
-    ["fontSize", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "language", "strike", "baseline", "capitalization", "letterSpacing", "kerning", "highlight", "shadow", "bold", "italic", "underline", "alignment", "fill", "color"];
+    ["fontSize", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "language", "strike", "baseline", "capitalization", "letterSpacing", "kerning", "highlight", "shadow", "glow", "bold", "italic", "underline", "alignment", "fill", "color"];
 
     private static void ApplyChartTextStyleProperty(
         SpreadsheetChartTextStyleArtifact output,
@@ -3386,6 +3387,9 @@ internal static partial class PpjAuthoredPresentationCompiler
                 break;
             case "kerning":
                 output.KerningHundredthPoints = XlsxChartTextStyleCodec.KerningHundredthPoints(value.GetDouble());
+                break;
+            case "glow":
+                output.Glow = BuildChartTextGlow(value, catalog);
                 break;
             case "shadow":
                 output.Shadow = BuildChartTextShadow(value, catalog);
@@ -3433,41 +3437,79 @@ internal static partial class PpjAuthoredPresentationCompiler
         Func<JsonElement, double> resolveOpacity,
         Func<string, bool> declaredToken)
     {
+        var paint = BuildChartEffectColor(value, resolveColor, resolveOpacity, declaredToken);
+        var output = new PresentationShadow { ColorRgb = paint.Rgb };
+        if (paint.Scheme is not null) output.ColorScheme = paint.Scheme;
+        if (paint.Opacity is { } opacity) output.OpacityThousandthPercent = opacity;
+        if (value.TryGetProperty("blur", out var blur)) output.BlurRadiusEmu = Emu(ChartEffectNumber(blur.GetDouble(), 0, 1000));
+        if (value.TryGetProperty("distance", out var distance)) output.DistanceEmu = Emu(ChartEffectNumber(distance.GetDouble(), 0, 100000));
+        if (value.TryGetProperty("angle", out var angle))
+            output.DirectionAngle60000 = Angle(((ChartEffectNumber(angle.GetDouble(), -360, 360) % 360) + 360) % 360) % 21_600_000;
+        if (value.TryGetProperty("alignment", out var alignment)) output.Alignment = alignment.GetString()!;
+        if (value.TryGetProperty("rotateWithShape", out var rotate)) output.RotateWithShape = rotate.GetBoolean();
+        PptxShadowCodec.Validate(output, "chart-text", "chart text");
+        return output;
+    }
+
+    private static PresentationGlow BuildChartTextGlow(JsonElement value, Catalog catalog) =>
+        BuildChartTextGlow(value, catalog.Color,
+            opacity => catalog.NumberToken(opacity, "opacity", "chart text glow opacity"), catalog.HasGrammarToken);
+
+    internal static PresentationGlow BuildChartTextGlow(
+        JsonElement value,
+        Func<JsonElement, (string Rgb, double Alpha)> resolveColor,
+        Func<JsonElement, double> resolveOpacity,
+        Func<string, bool> declaredToken)
+    {
+        var paint = BuildChartEffectColor(value, resolveColor, resolveOpacity, declaredToken);
+        var output = new PresentationGlow
+        {
+            ColorRgb = paint.Rgb,
+            RadiusEmu = Emu(ChartEffectNumber(value.GetProperty("radius").GetDouble(), 0, 1000)),
+        };
+        if (paint.Scheme is not null) output.ColorScheme = paint.Scheme;
+        if (paint.Opacity is { } opacity) output.OpacityThousandthPercent = opacity;
+        PptxGlowCodec.Validate(output, "chart-text", "chart text");
+        return output;
+    }
+
+    private static (string Rgb, string? Scheme, uint? Opacity) BuildChartEffectColor(
+        JsonElement value,
+        Func<JsonElement, (string Rgb, double Alpha)> resolveColor,
+        Func<JsonElement, double> resolveOpacity,
+        Func<string, bool> declaredToken)
+    {
         var color = value.GetProperty("color");
-        var output = new PresentationShadow();
+        var rgb = string.Empty;
+        string? scheme = null;
         var alpha = 1d;
         if (color.ValueKind == JsonValueKind.Object && color.TryGetProperty("token", out var token) &&
-            !declaredToken(token.GetString()!) && PptxColor.TrySchemeToken(token.GetString()!, out var scheme))
+            !declaredToken(token.GetString()!) && PptxColor.TrySchemeToken(token.GetString()!, out var recognizedScheme))
         {
             if (color.TryGetProperty("tint", out _) || color.TryGetProperty("shade", out _))
-                throw new CodecException("invalid_presentation_shadow", "Chart text theme shadows do not support tint/shade transforms.");
-            output.ColorScheme = scheme;
+                throw new CodecException("invalid_presentation_effects", "Chart text theme effects do not support tint/shade transforms.");
+            scheme = recognizedScheme;
             if (color.TryGetProperty("alpha", out var colorAlpha)) alpha = colorAlpha.GetDouble();
         }
         else
         {
             var resolved = resolveColor(color);
-            output.ColorRgb = resolved.Rgb;
+            rgb = resolved.Rgb;
             alpha = resolved.Alpha;
         }
-        static double Bounded(double number, double min, double max)
-        {
-            if (!double.IsFinite(number) || number < min || number > max)
-                throw new CodecException("invalid_presentation_shadow", "Chart text shadow has an out-of-range number.");
-            return number;
-        }
-        if (value.TryGetProperty("blur", out var blur)) output.BlurRadiusEmu = Emu(Bounded(blur.GetDouble(), 0, 1000));
-        if (value.TryGetProperty("distance", out var distance)) output.DistanceEmu = Emu(Bounded(distance.GetDouble(), 0, 100000));
-        if (value.TryGetProperty("angle", out var angle))
-            output.DirectionAngle60000 = Angle(((Bounded(angle.GetDouble(), -360, 360) % 360) + 360) % 360) % 21_600_000;
+        uint? opacityValue = null;
         if (value.TryGetProperty("opacity", out var opacity))
-            output.OpacityThousandthPercent = Opacity(Bounded(resolveOpacity(opacity), 0, 1));
+            opacityValue = Opacity(ChartEffectNumber(resolveOpacity(opacity), 0, 1));
         else if (alpha != 1 || color.ValueKind == JsonValueKind.Object && color.TryGetProperty("alpha", out _))
-            output.OpacityThousandthPercent = Opacity(Bounded(alpha, 0, 1));
-        if (value.TryGetProperty("alignment", out var alignment)) output.Alignment = alignment.GetString()!;
-        if (value.TryGetProperty("rotateWithShape", out var rotate)) output.RotateWithShape = rotate.GetBoolean();
-        PptxShadowCodec.Validate(output, "chart-text", "chart text");
-        return output;
+            opacityValue = Opacity(ChartEffectNumber(alpha, 0, 1));
+        return (rgb, scheme, opacityValue);
+    }
+
+    private static double ChartEffectNumber(double number, double min, double max)
+    {
+        if (!double.IsFinite(number) || number < min || number > max)
+            throw new CodecException("invalid_presentation_effects", "Chart text effect has an out-of-range number.");
+        return number;
     }
 
     private static string BuildChartHighlight(JsonElement value, Catalog catalog)

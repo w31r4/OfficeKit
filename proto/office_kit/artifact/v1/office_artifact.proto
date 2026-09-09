@@ -4797,6 +4797,8 @@ message SpreadsheetChartTextStyleArtifact {
   optional string highlight_rgb = 18;
   // Direct character outer shadow, preserving native optional attributes.
   PresentationShadow shadow = 19;
+  // Direct character glow, independently editable beside outer shadow.
+  PresentationGlow glow = 20;
 }
 
 enum SpreadsheetChartLineDashStyle {
