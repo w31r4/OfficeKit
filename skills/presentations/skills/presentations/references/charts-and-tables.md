@@ -491,8 +491,8 @@ text run. Text and numberFormat also accept string grammar tokens, resolving to
 bounded chart-label styling. `{}` retains the default label container; omitting
 `label` removes it. Authored and imported ordinary/combo trendlines support
 creation, replacement, removal and recreation, with label-only edits confined
-to the target ChartPart. Formula text, layout extensions, source-linked
-formats and unsupported effects/extensions remain source-owned. Native
+to the target ChartPart. Formula text, layout extensions and unsupported
+effects/extensions remain source-owned. Native
 round-trip checks establish label state; automatic layout and local SVG label
 rendering remain unverified.
 
@@ -508,6 +508,16 @@ Omit `layout` to remove it while keeping label text and style. Imported empty
 mode/target leaves project the standard `factor`/`outer` defaults. Native
 line/combo regressions cover this layout lifecycle; host positioning and SVG
 layout fidelity still need separate evidence.
+
+`label.numberFormatSourceLinked` requires `numberFormat`: `true` writes the
+native flag as 1, `false` or an omitted PPJ field writes 0, and `null` retains
+an omitted native attribute. Projection omits the false default and retains
+true/null. For example, `"label": { "numberFormat": "0.00",
+"numberFormatSourceLinked": true }` preserves a source-linked native flag.
+Remove both format properties to remove the native number-format node while
+keeping label text/style/layout; a later edit can recreate it.
+[Microsoft documents that Office ignores this flag on trendline labels](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-oe376/baa94e34-1d3e-4d59-a139-d9955fcdcf79).
+This field preserves ChartML state; it does not synchronize workbook styles.
 
 The same capability owns the optional `errorBars` object. For example,
 `"errorBars": { "valueType": "fixed-value", "value": 2, "direction": "y", "type": "both" }`

@@ -1361,6 +1361,8 @@ internal static partial class PpjPresentationProjector
                     if (label.Layout is not null) value["layout"] = OpenXmlChartLayoutCodec.Project(label.Layout);
                     if (label.HasText) value["text"] = StringNode(label.Text);
                     if (label.HasNumberFormatCode) value["numberFormat"] = StringNode(label.NumberFormatCode);
+                    if (label.NumberFormatLink == SpreadsheetChartNumberFormatLink.Source) value["numberFormatSourceLinked"] = JsonValue.Create(true);
+                    if (label.NumberFormatLink == SpreadsheetChartNumberFormatLink.Omitted) value["numberFormatSourceLinked"] = null;
                     if (label.TextStyle is not null) value["textStyle"] = ProjectChartTextStyle(label.TextStyle);
                     if (label.Fill is not null) value["fill"] = ProjectChartSurfaceFill(label.Fill);
                     if (label.Line is not null) value["line"] = ProjectChartLine(label.Line);

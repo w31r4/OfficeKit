@@ -692,9 +692,11 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-07 Chart、ChartML、嵌入工作簿和扩展图表
 
-**趋势线标签增量（2026-09-09）：** `data.series[].trendlines[].label` 已承载可选 `text`、`numberFormat`、`textStyle`、`fill`、`line`。省略 text 时保留自动公式/R² 内容，`{}` 保留默认标签容器，省略 label 删除标签；text/numberFormat 接受 string grammar token。普通线图和 categorical combo 的最小实验检查 authored、修改、默认容器、删除、重新添加、原生节点和去嵌入后的回投影，label-only 编辑只改目标 ChartPart。JS 工作簿接口的其他图表编辑也保留原有 wire 标签。公式文本、布局扩展、source-linked 格式、复杂效果和 extension 仍按原始数据保留，不开放 analytics 编辑；自动布局和宿主视觉效果仍未验收。
+**趋势线标签增量（2026-09-09）：** `data.series[].trendlines[].label` 已承载可选 `text`、`numberFormat`、`textStyle`、`fill`、`line`。省略 text 时保留自动公式/R² 内容，`{}` 保留默认标签容器，省略 label 删除标签；text/numberFormat 接受 string grammar token。普通线图和 categorical combo 的最小实验检查 authored、修改、默认容器、删除、重新添加、原生节点和去嵌入后的回投影，label-only 编辑只改目标 ChartPart。JS 工作簿接口的其他图表编辑也保留原有 wire 标签。公式文本、布局扩展、复杂效果和 extension 仍按原始数据保留，不开放 analytics 编辑；自动布局和宿主视觉效果仍未验收。
 
 **趋势线标签布局增量（2026-09-09）：** `label.layout.manual` 承载 `target`、`xMode/yMode/widthMode/heightMode` 和 `x/y/width/height`。数字保留 ChartML 比例值和显式零；省略 layout、空 layout、空 manual 三种状态分别保留。普通线图和 categorical combo 的最小实验覆盖 authored、修改、清空、删除、重建、原生结构和 fresh projection，并检查其他标签字段和非目标 ZIP 字节。扩展、未知布局内容及非法数值仍不开放 analytics 编辑；宿主定位和 SVG 布局效果仍未验收。
+
+**趋势线标签格式标志增量（2026-09-09）：** `label.numberFormatSourceLinked` 配合 `numberFormat` 表达原生 `sourceLinked`：true/false 写入显式值，null 保留原生属性缺省；省略 PPJ 字段沿用 false，回投影也省略 false。普通线图和 categorical combo 覆盖 authored、切换、格式修改、删除、重建及 fresh projection，其他标签状态和非目标 ZIP 字节保持。该字段只保存 ChartML 状态；[微软说明 Office 不使用趋势线标签上的此标志](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-oe376/baa94e34-1d3e-4d59-a139-d9955fcdcf79)，不据此宣称工作簿格式同步或宿主视觉效果。
 
 **后续增量（2026-09-09）：** 导入的 custom `plus/minus` 现在可携带 `formula`、完整 `values` 和可选 `formatCode`，支持固定的本地绝对单行/单列引用。修改误差值会同时写回目标 ChartPart 缓存和唯一嵌入 XLSX 的数值单元格；普通柱/条/线、categorical combo 和分组图表均有回归。无修改保留原始字节，只改端帽等样式不改工作簿。共享/缺失工作簿、缓存与单元格不一致、重叠消费者、公式单元格及未支持的依赖图会拒绝数值编辑且不输出文件。`PpjErrorWorkbookSynchronizesCacheAndCells` 检查两轮写回、零值、原始公式、其他内外层 ZIP 条目和去嵌入后的再次投影。公式创建、删除、改指向、source-free 公式编写及通用 workbook/formula topology 仍未完成；本轮只记录结构与往返证据。
 

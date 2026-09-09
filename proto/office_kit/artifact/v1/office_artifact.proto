@@ -5474,6 +5474,7 @@ message SpreadsheetChartTrendlineLabelArtifact {
   SpreadsheetChartSurfaceFill fill = 4;
   SpreadsheetChartLineStyleArtifact line = 5;
   SpreadsheetChartLayoutArtifact layout = 6;
+  SpreadsheetChartNumberFormatLink number_format_link = 7;
 }
 
 // Container presence distinguishes absent layout from automatic/empty layout.
@@ -5493,4 +5494,12 @@ message SpreadsheetChartManualLayoutArtifact {
   optional double y = 7;
   optional double width = 8;
   optional double height = 9;
+}
+
+// Unspecified retains the established explicit-false number format behavior.
+// Omitted preserves the absence of the native sourceLinked attribute.
+enum SpreadsheetChartNumberFormatLink {
+  SPREADSHEET_CHART_NUMBER_FORMAT_LINK_UNSPECIFIED = 0;
+  SPREADSHEET_CHART_NUMBER_FORMAT_LINK_SOURCE = 1;
+  SPREADSHEET_CHART_NUMBER_FORMAT_LINK_OMITTED = 2;
 }

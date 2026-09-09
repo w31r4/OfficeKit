@@ -78,7 +78,9 @@ public sealed partial class PptxCodecTests
         foreach (var invalid in new[] { "{\"text\":\"\"}", "{\"numberFormat\":\"\"}", "{\"position\":\"top\"}", "{\"text\":\"bad\\nlabel\"}",
             "{\"layout\":null}", "{\"layout\":{\"manual\":null}}", "{\"layout\":{\"manual\":{\"xMode\":\"invalid\"}}}",
             "{\"layout\":{\"manual\":{\"target\":\"invalid\"}}}", "{\"layout\":{\"manual\":{\"x\":\"0\"}}}",
-            "{\"layout\":{\"manual\":{\"x\":1e999}}}", "{\"layout\":{\"manual\":{\"rotation\":1}}}" })
+            "{\"layout\":{\"manual\":{\"x\":1e999}}}", "{\"layout\":{\"manual\":{\"rotation\":1}}}",
+            "{\"numberFormatSourceLinked\":true}", "{\"numberFormatSourceLinked\":false}", "{\"numberFormatSourceLinked\":null}",
+            "{\"numberFormat\":\"0\",\"numberFormatSourceLinked\":\"true\"}", "{\"numberFormat\":\"0\",\"numberFormatSourceLinked\":1}" })
         {
             var input = program.DeepClone().AsObject();
             TrendlineListSeries(input, 0)["trendlines"]![0]!["label"] = JsonNode.Parse(invalid);
@@ -104,7 +106,7 @@ public sealed partial class PptxCodecTests
             "<c:layout><c:manualLayout>unknown</c:manualLayout></c:layout>",
             "<c:tx><c:strRef><c:f>Sheet1!$A$1</c:f></c:strRef></c:tx>",
             "<c:tx>unmodeled<c:rich xmlns:a='http://schemas.openxmlformats.org/drawingml/2006/main'><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Fit</a:t></a:r></a:p></c:rich></c:tx>",
-            "<c:numFmt formatCode='0' sourceLinked='1'/>",
+            "<c:numFmt formatCode='0' sourceLinked='invalid'/>",
             "<c:numFmt formatCode='0' sourceLinked='0'/><c:numFmt formatCode='0.0' sourceLinked='0'/>",
             "<c:extLst/>",
         })

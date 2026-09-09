@@ -6921,11 +6921,15 @@
     "chartTrendlineLabel": {
       "type": "object",
       "additionalProperties": false,
+      "allOf": [
+        { "if": { "required": ["numberFormatSourceLinked"] }, "then": { "required": ["numberFormat"] } }
+      ],
       "description": "Native trendline label. An empty object retains the automatic label container; omit the property to remove it.",
       "properties": {
         "layout": { "$ref": "#/$defs/chartLayout" },
         "text": { "$ref": "#/$defs/stringOrToken", "description": "One literal run; resolves to 1–255 characters without controls. Omit for automatic equation/R-squared content." },
-        "numberFormat": { "$ref": "#/$defs/stringOrToken", "description": "Explicit non-source-linked format; resolves to 1–255 characters without controls." },
+        "numberFormat": { "$ref": "#/$defs/stringOrToken", "description": "Native number format; resolves to 1–255 characters without controls." },
+        "numberFormatSourceLinked": { "type": ["boolean", "null"], "description": "Native sourceLinked flag; requires numberFormat. True/false write an explicit flag, null omits the native attribute. Omitted PPJ field defaults to false; projection omits false. Office ignores this flag on trendline labels; this field preserves native state, not workbook synchronization." },
         "textStyle": { "$ref": "#/$defs/chartTextStyle" },
         "fill": { "$ref": "#/$defs/fill" },
         "line": { "$ref": "#/$defs/stroke" }

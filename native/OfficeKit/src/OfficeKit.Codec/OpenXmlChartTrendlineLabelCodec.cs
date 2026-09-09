@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Xml.Linq;
 using Google.Protobuf;
 using OfficeKit.Artifact.Wire.V1;
@@ -14,6 +15,9 @@ internal static class OpenXmlChartTrendlineLabelCodec
         if (label is null) return;
         if (label.HasText && !ValidText(label.Text) || label.HasNumberFormatCode && !ValidText(label.NumberFormatCode))
             throw new CodecException("invalid_spreadsheet_chart", $"Chart {chart} trendline label text/number format must contain 1 through 255 characters without controls.");
+        if (label.NumberFormatLink is not (SpreadsheetChartNumberFormatLink.Unspecified or SpreadsheetChartNumberFormatLink.Source or SpreadsheetChartNumberFormatLink.Omitted) ||
+            label.NumberFormatLink != SpreadsheetChartNumberFormatLink.Unspecified && !label.HasNumberFormatCode)
+            throw new CodecException("invalid_spreadsheet_chart", "Trendline label format linkage requires a number format and a supported link state.");
         XlsxChartTextStyleCodec.ValidateStyle(label.TextStyle, worksheet, chart, "trendline label text style");
         XlsxChartSurfaceFillCodec.Validate(label.Fill, "trendline label fill");
         XlsxChartSeriesLineStyleCodec.ValidateLine(label.Line, worksheet, chart, series, "trendline label line");
@@ -48,10 +52,17 @@ internal static class OpenXmlChartTrendlineLabelCodec
         {
             var attributes = format.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration).ToArray();
             var code = (string?)format.Attribute("formatCode");
-            if (format.HasElements || UnexpectedNodes(format) || attributes.Length != 2 ||
+            var linked = (string?)format.Attribute("sourceLinked");
+            if (format.HasElements || UnexpectedNodes(format) || attributes.Length is < 1 or > 2 ||
                 attributes.Any(attribute => attribute.Name != "formatCode" && attribute.Name != "sourceLinked") ||
-                code is null || !ValidText(code) || (string?)format.Attribute("sourceLinked") is not ("0" or "false")) return false;
+                code is null || !ValidText(code) || linked is not (null or "0" or "false" or "1" or "true")) return false;
             label.NumberFormatCode = code;
+            label.NumberFormatLink = linked switch
+            {
+                null => SpreadsheetChartNumberFormatLink.Omitted,
+                "1" or "true" => SpreadsheetChartNumberFormatLink.Source,
+                _ => SpreadsheetChartNumberFormatLink.Unspecified,
+            };
         }
         if (!XlsxChartTextStyleCodec.TryReadTextProperties(source, out var textStyle)) return false;
         label.TextStyle = textStyle;
@@ -68,12 +79,28 @@ internal static class OpenXmlChartTrendlineLabelCodec
         new XElement(C + "trendlineLbl",
             OpenXmlChartLayoutCodec.Element(label.Layout),
             label.HasText ? XlsxChartSeriesDataLabelsCodec.PointTextElement(label.Text) : null,
-            label.HasNumberFormatCode ? new XElement(C + "numFmt", new XAttribute("formatCode", label.NumberFormatCode), new XAttribute("sourceLinked", "0")) : null,
+            label.HasNumberFormatCode ? new XElement(C + "numFmt", new XAttribute("formatCode", label.NumberFormatCode),
+                label.NumberFormatLink == SpreadsheetChartNumberFormatLink.Omitted ? null :
+                    new XAttribute("sourceLinked", label.NumberFormatLink == SpreadsheetChartNumberFormatLink.Source ? "1" : "0")) : null,
             label.Fill is not null || label.Line is not null ? XlsxChartSeriesDataLabelsCodec.PointPropertiesElement(label.Fill, label.Line) : null,
             label.TextStyle is not null ? XlsxChartTextStyleCodec.TextPropertiesElement(label.TextStyle) : null);
 
     internal static string Semantics(SpreadsheetChartTrendlineLabelArtifact? label) =>
         label is null ? "no-label" : Convert.ToBase64String(label.ToByteArray());
+
+    internal static SpreadsheetChartNumberFormatLink NumberFormatLinkFromPpj(JsonElement label)
+    {
+        if (!label.TryGetProperty("numberFormatSourceLinked", out var linked)) return SpreadsheetChartNumberFormatLink.Unspecified;
+        if (!label.TryGetProperty("numberFormat", out _))
+            throw new CodecException("invalid_spreadsheet_chart", "Trendline label numberFormatSourceLinked requires numberFormat.");
+        return linked.ValueKind switch
+        {
+            JsonValueKind.Null => SpreadsheetChartNumberFormatLink.Omitted,
+            JsonValueKind.True => SpreadsheetChartNumberFormatLink.Source,
+            JsonValueKind.False => SpreadsheetChartNumberFormatLink.Unspecified,
+            _ => throw new CodecException("invalid_spreadsheet_chart", "Trendline label numberFormatSourceLinked must be boolean or null."),
+        };
+    }
 
     private static bool ValidText(string text) => text.Length is > 0 and <= 255 && !text.Any(char.IsControl);
     private static bool UnexpectedNodes(XElement element) => element.Nodes().Any(node => node switch

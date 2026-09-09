@@ -14,7 +14,7 @@ authoredSheet.charts.add("line", {
 });
 const source = wireWorksheetCharts(authoredSheet)[0];
 source.yAxis.logBase = 10;
-source.series[0].trendlines[0].label = { text: "Imported fit", numberFormatCode: "0.00",
+source.series[0].trendlines[0].label = { text: "Imported fit", numberFormatCode: "0.00", numberFormatLink: 1,
   layout: { manual: { xMode: "edge", x: 0, y: -0.125, width: 1.25 } } };
 source.source = { editable: true };
 const importedSheet = workbook.worksheets.add("Imported");
@@ -30,5 +30,10 @@ for (const layout of [undefined, {}, { manual: {} }, source.series[0].trendlines
   const message = create(SpreadsheetChartTrendlineLabelArtifactSchema, { layout });
   const roundTrip = fromBinary(SpreadsheetChartTrendlineLabelArtifactSchema, toBinary(SpreadsheetChartTrendlineLabelArtifactSchema, message));
   assert.deepEqual(roundTrip, message, "Layout containers and optional zero must survive protobuf serialization");
+}
+for (const numberFormatLink of [undefined, 0, 1, 2]) {
+  const message = create(SpreadsheetChartTrendlineLabelArtifactSchema, { numberFormatCode: "0", numberFormatLink });
+  const roundTrip = fromBinary(SpreadsheetChartTrendlineLabelArtifactSchema, toBinary(SpreadsheetChartTrendlineLabelArtifactSchema, message));
+  assert.equal(roundTrip.numberFormatLink, numberFormatLink ?? 0, "Link state must survive wire serialization; legacy default remains zero");
 }
 console.log("worksheet chart axis and trendline label preservation ok");
