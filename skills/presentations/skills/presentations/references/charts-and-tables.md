@@ -356,6 +356,16 @@ same bounded paragraph/run vocabulary as ordinary text:
 explicit run typography wins. Formula-backed titles, title hyperlinks,
 WordArt, effects, and unknown title containers remain source-owned.
 
+Chart text styles also accept `"language": "zh-CN"` or a `string` grammar
+token. This covers title, legend, axis, data-label and trendline styles, plus
+trendline paragraph/run/end styles. A language-only style is valid. Explicit
+values, including `en-US` and their casing, survive native projection; omit
+the property to remove it (remove the style object if it becomes empty).
+The field reuses PPJ's 2–63-character language-tag profile. It records the
+native character language; dictionary availability and host proofreading are
+separate. Vector title runs use this default unless they declare a language;
+other vector chart text-style owners also resolve language and string tokens.
+
 Chart title, legend, data-label, axis-title, and tick-label text styles may also
 set a bounded `underline` token such as `single`, `double`, or `wavy`.
 `single` and `double` are PPJ aliases for the native DrawingML `sng` and `dbl`

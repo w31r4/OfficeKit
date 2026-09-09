@@ -18,6 +18,7 @@ internal sealed record PpjProjectionResult(
     PpjValidationResult? Validation) : IDisposable
 {
     public void Dispose() => Validation?.Dispose();
+    internal IReadOnlyList<PptxNativeBinding> NativeBindings { get; init; } = [];
 }
 
 /// <summary>
@@ -36,19 +37,22 @@ internal static partial class PpjPresentationProjector
         PresentationProgramRequest request,
         EffectiveCodecLimits limits,
         bool retainSourceAssetData = true,
-        string? verifiedSourceSha256 = null) => Project(
+        string? verifiedSourceSha256 = null,
+        bool includeNativeBindings = false) => Project(
             new PptxPackageSource(sourceBytes),
             request,
             limits,
             retainSourceAssetData,
-            verifiedSourceSha256);
+            verifiedSourceSha256,
+            includeNativeBindings);
 
     internal static PpjProjectionResult Project(
         PptxPackageSource source,
         PresentationProgramRequest request,
         EffectiveCodecLimits limits,
         bool retainSourceAssetData = true,
-        string? verifiedSourceSha256 = null)
+        string? verifiedSourceSha256 = null,
+        bool includeNativeBindings = false)
     {
         if (PpjEmbeddedProgramCodec.TryRecover(source, request, limits) is { } recovered)
             return new(
@@ -62,7 +66,8 @@ internal static partial class PpjPresentationProjector
             source,
             limits,
             retainSourceAssetData,
-            verifiedSourceSha256);
+            verifiedSourceSha256,
+            includeNativeBindings);
         var envelope = imported.Artifact;
         var presentation = envelope.Presentation ??
             throw new CodecException("ppj.projection.presentation", "The imported package did not produce a Presentation artifact.", "$");
@@ -170,7 +175,16 @@ internal static partial class PpjPresentationProjector
             ExpandedElementCount = checked((uint)validation.Expansion!.ExpandedElementCount),
         };
         result.Assets.Add(context.ResultAssets);
-        return new(result, imported.Diagnostics, envelope, context.NativeLeafBindings, validation);
+        return new(result, imported.Diagnostics, envelope, context.NativeLeafBindings, validation)
+        {
+            NativeBindings = includeNativeBindings ? imported.NativeBindings
+                .Where(binding => context.TryElementId(context.PageId(binding.PageId), binding.ElementId, out _))
+                .Select(binding => binding with
+                {
+                    PageId = context.PageId(binding.PageId),
+                    ElementId = context.ElementId(context.PageId(binding.PageId), binding.ElementId),
+                }).ToArray() : [],
+        };
     }
 
     private static JsonObject ImportedIntent() => new()
@@ -1564,6 +1578,7 @@ internal static partial class PpjPresentationProjector
         if (source.FontFamily.Length > 0) output["fontFamily"] = StringNode(source.FontFamily);
         if (source.FontFamilyEastAsia.Length > 0) output["fontFamilyEastAsia"] = StringNode(source.FontFamilyEastAsia);
         if (source.FontFamilyComplexScript.Length > 0) output["fontFamilyComplexScript"] = StringNode(source.FontFamilyComplexScript);
+        if (source.HasLanguage) output["language"] = StringNode(source.Language);
         if (source.HasBold) output["bold"] = JsonValue.Create(source.Bold);
         if (source.HasItalic) output["italic"] = JsonValue.Create(source.Italic);
         if (source.Underline.Length > 0)

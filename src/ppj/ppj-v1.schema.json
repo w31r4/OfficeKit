@@ -6242,6 +6242,10 @@
           "$ref": "#/$defs/stringOrToken",
           "description": "Direct DrawingML a:cs typeface for complex-script chart text."
         },
+        "language": {
+          "$ref": "#/$defs/languageTagOrToken",
+          "description": "Direct chart character language tag; explicit presence and casing are retained."
+        },
         "underline": {
           "enum": [
             "none",

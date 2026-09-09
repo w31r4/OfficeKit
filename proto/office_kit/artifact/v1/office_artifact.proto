@@ -4781,6 +4781,8 @@ message SpreadsheetChartTextStyleArtifact {
   // Direct DrawingML text paint. Bounded no-fill and literal gradients use
   // this field; a solid RGB paint remains compatible with color_rgb/alpha.
   SpreadsheetChartSurfaceFill fill = 11;
+  // Direct character lang attribute; preserve explicit presence and casing.
+  optional string language = 12;
 }
 
 enum SpreadsheetChartLineDashStyle {

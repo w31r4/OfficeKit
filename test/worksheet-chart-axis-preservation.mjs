@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
-import { SpreadsheetChartTrendlineLabelArtifactSchema } from "../src/generated/office_kit/artifact/v1/office_artifact_pb.js";
+import { SpreadsheetChartTrendlineLabelArtifactSchema, SpreadsheetChartTextStyleArtifactSchema } from "../src/generated/office_kit/artifact/v1/office_artifact_pb.js";
 import { Workbook } from "../src/spreadsheet/index.mjs";
 import { spreadsheetChartFromWire, spreadsheetChartSnapshot, wireWorksheetCharts } from "../src/codecs/office-kit-spreadsheet-charts.mjs";
 
@@ -14,9 +14,10 @@ authoredSheet.charts.add("line", {
 });
 const source = wireWorksheetCharts(authoredSheet)[0];
 source.yAxis.logBase = 10;
+source.titleTextStyle = { fontSizePoints: 12, language: "en-US" };
 source.series[0].trendlines[0].label = { numberFormatCode: "0.00", numberFormatLink: 1,
   richText: { paragraphs: [{ runs: [
-    { content: { case: "text", value: "Fit " }, style: { bold: true } },
+    { content: { case: "text", value: "Fit " }, style: { bold: true, language: "zh-CN" } },
     { content: { case: "lineBreak", value: true } },
     { content: { case: "text", value: "A" }, style: { bold: false } },
   ] }] },
@@ -29,6 +30,7 @@ assert.equal(wireWorksheetCharts(importedSheet, state)[0].yAxis.logBase, 10);
 chart.title = "Edited revenue";
 const edited = wireWorksheetCharts(importedSheet, state)[0];
 assert.equal(edited.title, "Edited revenue");
+assert.equal(edited.titleTextStyle.language, "en-US", "Unrelated edits retain explicit chart language");
 assert.equal(edited.yAxis.logBase, 10, "An unrelated chart edit must retain imported logarithmic scaling");
 assert.deepEqual(edited.series[0].trendlines[0].label, source.series[0].trendlines[0].label, "An unrelated chart edit must retain imported trendline label state");
 for (const layout of [undefined, {}, { manual: {} }, source.series[0].trendlines[0].label.layout]) {
@@ -45,3 +47,7 @@ const richLabel = create(SpreadsheetChartTrendlineLabelArtifactSchema, source.se
 assert.deepEqual(fromBinary(SpreadsheetChartTrendlineLabelArtifactSchema, toBinary(SpreadsheetChartTrendlineLabelArtifactSchema, richLabel)), richLabel,
   "Styled text and ordered breaks must survive wire serialization");
 console.log("worksheet chart axis and trendline label preservation ok");
+for (const language of [undefined, "en-US", "EN-us", "zh-Hans-CN"]) {
+  const message = create(SpreadsheetChartTextStyleArtifactSchema, { language });
+  assert.equal(fromBinary(SpreadsheetChartTextStyleArtifactSchema, toBinary(SpreadsheetChartTextStyleArtifactSchema, message)).language, language);
+}

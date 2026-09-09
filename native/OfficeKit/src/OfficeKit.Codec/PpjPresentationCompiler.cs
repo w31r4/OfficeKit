@@ -148,7 +148,8 @@ internal static class PpjSourceBoundPresentationCompiler
             },
             limits,
             retainSourceAssetData,
-            sourceSha256);
+            sourceSha256,
+            includeNativeBindings: request.IncludePreviewScene);
         projectionStage.Dispose();
         using var reparsedBaselineValidation = projected.Validation is null
             ? PpjProgramValidator.Validate(projected.Program.ProgramJson.Memory)
@@ -305,7 +306,8 @@ internal static class PpjSourceBoundPresentationCompiler
             // to obtain preview evidence. Other branches import exact output.
             using var candidate = outputUsesSource ? null : new PptxPackageSource(output);
             diagnostics = diagnostics.Concat(PpjPreviewCandidateScene.Attach(
-                candidate ?? sourcePackage, receipt, limits)).ToArray();
+                candidate ?? sourcePackage, receipt, limits,
+                new PpjPreviewCandidateBindings(projected.NativeBindings, validation.Expansion!))).ToArray();
         }
         return new(output, receipt, diagnostics, reuseSourceFile);
     }
@@ -3600,6 +3602,10 @@ internal static class PpjSourceBoundPresentationCompiler
             output.FontFamilyComplexScript = grammarRoot is { } root
                 ? ResolveGrammarStringToken(root, complexScript, path + ".fontFamilyComplexScript")
                 : complexScript.GetString()!;
+        if (source.TryGetProperty("language", out var language))
+            output.Language = PptxLanguageTag.Validate(grammarRoot is { } languageRoot
+                ? ResolveGrammarStringToken(languageRoot, language, path + ".language")
+                : language.GetString()!);
         if (source.TryGetProperty("bold", out var bold))
             output.Bold = grammarRoot is { } root
                 ? ResolveGrammarBooleanToken(root, bold, path + ".bold")

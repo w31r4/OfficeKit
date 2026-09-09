@@ -3296,6 +3296,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (source.TryGetProperty("fontFamily", out var fontFamily)) output.FontFamily = catalog.StringToken(fontFamily, "string", "chart text fontFamily");
         if (source.TryGetProperty("fontFamilyEastAsia", out var eastAsia)) output.FontFamilyEastAsia = catalog.StringToken(eastAsia, "string", "chart text fontFamilyEastAsia");
         if (source.TryGetProperty("fontFamilyComplexScript", out var complexScript)) output.FontFamilyComplexScript = catalog.StringToken(complexScript, "string", "chart text fontFamilyComplexScript");
+        if (source.TryGetProperty("language", out var language)) output.Language = catalog.LanguageTagToken(language, "chart text language");
         if (source.TryGetProperty("bold", out var bold)) output.Bold = catalog.BooleanToken(bold, "boolean", "chart text bold");
         if (source.TryGetProperty("italic", out var italic)) output.Italic = catalog.BooleanToken(italic, "boolean", "chart text italic");
         if (source.TryGetProperty("underline", out var underline)) output.Underline = NativeUnderline(underline.GetString()!);
@@ -3339,7 +3340,7 @@ internal static partial class PpjAuthoredPresentationCompiler
     }
 
     private static readonly string[] ChartTextStyleFields =
-    ["fontSize", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "bold", "italic", "underline", "alignment", "fill", "color"];
+    ["fontSize", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "language", "bold", "italic", "underline", "alignment", "fill", "color"];
 
     private static void ApplyChartTextStyleProperty(
         SpreadsheetChartTextStyleArtifact output,
@@ -3360,6 +3361,9 @@ internal static partial class PpjAuthoredPresentationCompiler
                 break;
             case "fontFamilyComplexScript":
                 output.FontFamilyComplexScript = catalog.StringToken(value, "string", "chart text fontFamilyComplexScript");
+                break;
+            case "language":
+                output.Language = catalog.LanguageTagToken(value, "chart text language");
                 break;
             case "bold":
                 output.Bold = catalog.BooleanToken(value, "boolean", "chart text bold");
