@@ -17,6 +17,7 @@ internal static class OpenXmlChartTrendlineLabelCodec
         XlsxChartTextStyleCodec.ValidateStyle(label.TextStyle, worksheet, chart, "trendline label text style");
         XlsxChartSurfaceFillCodec.Validate(label.Fill, "trendline label fill");
         XlsxChartSeriesLineStyleCodec.ValidateLine(label.Line, worksheet, chart, series, "trendline label line");
+        OpenXmlChartLayoutCodec.Validate(label.Layout);
     }
 
     internal static bool TryRead(XElement source, out SpreadsheetChartTrendlineLabelArtifact label)
@@ -30,8 +31,11 @@ internal static class OpenXmlChartTrendlineLabelCodec
             if (index <= previous) return false;
             previous = index;
         }
-        if (source.Element(C + "layout") is { } layout &&
-            (layout.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration) || layout.HasElements || UnexpectedNodes(layout))) return false;
+        if (source.Element(C + "layout") is { } layout)
+        {
+            if (!OpenXmlChartLayoutCodec.TryRead(layout, out var value)) return false;
+            label.Layout = value;
+        }
         if (source.Element(C + "tx") is { } text)
         {
             XNamespace drawing = "http://schemas.openxmlformats.org/drawingml/2006/main";
@@ -62,6 +66,7 @@ internal static class OpenXmlChartTrendlineLabelCodec
 
     internal static XElement? Element(SpreadsheetChartTrendlineLabelArtifact? label) => label is null ? null :
         new XElement(C + "trendlineLbl",
+            OpenXmlChartLayoutCodec.Element(label.Layout),
             label.HasText ? XlsxChartSeriesDataLabelsCodec.PointTextElement(label.Text) : null,
             label.HasNumberFormatCode ? new XElement(C + "numFmt", new XAttribute("formatCode", label.NumberFormatCode), new XAttribute("sourceLinked", "0")) : null,
             label.Fill is not null || label.Line is not null ? XlsxChartSeriesDataLabelsCodec.PointPropertiesElement(label.Fill, label.Line) : null,

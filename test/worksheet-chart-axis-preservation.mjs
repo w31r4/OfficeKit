@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
+import { SpreadsheetChartTrendlineLabelArtifactSchema } from "../src/generated/office_kit/artifact/v1/office_artifact_pb.js";
 import { Workbook } from "../src/spreadsheet/index.mjs";
 import { spreadsheetChartFromWire, spreadsheetChartSnapshot, wireWorksheetCharts } from "../src/codecs/office-kit-spreadsheet-charts.mjs";
 
@@ -12,7 +14,8 @@ authoredSheet.charts.add("line", {
 });
 const source = wireWorksheetCharts(authoredSheet)[0];
 source.yAxis.logBase = 10;
-source.series[0].trendlines[0].label = { text: "Imported fit", numberFormatCode: "0.00" };
+source.series[0].trendlines[0].label = { text: "Imported fit", numberFormatCode: "0.00",
+  layout: { manual: { xMode: "edge", x: 0, y: -0.125, width: 1.25 } } };
 source.source = { editable: true };
 const importedSheet = workbook.worksheets.add("Imported");
 const chart = spreadsheetChartFromWire(importedSheet, source);
@@ -23,4 +26,9 @@ const edited = wireWorksheetCharts(importedSheet, state)[0];
 assert.equal(edited.title, "Edited revenue");
 assert.equal(edited.yAxis.logBase, 10, "An unrelated chart edit must retain imported logarithmic scaling");
 assert.deepEqual(edited.series[0].trendlines[0].label, source.series[0].trendlines[0].label, "An unrelated chart edit must retain imported trendline label state");
+for (const layout of [undefined, {}, { manual: {} }, source.series[0].trendlines[0].label.layout]) {
+  const message = create(SpreadsheetChartTrendlineLabelArtifactSchema, { layout });
+  const roundTrip = fromBinary(SpreadsheetChartTrendlineLabelArtifactSchema, toBinary(SpreadsheetChartTrendlineLabelArtifactSchema, message));
+  assert.deepEqual(roundTrip, message, "Layout containers and optional zero must survive protobuf serialization");
+}
 console.log("worksheet chart axis and trendline label preservation ok");

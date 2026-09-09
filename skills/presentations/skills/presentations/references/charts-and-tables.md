@@ -477,7 +477,10 @@ Each trendline can own a native `label`:
     "numberFormat": "0.00",
     "textStyle": { "fontSize": 11, "color": "#2563EB" },
     "fill": { "type": "solid", "color": "#FEF3C7" },
-    "line": { "color": "#D97706", "width": 1 }
+    "line": { "color": "#D97706", "width": 1 },
+    "layout": {
+      "manual": { "xMode": "edge", "yMode": "edge", "x": 0.6, "y": 0.1 }
+    }
   }
 }
 ```
@@ -488,10 +491,23 @@ text run. Text and numberFormat also accept string grammar tokens, resolving to
 bounded chart-label styling. `{}` retains the default label container; omitting
 `label` removes it. Authored and imported ordinary/combo trendlines support
 creation, replacement, removal and recreation, with label-only edits confined
-to the target ChartPart. Formula text, nonempty manual layouts, source-linked
+to the target ChartPart. Formula text, layout extensions, source-linked
 formats and unsupported effects/extensions remain source-owned. Native
 round-trip checks establish label state; automatic layout and local SVG label
 rendering remain unverified.
+
+`label.layout.manual` accepts optional `target` (`inner`/`outer`), `xMode`,
+`yMode`, `widthMode`, `heightMode` (`edge`/`factor`) and numeric `x`, `y`,
+`width`, `height`. These are native chart fractions. Edge mode measures from
+the chart edge; factor mode uses an offset from the default position for x/y
+and a size for width/height. Width/height in edge mode specify the right/bottom
+edge. Values remain finite but can be negative or exceed one; zero is retained.
+Omitted fields stay omitted. `{ "layout": {} }` keeps an empty automatic-layout
+container; `{ "layout": { "manual": {} } }` keeps an empty manual container.
+Omit `layout` to remove it while keeping label text and style. Imported empty
+mode/target leaves project the standard `factor`/`outer` defaults. Native
+line/combo regressions cover this layout lifecycle; host positioning and SVG
+layout fidelity still need separate evidence.
 
 The same capability owns the optional `errorBars` object. For example,
 `"errorBars": { "valueType": "fixed-value", "value": 2, "direction": "y", "type": "both" }`

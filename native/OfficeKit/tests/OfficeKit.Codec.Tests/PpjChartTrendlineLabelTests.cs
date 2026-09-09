@@ -75,7 +75,10 @@ public sealed partial class PptxCodecTests
         var authored = CompileTrendlineList(program);
         Assert.True(authored.Ok, Diagnostics(authored));
         var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
-        foreach (var invalid in new[] { "{\"text\":\"\"}", "{\"numberFormat\":\"\"}", "{\"position\":\"top\"}", "{\"text\":\"bad\\nlabel\"}" })
+        foreach (var invalid in new[] { "{\"text\":\"\"}", "{\"numberFormat\":\"\"}", "{\"position\":\"top\"}", "{\"text\":\"bad\\nlabel\"}",
+            "{\"layout\":null}", "{\"layout\":{\"manual\":null}}", "{\"layout\":{\"manual\":{\"xMode\":\"invalid\"}}}",
+            "{\"layout\":{\"manual\":{\"target\":\"invalid\"}}}", "{\"layout\":{\"manual\":{\"x\":\"0\"}}}",
+            "{\"layout\":{\"manual\":{\"x\":1e999}}}", "{\"layout\":{\"manual\":{\"rotation\":1}}}" })
         {
             var input = program.DeepClone().AsObject();
             TrendlineListSeries(input, 0)["trendlines"]![0]!["label"] = JsonNode.Parse(invalid);
@@ -90,7 +93,15 @@ public sealed partial class PptxCodecTests
         XNamespace c = "http://schemas.openxmlformats.org/drawingml/2006/chart";
         foreach (var invalid in new[]
         {
-            "<c:layout><c:manualLayout/></c:layout>",
+            "<c:layout><c:manualLayout><c:extLst/></c:manualLayout></c:layout>",
+            "<c:layout><c:extLst/></c:layout>",
+            "<c:layout><c:manualLayout extra='1'/></c:layout>",
+            "<c:layout><c:manualLayout><c:x val='0'/><c:x val='1'/></c:manualLayout></c:layout>",
+            "<c:layout><c:manualLayout><c:x val='0'/><c:xMode val='edge'/></c:manualLayout></c:layout>",
+            "<c:layout><c:manualLayout><c:x val='NaN'/></c:manualLayout></c:layout>",
+            "<c:layout><c:manualLayout><c:x/></c:manualLayout></c:layout>",
+            "<c:layout><c:manualLayout><c:xMode val='invalid'/></c:manualLayout></c:layout>",
+            "<c:layout><c:manualLayout>unknown</c:manualLayout></c:layout>",
             "<c:tx><c:strRef><c:f>Sheet1!$A$1</c:f></c:strRef></c:tx>",
             "<c:tx>unmodeled<c:rich xmlns:a='http://schemas.openxmlformats.org/drawingml/2006/main'><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Fit</a:t></a:r></a:p></c:rich></c:tx>",
             "<c:numFmt formatCode='0' sourceLinked='1'/>",

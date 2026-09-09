@@ -6923,11 +6923,36 @@
       "additionalProperties": false,
       "description": "Native trendline label. An empty object retains the automatic label container; omit the property to remove it.",
       "properties": {
+        "layout": { "$ref": "#/$defs/chartLayout" },
         "text": { "$ref": "#/$defs/stringOrToken", "description": "One literal run; resolves to 1–255 characters without controls. Omit for automatic equation/R-squared content." },
         "numberFormat": { "$ref": "#/$defs/stringOrToken", "description": "Explicit non-source-linked format; resolves to 1–255 characters without controls." },
         "textStyle": { "$ref": "#/$defs/chartTextStyle" },
         "fill": { "$ref": "#/$defs/fill" },
         "line": { "$ref": "#/$defs/stroke" }
+      }
+    },
+    "chartLayout": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Native chart layout container. Empty object retains automatic layout; omit to remove the container.",
+      "properties": {
+        "manual": { "$ref": "#/$defs/chartManualLayout" }
+      }
+    },
+    "chartManualLayout": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Native chart fractions, not slide coordinates. Preserve optional fields and explicit zero. Empty object retains an empty manual-layout container. Width/height in edge mode denote right/bottom edge positions.",
+      "properties": {
+        "target": { "enum": ["inner", "outer"] },
+        "xMode": { "enum": ["edge", "factor"] },
+        "yMode": { "enum": ["edge", "factor"] },
+        "widthMode": { "enum": ["edge", "factor"] },
+        "heightMode": { "enum": ["edge", "factor"] },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "width": { "type": "number" },
+        "height": { "type": "number" }
       }
     },
     "chartErrorBars": {

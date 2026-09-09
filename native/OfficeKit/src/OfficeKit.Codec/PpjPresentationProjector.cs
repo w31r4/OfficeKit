@@ -1358,6 +1358,7 @@ internal static partial class PpjPresentationProjector
                 if (item.Label is { } label)
                 {
                     var value = new JsonObject();
+                    if (label.Layout is not null) value["layout"] = OpenXmlChartLayoutCodec.Project(label.Layout);
                     if (label.HasText) value["text"] = StringNode(label.Text);
                     if (label.HasNumberFormatCode) value["numberFormat"] = StringNode(label.NumberFormatCode);
                     if (label.TextStyle is not null) value["textStyle"] = ProjectChartTextStyle(label.TextStyle);

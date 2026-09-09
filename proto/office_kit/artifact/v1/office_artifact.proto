@@ -5473,4 +5473,24 @@ message SpreadsheetChartTrendlineLabelArtifact {
   SpreadsheetChartTextStyleArtifact text_style = 3;
   SpreadsheetChartSurfaceFill fill = 4;
   SpreadsheetChartLineStyleArtifact line = 5;
+  SpreadsheetChartLayoutArtifact layout = 6;
+}
+
+// Container presence distinguishes absent layout from automatic/empty layout.
+message SpreadsheetChartLayoutArtifact {
+  SpreadsheetChartManualLayoutArtifact manual = 1;
+}
+
+// Native ChartML fractions, not slide coordinates. Absent fields retain native
+// defaults; explicit zero is state. Modes are edge/factor, target inner/outer.
+message SpreadsheetChartManualLayoutArtifact {
+  optional string target = 1;
+  optional string x_mode = 2;
+  optional string y_mode = 3;
+  optional string width_mode = 4;
+  optional string height_mode = 5;
+  optional double x = 6;
+  optional double y = 7;
+  optional double width = 8;
+  optional double height = 9;
 }

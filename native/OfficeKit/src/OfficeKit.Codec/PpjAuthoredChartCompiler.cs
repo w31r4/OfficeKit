@@ -4368,6 +4368,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (source.TryGetProperty("label", out var label))
         {
             var value = new SpreadsheetChartTrendlineLabelArtifact();
+            if (label.TryGetProperty("layout", out var layout)) value.Layout = OpenXmlChartLayoutCodec.FromPpj(layout);
             if (label.TryGetProperty("text", out var text)) value.Text = catalog.StringToken(text, "string", "trendline label text");
             if (label.TryGetProperty("numberFormat", out var format)) value.NumberFormatCode = catalog.StringToken(format, "string", "trendline label numberFormat");
             if (label.TryGetProperty("textStyle", out var style)) value.TextStyle = BuildChartTextStyle(style, catalog);
