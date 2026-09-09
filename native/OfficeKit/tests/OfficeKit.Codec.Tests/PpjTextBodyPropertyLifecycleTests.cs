@@ -15,39 +15,44 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [Theory]
     [InlineData("shape", "columnDirection")]
     [InlineData("shape", "verticalText")]
+    [InlineData("shape", "wrap")]
     [InlineData("text", "columnDirection")]
     [InlineData("text", "verticalText")]
+    [InlineData("text", "wrap")]
     [InlineData("master", "columnDirection")]
     [InlineData("master", "verticalText")]
+    [InlineData("master", "wrap")]
     [InlineData("layout", "columnDirection")]
     [InlineData("layout", "verticalText")]
+    [InlineData("layout", "wrap")]
     [InlineData("table", "columnDirection")]
     [InlineData("table", "verticalText")]
-    public void DirectionSourceRemovalAndRestorationPreserveOtherState(string kind, string field)
+    [InlineData("table", "wrap")]
+    public void EnumBodyPropertySourceRemovalAndRestorationPreserveOtherState(string kind, string field)
     {
-        var program = Program(kind); Style(program, kind)[field] = DirectionValues(field).Last();
+        var program = Program(kind); Style(program, kind)[field] = BodyPropertyValues(field).Last();
         var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
         var original = source.ToArray();
         var request = Project(source);
-        Assert.Equal(DirectionValues(field).Last(), Style(request, kind)[field]!.GetValue<string>());
+        Assert.Equal(BodyPropertyValues(field).Last(), Style(request, kind)[field]!.GetValue<string>());
         Assert.Equal(source, Compile(request, source).File.ToByteArray());
-        AssertDirection(source, kind, field, DirectionValues(field).Last());
+        AssertBodyPropertyValue(source, kind, field, BodyPropertyValues(field).Last());
         Style(request, kind).Remove(field);
         var deleted = Compile(request, source).File.ToByteArray();
-        AssertDirection(deleted, kind, field, null);
+        AssertBodyPropertyValue(deleted, kind, field, null);
         Assert.False(Style(Project(deleted), kind).ContainsKey(field));
         AssertOnlyBodyPropertyChanged(source, deleted, kind, field);
-        foreach (var value in DirectionValues(field))
+        foreach (var value in BodyPropertyValues(field))
         {
             var restore = Project(deleted);
             Style(restore, kind)[field] = value;
             var restored = Compile(restore, deleted).File.ToByteArray();
-            AssertDirection(restored, kind, field, value);
+            AssertBodyPropertyValue(restored, kind, field, value);
             Assert.Equal(value, Style(Project(restored), kind)[field]!.GetValue<string>());
             AssertOnlyBodyPropertyChanged(deleted, restored, kind, field);
             var removeAgain = Project(restored);
             Style(removeAgain, kind).Remove(field);
-            AssertDirection(Compile(removeAgain, restored).File.ToByteArray(), kind, field, null);
+            AssertBodyPropertyValue(Compile(removeAgain, restored).File.ToByteArray(), kind, field, null);
         }
         Assert.Equal(original, source);
     }
@@ -55,38 +60,46 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [Theory]
     [InlineData("shape", "columnDirection")]
     [InlineData("shape", "verticalText")]
+    [InlineData("shape", "wrap")]
     [InlineData("table", "columnDirection")]
     [InlineData("table", "verticalText")]
-    public void DirectionOnlyAndCombinedRemovableStylesPreservePresence(string kind, string field)
+    [InlineData("table", "wrap")]
+    public void EnumBodyPropertyOnlyAndCombinedRemovableStylesPreservePresence(string kind, string field)
     {
-        foreach (var withUpright in new[] { false, true })
+        foreach (var withOtherProperties in new[] { false, true })
         {
             var program = Program(kind); var style = Style(program, kind);
-            style.Clear(); style[field] = DirectionValues(field).Last();
-            if (withUpright) { style["upright"] = false; style["rotation"] = 12; style[field == "verticalText" ? "columnDirection" : "verticalText"] = field == "verticalText" ? "left-to-right" : "horizontal"; }
+            style.Clear(); style[field] = BodyPropertyValues(field).Last();
+            if (withOtherProperties)
+            {
+                style["upright"] = false; style["rotation"] = 12;
+                foreach (var sibling in new[] { "columnDirection", "verticalText", "wrap" }.Where(key => key != field))
+                    style[sibling] = BodyPropertyValues(sibling).First();
+            }
             var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
             var request = Project(source);
             var owner = (kind == "shape" ? request["pages"]![0]!["elements"]![0] :
                 request["pages"]![0]!["elements"]![0]!["rows"]![0]!["cells"]![0]!["text"])!.AsObject();
             owner.Remove(kind == "shape" ? "textStyle" : "style");
             var deleted = Compile(request, source).File.ToByteArray();
-            AssertDirection(deleted, kind, field, null);
+            AssertBodyPropertyValue(deleted, kind, field, null);
             Assert.Null(Body(deleted, kind).UpRight);
             Assert.Null(Body(deleted, kind).Rotation);
             Assert.Null(Body(deleted, kind).Vertical);
             Assert.Null(Body(deleted, kind).RightToLeftColumns);
-            if (!withUpright) AssertOnlyBodyPropertyChanged(source, deleted, kind, field);
+            Assert.Null(Body(deleted, kind).Wrap);
+            if (!withOtherProperties) AssertOnlyBodyPropertyChanged(source, deleted, kind, field);
             var restore = Project(deleted);
             var element = restore["pages"]![0]!["elements"]![0]!;
-            if (kind == "shape") element["textStyle"] = new JsonObject { [field] = DirectionValues(field).First() };
+            if (kind == "shape") element["textStyle"] = new JsonObject { [field] = BodyPropertyValues(field).First() };
             else element["rows"]![0]!["cells"]![0]!["text"] = new JsonObject
             {
-                ["style"] = new JsonObject { [field] = DirectionValues(field).First() },
+                ["style"] = new JsonObject { [field] = BodyPropertyValues(field).First() },
                 ["paragraphs"] = new JsonArray(new JsonObject { ["runs"] = new JsonArray(new JsonObject { ["text"] = "Retain this text" }) }),
             };
             var restored = Compile(restore, deleted).File.ToByteArray();
-            AssertDirection(restored, kind, field, DirectionValues(field).First());
-            Assert.Equal(DirectionValues(field).First(), Style(Project(restored), kind)[field]!.GetValue<string>());
+            AssertBodyPropertyValue(restored, kind, field, BodyPropertyValues(field).First());
+            Assert.Equal(BodyPropertyValues(field).First(), Style(Project(restored), kind)[field]!.GetValue<string>());
             AssertOnlyBodyPropertyChanged(deleted, restored, kind, field);
         }
     }
@@ -130,11 +143,11 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [InlineData("table")]
     public void RotationOnlyAndCombinedRemovableStylesPreservePresence(string kind)
     {
-        foreach (var withUpright in new[] { false, true })
+        foreach (var withOtherProperties in new[] { false, true })
         {
             var program = Program(kind); var style = Style(program, kind);
             style.Clear(); style["rotation"] = 12;
-            if (withUpright) style["upright"] = false;
+            if (withOtherProperties) style["upright"] = false;
             var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
             var request = Project(source);
             var owner = (kind == "shape" ? request["pages"]![0]!["elements"]![0] :
@@ -143,7 +156,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             var deleted = Compile(request, source).File.ToByteArray();
             Assert.Null(Body(deleted, kind).Rotation);
             Assert.Null(Body(deleted, kind).UpRight);
-            if (!withUpright) AssertOnlyBodyPropertyChanged(source, deleted, kind, "rotation");
+            if (!withOtherProperties) AssertOnlyBodyPropertyChanged(source, deleted, kind, "rotation");
             var restore = Project(deleted);
             var element = restore["pages"]![0]!["elements"]![0]!;
             if (kind == "shape") element["textStyle"] = new JsonObject { ["rotation"] = 0 };
@@ -239,13 +252,23 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         Assert.Equal(original, source);
     }
 
-    private static string[] DirectionValues(string field) => field == "verticalText"
-        ? ["horizontal", "vertical", "vertical270"] : ["left-to-right", "right-to-left"];
+    private static string[] BodyPropertyValues(string field) => field switch
+    {
+        "verticalText" => ["horizontal", "vertical", "vertical270"],
+        "columnDirection" => ["left-to-right", "right-to-left"],
+        "wrap" => ["none", "square"],
+        _ => throw new ArgumentException(field),
+    };
 
-    private static void AssertDirection(byte[] bytes, string kind, string field, string? value)
+    private static void AssertBodyPropertyValue(byte[] bytes, string kind, string field, string? value)
     {
         var body = Body(bytes, kind);
-        if (field == "columnDirection")
+        if (field == "wrap")
+        {
+            if (value is null) Assert.Null(body.Wrap);
+            else Assert.Equal(value == "square" ? A.TextWrappingValues.Square : A.TextWrappingValues.None, body.Wrap!.Value);
+        }
+        else if (field == "columnDirection")
         {
             if (value is null) Assert.Null(body.RightToLeftColumns);
             else Assert.Equal(value == "right-to-left", body.RightToLeftColumns!.Value);
@@ -341,7 +364,12 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         using var right = PresentationDocument.Open(new MemoryStream(after), false);
         var oldSlide = Owner(left, kind);
         var newSlide = Owner(right, kind);
-        if (field == "verticalText")
+        if (field == "wrap")
+        {
+            Assert.Single(oldSlide.Descendants<A.BodyProperties>()).Wrap = null;
+            Assert.Single(newSlide.Descendants<A.BodyProperties>()).Wrap = null;
+        }
+        else if (field == "verticalText")
         {
             Assert.Single(oldSlide.Descendants<A.BodyProperties>()).Vertical = null;
             Assert.Single(newSlide.Descendants<A.BodyProperties>()).Vertical = null;

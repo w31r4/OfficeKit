@@ -2,6 +2,18 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ text-body `wrap` lifecycle (2026-09-10): source omission removes native
+bodyPr wrap; square and none remain explicit values. The shared enum experiment
+adds 7 wrap cases covering text/shape/master/layout/table, no-op bytes, removal
+and both restored values, simple style-owner deletion, compact table restoration,
+surrounding XML and non-target ZIP preservation. Related native body/placeholder/
+table-text selection passes 54/54, zero skipped (SDK 8.0.128, repository TMPDIR,
+single-process build). Preview input/capability, Skill maintenance, matrix,
+portability (255 files), reference sync (333 files) and strict OpenSpec pass.
+No wire change, NativeAOT rebuild or host wrapping acceptance. Other body-property
+deletions and inheritance remain open; the documented broader table failure
+was not rerun.
+
 PPJ text-body `verticalText` lifecycle (2026-09-10): source omission removes
 native bodyPr vert, while horizontal/vertical/vertical270 retain explicit values.
 The existing direction lifecycle experiment now covers both columnDirection and

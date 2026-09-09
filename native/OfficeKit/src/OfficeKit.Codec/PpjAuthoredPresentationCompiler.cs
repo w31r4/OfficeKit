@@ -202,6 +202,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             if (requested.WrappingCase == PresentationTextBodyProperties.WrappingOneofCase.Wrap)
                 current.Wrap = requested.Wrap;
         }
+        else if (previousStyle is { ValueKind: JsonValueKind.Object } previousWrap && previousWrap.TryGetProperty("wrap", out _))
+            current.NoWrap = true;
         if (style.TryGetProperty("autoFit", out _))
         {
             current.ClearAutoFit();

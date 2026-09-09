@@ -146,7 +146,8 @@ internal static class PptxBodyPropertiesCodec
             (source.RightInsetCase is PresentationTextBodyProperties.RightInsetOneofCase.None or PresentationTextBodyProperties.RightInsetOneofCase.RightInsetEmu) &&
             (source.BottomInsetCase is PresentationTextBodyProperties.BottomInsetOneofCase.None or PresentationTextBodyProperties.BottomInsetOneofCase.BottomInsetEmu) &&
             (source.AnchorCase is PresentationTextBodyProperties.AnchorOneofCase.None or PresentationTextBodyProperties.AnchorOneofCase.VerticalAnchor) &&
-            (source.WrappingCase is PresentationTextBodyProperties.WrappingOneofCase.None or PresentationTextBodyProperties.WrappingOneofCase.Wrap) &&
+            (source.WrappingCase is PresentationTextBodyProperties.WrappingOneofCase.None or PresentationTextBodyProperties.WrappingOneofCase.Wrap ||
+                source.WrappingCase == PresentationTextBodyProperties.WrappingOneofCase.NoWrap && source.NoWrap) &&
             (source.AutoFitCase is PresentationTextBodyProperties.AutoFitOneofCase.None or PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode) &&
             (source.VerticalTextCase is PresentationTextBodyProperties.VerticalTextOneofCase.None or PresentationTextBodyProperties.VerticalTextOneofCase.VerticalTextMode ||
                 source.VerticalTextCase == PresentationTextBodyProperties.VerticalTextOneofCase.NoVerticalTextMode && source.NoVerticalTextMode) &&

@@ -32,16 +32,18 @@ Simple PPJ text is a string. Mixed formatting uses `paragraphs[]` and `runs[]`.
 Do not put Markdown, HTML, CSS, or invented inline markup into a text string.
 Assign language and font roles explicitly for mixed-script runs.
 
-`upright`, `rotation`, `columnDirection` and `verticalText` belong to the text body: `text.style` on structured table-cell text,
+`upright`, `rotation`, `columnDirection`, `verticalText` and `wrap` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.
 Explicit `true`/`false` for upright and signed degrees/zero for rotation retain
 direct native values. Column direction uses `left-to-right` (explicit native false)
 and `right-to-left` (true); source removal deletes `rtlCol`. Body rotation is separate from the element's frame rotation.
 Text direction uses `horizontal`, `vertical` or `vertical270`; explicit horizontal
 retains native `vert=horz`, while source removal deletes `vert`.
+Wrapping uses `square` or `none`; explicit none disables wrapping, while source
+removal deletes the direct `wrap` override.
 On a fresh source PPJ, delete any of these properties to remove that native attribute and
 restore inherited/default behavior. You may remove a style object containing only
-`upright`, `rotation`, `columnDirection` and/or `verticalText`. If a table cell then projects as plain text, add the
+`upright`, `rotation`, `columnDirection`, `verticalText` and/or `wrap`. If a table cell then projects as plain text, add the
 body style through structured text while retaining its native paragraph/run topology.
 Keep other body properties and use the issued `setTextBodyStyle` or table-cell
 text-style capability; unsupported placeholder owners retain their source boundary.
