@@ -1,7 +1,7 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { compilePpjWorkspace, loadPpjWorkspace } from "./workspace.mjs";
+import { previewInputEvidence, publishPpjPreview } from "./preview-output.mjs";
 
 const require = createRequire(import.meta.url);
 const PREVIEW_CAPABILITIES = require("./svg-preview-capabilities.json");
@@ -42,7 +42,7 @@ function renderElement(e, assets, diagnostics) {
     return `<g${common}><text x="${f.x}" y="${f.y + 18}" font-family="Arial, sans-serif" font-size="${num(e.textStyle?.fontSize, 18)}" fill="${color(e.textStyle?.color, "#172033")}">${lines.map((line, i) => `<tspan x="${f.x}" dy="${i ? 22 : 0}">${esc(line)}</tspan>`).join("")}</text></g>`;
   }
   if (e.type === "image" || (e.type === "opaque" && e.asset)) {
-    const asset = assets.get(e.asset); if (!asset) { diagnostics.push({ id: e.id, status: "unavailable", reason: "asset-missing" }); return `<rect${common} x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="#F3F4F6" stroke="#B8C0CC"/><text x="${f.x + 6}" y="${f.y + 20}"${common} fill="#667085">image unavailable</text>`; }
+    const asset = assets.get(e.asset); if (!asset?.href) { diagnostics.push({ id: e.id, status: "unavailable", reason: "asset-missing" }); return `<rect${common} x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="#F3F4F6" stroke="#B8C0CC"/><text x="${f.x + 6}" y="${f.y + 20}"${common} fill="#667085">image unavailable</text>`; }
     return `<image${common} href="${esc(asset.href)}" x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" preserveAspectRatio="xMidYMid meet" opacity="${num(e.opacity, 1)}"/>`;
   }
   if (e.type === "connector") return `<line${common} x1="${f.x}" y1="${f.y + f.height / 2}" x2="${f.x + f.width}" y2="${f.y + f.height / 2}" stroke="${color(e.stroke?.color, "#667085")}" stroke-width="${num(e.stroke?.width, 2)}"/>`;
@@ -119,16 +119,17 @@ function renderElement(e, assets, diagnostics) {
   return `<rect${common} x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="#F9FAFB" stroke="#D0D5DD" stroke-dasharray="4 3"/>`;
 }
 
-export async function renderPpjToSvg(inputPath, { cwd = process.cwd(), outputDir } = {}) {
+export async function renderPpjToSvg(inputPath, {
+  cwd = process.cwd(), outputDir,
+  load = loadPpjWorkspace, compile = compilePpjWorkspace, loadRaster,
+} = {}) {
   const absolute = path.resolve(cwd, inputPath);
-  const workspace = await loadPpjWorkspace(absolute, { cwd, retainRoot: true });
-  const compiled = await compilePpjWorkspace(workspace, { includeNodeMap: false });
+  const workspace = await load(absolute, { cwd, retainRoot: true });
+  const compiled = await compile(workspace, { includeNodeMap: false });
   const program = JSON.parse(Buffer.from(compiled.programJson).toString("utf8"));
   const canvas = program.design?.canvas || { width: 1280, height: 720 }, assets = new Map();
-  for (const a of program.assets || []) {
-    const assetPath = a.uri ? path.resolve(path.dirname(absolute), a.uri) : "";
-    const bytes = assetPath ? await readFile(assetPath).catch(() => null) : null;
-    assets.set(a.id, { href: bytes ? `data:${a.mimeType || "application/octet-stream"};base64,${Buffer.from(bytes).toString("base64")}` : "", mimeType: a.mimeType });
+  for (const a of workspace.assets) {
+    assets.set(a.id, { href: a.data?.byteLength ? `data:${a.mimeType || "application/octet-stream"};base64,${Buffer.from(a.data).toString("base64")}` : "", mimeType: a.mimeType });
   }
   const diagnostics = [], pages = [];
   for (const page of program.pages || []) {
@@ -144,14 +145,8 @@ export async function renderPpjToSvg(inputPath, { cwd = process.cwd(), outputDir
   }
   const result = { renderer: "officekit-svg-preview", canvas, pages, diagnostics, status: diagnostics.length ? "partial" : "supported" };
   if (outputDir) {
-    await mkdir(outputDir, { recursive: true });
-    let sharp = null;
-    try { const mod = await import("sharp"); sharp = mod.default || mod; } catch { diagnostics.push({ status: "unavailable", reason: "sharp-not-installed" }); }
-    for (const page of pages) {
-      await writeFile(path.join(outputDir, `${page.id}.svg`), page.svg);
-      if (sharp) await sharp(Buffer.from(page.svg)).png().toFile(path.join(outputDir, `${page.id}.png`));
-    }
-    await writeFile(path.join(outputDir, "render.json"), `${JSON.stringify({ ...result, compile: { programSha256: compiled.programSha256, outputSha256: compiled.outputSha256 }, pages: pages.map(({ id, diagnostics: pageDiagnostics }) => ({ id, file: `${id}.svg`, png: `${id}.png`, diagnostics: pageDiagnostics })) }, null, 2)}\n`);
+    const { receipt, warnings } = await publishPpjPreview(result, previewInputEvidence(workspace, compiled), { cwd, outputDir, loadRaster });
+    return { ...result, ...receipt, pages: result.pages, receipt, warnings };
   }
   return result;
 }
