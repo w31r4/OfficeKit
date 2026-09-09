@@ -204,6 +204,155 @@ try {
   nativeLineProgram.pages[0].elements = [structuredClone(nativeLineInput)];
   const nativeLineResult = await compilePpjWorkspace({ ...sourceWorkspace, program: Buffer.from(JSON.stringify(nativeLineProgram)) }, { includePreviewScene: true });
   await assertNativeLine(nativeLineResult, await savePaint("native-line", nativeLineResult));
+  const nativeBars = [];
+  for (const type of ["column", "bar"]) {
+    const program = structuredClone(pairBase);
+    program.pages[0].elements = [{ id: "bars", type: "chart", chartType: type, title: "Missing, zero and negative",
+      frame: { x: 60, y: 80, width: 450, height: 300 }, yAxis: { min: -4, max: 8 },
+      style: { gapWidth: 100, overlap: 0, stacking: "none" },
+      data: { categories: ["Positive", "Unknown", "Zero", "Negative"], series: [
+        { id: "first", name: "First", values: [4, null, 0, -4], fill: { type: "solid", color: "#CC2200" },
+          pointStyles: [{ index: 3, fill: { type: "solid", color: "#00AA44" } }] },
+        { id: "second", name: "Second", values: [8, 2, null, -2], fill: { type: "solid", color: "#0044CC" } },
+      ] } }];
+    const compileBar = value => compilePpjWorkspace({ ...sourceWorkspace, program: Buffer.from(JSON.stringify(value)) }, { includePreviewScene: true });
+    async function checkBar(receipt, name, { first = 4, gap = 100, overlap = 0, reverse = false } = {}) {
+      const native = createPpjSceneView(receipt).pages[0].nodes.find(n => n.kind === "chart").native;
+      assert.equal(native.type, 1); assert.equal(native.barDirection, type); assert.equal(native.grouping, "none");
+      assert.deepEqual(native.series[0].values, [first, 0, 0, -4]); assert.deepEqual(native.series[0].missingValueIndexes, [1]);
+      assert.deepEqual(native.series[1].values, [8, 2, 0, -2]); assert.deepEqual(native.series[1].missingValueIndexes, [2]);
+      assert.equal(native.gapWidth, gap === null ? undefined : gap); assert.equal(native.overlap, overlap === null ? undefined : overlap);
+      assert.equal(native.xAxis?.reverse ?? false, reverse); assert.equal(native.yAxis?.reverse ?? false, reverse);
+      const painted = await savePaint(name, receipt), svg = painted.pages[0].svg;
+      assert.ok(!painted.diagnostics.some(d => ["preview.scene.paint.chart-semantics", "preview.scene.paint.failed"].includes(d.reason)));
+      assert.match(svg, new RegExp(`data-officekit-chart="${type}"`));
+      assert.equal((svg.match(/data-officekit-missing-point=/g) || []).length, 2);
+      assert.equal((svg.match(/data-officekit-review-point="zero"/g) || []).length, 1);
+      const actual = [...svg.matchAll(/<rect data-officekit-bar="(\d+)" x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)"[^>]*fill="([^"]+)"/g)]
+        .map(m => ({ index: +m[1], rect: m.slice(2, 6).map(Number), color: m[6] }));
+      const band = type === "column" ? 90 : 52.5, width = band / (2 - (overlap ?? 0) / 100 + (gap ?? 150) / 100);
+      const stride = width * (1 - (overlap ?? 0) / 100), inset = (band - width - stride) / 2;
+      const rectangle = (si, index, value) => {
+        const offset = index * band + inset + si * stride;
+        const rect = type === "column" ? [105 + offset, value > 0 ? 265 - value * 17.5 : 265, width, Math.abs(value) * 17.5]
+          : [value > 0 ? 225 : 225 + value * 30, 335 - offset - width, Math.abs(value) * 30, width];
+        return reverse ? [570 - rect[0] - rect[2], 460 - rect[1] - rect[3], rect[2], rect[3]] : rect;
+      };
+      const expected = [[0, 0, first, "#CC2200"], [0, 3, -4, "#00AA44"], [1, 0, 8, "#0044CC"], [1, 1, 2, "#0044CC"], [1, 3, -2, "#0044CC"]];
+      assert.equal(actual.length, expected.length);
+      for (const [j, [si, index, value, color]] of expected.entries()) {
+        const rect = rectangle(si, index, value);
+        assert.equal(actual[j].index, index); assert.equal(actual[j].color.toUpperCase(), color);
+        actual[j].rect.forEach((v, k) => assert.ok(Math.abs(v - rect[k]) < 1e-9, `${name} bar geometry ${j}:${k}`));
+        const pixel = await sharp(Buffer.from(svg)).extract({ left: Math.floor(rect[0] + rect[2] / 2), top: Math.floor(rect[1] + rect[3] / 2), width: 1, height: 1 }).removeAlpha().raw().toBuffer();
+        assert.deepEqual([...pixel], color.slice(1).match(/../g).map(v => parseInt(v, 16)), `${name} bar ${si}:${index} pixel`);
+      }
+      // Sample the absent first-series bar's reserved slot, independently of
+      // the SVG output; the other series must not shift into the missing slot.
+      const absent = rectangle(0, 1, 4);
+      const empty = await sharp(Buffer.from(svg)).extract({ left: Math.floor(absent[0] + absent[2] / 2), top: Math.floor(absent[1] + absent[3] / 2), width: 1, height: 1 }).removeAlpha().raw().toBuffer();
+      assert.deepEqual([...empty], [255, 255, 255]);
+    }
+    const authored = await compileBar(program);
+    await checkBar(authored, `${type}-authored`);
+    const reversed = structuredClone(program);
+    reversed.pages[0].elements[0].xAxis = { reverse: true };
+    reversed.pages[0].elements[0].yAxis.reverse = true;
+    await checkBar(await compileBar(reversed), `${type}-reversed`, { reverse: true });
+    const source = await withoutAuthoredSnapshot(authored.file), before = source.slice();
+    const projected = await projectPptxToPpj(source, { sourceUri: `${type}-source.pptx`, assetRootUri: "assets" });
+    assert.equal(projected.sourceBound, true);
+    const sourceInput = { program: projected.programJson, source, assets: projected.assets };
+    const noop = await compilePpjWorkspace(sourceInput, { includePreviewScene: true });
+    assert.deepEqual(noop.file, source); await checkBar(noop, `${type}-source-noop`);
+    const edits = [];
+    for (const [name, expected, edit] of [
+      ["value", { first: 6 }, c => { c.data.series[0].values[0] = 6; }],
+      ["gap-zero", { gap: 0 }, c => { c.style.gapWidth = 0; }],
+      ["overlap-negative", { overlap: -100 }, c => { c.style.overlap = -100; }],
+      ["gap-delete", { gap: null }, c => { delete c.style.gapWidth; }],
+      ["overlap-delete", { overlap: null }, c => { delete c.style.overlap; }],
+    ]) {
+      const changed = JSON.parse(new TextDecoder().decode(projected.programJson));
+      edit(changed.pages[0].elements.find(e => e.type === "chart"));
+      const candidate = await compilePpjWorkspace({ ...sourceInput, program: Buffer.from(JSON.stringify(changed)) }, { includePreviewScene: true });
+      await checkBar(candidate, `${type}-source-${name}`, expected);
+      const fresh = await projectPptxToPpj(candidate.file, { sourceUri: `${type}-${name}.pptx`, assetRootUri: "assets" });
+      const result = JSON.parse(new TextDecoder().decode(fresh.programJson)).pages[0].elements.find(e => e.type === "chart");
+      assert.equal(result.chartType, type);
+      assert.deepEqual(result.data.series[0].values, [expected.first ?? 4, null, 0, -4]);
+      assert.deepEqual(result.data.series[1].values, [8, 2, null, -2]);
+      assert.equal(result.style.gapWidth, expected.gap === null ? undefined : expected.gap ?? 100);
+      assert.equal(result.style.overlap, expected.overlap === null ? undefined : expected.overlap ?? 0);
+      const oldZip = await JSZip.loadAsync(source), newZip = await JSZip.loadAsync(candidate.file);
+      assert.deepEqual(Object.keys(newZip.files).sort(), Object.keys(oldZip.files).sort());
+      const parts = [];
+      for (const part of Object.keys(oldZip.files)) if (!oldZip.files[part].dir &&
+        !Buffer.from(await oldZip.file(part).async("uint8array")).equals(Buffer.from(await newZip.file(part).async("uint8array")))) parts.push(part);
+      assert.deepEqual(parts.sort(), ["ppt/slides/charts/chart1.xml"]);
+      assert.ok(!Object.keys(oldZip.files).some(p => p.endsWith(".xlsx")));
+      assert.deepEqual(source, before);
+      edits.push({ name, changedParts: parts, sourceSha256: sha256(source), candidateSha256: sha256(candidate.file), pixels: true, reprojection: true });
+    }
+    nativeBars.push({ type, authored: true, reversedAxes: true, sourceNoop: true, negativeZeroMissing: true, seriesSlotsAndPointPaint: true, edits, workbook: "not present in literal-data fixture" });
+  }
+  const nativeStacks = [];
+  for (const type of ["column", "bar"]) {
+    const program = structuredClone(pairBase);
+    program.pages[0].elements = [{ id: "stack", type: "chart", chartType: type, title: "Signed stacks with unknown data",
+      frame: { x: 60, y: 80, width: 450, height: 300 }, style: { stacking: "stacked", gapWidth: 100, overlap: 100 },
+      data: { categories: ["Positive", "Unknown", "Zero", "Negative"], series: [
+        { id: "first", name: "First", values: [4, null, 0, -4], fill: { type: "solid", color: "#CC2200" } },
+        { id: "second", name: "Second", values: [8, 2, 0, -2], fill: { type: "solid", color: "#0044CC" } },
+      ] } }];
+    async function checkStack(receipt, name, first = 4) {
+      const native = createPpjSceneView(receipt).pages[0].nodes.find(n => n.kind === "chart").native;
+      assert.equal(native.grouping, "stacked"); assert.equal(native.barDirection, type); assert.equal(native.overlap, 100);
+      assert.deepEqual(native.series[0].values, [first, 0, 0, -4]); assert.deepEqual(native.series[0].missingValueIndexes, [1]);
+      assert.deepEqual(native.series[1].values, [8, 2, 0, -2]); assert.deepEqual(native.series[1].missingValueIndexes, []);
+      const painted = await savePaint(name, receipt), svg = painted.pages[0].svg;
+      assert.equal(painted.reliability.status, "requires-review");
+      assert.match(svg, /data-officekit-incomplete-stack="1"/);
+      assert.match(svg, /data-officekit-point="1" data-officekit-value="2" data-officekit-stack-position="unknown"/);
+      assert.equal((svg.match(/data-officekit-review-point="zero"/g) || []).length, 2);
+      assert.match(svg, new RegExp(`data-officekit-value="8" data-officekit-baseline="${first}" data-officekit-stack-end="${first + 8}"`));
+      assert.match(svg, /data-officekit-value="-2" data-officekit-baseline="-4" data-officekit-stack-end="-6"/);
+      const actual = [...svg.matchAll(/<rect data-officekit-bar="(\d+)" x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)"/g)].map(m => m.slice(1).map(Number));
+      const expected = [[0, 0, first, "CC2200"], [3, 0, -4, "CC2200"], [0, first, first + 8, "0044CC"], [3, -4, -6, "0044CC"]];
+      assert.equal(actual.length, expected.length);
+      for (const [j, [i, start, end, color]] of expected.entries()) {
+        const scale = (type === "column" ? 210 : 360) / (first + 14), width = type === "column" ? 45 : 26.25;
+        const rect = type === "column"
+          ? [127.5 + i * 90, 335 - (Math.max(start, end) + 6) * scale, width, Math.abs(end - start) * scale]
+          : [105 + (Math.min(start, end) + 6) * scale, 295.625 - i * 52.5, Math.abs(end - start) * scale, width];
+        actual[j].forEach((v, k) => assert.ok(Math.abs(v - [i, ...rect][k]) < 1e-9, `${name} cumulative geometry ${j}:${k}`));
+        const pixel = await sharp(Buffer.from(svg)).extract({ left: Math.floor(rect[0] + rect[2] / 2), top: Math.floor(rect[1] + rect[3] / 2), width: 1, height: 1 }).removeAlpha().raw().toBuffer();
+        assert.deepEqual([...pixel], color.match(/../g).map(v => parseInt(v, 16)));
+      }
+    }
+    const authored = await compilePpjWorkspace({ ...sourceWorkspace, program: Buffer.from(JSON.stringify(program)) }, { includePreviewScene: true });
+    await checkStack(authored, `${type}-stack-authored`);
+    const source = await withoutAuthoredSnapshot(authored.file), original = source.slice();
+    const projected = await projectPptxToPpj(source, { sourceUri: `${type}-stack.pptx`, assetRootUri: "assets" });
+    const input = { program: projected.programJson, source, assets: projected.assets };
+    const noop = await compilePpjWorkspace(input, { includePreviewScene: true });
+    assert.deepEqual(noop.file, source); await checkStack(noop, `${type}-stack-noop`);
+    const changed = JSON.parse(new TextDecoder().decode(projected.programJson));
+    changed.pages[0].elements.find(e => e.type === "chart").data.series[0].values[0] = 6;
+    const candidate = await compilePpjWorkspace({ ...input, program: Buffer.from(JSON.stringify(changed)) }, { includePreviewScene: true });
+    await checkStack(candidate, `${type}-stack-edited`, 6);
+    const fresh = await projectPptxToPpj(candidate.file, { sourceUri: `${type}-stack-edited.pptx`, assetRootUri: "assets" });
+    const chart = JSON.parse(new TextDecoder().decode(fresh.programJson)).pages[0].elements.find(e => e.type === "chart");
+    assert.equal(chart.style.stacking, "stacked");
+    assert.deepEqual(chart.data.series[0].values, [6, null, 0, -4]); assert.deepEqual(chart.data.series[1].values, [8, 2, 0, -2]);
+    const oldZip = await JSZip.loadAsync(source), newZip = await JSZip.loadAsync(candidate.file), changedParts = [];
+    assert.deepEqual(Object.keys(newZip.files).sort(), Object.keys(oldZip.files).sort());
+    for (const part of Object.keys(oldZip.files)) if (!oldZip.files[part].dir &&
+      !Buffer.from(await oldZip.file(part).async("uint8array")).equals(Buffer.from(await newZip.file(part).async("uint8array")))) changedParts.push(part);
+    assert.deepEqual(changedParts, ["ppt/slides/charts/chart1.xml"]); assert.deepEqual(source, original);
+    nativeStacks.push({ type, authored: true, sourceNoop: true, sourceValueEdit: true, cumulativePixels: true, incompleteCategory: true,
+      reprojection: true, changedParts, sourceSha256: sha256(source), candidateSha256: sha256(candidate.file) });
+  }
   const nativeCircular = [];
   for (const type of ["pie", "doughnut"]) {
     const circularProgram = structuredClone(pairBase);
@@ -497,7 +646,7 @@ try {
   assert.deepEqual(source, beforeSource);
   assert.ok(started.includes("office") && started.includes("ppj"));
   const report = { status: relationFailures.length ? "failed" : "passed", scope: "PPJ NativeAOT wire/view and internal SVG foundations; not production scene routing or complete paint coverage",
-    nativeCircular,
+    nativeBars, nativeStacks, nativeCircular,
     relationFailures: relationFailures.map(({ shift, actual, error }) => ({ shift, actual, message: error.message })),
     internalPainting: { artifacts, pairedComponent: 1, generatedBezierPaths: paths, sourceTextEdit: true, directedAnchorCases, requiredDirectedAnchorCases: 2,
       explicitCoordinateConnector: true, sourceConnectorPreserved: true, mergedTablePixels: true, sourceTableMoveReprojection: true },

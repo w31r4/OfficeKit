@@ -311,6 +311,30 @@ export function paintPpjSceneSvg(receipt) {
       return { entry, si, prefix, missing };
     });
   }
+  function chartFill(node, surface, legacy, fallback, field) {
+    if (surface && legacy) chartFail(node, field, "Conflicting native solid/series fill owners.");
+    if (surface) {
+      unused(SpreadsheetChartSurfaceFillSchema, surface, ["noFill", "solidRgb", "opacityThousandthPercent"], node, `${field}.`);
+      if (surface.fill.case === "noFill" && surface.fill.value === true) return 'fill="none"';
+      if (surface.fill.case === "solidRgb") return `fill="${rgb(surface.fill.value)}" fill-opacity="${n(sceneOpacity(surface.opacityThousandthPercent ?? 100000))}"`;
+      limit(node, field, "preview.scene.paint.chart-inherited-paint", "Native fill is not mapped; using a labeled review color.");
+    } else if (legacy) {
+      unused(SpreadsheetColorSchema, legacy, ["rgb"], node, `${field}.`);
+      if (legacy.source.case === "rgb") return `fill="${rgb(legacy.source.value)}"`;
+      limit(node, field, "preview.scene.paint.chart-inherited-paint", "Native color inheritance remains unresolved.");
+    } else limit(node, field, "preview.scene.paint.chart-inherited-paint", "Review palette is not a resolved theme.");
+    return `fill="${fallback}"`;
+  }
+  function chartOutline(node, value, field) {
+    if (!value) return 'stroke="none"';
+    unused(SpreadsheetChartLineStyleArtifactSchema, value, ["color", "widthPoints", "opacityThousandthPercent", "dashStyle", "cap", "join"], node, `${field}.`);
+    if (value.color) unused(SpreadsheetColorSchema, value.color, ["rgb"], node, `${field}.color.`);
+    if (value.color?.source.case !== "rgb" || value.widthPoints === undefined)
+      limit(node, field, "preview.scene.paint.chart-inherited-paint", "Review outline defaults do not resolve native theme paint.");
+    return linePaint(node, field, value.color?.source.case === "rgb" ? rgb(value.color.source.value) : "#64748B",
+      value.widthPoints ?? 1, sceneOpacity(value.opacityThousandthPercent ?? 100000),
+      ["solid", "solid", "dashed", "dotted", "dash-dot", "dash-dot-dot"][value.dashStyle], value.cap, value.join);
+  }
   function circularChart(node) {
     const s = node.native, f = node.frame, ring = s.type === SpreadsheetChartType.DOUGHNUT;
     const fail = (field, message) => chartFail(node, field, message);
@@ -352,30 +376,6 @@ export function paintPpjSceneSvg(receipt) {
       : pointStyles.get(i)?.style.explosion ?? seriesExplosion);
     const maxExplosion = explosions.reduce((maximum, value) => Math.max(maximum, value), 0);
     const palette = ["#2563EB", "#B45309", "#047857", "#9333EA", "#BE123C", "#0E7490"];
-    function fill(surface, legacy, fallback, field) {
-      if (surface && legacy) fail(field, "Conflicting native solid/series fill owners.");
-      if (surface) {
-        unused(SpreadsheetChartSurfaceFillSchema, surface, ["noFill", "solidRgb", "opacityThousandthPercent"], node, `${field}.`);
-        if (surface.fill.case === "noFill" && surface.fill.value === true) return 'fill="none"';
-        if (surface.fill.case === "solidRgb") return `fill="${rgb(surface.fill.value)}" fill-opacity="${n(sceneOpacity(surface.opacityThousandthPercent ?? 100000))}"`;
-        limit(node, field, "preview.scene.paint.chart-inherited-paint", "Circular fill uses review color; native fill is not mapped.");
-      } else if (legacy) {
-        unused(SpreadsheetColorSchema, legacy, ["rgb"], node, `${field}.`);
-        if (legacy.source.case === "rgb") return `fill="${rgb(legacy.source.value)}"`;
-        limit(node, field, "preview.scene.paint.chart-inherited-paint", "Circular color inheritance remains unresolved.");
-      } else limit(node, field, "preview.scene.paint.chart-inherited-paint", "Review category palette is not a resolved theme.");
-      return `fill="${fallback}"`;
-    }
-    function outline(value, field) {
-      if (!value) return 'stroke="none"';
-      unused(SpreadsheetChartLineStyleArtifactSchema, value, ["color", "widthPoints", "opacityThousandthPercent", "dashStyle", "cap", "join"], node, `${field}.`);
-      if (value.color) unused(SpreadsheetColorSchema, value.color, ["rgb"], node, `${field}.color.`);
-      if (value.color?.source.case !== "rgb" || value.widthPoints === undefined)
-        limit(node, field, "preview.scene.paint.chart-inherited-paint", "Review outline defaults do not resolve native theme paint.");
-      return linePaint(node, field, value.color?.source.case === "rgb" ? rgb(value.color.source.value) : "#64748B",
-        value.widthPoints ?? 1, sceneOpacity(value.opacityThousandthPercent ?? 100000),
-        ["solid", "solid", "dashed", "dotted", "dash-dot", "dash-dot-dot"][value.dashStyle], value.cap, value.join);
-    }
     // Fixed review plot, not a second PPJ layout pass. Clockwise from up is
     // the native firstSliceAngle convention. Two arcs also handle a full turn.
     // Review layout follows the radial ring-thickness/bisector construction
@@ -402,9 +402,9 @@ export function paintPpjSceneSvg(receipt) {
       const distance = (radius - inner) * explosions[i] / 100;
       const dx = distance * Math.sin(middle * Math.PI / 180), dy = -distance * Math.cos(middle * Math.PI / 180);
       const paint = selected?.style.fill
-        ? fill(selected.style.fill, null, palette[i % palette.length], `${selected.field}.fill`)
-        : fill(entry.seriesFill, entry.fill, palette[i % palette.length], `${prefix}.${entry.fill ? "fill" : "seriesFill"}`);
-      const stroke = outline(selected?.style.line ?? entry.line, selected?.style.line ? `${selected.field}.line` : `${prefix}.line`);
+        ? chartFill(node, selected.style.fill, null, palette[i % palette.length], `${selected.field}.fill`)
+        : chartFill(node, entry.seriesFill, entry.fill, palette[i % palette.length], `${prefix}.${entry.fill ? "fill" : "seriesFill"}`);
+      const stroke = chartOutline(node, selected?.style.line ?? entry.line, selected?.style.line ? `${selected.field}.line` : `${prefix}.line`);
       let geometry = "";
       if (fraction > 0) {
         const outerArc = `M ${point(radius, start)} A ${n(radius)} ${n(radius)} 0 0 1 ${point(radius, middle)} A ${n(radius)} ${n(radius)} 0 0 1 ${point(radius, end)}`;
@@ -419,9 +419,152 @@ export function paintPpjSceneSvg(receipt) {
     const note = !denominator ? `No positive observed data; ${counts}` : missing.size || zeroCount ? `Observed values only; ${counts}` : "";
     return `<g data-officekit-chart="${ring ? "doughnut" : "pie"}" data-officekit-first-slice-angle="${angle}" data-officekit-hole-size="${hole}" data-officekit-outer-radius="${n(radius)}" data-officekit-inner-radius="${n(inner)}" data-officekit-explosion-layout="radial-review">${heading}<g data-officekit-series="0" data-officekit-series-name="${esc(entry.name)}">${slices}</g>${note ? `<text data-officekit-circular-data-note="true" x="${n(f.x + 4)}" y="${n(f.y + f.height - 6)}" font-size="10">${esc(note)}</text>` : ""}</g>`;
   }
+  function barChart(node) {
+    const s = node.native, f = node.frame, fail = (field, message) => chartFail(node, field, message);
+    unused(content.get("chart"), s, [...frameFields, "frameTransform", "type", "categories", "series", "barDirection", "grouping", "gapWidth", "overlap", "varyColors",
+      "displayBlanksAs", "xAxis", "yAxis", "showCategoryAxis", "showValueAxis", "title", "titleBody"], node, "chart.");
+    // BAR is the shared native enum; column is its default direction. xAxis
+    // always owns categories and yAxis owns values, even for horizontal bars.
+    const direction = s.barDirection || "column", horizontal = direction === "bar";
+    if (!["column", "bar"].includes(direction)) fail("chart.barDirection", "Unknown native bar direction.");
+    if (s.comboSeries.length || s.secondaryXAxis || s.secondaryYAxis || s.lineOptions)
+      fail("chart", "A category bar plot cannot replace mixed/secondary-axis or line topology.");
+    const grouping = s.grouping || "none", stacked = grouping === "stacked";
+    if (!["none", "stacked"].includes(grouping)) fail("chart.grouping", "This bar grouping requires a separately verified cumulative/percentage mapping.");
+    const gap = s.gapWidth ?? 150, overlap = s.overlap ?? 0;
+    if (!Number.isSafeInteger(gap) || gap < 0 || gap > 500) fail("chart.gapWidth", "Bar gap must be an integer in 0..500 percent.");
+    if (!Number.isSafeInteger(overlap) || overlap < -100 || overlap > 100) fail("chart.overlap", "Bar overlap must be an integer in -100..100 percent.");
+    const series = categorySeries(node, s, ["name", "values", "missingValueIndexes", "fill", "seriesFill", "line", "pointStyles"]);
+    const blank = s.displayBlanksAs ?? "gap", missingCount = series.reduce((total, v) => total + v.missing.size, 0);
+    if (!["gap", "zero", "span"].includes(blank) || (missingCount && blank !== "gap"))
+      fail("chart.displayBlanksAs", "Missing bars require gap until explicit display-policy evidence is mapped.");
+    const xa = s.xAxis, ya = s.yAxis;
+    if (xa) {
+      unused(SpreadsheetChartAxisArtifactSchema, xa, ["reverse", "visible", "axisLineVisible", "tickLabelsVisible", "tickLabelInterval"], node, "chart.xAxis.");
+      if ([xa.minimum, xa.maximum, xa.logBase].some(v => v !== undefined)) fail("chart.xAxis", "Numeric category bounds cannot be treated as equally spaced bands.");
+    }
+    if (ya) unused(SpreadsheetChartAxisArtifactSchema, ya, ["minimum", "maximum", "reverse", "visible", "axisLineVisible", "tickLabelsVisible"], node, "chart.yAxis.");
+    if (ya?.logBase !== undefined) fail("chart.yAxis.logBase", "Logarithmic bars require a separately verified nonzero baseline.");
+    const observed = series.flatMap(({ entry, missing }) => entry.values.filter((_, i) => !missing.has(i)));
+    // Unknown terms cannot silently become zero in a cumulative sum. Keep the
+    // whole incomplete category unpositioned, with original observations below.
+    const incomplete = new Set(stacked ? s.categories.flatMap((_, i) => series.some(v => v.missing.has(i)) ? [i] : []) : []);
+    const positive = s.categories.map(() => 0), negative = s.categories.map(() => 0);
+    const segments = series.map(({ entry, missing, prefix }) => entry.values.map((value, i) => {
+      if (missing.has(i) || incomplete.has(i)) return null;
+      const totals = value < 0 ? negative : positive, start = stacked ? totals[i] : 0, end = start + value;
+      if (!Number.isFinite(end) || (value !== 0 && end === start))
+        fail(`${prefix}.values[${i}]`, "Cumulative bar endpoint is not representable without losing an observation.");
+      if (stacked) totals[i] = end;
+      return { start, end };
+    }));
+    for (const i of incomplete) limit(node, "chart.series", "preview.scene.paint.chart-stack-incomplete",
+      `Category ${i} (${s.categories[i]}): missing terms make the full stack unknown; values are retained but no cumulative positions are invented.`);
+    // Both clustered and stacked domains include zero, unless explicitly bounded.
+    let low = 0, high = 0;
+    for (const row of segments) for (const segment of row) if (segment) {
+      low = Math.min(low, segment.start, segment.end); high = Math.max(high, segment.start, segment.end);
+    }
+    const explicitLow = ya?.minimum !== undefined, explicitHigh = ya?.maximum !== undefined;
+    if (explicitLow) low = numeric(ya.minimum);
+    if (explicitHigh) high = numeric(ya.maximum);
+    if (low >= high) {
+      if (explicitLow && explicitHigh) fail("chart.yAxis", "Explicit minimum must be less than maximum.");
+      const pad = Math.max(1, Math.abs(explicitLow ? low : high) * .1);
+      if (!explicitLow && explicitHigh) low = high - pad;
+      else if (!explicitHigh) high = low + pad;
+    }
+    if (![low, high, high - low].every(Number.isFinite)) fail("chart.yAxis", "Unrepresentable bar range.");
+    const plot = { x: f.x + f.width * .1, y: f.y + f.height * .15, width: f.width * .8, height: f.height * .7 };
+    if (plot.width <= 0 || plot.height <= 0) fail("chart", "Nonpositive bar plot extent.");
+    limit(node, "chart", "preview.scene.paint.chart-layout", "Native category bars mapped; fixed review margins/ticks, full labels/legend, inheritance and host layout remain incomplete.");
+    const valueAt = value => {
+      let ratio = (value - low) / (high - low);
+      if (ya?.reverse === true) ratio = 1 - ratio;
+      return horizontal ? plot.x + ratio * plot.width : plot.y + (1 - ratio) * plot.height;
+    };
+    const categoryExtent = horizontal ? plot.height : plot.width, count = Math.max(1, series.length);
+    const band = categoryExtent / Math.max(1, s.categories.length);
+    // gapWidth is relative to one bar, not the whole cluster. Negative overlap
+    // leaves within-cluster space. Missing entries keep their series slot.
+    const thickness = band / (count - (count - 1) * overlap / 100 + gap / 100);
+    const stride = thickness * (1 - overlap / 100), cluster = thickness + stride * (count - 1);
+    const categoryAt = offset => {
+      const position = xa?.reverse === true ? categoryExtent - offset : offset;
+      return horizontal ? plot.y + plot.height - position : plot.x + position;
+    };
+    const palette = ["#2563EB", "#B45309", "#047857", "#9333EA", "#BE123C", "#0E7490"];
+    const output = series.map(({ entry, si, prefix, missing }) => {
+      const styles = new Map(); let previous = -1;
+      for (const [pi, style] of entry.pointStyles.entries()) {
+        const field = `${prefix}.pointStyles[${pi}]`;
+        unused(SpreadsheetChartPointStyleArtifactSchema, style, ["index", "fill", "line"], node, `${field}.`);
+        if (!Number.isSafeInteger(style.index) || style.index <= previous || style.index >= entry.values.length || missing.has(style.index))
+          fail(`${field}.index`, "Point-style indexes must increase, address a real observation and be in range.");
+        previous = style.index; styles.set(style.index, { style, field });
+      }
+      const marks = entry.values.map((value, i) => {
+        if (missing.has(i)) return `<g data-officekit-missing-point="${i}"><title>${esc(s.categories[i])}: missing observation</title></g>`;
+        if (incomplete.has(i)) return `<g data-officekit-point="${i}" data-officekit-value="${n(value)}" data-officekit-stack-position="unknown"><title>${esc(entry.name)} / ${esc(s.categories[i])}: ${n(value)}; incomplete stack, position not inferred</title></g>`;
+        const selected = styles.get(i), fallback = palette[(s.varyColors ? i : si) % palette.length];
+        const fill = selected?.style.fill ? chartFill(node, selected.style.fill, null, fallback, `${selected.field}.fill`)
+          : chartFill(node, entry.seriesFill, entry.fill, fallback, `${prefix}.${entry.fill ? "fill" : "seriesFill"}`);
+        const stroke = chartOutline(node, selected?.style.line ?? entry.line, selected?.style.line ? `${selected.field}.line` : `${prefix}.line`);
+        const offset = i * band + (band - cluster) / 2 + si * stride;
+        const catStart = Math.min(categoryAt(offset), categoryAt(offset + thickness));
+        const segment = segments[si][i];
+        const baseline = valueAt(segment.start), endpoint = valueAt(segment.end), extent = Math.abs(endpoint - baseline);
+        if (value !== 0 && extent === 0) fail(`${prefix}.values[${i}]`, "Bar length is below representable precision.");
+        const rect = horizontal ? { x: Math.min(baseline, endpoint), y: catStart, width: extent, height: thickness }
+          : { x: catStart, y: Math.min(baseline, endpoint), width: thickness, height: extent };
+        let geometry = `<rect data-officekit-bar="${i}" ${box(rect)} ${fill} ${stroke}/>`;
+        if (value === 0) {
+          limit(node, `${prefix}.values[${i}]`, "preview.scene.paint.chart-zero-review-mark", "Zero shown by a dashed baseline tick, not a nonzero data bar.");
+          const x1 = horizontal ? baseline : catStart, y1 = horizontal ? catStart : baseline;
+          geometry = `<path data-officekit-review-point="zero" d="M ${n(x1)} ${n(y1)} L ${n(horizontal ? x1 : x1 + thickness)} ${n(horizontal ? y1 + thickness : y1)}" fill="none" stroke="#64748B" stroke-dasharray="2 2"/>`;
+        }
+        return `<g data-officekit-point="${i}" data-officekit-value="${n(value)}" data-officekit-baseline="${n(segment.start)}"${Math.min(segment.start, segment.end) < low || Math.max(segment.start, segment.end) > high ? ' data-officekit-point-outside-plot="true"' : ""}${stacked ? ` data-officekit-stack-end="${n(segment.end)}"` : ""}><title>${esc(entry.name)} / ${esc(s.categories[i])}: ${n(value)}</title>${geometry}</g>`;
+      }).join("");
+      return `<g data-officekit-series="${si}" data-officekit-series-name="${esc(entry.name)}">${marks}</g>`;
+    }).join("");
+    let axes = "";
+    for (const i of incomplete) {
+      const values = series.map(({ entry, missing }) => `${entry.name}: ${missing.has(i) ? "?" : n(entry.values[i])}`).join("; ");
+      axes += `<text data-officekit-incomplete-stack="${i}" x="${n(horizontal ? plot.x + 4 : categoryAt((i + .5) * band))}" y="${n(horizontal ? categoryAt((i + .5) * band) : plot.y + 12)}" text-anchor="${horizontal ? "start" : "middle"}" font-size="10" fill="#92400E"><title>${esc(values)}</title>Incomplete</text>`;
+    }
+    const bottom = plot.y + plot.height, right = plot.x + plot.width;
+    if ((xa?.visible ?? s.showCategoryAxis ?? true) === true) {
+      if (xa?.axisLineVisible !== false) axes += horizontal
+        ? `<line data-officekit-axis="category" x1="${n(plot.x)}" y1="${n(plot.y)}" x2="${n(plot.x)}" y2="${n(bottom)}" stroke="#64748B"/>`
+        : `<line data-officekit-axis="category" x1="${n(plot.x)}" y1="${n(bottom)}" x2="${n(right)}" y2="${n(bottom)}" stroke="#64748B"/>`;
+      const interval = xa?.tickLabelInterval ?? 1;
+      if (!Number.isSafeInteger(interval) || interval < 1) fail("chart.xAxis.tickLabelInterval", "Invalid category tick interval.");
+      if (xa?.tickLabelsVisible !== false && xa?.tickLabelPosition !== "none") axes += s.categories.map((label, i) => i % interval ? "" :
+        `<text data-officekit-category="${i}" x="${n(horizontal ? plot.x - 4 : categoryAt((i + .5) * band))}" y="${n(horizontal ? categoryAt((i + .5) * band) + 3 : bottom + 12)}" text-anchor="${horizontal ? "end" : "middle"}" font-size="10" fill="#334155">${esc(label)}</text>`).join("");
+    }
+    if ((ya?.visible ?? s.showValueAxis ?? true) === true) {
+      if (ya?.axisLineVisible !== false) axes += horizontal
+        ? `<line data-officekit-axis="value" x1="${n(plot.x)}" y1="${n(bottom)}" x2="${n(right)}" y2="${n(bottom)}" stroke="#64748B"/>`
+        : `<line data-officekit-axis="value" x1="${n(plot.x)}" y1="${n(plot.y)}" x2="${n(plot.x)}" y2="${n(bottom)}" stroke="#64748B"/>`;
+      // A signed bar chart needs an explicit zero reference; the middle of an
+      // asymmetric range is not the data baseline. This is a review guide,
+      // not a claim that native crosses/gridline styling has been resolved.
+      if (low < 0 && high > 0) axes += horizontal
+        ? `<line data-officekit-bar-zero-baseline="review" x1="${n(valueAt(0))}" y1="${n(plot.y)}" x2="${n(valueAt(0))}" y2="${n(bottom)}" stroke="#CBD5E1" stroke-dasharray="2 2"/>`
+        : `<line data-officekit-bar-zero-baseline="review" x1="${n(plot.x)}" y1="${n(valueAt(0))}" x2="${n(right)}" y2="${n(valueAt(0))}" stroke="#CBD5E1" stroke-dasharray="2 2"/>`;
+      if (ya?.tickLabelsVisible !== false && ya?.tickLabelPosition !== "none") axes += [low, low < 0 && high > 0 ? 0 : low + (high - low) / 2, high].map(value => {
+        return `<text data-officekit-value-tick="${n(value)}" x="${n(horizontal ? valueAt(value) : plot.x - 4)}" y="${n(horizontal ? bottom + 12 : valueAt(value) + 3)}" text-anchor="${horizontal ? "middle" : "end"}" font-size="10" fill="#334155">${n(value)}</text>`;
+      }).join("");
+    }
+    const heading = text({ ...node, frame: { x: f.x, y: f.y, width: f.width, height: f.height * .15 } }, { text: s.title, textBody: s.titleBody }, "chart");
+    const zeroCount = observed.filter(v => v === 0).length;
+    const note = `${observed.length ? "Observed values" : "No observed data"}; ${missingCount} missing; ${zeroCount} zero${incomplete.size ? `; ${incomplete.size} incomplete stacks (not positioned)` : " (dashed review ticks)"}`;
+    return `<g data-officekit-chart="${direction}" data-officekit-blank-policy="${blank}" data-officekit-scale-min="${n(low)}" data-officekit-scale-max="${n(high)}" data-officekit-grouping="${grouping}" data-officekit-gap-width="${gap}" data-officekit-overlap="${overlap}" data-officekit-bar-thickness="${n(thickness)}">${heading}${axes}<svg data-officekit-bar-clip="plot" ${box(plot)} viewBox="${n(plot.x)} ${n(plot.y)} ${n(plot.width)} ${n(plot.height)}" overflow="hidden">${output}</svg><text x="${n(f.x + 4)}" y="${n(f.y + f.height - 6)}" font-size="10">${esc(note)}</text></g>`;
+  }
   function chart(node) {
     const s = node.native, f = node.frame;
     if ([SpreadsheetChartType.PIE, SpreadsheetChartType.DOUGHNUT].includes(s.type)) return circularChart(node);
+    if (s.type === SpreadsheetChartType.BAR) return barChart(node);
     if (s.type !== SpreadsheetChartType.LINE) {
       limit(node, "chart.type", "preview.scene.paint.chart-type", s.type, "opaque");
       return placeholder(node, `chart type ${s.type}: not painted`);
