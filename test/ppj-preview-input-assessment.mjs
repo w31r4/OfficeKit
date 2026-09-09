@@ -37,6 +37,8 @@ const unwrappedText = assessPpjPreviewInput(deck([{ ...text, style: { wrap: "non
 assert.ok(unwrappedText.diagnostics.some(d => d.path.endsWith(".style.wrap") && d.status !== "supported"));
 const clippedText = assessPpjPreviewInput(deck([{ ...text, style: { horizontalOverflow: "clip" } }]));
 assert.ok(clippedText.diagnostics.some(d => d.path.endsWith(".style.horizontalOverflow") && d.status !== "supported"));
+const ellipsisText = assessPpjPreviewInput(deck([{ ...text, style: { verticalOverflow: "ellipsis" } }]));
+assert.ok(ellipsisText.diagnostics.some(d => d.path.endsWith(".style.verticalOverflow") && d.status !== "supported"));
 const rotatedText = assessPpjPreviewInput(deck([{ ...text, style: { rotation: 0 } }]));
 assert.ok(rotatedText.diagnostics.some(d => d.path.endsWith(".style.rotation") && d.status !== "supported"));
 

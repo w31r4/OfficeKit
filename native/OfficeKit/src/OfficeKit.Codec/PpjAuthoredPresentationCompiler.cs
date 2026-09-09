@@ -300,6 +300,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             if (requested.VerticalOverflowCase == PresentationTextBodyProperties.VerticalOverflowOneofCase.VerticalOverflowMode)
                 current.VerticalOverflowMode = requested.VerticalOverflowMode;
         }
+        else if (previousStyle is { ValueKind: JsonValueKind.Object } previousVerticalOverflow && previousVerticalOverflow.TryGetProperty("verticalOverflow", out _))
+            current.NoVerticalOverflowMode = true;
         if (style.TryGetProperty("horizontalOverflow", out _))
         {
             current.ClearHorizontalOverflow();

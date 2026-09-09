@@ -157,7 +157,8 @@ internal static class PptxBodyPropertiesCodec
                 source.ColumnDirectionCase == PresentationTextBodyProperties.ColumnDirectionOneofCase.NoColumnDirection && source.NoColumnDirection) &&
             (source.RotationCase is PresentationTextBodyProperties.RotationOneofCase.None or PresentationTextBodyProperties.RotationOneofCase.RotationAngle60000 ||
                 source.RotationCase == PresentationTextBodyProperties.RotationOneofCase.NoRotation && source.NoRotation) &&
-            (source.VerticalOverflowCase is PresentationTextBodyProperties.VerticalOverflowOneofCase.None or PresentationTextBodyProperties.VerticalOverflowOneofCase.VerticalOverflowMode) &&
+            (source.VerticalOverflowCase is PresentationTextBodyProperties.VerticalOverflowOneofCase.None or PresentationTextBodyProperties.VerticalOverflowOneofCase.VerticalOverflowMode ||
+                source.VerticalOverflowCase == PresentationTextBodyProperties.VerticalOverflowOneofCase.NoVerticalOverflowMode && source.NoVerticalOverflowMode) &&
             (source.HorizontalOverflowCase is PresentationTextBodyProperties.HorizontalOverflowOneofCase.None or PresentationTextBodyProperties.HorizontalOverflowOneofCase.HorizontalOverflowMode ||
                 source.HorizontalOverflowCase == PresentationTextBodyProperties.HorizontalOverflowOneofCase.NoHorizontalOverflowMode && source.NoHorizontalOverflowMode) &&
             (source.UprightTextCase is PresentationTextBodyProperties.UprightTextOneofCase.None or PresentationTextBodyProperties.UprightTextOneofCase.Upright ||
