@@ -1967,6 +1967,7 @@
               "frame.flipV",
               "geometry.adjustments",
               "geometry.paths",
+              "geometry.textRectangle",
               "canvas.width",
               "canvas.height",
               "pageOrder",
@@ -4223,6 +4224,67 @@
             },
             "viewBox": {
               "$ref": "#/$defs/frame"
+            },
+            "textRectangle": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "left",
+                "top",
+                "right",
+                "bottom"
+              ],
+              "description": "Text layout edges relative to the custom shape frame, in points (independent of path viewBox) or native built-in references. Omit for the default. Source change/removal requires setGeometry geometry.textRectangle.",
+              "properties": {
+                "left": {
+                  "oneOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    }
+                  ]
+                },
+                "top": {
+                  "oneOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    }
+                  ]
+                },
+                "right": {
+                  "oneOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    }
+                  ]
+                },
+                "bottom": {
+                  "oneOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    }
+                  ]
+                }
+              }
             },
             "paths": {
               "type": "array",

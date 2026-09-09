@@ -830,8 +830,7 @@ internal static partial class PpjPresentationProjector
     {
         if (shape.Geometry != "custom" || shape.CustomPaths.Count == 0 ||
             shape.CustomAdjustments.Count > 0 || shape.CustomGuides.Count > 0 ||
-            shape.CustomConnectionSites.Count > 0 || shape.CustomAdjustmentHandles.Count > 0 ||
-            shape.TextRectangle is not null)
+            shape.CustomConnectionSites.Count > 0 || shape.CustomAdjustmentHandles.Count > 0)
             return false;
         var width = shape.CustomPaths[0].Width;
         var height = shape.CustomPaths[0].Height;
@@ -873,7 +872,7 @@ internal static partial class PpjPresentationProjector
             if (source.HasStroke) path["stroke"] = JsonValue.Create(source.Stroke);
             paths.Add(path);
         }
-        return new JsonObject
+        var output = new JsonObject
         {
             ["kind"] = StringNode("custom"),
             ["viewBox"] = new JsonObject
@@ -885,6 +884,15 @@ internal static partial class PpjPresentationProjector
             },
             ["paths"] = paths,
         };
+        if (shape.TextRectangle is { } rectangle)
+            output["textRectangle"] = new JsonObject
+            {
+                ["left"] = rectangle.HasLeftReference ? JsonValue.Create(rectangle.LeftReference) : JsonValue.Create(rectangle.LeftEmu / 12_700d),
+                ["top"] = rectangle.HasTopReference ? JsonValue.Create(rectangle.TopReference) : JsonValue.Create(rectangle.TopEmu / 12_700d),
+                ["right"] = rectangle.HasRightReference ? JsonValue.Create(rectangle.RightReference) : JsonValue.Create(rectangle.RightEmu / 12_700d),
+                ["bottom"] = rectangle.HasBottomReference ? JsonValue.Create(rectangle.BottomReference) : JsonValue.Create(rectangle.BottomEmu / 12_700d),
+            };
+        return output;
     }
 
     private static JsonObject ProjectCustomCommand(PresentationCustomGeometryCommand command) => command.CommandCase switch
@@ -2948,7 +2956,7 @@ internal static partial class PpjPresentationProjector
                     else if (element.Shape.Placeholder is null &&
                              element.Shape.Geometry == "custom" &&
                              CanProjectCustomGeometry(element.Shape))
-                        output.Add(new("setGeometry", ["geometry.paths"]));
+                        output.Add(new("setGeometry", ["geometry.paths", "geometry.textRectangle"]));
                 }
                 break;
             case PresentationElement.ContentOneofCase.Image when source.Editable:

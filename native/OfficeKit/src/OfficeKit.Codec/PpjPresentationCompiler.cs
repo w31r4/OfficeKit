@@ -2027,8 +2027,10 @@ internal static partial class PpjSourceBoundPresentationCompiler
             var newGeometry = after.Raw.GetProperty("geometry");
             if (before.GeometryKind == "custom" && after.GeometryKind == "custom")
             {
-                RequireCapability(after, "setGeometry", path + ".geometry.paths");
-                RequireEqualExcept(oldGeometry, newGeometry, path + ".geometry", "paths");
+                foreach (var field in new[] { "paths", "textRectangle" })
+                    if (PropertyChanged(oldGeometry, newGeometry, field))
+                        RequireCapabilityField(after.NativeRef, "setGeometry", "geometry." + field, path + ".geometry." + field);
+                RequireEqualExcept(oldGeometry, newGeometry, path + ".geometry", "paths", "textRectangle");
                 if (!IsLiteralCustomGeometry(target))
                     throw Unsupported(path + ".geometry", "source custom geometry is outside the literal path edit profile");
                 target.CustomPaths.Clear();
@@ -2037,7 +2039,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 target.CustomConnectionSites.Clear();
                 target.CustomAdjustmentHandles.Clear();
                 target.TextRectangle = null;
-                PpjAuthoredPresentationCompiler.ApplyCustomGeometry(target, newGeometry, after.Id);
+                PpjAuthoredPresentationCompiler.ApplyCustomGeometry(target, newGeometry, after.Id, allowTextRectangle: true);
             }
             else
             {
@@ -2091,8 +2093,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
     {
         if (shape.Geometry != "custom" || shape.CustomPaths.Count == 0 ||
             shape.CustomAdjustments.Count > 0 || shape.CustomGuides.Count > 0 ||
-            shape.CustomConnectionSites.Count > 0 || shape.CustomAdjustmentHandles.Count > 0 ||
-            shape.TextRectangle is not null)
+            shape.CustomConnectionSites.Count > 0 || shape.CustomAdjustmentHandles.Count > 0)
             return false;
         var width = shape.CustomPaths[0].Width;
         var height = shape.CustomPaths[0].Height;

@@ -70,11 +70,22 @@ literal preset adjustments can be changed only when `nativeRef.capabilities`
 issues `setGeometry` for `geometry.adjustments`. Formula-valued or irregular
 native guides remain source-owned.
 
-An imported literal custom geometry (only paths with literal coordinates, no
-guides, adjustment handles, connection sites, or text rectangle) may likewise
-issue `setGeometry` for `geometry.paths`. That bounded edit replaces the
-shape-owned path list in the existing SlidePart and reprojects it; formula or
-extension-bearing custom geometry remains source-bound and is not flattened.
+An imported literal custom geometry (paths with literal coordinates, without
+custom guides, adjustment handles or connection sites) may issue `setGeometry`
+for `geometry.paths` and `geometry.textRectangle`. These fields can be edited
+independently in the existing SlidePart; formula or extension-bearing custom
+geometry remains source-owned.
+
+`geometry.textRectangle` sets the shape text area. For example:
+`{ "left": 10, "top": 5, "right": "r", "bottom": "b" }`.
+Numbers are points relative to the shape frame, independent of the path's
+`viewBox`; strings retain native built-in references such as `l/t/r/b`.
+All four edges are required and their resolved right/bottom must exceed
+left/top. A fresh projection preserves mixed numeric/reference edges.
+Source `setGeometry` permits adding, changing or removing the rectangle;
+omission restores the native default. Paths, text and frame stay intact.
+This is shape state; image masks and compositing clips reject it. Preview
+retains explicit text-layout limitations, so this is not host layout proof.
 
 The same preset profile can clip an image. `image.mask.adjustments` uses the
 identical parameter order and defaults; see [Media and layers](media-and-layers.md#image-masks).

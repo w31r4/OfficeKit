@@ -510,6 +510,8 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 **优先级：P0；状态：部分完成。**
 
+**自定义形状文字矩形增量（2026-09-10）：** `geometry.textRectangle` 以 `left/top/right/bottom` 表达形状局部点值、原生内建引用或混合边界；省略保留原生默认。literal custom shape 的 authored/去嵌入投影和 `setGeometry` 增改删已接通，不再因为存在 text rectangle 就丢失可编辑形状身份。`PpjCustomGeometryTextRectangleTests` 核对原源 no-op、修改/删除/再新增、路径 XML/文字/frame 和非目标 ZIP 保留，相关专项 64/64 通过；无效边界、未知引用和 mask/clip owner 拒绝。custom guide/handle 图的完整 PPJ 表达及宿主布局仍开放；预览四边均保留明确诊断。
+
 **连接线弯折调整增量（2026-09-10）：** `bendAdjustment` 保留 elbow/curved 三段路径的直接 `adj1` 原生整数值，支持 signed int32、显式零与省略；`setConnectorType` 可独立修改/删除，换为 straight 清理旧值，显式冲突拒绝。最小原源实验覆盖 `25000→0`、负值、删除、native guide、再投影和仅目标 SlidePart 改动，相关回归 69/69 通过，零跳过。计算公式和端点归一化无法保留弯折轴的旋转源仍 opaque；内部预览对非默认弯折明确给出 `preview.scene.paint.connector-bend`，不代画中点路线。完整路由及宿主外观仍开放。
 
 **连接线类型增量（2026-09-10）：** `connectorType` 通过 `setConnectorType` 支持 source-bound 的 straight/elbow/curved 切换，复用原生 canonical geometry 替换，保留端点、绑定、箭头和线样式。相关 Connector/preview 回归 67/67 通过；最小回归按 straight→elbow→curved→straight 核对实际 `prstGeom`、每个源的 no-op、SlidePart-only 差异与二次投影；非法类型及修改过的权限证据继续拒绝。此字段仍必填，不代表自动避障或任意 bend/guide 编辑。

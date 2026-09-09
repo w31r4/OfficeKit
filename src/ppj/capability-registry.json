@@ -1056,6 +1056,13 @@
       "reason": "The profile reuses a 0..1000 point radius, lowering to a:softEdge after the bounded text glow, inner-shadow, outer-shadow and reflection owners. The source-bound run profile accepts only a direct soft edge, outer-shadow→soft-edge or full-span reflection→soft-edge, preserves the preceding owner proof and token-splices the selected run radius; the defaultText profile proves direct a:p/a:pPr/a:defRPr ownership and token-splices its softEdge/@rad, as covered by PpjSourceBoundTextSoftEdgeEditsDirectRunOwnerAndReprojects and its focused default-text extension. 3-D, WordArt and arbitrary effect lists remain outside this authored owner."
     },
     {
+      "feature": "custom geometry text rectangle",
+      "ppjPath": "pages[].elements[].geometry.textRectangle where type is shape",
+      "behavior": "partial",
+      "sourceBound": "Recognized literal custom shapes issue setGeometry for geometry.textRectangle. Add/change/remove left/top/right/bottom while preserving paths, text, frame and non-target ZIP parts. Numeric edges are shape-local points; built-in reference strings and mixed state survive fresh projection. Omission retains the native default.",
+      "reason": "PpjCustomGeometryTextRectangleTests verifies authored and original-source lifecycle, reference identity, invalid bounds/references, shape-only owner guard and unchanged path XML. Custom adjustment/guide/site/handle graphs stay source-owned. Preview input assessment retains explicit text-rectangle limitations; host layout is unverified."
+    },
+    {
       "feature": "object-relative connector frame anchors",
       "ppjPath": "pages[].elements[].from/to where type is connector",
       "behavior": "partial",
