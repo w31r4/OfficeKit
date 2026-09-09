@@ -463,6 +463,8 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**文本体 rotation 完整增改删（2026-09-10）：** `style.rotation` / `textStyle.rotation` / 表格 `text.style.rotation` 删除后移除原生 `bodyPr/@rot`，显式 0 与正负角度仍保留。文本、形状、master/layout 占位符及表格均支持原源删除和恢复；只含 rotation/upright 的样式对象可整体移除。新增 7 个最小回归核对实际 60000 分之一度数值、原源 no-op、0/负角恢复、表格普通文本规范化后的字段重建，以及 frame/正文/其它属性和非目标 ZIP 保留；相关专项 33/33 通过。预览保留文本旋转限制，未重建 NativeAOT 或做宿主布局验收，其它 body 字段删除仍逐项推进。
+
 **文本 upright 完整增改删（2026-09-10）：** `style.upright` / `textStyle.upright` / 表格 `text.style.upright` 保留 true、false 与省略的区别；从已投影源样式删除该字段，会移除原生 `upright` 属性，恢复继承/默认行为。样式只含 upright 时也可删除整个对象。文本、形状、master/layout 占位符和表格的最小实验 7/7 通过，核对原源 no-op、删除后再添加 true/false、属性实际存在性、其它 XML 语义及非目标 ZIP 保留、缺权限和连带删除拒绝。表格删除最后一个 body 属性后可规范投影为普通文本，再以相同原生拓扑恢复结构化样式。相关专项 103/104，唯一异常合并表格断言在干净 `bbc1065b` 基线上同样失败；预览保留布局限制，未重建 NativeAOT 或做宿主验收。
 
 **优先级：P0；状态：部分完成（rich text 子集已交付）。**
@@ -695,6 +697,8 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 **本轮继续拆出同一图片 owner 的 bottom bevel 枚举：** 已有 `shape3dBevelBottomPreset` 也绑定严格图片 owner 的 `p:pic/p:spPr/a:sp3d/a:bevelB/@prst`；新增 additive `PresentationImage.shape_3d_bevel_bottom_preset` source-bound 载体，`PpjSourceBoundPictureShape3dBevelBottomPresetLeafEditsAndReprojects` 验证 `angle` → `softRound` 的单 `bevelB/@prst` token splice、仅目标 SlidePart、图片关系/crop/mask/effect、bevel 尺寸与其它 3-D 状态保留、Open XML 和二次投影。未知属性、额外子节点、顶面 bevel、scene、颜色和复杂/扩展 3-D graph 仍 source-owned。
 
 ### F-06 Table、Cell Style 和 Table Layout
+
+**文本旋转删除增量（2026-09-10）：** 表格 `text.style.rotation` 支持省略删除及显式 0/负角度恢复；与 upright 合并移除简单样式对象后，可按原生固定拓扑恢复结构化文本。详见 F-03 rotation 增量；其它布局字段删除仍开放。
 
 **文本体删除增量（2026-09-10）：** 表格 `text.style.upright` 已与其它文本 owner 对齐，支持 true/false/删除及移除 upright-only style；删除最后一个属性后的普通文本规范化与恢复路径已验证。证据和已有失败见 F-03 upright 增量，其它 body style 删除与复杂继承仍开放。
 

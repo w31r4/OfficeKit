@@ -2,9 +2,22 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ text-body `rotation` lifecycle (2026-09-10): removing a previously projected
+style rotation removes native bodyPr rot; explicit zero and signed degrees remain
+present. Text, shape, master/layout placeholder and table-cell lifecycles share
+`PpjTextBodyPropertyLifecycleTests` (renamed from the upright-only fixture).
+The 7 new rotation cases verify no-op bytes, native 60000-unit values,
+zero/negative restoration, simple rotation/upright style-owner removal, compact
+table restoration and unchanged surrounding XML/non-target ZIP bytes. Related
+body/placeholder/table-text selection passes 33/33, zero skipped (SDK 8.0.128,
+repository TMPDIR, single-process build). The broader table failure documented
+below is unchanged and was not rerun for this increment. Schema/Help/registry/text
+reference and explicit rotation preview diagnostics are synchronized; no wire
+revision, NativeAOT rebuild or host layout acceptance.
+
 PPJ text-body `upright` lifecycle (2026-09-10): authorized source edits now
 distinguish true, false and removal. Removing the sole upright property can also
-remove its style owner. `PpjTextUprightLifecycleTests` passes 7/7: text, shape,
+remove its style owner. `PpjTextBodyPropertyLifecycleTests` passes 7/7: text, shape,
 master/layout placeholder and table source no-op/removal/true-false restoration,
 native attribute presence, unchanged surrounding XML semantics and non-target ZIP
 bytes, plus upright-only owner removal and denied/overbroad deletion. Removing

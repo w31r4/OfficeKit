@@ -29,6 +29,8 @@ assert.ok(siteConnector.diagnostics.some(d => d.path.endsWith(".from.connectionS
 
 const uprightText = assessPpjPreviewInput(deck([{ ...text, style: { upright: false } }]));
 assert.ok(uprightText.diagnostics.some(d => d.path.endsWith(".style.upright") && d.status !== "supported"));
+const rotatedText = assessPpjPreviewInput(deck([{ ...text, style: { rotation: 0 } }]));
+assert.ok(rotatedText.diagnostics.some(d => d.path.endsWith(".style.rotation") && d.status !== "supported"));
 
 const rectangleShape = assessPpjPreviewInput(deck([{ type: "shape", id: "custom", frame, text: "Text",
   geometry: { kind: "custom", viewBox: frame, paths: [],

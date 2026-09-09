@@ -4236,7 +4236,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
     {
         if (after.TryGetProperty(field, out var style)) return style;
         if (PreviousTextBodyStyle(before, field) is { ValueKind: JsonValueKind.Object } previous &&
-            previous.TryGetProperty("upright", out _) && previous.EnumerateObject().Count() == 1)
+            previous.EnumerateObject().Any() && previous.EnumerateObject().All(property => property.Name is "upright" or "rotation"))
             return JsonSerializer.SerializeToElement(new Dictionary<string, object>());
         throw Unsupported(path + "." + field, "removing source-bound text body style with other fields is not an explicit bounded operation");
     }
@@ -4268,6 +4268,13 @@ internal static partial class PpjSourceBoundPresentationCompiler
         {
             body.BodyProperties ??= new PresentationTextBodyProperties();
             body.BodyProperties.NoUpright = true;
+        }
+        if (PreviousTextBodyStyle(previousSource, "style") is { ValueKind: JsonValueKind.Object } previousRotation &&
+            previousRotation.TryGetProperty("rotation", out _) &&
+            (PreviousTextBodyStyle(source, "style") is not { ValueKind: JsonValueKind.Object } nextRotation || !nextRotation.TryGetProperty("rotation", out _)))
+        {
+            body.BodyProperties ??= new PresentationTextBodyProperties();
+            body.BodyProperties.NoRotation = true;
         }
         return body;
     }

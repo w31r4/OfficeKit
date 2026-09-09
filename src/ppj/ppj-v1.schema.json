@@ -3730,7 +3730,8 @@
         "rotation": {
           "type": "number",
           "minimum": -360,
-          "maximum": 360
+          "maximum": 360,
+          "description": "Text-body rotation in degrees, separate from element frame rotation. Explicit zero remains present. Removing a previously projected rotation from an authorized source style removes bodyPr rot and restores inherited/default behavior; style owners containing only rotation/upright may be removed."
         },
         "verticalOverflow": {
           "enum": [
@@ -3747,7 +3748,7 @@
         },
         "upright": {
           "type": "boolean",
-          "description": "Explicit true/false retains the direct native upright value. In an authorized source style edit, removing a previously projected upright property removes that native attribute and restores its inherited/default behavior. An otherwise upright-only style object can also be removed. Preview does not guarantee host text layout."
+          "description": "Explicit true/false retains the direct native upright value. In an authorized source style edit, removing a previously projected upright property removes that native attribute and restores its inherited/default behavior. A style object containing only upright and/or rotation can also be removed. Preview does not guarantee host text layout."
         }
       }
     },

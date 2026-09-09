@@ -286,6 +286,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             if (requested.RotationCase == PresentationTextBodyProperties.RotationOneofCase.RotationAngle60000)
                 current.RotationAngle60000 = requested.RotationAngle60000;
         }
+        else if (previousStyle is { ValueKind: JsonValueKind.Object } previousRotation && previousRotation.TryGetProperty("rotation", out _))
+            current.NoRotation = true;
         if (style.TryGetProperty("verticalOverflow", out _))
         {
             current.ClearVerticalOverflow();
