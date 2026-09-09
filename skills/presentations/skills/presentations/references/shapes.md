@@ -71,21 +71,42 @@ issues `setGeometry` for `geometry.adjustments`. Formula-valued or irregular
 native guides remain source-owned.
 
 An imported literal custom geometry (paths with literal coordinates, without
-custom guides, adjustment handles or connection sites) may issue `setGeometry`
-for `geometry.paths` and `geometry.textRectangle`. These fields can be edited
-independently in the existing SlidePart; formula or extension-bearing custom
+custom adjustment lists, handles or connection sites) may issue `setGeometry`
+for `geometry.paths`, `geometry.textRectangle` and `geometry.guides`. These fields can be edited
+independently in the existing SlidePart; unsupported or extension-bearing custom
 geometry remains source-owned.
 
 `geometry.textRectangle` sets the shape text area. For example:
 `{ "left": 10, "top": 5, "right": "r", "bottom": "b" }`.
 Numbers are points relative to the shape frame, independent of the path's
-`viewBox`; strings retain native built-in references such as `l/t/r/b`.
+`viewBox`; strings retain native built-in references such as `l/t/r/b` or declared guide names.
 All four edges are required and their resolved right/bottom must exceed
 left/top. A fresh projection preserves mixed numeric/reference edges.
 Source `setGeometry` permits adding, changing or removing the rectangle;
 omission restores the native default. Paths, text and frame stay intact.
 This is shape state; image masks and compositing clips reject it. Preview
 retains explicit text-layout limitations, so this is not host layout proof.
+
+`geometry.guides` declares ordered native formulas, for example:
+
+```json
+"guides": [
+  { "name": "inset", "formula": "*/ w 1 10" },
+  { "name": "rightBound", "formula": "+- w 0 inset" }
+],
+"textRectangle": { "left": "inset", "top": 5, "right": "rightBound", "bottom": "b" }
+```
+
+Formulas use DrawingML operators and units; `w`/`h` resolve to the shape's
+native extents. Names must be unique, cannot shadow built-ins or the reserved
+`officeKit` prefix, and can reference earlier guides only. The list is bounded
+to 1024 guides; native validation rejects invalid arithmetic or unresolved
+references. Source `setGeometry` can edit the list, add entries or remove it;
+remove dependent rectangle references in the same request. Empty/omitted lists
+project as absence; formula whitespace may normalize. Native private numeric
+rectangle scaling guides are not user guides. Reference-backed paths and
+custom adjustment/handle/site graphs remain source-owned. These shape guides
+are rejected on masks/clips, and preview retains explicit limitations.
 
 The same preset profile can clip an image. `image.mask.adjustments` uses the
 identical parameter order and defaults; see [Media and layers](media-and-layers.md#image-masks).

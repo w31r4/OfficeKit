@@ -829,7 +829,7 @@ internal static partial class PpjPresentationProjector
     private static bool CanProjectCustomGeometry(PresentationShape shape)
     {
         if (shape.Geometry != "custom" || shape.CustomPaths.Count == 0 ||
-            shape.CustomAdjustments.Count > 0 || shape.CustomGuides.Count > 0 ||
+            shape.CustomAdjustments.Count > 0 ||
             shape.CustomConnectionSites.Count > 0 || shape.CustomAdjustmentHandles.Count > 0)
             return false;
         var width = shape.CustomPaths[0].Width;
@@ -884,6 +884,11 @@ internal static partial class PpjPresentationProjector
             },
             ["paths"] = paths,
         };
+        if (shape.CustomGuides.Count > 0)
+            output["guides"] = new JsonArray(shape.CustomGuides.Select(guide => (JsonNode)new JsonObject
+            {
+                ["name"] = guide.Name, ["formula"] = guide.Formula,
+            }).ToArray());
         if (shape.TextRectangle is { } rectangle)
             output["textRectangle"] = new JsonObject
             {
@@ -2956,7 +2961,7 @@ internal static partial class PpjPresentationProjector
                     else if (element.Shape.Placeholder is null &&
                              element.Shape.Geometry == "custom" &&
                              CanProjectCustomGeometry(element.Shape))
-                        output.Add(new("setGeometry", ["geometry.paths", "geometry.textRectangle"]));
+                        output.Add(new("setGeometry", ["geometry.paths", "geometry.textRectangle", "geometry.guides"]));
                 }
                 break;
             case PresentationElement.ContentOneofCase.Image when source.Editable:

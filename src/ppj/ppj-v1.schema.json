@@ -1968,6 +1968,7 @@
               "geometry.adjustments",
               "geometry.paths",
               "geometry.textRectangle",
+              "geometry.guides",
               "canvas.width",
               "canvas.height",
               "pageOrder",
@@ -4225,6 +4226,31 @@
             "viewBox": {
               "$ref": "#/$defs/frame"
             },
+            "guides": {
+              "type": "array",
+              "maxItems": 1024,
+              "description": "Ordered native custom-shape guides. Each formula uses native DrawingML units and may reference built-ins or earlier guides. Empty/omitted means no guides; source add/change/removal requires setGeometry geometry.guides.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "formula"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "formula": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  }
+                }
+              }
+            },
             "textRectangle": {
               "type": "object",
               "additionalProperties": false,
@@ -4234,7 +4260,7 @@
                 "right",
                 "bottom"
               ],
-              "description": "Text layout edges relative to the custom shape frame, in points (independent of path viewBox) or native built-in references. Omit for the default. Source change/removal requires setGeometry geometry.textRectangle.",
+              "description": "Text layout edges relative to the custom shape frame, in points (independent of path viewBox) or native built-in/declared guide references. Omit for the default. Source change/removal requires setGeometry geometry.textRectangle.",
               "properties": {
                 "left": {
                   "oneOf": [

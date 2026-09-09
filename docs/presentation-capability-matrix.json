@@ -14,7 +14,7 @@
     "schemaDefinitions": 197,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 50,
+    "authoredCompilerBoundaries": 51,
     "nativeLeafKinds": 278,
     "helpApis": 151,
     "hostOnlyApis": 13
@@ -1133,11 +1133,19 @@
       "visualStatus": "partial-or-opaque"
     },
     {
+      "feature": "custom geometry formula guides",
+      "ppjPath": "pages[].elements[].geometry.guides where type is shape",
+      "behavior": "partial",
+      "sourceBound": "Recognized literal-path custom shapes issue setGeometry for ordered geometry.guides name/formula pairs. Add/change/remove the guide list under native final-graph validation; dependent textRectangle references retain identity and coordinated removal is supported. Empty/omitted lists project as absence. Paths, text, frame and non-target ZIP members remain unchanged.",
+      "reason": "CustomGeometryGuidesRetainDependenciesAndSupportCoherentSourceEdits proves a prior-guide graph feeding a text rectangle, actual changed evaluation, original-source add/edit/removal and duplicate/forward/dangling rejection. Native private rectangle scaling guides remain hidden. Custom adjustments, handles/sites and reference-backed path coordinates remain source-owned. Preview retains explicit guide/text-layout limitations; host layout is unverified.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
       "feature": "custom geometry text rectangle",
       "ppjPath": "pages[].elements[].geometry.textRectangle where type is shape",
       "behavior": "partial",
       "sourceBound": "Recognized literal custom shapes issue setGeometry for geometry.textRectangle. Add/change/remove left/top/right/bottom while preserving paths, text, frame and non-target ZIP parts. Numeric edges are shape-local points; built-in reference strings and mixed state survive fresh projection. Omission retains the native default.",
-      "reason": "PpjCustomGeometryTextRectangleTests verifies authored and original-source lifecycle, reference identity, invalid bounds/references, shape-only owner guard and unchanged path XML. Custom adjustment/guide/site/handle graphs stay source-owned. Preview input assessment retains explicit text-rectangle limitations; host layout is unverified.",
+      "reason": "PpjCustomGeometryTextRectangleTests verifies authored and original-source lifecycle, reference identity, invalid bounds/references, shape-only owner guard and unchanged path XML. Custom adjustment/site/handle graphs stay source-owned; ordered guides now have their own PPJ field. Preview input assessment retains explicit text-rectangle limitations; host layout is unverified.",
       "visualStatus": "partial-or-opaque"
     },
     {

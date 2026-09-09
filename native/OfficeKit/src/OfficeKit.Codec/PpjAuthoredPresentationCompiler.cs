@@ -662,7 +662,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (opacity is null && raw.TryGetProperty("opacity", out var directOpacity)) opacity = directOpacity;
         if (opacity is { } opacityValue)
             ApplyCompoundShapeOpacity(shape, catalog.NumberToken(opacityValue, "opacity", $"{element.Id} opacity"), element.Id);
-        if (geometry == "custom") ApplyCustomGeometry(shape, raw.GetProperty("geometry"), element.Id, allowTextRectangle: true);
+        if (geometry == "custom") ApplyCustomGeometry(shape, raw.GetProperty("geometry"), element.Id, allowShapeGraph: true);
         else shape.PresetAdjustments.Add(element.GeometryAdjustments);
         ApplyTransform(shape, element.Frame);
         ApplyAccessibility(shape, element.Accessibility);
@@ -1360,7 +1360,7 @@ internal static partial class PpjAuthoredPresentationCompiler
             shape.ImageFill = BuildSmartArtNodeImagePaint(item.Node, rawNode, item.Frame, catalog);
         if (geometry is { } value)
         {
-            if (geometryKind == "custom") ApplyCustomGeometry(shape, value, item.Node.Id, allowTextRectangle: true);
+            if (geometryKind == "custom") ApplyCustomGeometry(shape, value, item.Node.Id, allowShapeGraph: true);
             else if (value.TryGetProperty("adjustments", out var adjustments))
                 shape.PresetAdjustments.Add(adjustments.EnumerateArray().Select(item => item.GetInt32()));
         }
@@ -3624,15 +3624,25 @@ internal static partial class PpjAuthoredPresentationCompiler
             output.Fill = fill;
     }
 
-    internal static void ApplyCustomGeometry(PresentationShape target, JsonElement geometry, string elementId, bool allowTextRectangle = false)
+    internal static void ApplyCustomGeometry(PresentationShape target, JsonElement geometry, string elementId, bool allowShapeGraph = false)
     {
         if (!geometry.TryGetProperty("viewBox", out var viewBox) ||
             !geometry.TryGetProperty("paths", out var paths))
             throw Unsupported(elementId, "custom geometry has no compiler-owned path graph");
+        if (geometry.TryGetProperty("guides", out var guides))
+        {
+            if (!allowShapeGraph) throw Unsupported(elementId, "geometry guides belong to custom shapes, not masks or clips");
+            foreach (var guide in guides.EnumerateArray())
+                target.CustomGuides.Add(new PresentationCustomGeometryGuide
+                {
+                    Name = guide.GetProperty("name").GetString()!,
+                    Formula = guide.GetProperty("formula").GetString()!,
+                });
+        }
         target.TextRectangle = null;
         if (geometry.TryGetProperty("textRectangle", out var rectangle))
         {
-            if (!allowTextRectangle) throw Unsupported(elementId, "textRectangle belongs to custom shapes, not masks or clips");
+            if (!allowShapeGraph) throw Unsupported(elementId, "textRectangle belongs to custom shapes, not masks or clips");
             var result = new PresentationCustomGeometryTextRectangle();
             foreach (var edge in rectangle.EnumerateObject())
             {

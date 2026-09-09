@@ -50,8 +50,18 @@ edges and omission. Recognized literal custom shapes issue `setGeometry` for
 independent rectangle add/change/removal. The focused custom-geometry/preview
 suite passes 64/64, zero skipped; the fixture verifies source no-op, retained
 path XML/text/frame, only the target SlidePart changing, and invalid rectangles
-or non-shape owners rejecting. Custom guide/handle graphs remain source-owned;
+or non-shape owners rejecting. Custom adjustment/handle/site graphs and reference-backed paths remain source-owned;
 preview retains explicit text-layout diagnostics, without host appearance proof.
+
+PPJ `geometry.guides` (2026-09-10) carries ordered native name/formula pairs
+for custom shapes with literal paths. Authored/fresh projection and source
+`setGeometry` retain guide identity and dependent text-rectangle references;
+empty lists project as omission. The custom-geometry/preview suite passes 65/65,
+zero skipped. One source fixture proves actual formula evaluation changes,
+list addition/coordinated removal, unchanged path XML/text/frame and non-target
+ZIP members, plus duplicate/forward/dangling reference rejection. Formula
+operators retain native units; unmodeled adjustment/handle/site and referenced
+path graphs remain source-owned, with explicit preview limitations.
 
 Latest PPTX evidence: candidate product commit `e1bb8699671c3599b44b999ca308ff8d0d9581d7` and packed `office-kit@0.6.0` tarball SHA-256 `0152742d17a07a7b53e53f83f75c08c829804ab8f73ad65841a5e49946e7e8a9` passed the frozen three-sample programmable-import acceptance. All `90/90` clean-source matrix runs passed, all `30/30` declared intents produced deterministic bytes and oracle results across three repetitions, and rendering used LibreOffice for 60 runs plus Keynote for 30 text changes that LibreOffice did not display. Every run preserved the source, reimported successfully, kept the declared non-target parts and relationships byte-identical, recovered target XML/SVG after masking only the issued mutation, and kept non-target pages pixel-identical.
 

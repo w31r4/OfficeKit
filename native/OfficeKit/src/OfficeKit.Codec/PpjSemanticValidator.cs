@@ -29,7 +29,7 @@ internal static class PpjSemanticValidator
             ["setShapeEffects"] = Set("shape.shadow", "shape.glow", "shape.innerShadow", "shape.reflection", "shape.softEdge"),
             ["setOpacity"] = Set("opacity", "compositing.opacity"),
             ["setFrame"] = Set("frame.x", "frame.y", "frame.width", "frame.height", "frame.rotation", "frame.flipH", "frame.flipV"),
-            ["setGeometry"] = Set("geometry.adjustments", "geometry.paths", "geometry.textRectangle"),
+            ["setGeometry"] = Set("geometry.adjustments", "geometry.paths", "geometry.textRectangle", "geometry.guides"),
             ["setCanvas"] = Set("canvas.width", "canvas.height"),
             ["setBackground"] = Set("background"),
             ["setTransition"] = Set("transition"),

@@ -28,6 +28,11 @@ const rectangleShape = assessPpjPreviewInput(deck([{ type: "shape", id: "custom"
 for (const edge of ["left", "top", "right", "bottom"])
   assert.ok(rectangleShape.diagnostics.some(d => d.path.endsWith(`.geometry.textRectangle.${edge}`) && d.status !== "supported"));
 
+const guidedShape = assessPpjPreviewInput(deck([{ type: "shape", id: "guided", frame,
+  geometry: { kind: "custom", viewBox: frame, paths: [], guides: [{ name: "inset", formula: "*/ w 1 10" }],
+    textRectangle: { left: "inset", top: 5, right: "r", bottom: "b" } } }]));
+assert.ok(guidedShape.diagnostics.some(d => d.path.endsWith(".geometry.guides[0].formula") && d.status !== "supported"));
+
 const repeated = { pages: [{ id: "p1", elements: [text] }, { id: "p2", elements: [text] }] };
 const diagnostics = assessPpjPreviewInput(repeated).diagnostics.filter((d) => d.path.endsWith(".text") && d.reason === "preview.text.unassessed");
 assert.deepEqual(diagnostics.map((d) => d.pageId).sort(), ["p1", "p2"]);

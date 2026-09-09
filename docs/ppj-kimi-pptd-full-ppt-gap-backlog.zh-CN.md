@@ -510,6 +510,8 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 **优先级：P0；状态：部分完成。**
 
+**自定义形状公式 guide 增量（2026-09-10）：** `geometry.guides` 承载有序 `{name, formula}` 列表，复用原生有界公式图；文字矩形可引用声明的 guide，顺序和引用通过 authored/去嵌入投影保留。`setGeometry` 支持列表增改删，删除仍被引用的 guide 会拒绝，可同时删除依赖矩形完成合法清理；空列表投影为省略。最小实验验证 `w/10→w/5` 的实际求值、原源 no-op、path XML/文字/frame 和非目标 ZIP 保留，相关专项 65/65 通过。custom adjustment、handle/site 和引用型 path 坐标的 PPJ 整体表达仍开放；预览保留明确公式/布局诊断。
+
 **自定义形状文字矩形增量（2026-09-10）：** `geometry.textRectangle` 以 `left/top/right/bottom` 表达形状局部点值、原生内建引用或混合边界；省略保留原生默认。literal custom shape 的 authored/去嵌入投影和 `setGeometry` 增改删已接通，不再因为存在 text rectangle 就丢失可编辑形状身份。`PpjCustomGeometryTextRectangleTests` 核对原源 no-op、修改/删除/再新增、路径 XML/文字/frame 和非目标 ZIP 保留，相关专项 64/64 通过；无效边界、未知引用和 mask/clip owner 拒绝。custom guide/handle 图的完整 PPJ 表达及宿主布局仍开放；预览四边均保留明确诊断。
 
 **连接线弯折调整增量（2026-09-10）：** `bendAdjustment` 保留 elbow/curved 三段路径的直接 `adj1` 原生整数值，支持 signed int32、显式零与省略；`setConnectorType` 可独立修改/删除，换为 straight 清理旧值，显式冲突拒绝。最小原源实验覆盖 `25000→0`、负值、删除、native guide、再投影和仅目标 SlidePart 改动，相关回归 69/69 通过，零跳过。计算公式和端点归一化无法保留弯折轴的旋转源仍 opaque；内部预览对非默认弯折明确给出 `preview.scene.paint.connector-bend`，不代画中点路线。完整路由及宿主外观仍开放。

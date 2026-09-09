@@ -14,18 +14,8 @@ public sealed class PpjCustomGeometryTextRectangleTests
     [Fact]
     public void TextRectangleAuthorsAndEditsWithReferenceIdentityAndOptionalPresence()
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "package.json"))) directory = directory.Parent;
-        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(directory!.FullName, "examples/ppj/minimum.ppj")))!.AsObject();
-        var shape = JsonNode.Parse("""
-            {"id":"custom","type":"shape","frame":{"x":30,"y":40,"width":200,"height":100},
-             "geometry":{"kind":"custom","viewBox":{"x":0,"y":0,"width":100,"height":100},
-               "paths":[{"commands":[{"op":"moveTo","x":0,"y":0},{"op":"lineTo","x":100,"y":0},
-                 {"op":"lineTo","x":100,"y":100},{"op":"close"}]}],
-               "textRectangle":{"left":10,"top":5,"right":"r","bottom":"b"}},
-             "text":"Rectangle text","style":{"fill":{"type":"solid","color":"#AACCEE"}}}
-            """)!.AsObject();
-        program["pages"]![0]!["elements"] = new JsonArray(shape);
+        var program = Program();
+        var shape = Element(program);
         var authored = Compile(program);
         var native = authored.PresentationProgram.PreviewScene.Presentation.Slides[0].Elements[0].Shape.TextRectangle;
         Assert.Equal(10 * 12700L, native.LeftEmu);
@@ -77,6 +67,82 @@ public sealed class PpjCustomGeometryTextRectangleTests
         Assert.Throws<CodecException>(() => PpjAuthoredPresentationCompiler.ApplyCustomGeometry(new PresentationShape(),
             JsonSerializer.SerializeToElement(shape["geometry"]), "mask"));
         Assert.Equal(original, source);
+    }
+
+    [Fact]
+    public void CustomGeometryGuidesRetainDependenciesAndSupportCoherentSourceEdits()
+    {
+        var program = Program();
+        var geometry = Element(program)["geometry"]!.AsObject();
+        geometry["guides"] = JsonNode.Parse("""
+            [{"name":"inset","formula":"*/ w 1 10"},{"name":"rightBound","formula":"+- w 0 inset"}]
+            """);
+        geometry["textRectangle"]!["left"] = "inset";
+        geometry["textRectangle"]!["right"] = "rightBound";
+        var authored = Compile(program);
+        var native = authored.PresentationProgram.PreviewScene.Presentation.Slides[0].Elements[0].Shape;
+        Assert.Equal(2, native.CustomGuides.Count);
+        Assert.True(PptxCustomGeometryFormulaCodec.Validate(native, "custom").TryResolveReference("inset", out var inset));
+        Assert.Equal(20 * 12700d, inset);
+        var source = PptxCodecTests.RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var original = source.ToArray();
+        var projected = Project(source);
+        Assert.True(JsonNode.DeepEquals(geometry["guides"], Element(projected)["geometry"]!["guides"]));
+        Assert.Equal("inset", Element(projected)["geometry"]!["textRectangle"]!["left"]!.GetValue<string>());
+        Assert.Equal(source, Compile(projected, source).File.ToByteArray());
+        foreach (var mode in new[] { "edit", "add", "remove" })
+        {
+            var request = Project(source);
+            var requested = Element(request)["geometry"]!.AsObject();
+            if (mode == "edit") requested["guides"]![0]!["formula"] = "*/ w 1 5";
+            else if (mode == "add") requested["guides"]!.AsArray().Add(new JsonObject { ["name"] = "unused", ["formula"] = "val 0" });
+            else { requested.Remove("guides"); requested.Remove("textRectangle"); }
+            var candidate = Compile(request, source);
+            var fresh = Element(Project(candidate.File.ToByteArray()));
+            Assert.True(JsonNode.DeepEquals(requested["guides"], fresh["geometry"]!["guides"]));
+            Assert.True(JsonNode.DeepEquals(requested["textRectangle"], fresh["geometry"]!["textRectangle"]));
+            foreach (var field in new[] { "text", "frame" }) Assert.True(JsonNode.DeepEquals(Element(request)[field], fresh[field]));
+            Assert.Equal(PathXml(source), PathXml(candidate.File.ToByteArray()));
+            AssertSlideOnly(source, candidate.File.ToByteArray());
+            if (mode == "edit")
+            {
+                var changed = candidate.PresentationProgram.PreviewScene.Presentation.Slides[0].Elements[0].Shape;
+                Assert.True(PptxCustomGeometryFormulaCodec.Validate(changed, "custom").TryResolveReference("inset", out var result));
+                Assert.Equal(40 * 12700d, result);
+            }
+        }
+        foreach (var invalid in new[] { "forward", "duplicate", "dangling" })
+        {
+            var request = Project(source);
+            var requested = Element(request)["geometry"]!.AsObject();
+            if (invalid == "forward") requested["guides"]![0]!["formula"] = "val rightBound";
+            else if (invalid == "duplicate") requested["guides"]![1]!["name"] = "inset";
+            else requested.Remove("guides");
+            Assert.Empty(Compile(request, source, false).File);
+        }
+        Assert.Throws<CodecException>(() => PpjAuthoredPresentationCompiler.ApplyCustomGeometry(new PresentationShape(),
+            JsonSerializer.SerializeToElement(geometry), "mask"));
+        geometry.Remove("textRectangle"); geometry["guides"] = new JsonArray();
+        var empty = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
+        Assert.Null(Element(Project(empty))["geometry"]!["guides"]);
+        Assert.Equal(original, source);
+    }
+
+    private static JsonObject Program()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "package.json"))) directory = directory.Parent;
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(directory!.FullName, "examples/ppj/minimum.ppj")))!.AsObject();
+        var shape = JsonNode.Parse("""
+            {"id":"custom","type":"shape","frame":{"x":30,"y":40,"width":200,"height":100},
+             "geometry":{"kind":"custom","viewBox":{"x":0,"y":0,"width":100,"height":100},
+               "paths":[{"commands":[{"op":"moveTo","x":0,"y":0},{"op":"lineTo","x":100,"y":0},
+                 {"op":"lineTo","x":100,"y":100},{"op":"close"}]}],
+               "textRectangle":{"left":10,"top":5,"right":"r","bottom":"b"}},
+             "text":"Rectangle text","style":{"fill":{"type":"solid","color":"#AACCEE"}}}
+            """)!.AsObject();
+        program["pages"]![0]!["elements"] = new JsonArray(shape);
+        return program;
     }
 
     private static JsonObject Element(JsonObject program) => program["pages"]![0]!["elements"]![0]!.AsObject();
