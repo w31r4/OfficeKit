@@ -133,7 +133,7 @@ internal static class XlsxChartAxisCodec
         XlsxChartSeriesLineStyleCodec.ValidateLine(axis.MinorGridlineStyle, worksheetId, chartId, axisName, "minor gridline");
         if (category)
         {
-            if (axis.HasMinimum || axis.HasMaximum || axis.HasMajorUnit || axis.HasMinorUnit) throw Invalid(worksheetId, chartId, $"{axisName}-axis cannot carry numeric minimum, maximum, major unit, or minor unit.");
+            if (axis.HasMinimum || axis.HasMaximum || axis.HasMajorUnit || axis.HasMinorUnit || axis.HasLogBase) throw Invalid(worksheetId, chartId, $"{axisName}-axis cannot carry numeric minimum, maximum, major unit, minor unit, or logBase.");
             if (axis.HasTickLabelInterval && axis.TickLabelInterval is < 1 or > MaxTickLabelInterval) throw Invalid(worksheetId, chartId, $"{axisName}-axis tick label interval must be 1 through {MaxTickLabelInterval}.");
             return;
         }
@@ -142,6 +142,10 @@ internal static class XlsxChartAxisCodec
         if (axis.HasMinimum && axis.HasMaximum && axis.Minimum >= axis.Maximum) throw Invalid(worksheetId, chartId, $"{axisName}-axis minimum must be less than maximum.");
         if (axis.HasMajorUnit && (!double.IsFinite(axis.MajorUnit) || axis.MajorUnit <= 0)) throw Invalid(worksheetId, chartId, $"{axisName}-axis major unit must be finite and positive.");
         if (axis.HasMinorUnit && (!double.IsFinite(axis.MinorUnit) || axis.MinorUnit <= 0)) throw Invalid(worksheetId, chartId, $"{axisName}-axis minor unit must be finite and positive.");
+        if (axis.HasLogBase && (!double.IsFinite(axis.LogBase) || axis.LogBase is < 2 or > 1000))
+            throw Invalid(worksheetId, chartId, $"{axisName}-axis logBase must be finite and from 2 through 1000.");
+        if (axis.HasLogBase && (axis.HasMinimum && axis.Minimum <= 0 || axis.HasMaximum && axis.Maximum <= 0))
+            throw Invalid(worksheetId, chartId, $"{axisName}-axis logarithmic minimum and maximum must be positive.");
     }
 
     private static bool TryLocate(XElement plotArea, XElement plot, bool numericX, out XElement horizontalAxis, out XElement verticalAxis)
@@ -190,7 +194,15 @@ internal static class XlsxChartAxisCodec
             !Singleton(scaling, "orientation", out var orientation) || orientation is null ||
             AxisValue(orientation) is not ("minMax" or "maxMin")) return false;
         axis.Reverse = AxisValue(orientation) == "maxMin";
-        if (scaling.Element(ChartNs + "logBase") is not null) editable = false;
+        if (!TryOptionalDouble(scaling, "logBase", out var hasLogBase, out var logBase)) return false;
+        if (hasLogBase)
+        {
+            var nativeLogBase = scaling.Element(ChartNs + "logBase")!;
+            if (category || logBase is < 2 or > 1000 || nativeLogBase.HasElements ||
+                nativeLogBase.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration && attribute.Name != "val"))
+                return false;
+            axis.LogBase = logBase;
+        }
         if (!Singleton(source, "delete", out var deleted)) return false;
         if (deleted is not null)
         {
@@ -257,6 +269,7 @@ internal static class XlsxChartAxisCodec
         if (hasMaximum) axis.Maximum = maximum;
         if (hasMajorUnit) axis.MajorUnit = majorUnit;
         if (hasMinorUnit) axis.MinorUnit = minorUnit;
+        if (hasLogBase && (hasMinimum && minimum <= 0 || hasMaximum && maximum <= 0)) return false;
         if (hasMinimum && hasMaximum && minimum >= maximum || hasMajorUnit && majorUnit <= 0 || hasMinorUnit && minorUnit <= 0) return false;
         return true;
     }
@@ -384,6 +397,7 @@ internal static class XlsxChartAxisCodec
     {
         position = NativeAxisPosition(axis, position);
         var scaling = new XElement(ChartNs + "scaling", new XElement(ChartNs + "orientation", new XAttribute("val", axis.HasReverse && axis.Reverse ? "maxMin" : "minMax")));
+        if (axis.HasLogBase) scaling.AddFirst(ValueElement("logBase", axis.LogBase));
         if (axis.HasMaximum) scaling.Add(ValueElement("max", axis.Maximum));
         if (axis.HasMinimum) scaling.Add(ValueElement("min", axis.Minimum));
         var output = new XElement(ChartNs + "valAx",
@@ -437,6 +451,7 @@ internal static class XlsxChartAxisCodec
             PatchValue(native, "tickLblSkip", target.HasTickLabelInterval, target.TickLabelInterval, ["tickMarkSkip", "noMultiLvlLbl", "extLst"]);
             return;
         }
+        PatchValue(scaling, "logBase", target.HasLogBase, target.LogBase, ["orientation", "max", "min", "extLst"]);
         PatchValue(scaling, "max", target.HasMaximum, target.Maximum, ["min", "extLst"]);
         PatchValue(scaling, "min", target.HasMinimum, target.Minimum, ["extLst"]);
         PatchValue(native, "majorUnit", target.HasMajorUnit, target.MajorUnit, ["minorUnit", "dispUnits", "extLst"]);
@@ -771,6 +786,7 @@ internal static class XlsxChartAxisCodec
         axis.HasMaximum ? axis.Maximum.ToString("R", CultureInfo.InvariantCulture) : "-",
         axis.HasMajorUnit ? axis.MajorUnit.ToString("R", CultureInfo.InvariantCulture) : "-",
         axis.HasMinorUnit ? axis.MinorUnit.ToString("R", CultureInfo.InvariantCulture) : "-",
+        axis.HasLogBase ? axis.LogBase.ToString("R", CultureInfo.InvariantCulture) : "-",
         axis.HasVisible ? (axis.Visible ? "visible" : "hidden") : "default-visible",
         axis.HasReverse ? (axis.Reverse ? "reverse" : "forward") : "default-direction",
         axis.HasAxisLineVisible ? (axis.AxisLineVisible ? "axis-line" : "no-axis-line") : "default-axis-line",

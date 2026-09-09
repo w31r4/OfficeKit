@@ -183,6 +183,13 @@ shapes:
 }
 ```
 
+For a logarithmic value axis, set `"yAxis": { "logBase": 10, "min": 1, "max": 1000 }`.
+The base accepts a number from 2 through 1000 or a size grammar token. Deleting
+`logBase` restores linear scaling. Explicit limits must be positive. Numeric
+scatter/bubble x axes and combo secondary value axes use the same field;
+radar also accepts `spokeAxis.logBase`. Category axes reject it. A source-bound
+edit adds, changes or removes only the native ChartPart scaling value.
+
 Use series defaults when one series needs a different label policy, and use
 sparse point overrides only for evidence that needs an exception. Point
 indices are zero-based, strictly increasing and must address an existing

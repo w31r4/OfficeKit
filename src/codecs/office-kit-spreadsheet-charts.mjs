@@ -508,6 +508,7 @@ function wireAxis(axis, original) {
     textStyle: textStyleToWire(axis.textStyle, original?.textStyle),
     ...(original?.titleTextStyle ? { titleTextStyle: original.titleTextStyle } : {}),
     ...(original?.reverse === undefined ? {} : { reverse: original.reverse }),
+    ...(original?.logBase === undefined ? {} : { logBase: original.logBase }),
     ...(original?.axisLineVisible === undefined ? {} : { axisLineVisible: original.axisLineVisible }),
     ...(original?.axisLine ? { axisLine: original.axisLine } : {}),
     ...(original?.majorGridlineStyle ? { majorGridlineStyle: original.majorGridlineStyle } : {}),

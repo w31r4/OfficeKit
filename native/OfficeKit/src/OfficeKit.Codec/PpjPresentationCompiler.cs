@@ -3087,7 +3087,7 @@ internal static class PpjSourceBoundPresentationCompiler
             throw Unsupported(path + "." + axisName, "source-bound chart-axis topology change");
         RequireEqualExcept(oldAxis.Value, newAxis.Value, path + "." + axisName,
             "textStyle", "title", "titleTextStyle", "visible", "numberFormat", "tickLabelInterval",
-            "min", "max", "majorUnit", "minorUnit", "position", "majorTickMark", "minorTickMark", "tickLabelsVisible", "tickLabelPosition", "reverse", "axisLine", "axisLineArrow", "gridLine", "minorGridLine");
+            "min", "max", "majorUnit", "minorUnit", "logBase", "position", "majorTickMark", "minorTickMark", "tickLabelsVisible", "tickLabelPosition", "reverse", "axisLine", "axisLineArrow", "gridLine", "minorGridLine");
         var changed = false;
         if (PropertyChanged(oldAxis, newAxis, "title"))
         {
@@ -3196,6 +3196,15 @@ internal static class PpjSourceBoundPresentationCompiler
                     unit,
                     path + "." + axisName + ".majorUnit");
             else target.ClearMajorUnit();
+            changed = true;
+        }
+        if (PropertyChanged(oldAxis, newAxis, "logBase"))
+        {
+            RequireCapability(after, "setChartAxis", path + "." + axisName + ".logBase");
+            if (newAxis.Value.TryGetProperty("logBase", out var logBase))
+                target.LogBase = ResolveGrammarPositiveNumberToken(
+                    grammarRoot, logBase, path + "." + axisName + ".logBase");
+            else target.ClearLogBase();
             changed = true;
         }
         if (PropertyChanged(oldAxis, newAxis, "minorUnit"))
@@ -3424,6 +3433,13 @@ internal static class PpjSourceBoundPresentationCompiler
             if (newSpoke.Value.TryGetProperty("max", out var maximum))
                 target.YAxis.Maximum = ResolveGrammarNumberToken(grammarRoot, maximum, "size", path + ".spokeAxis.max");
             else target.YAxis.ClearMaximum();
+            changed = true;
+        }
+        if (PropertyChanged(oldSpoke, newSpoke, "logBase"))
+        {
+            if (newSpoke.Value.TryGetProperty("logBase", out var logBase))
+                target.YAxis.LogBase = ResolveGrammarPositiveNumberToken(grammarRoot, logBase, path + ".spokeAxis.logBase");
+            else target.YAxis.ClearLogBase();
             changed = true;
         }
         if (PropertyChanged(oldSpoke, newSpoke, "majorUnit"))

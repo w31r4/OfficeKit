@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import "./worksheet-chart-axis-preservation.mjs";
 import JSZip from "jszip";
 
 import { FileBlob, SpreadsheetFile, Workbook, verifyArtifact } from "../src/index.mjs";

@@ -1169,6 +1169,9 @@ message SpreadsheetChartAxisArtifact {
   // Presence-aware native c:axPos value. The bounded profile accepts
   // bottom/top for horizontal axes and left/right for vertical axes.
   optional string position = 24;
+  // Presence-aware c:scaling/c:logBase for value axes, from 2 through 1000.
+  // Absence uses linear scaling.
+  optional double log_base = 25;
 }
 
 message SpreadsheetChartSurfaceFill {

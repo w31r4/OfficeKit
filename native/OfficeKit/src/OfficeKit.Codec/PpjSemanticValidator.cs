@@ -3009,7 +3009,7 @@ internal static class PpjSemanticValidator
                 $"{path}.{property}"));
         if (categoryAxis)
         {
-            foreach (var name in new[] { "min", "max", "majorUnit", "minorUnit" })
+            foreach (var name in new[] { "min", "max", "majorUnit", "minorUnit", "logBase" })
                 if (axis.TryGetProperty(name, out _))
                     diagnostics.Add(new(
                         "ppj.chart.axisField",

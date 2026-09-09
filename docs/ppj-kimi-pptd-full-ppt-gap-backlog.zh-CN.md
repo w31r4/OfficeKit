@@ -692,6 +692,8 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-07 Chart、ChartML、嵌入工作簿和扩展图表
 
+**本轮补充（2026-09-09）：** 对数轴进入 PPJ `yAxis.logBase`，散点/气泡数值 X 轴、组合图次值轴及雷达 `spokeAxis.logBase` 共用同一字段。底数接受 2–1000 的数值或 size grammar token，删除字段恢复线性轴；显式 min/max 必须为正数。`PpjAxisLogBaseAuthorsEditsAndRemoves` 验证 authored → 去嵌入投影 → 修改/删除/重新添加 → 再投影，并检查原生节点顺序、ChartPart 内仅 logBase 变化以及其他 ZIP 条目字节不变。非法参数和重复/额外属性/子节点的原生 owner 另有拒绝及保留实验。记录的是原生结构和往返证据。
+
 **本轮补充（2026-09-09）：** ChartSpace 的 `c:roundedCorners` 已接入 PPJ `chart.roundedCorners`。普通图和组合图保留缺失、显式 false、true 三态；语义哈希及内容比较均保留字段存在性，修复 false→删除被当成无改动的问题。`PpjChartRoundedCornersPreservesPresenceAcrossEdits` 分别验证两类图的 false→删除→false→true→删除，每步检查原生 XML、去嵌入后的投影，以及除目标 ChartPart 外所有部件字节不变；重新添加时保持 roundedCorners 在 style 前的顺序。`PpjChartRoundedCornersRejectsAmbiguousNativeOwners` 验证非法值、重复节点、额外属性和子节点不获得 setChartPlot，未修改时保留原始 ChartPart。
 
 **优先级：P0；状态：部分完成。**

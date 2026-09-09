@@ -1425,6 +1425,7 @@ internal static partial class PpjPresentationProjector
         if (axis.HasMaximum) output["max"] = JsonValue.Create(axis.Maximum);
         if (axis.HasMajorUnit) output["majorUnit"] = JsonValue.Create(axis.MajorUnit);
         if (axis.HasMinorUnit) output["minorUnit"] = JsonValue.Create(axis.MinorUnit);
+        if (axis.HasLogBase) output["logBase"] = JsonValue.Create(axis.LogBase);
         if (axis.HasPosition) output["position"] = StringNode(axis.Position);
         if (axis.HasVisible) output["visible"] = JsonValue.Create(axis.Visible);
         if (axis.HasReverse) output["reverse"] = JsonValue.Create(axis.Reverse);
@@ -1470,7 +1471,7 @@ internal static partial class PpjPresentationProjector
         var yAxis = chart.YAxis;
         if (xAxis is null || yAxis is null ||
             xAxis.Title.Length > 0 || xAxis.NumberFormatCode.Length > 0 || xAxis.HasTickLabelInterval ||
-            xAxis.HasMinimum || xAxis.HasMaximum || xAxis.HasMajorUnit || xAxis.HasMinorUnit || xAxis.HasReverse && xAxis.Reverse ||
+            xAxis.HasMinimum || xAxis.HasMaximum || xAxis.HasMajorUnit || xAxis.HasMinorUnit || xAxis.HasLogBase || xAxis.HasReverse && xAxis.Reverse ||
             xAxis.AxisLine is not null || xAxis.HasAxisLineVisible || xAxis.TextStyle is not null || xAxis.TitleTextStyle is not null ||
             xAxis.HasTickLabelsVisible || xAxis.HasTickLabelPosition ||
             xAxis.HasShowMinorGridlines || xAxis.HasMinorGridlineVisible || xAxis.MinorGridlineStyle is not null ||
@@ -1487,7 +1488,7 @@ internal static partial class PpjPresentationProjector
         var hasEvidence = xAxis.HasVisible || yAxis.HasVisible ||
             xAxis.HasShowMajorGridlines || xAxis.HasMajorGridlineVisible || xAxis.MajorGridlineStyle is not null ||
             yAxis.HasShowMajorGridlines || yAxis.HasMajorGridlineVisible || yAxis.MajorGridlineStyle is not null ||
-            yAxis.HasMinimum || yAxis.HasMaximum || yAxis.HasMajorUnit || yAxis.HasMinorUnit ||
+            yAxis.HasMinimum || yAxis.HasMaximum || yAxis.HasMajorUnit || yAxis.HasMinorUnit || yAxis.HasLogBase ||
             yAxis.HasTickLabelsVisible || yAxis.NumberFormatCode.Length > 0 || yAxis.TextStyle is not null;
         if (!hasEvidence) return false;
 
@@ -1497,6 +1498,7 @@ internal static partial class PpjPresentationProjector
         if (yAxis.HasMaximum) output["max"] = JsonValue.Create(yAxis.Maximum);
         if (yAxis.HasMajorUnit) output["majorUnit"] = JsonValue.Create(yAxis.MajorUnit);
         if (yAxis.HasMinorUnit) output["minorUnit"] = JsonValue.Create(yAxis.MinorUnit);
+        if (yAxis.HasLogBase) output["logBase"] = JsonValue.Create(yAxis.LogBase);
 
         if (yAxis.HasTickLabelsVisible && !yAxis.TickLabelsVisible)
             output["label"] = JsonValue.Create(false);

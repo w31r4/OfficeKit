@@ -4173,6 +4173,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             axis.MajorUnit = catalog.PositiveNumberToken(majorUnit, "size", "chart axis majorUnit");
         if (source.TryGetProperty("minorUnit", out var minorUnit))
             axis.MinorUnit = catalog.PositiveNumberToken(minorUnit, "size", "chart axis minorUnit");
+        if (source.TryGetProperty("logBase", out var logBase))
+            axis.LogBase = catalog.PositiveNumberToken(logBase, "size", "chart axis logBase");
         if (source.TryGetProperty("position", out var position))
             axis.Position = ChartEnumToken(position, catalog, "chart axis position", "bottom", "left", "right", "top");
         if (source.TryGetProperty("majorTickMark", out var majorTickMark))
@@ -4266,6 +4268,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             yAxis.Maximum = catalog.NumberToken(maximum, "size", "radar spokeAxis max");
         if (source.TryGetProperty("majorUnit", out var majorUnit))
             yAxis.MajorUnit = catalog.PositiveNumberToken(majorUnit, "size", "radar spokeAxis majorUnit");
+        if (source.TryGetProperty("logBase", out var logBase))
+            yAxis.LogBase = catalog.PositiveNumberToken(logBase, "size", "radar spokeAxis logBase");
 
         if (!show)
         {

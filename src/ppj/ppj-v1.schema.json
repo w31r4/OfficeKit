@@ -6365,6 +6365,13 @@
           "$ref": "#/$defs/positiveNumberOrToken",
           "description": "Value-axis minor unit; a token reference must declare kind size and resolve above zero."
         },
+        "logBase": {
+          "oneOf": [
+            { "type": "number", "minimum": 2, "maximum": 1000 },
+            { "$ref": "#/$defs/grammarTokenRef" }
+          ],
+          "description": "Value-axis logarithmic base from 2 through 1000; a token must declare kind size. Omission uses linear scaling. Explicit min and max must be positive when logBase is present."
+        },
         "majorTickMark": {
           "oneOf": [
             {
@@ -6482,6 +6489,13 @@
         "majorUnit": {
           "$ref": "#/$defs/positiveNumberOrToken",
           "description": "Radar major unit; a token reference must declare kind size and resolve above zero."
+        },
+        "logBase": {
+          "oneOf": [
+            { "type": "number", "minimum": 2, "maximum": 1000 },
+            { "$ref": "#/$defs/grammarTokenRef" }
+          ],
+          "description": "Radar value-axis logarithmic base from 2 through 1000; a token must declare kind size. Omission uses linear scaling. Explicit min and max must be positive when logBase is present."
         },
         "label": {
           "oneOf": [
