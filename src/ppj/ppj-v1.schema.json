@@ -3058,9 +3058,7 @@
           "maximum": 768
         },
         "baseline": {
-          "type": "number",
-          "minimum": -400,
-          "maximum": 400
+          "$ref": "#/$defs/textBaseline"
         },
         "capitalization": {
           "enum": [
@@ -6214,6 +6212,11 @@
         }
       }
     },
+    "textBaseline": {
+      "type": "number",
+      "minimum": -400,
+      "maximum": 400
+    },
     "textStrike": {
       "oneOf": [
         { "type": "boolean" },
@@ -6244,6 +6247,10 @@
         "strike": {
           "$ref": "#/$defs/textStrike",
           "description": "Direct character strike: booleans alias sngStrike/noStrike; explicit noStrike is preserved."
+        },
+        "baseline": {
+          "$ref": "#/$defs/textBaseline",
+          "description": "Signed baseline percentage; native precision is 0.001%, rounded with ties to even. Explicit zero is preserved."
         },
         "underline": {
           "enum": [

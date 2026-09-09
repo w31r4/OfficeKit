@@ -14,10 +14,10 @@ authoredSheet.charts.add("line", {
 });
 const source = wireWorksheetCharts(authoredSheet)[0];
 source.yAxis.logBase = 10;
-source.titleTextStyle = { fontSizePoints: 12, language: "en-US", strike: "noStrike" };
+source.titleTextStyle = { fontSizePoints: 12, language: "en-US", strike: "noStrike", baselineThousandthPercent: 0 };
 source.series[0].trendlines[0].label = { numberFormatCode: "0.00", numberFormatLink: 1,
   richText: { paragraphs: [{ runs: [
-    { content: { case: "text", value: "Fit " }, style: { bold: true, language: "zh-CN", strike: "dblStrike" } },
+    { content: { case: "text", value: "Fit " }, style: { bold: true, language: "zh-CN", strike: "dblStrike", baselineThousandthPercent: -25125 } },
     { content: { case: "lineBreak", value: true } },
     { content: { case: "text", value: "A" }, style: { bold: false } },
   ] }] },
@@ -32,6 +32,7 @@ const edited = wireWorksheetCharts(importedSheet, state)[0];
 assert.equal(edited.title, "Edited revenue");
 assert.equal(edited.titleTextStyle.language, "en-US", "Unrelated edits retain explicit chart language");
 assert.equal(edited.titleTextStyle.strike, "noStrike", "Unrelated edits retain explicit strike cancellation");
+assert.equal(edited.titleTextStyle.baselineThousandthPercent, 0, "Unrelated edits retain an explicit baseline reset");
 assert.equal(edited.yAxis.logBase, 10, "An unrelated chart edit must retain imported logarithmic scaling");
 assert.deepEqual(edited.series[0].trendlines[0].label, source.series[0].trendlines[0].label, "An unrelated chart edit must retain imported trendline label state");
 for (const layout of [undefined, {}, { manual: {} }, source.series[0].trendlines[0].label.layout]) {
@@ -55,4 +56,8 @@ for (const language of [undefined, "en-US", "EN-us", "zh-Hans-CN"]) {
 for (const strike of [undefined, "noStrike", "sngStrike", "dblStrike"]) {
   const message = create(SpreadsheetChartTextStyleArtifactSchema, { strike });
   assert.equal(fromBinary(SpreadsheetChartTextStyleArtifactSchema, toBinary(SpreadsheetChartTextStyleArtifactSchema, message)).strike, strike);
+}
+for (const baselineThousandthPercent of [undefined, 0, -25125, -400000, 400000]) {
+  const message = create(SpreadsheetChartTextStyleArtifactSchema, { baselineThousandthPercent });
+  assert.equal(fromBinary(SpreadsheetChartTextStyleArtifactSchema, toBinary(SpreadsheetChartTextStyleArtifactSchema, message)).baselineThousandthPercent, baselineThousandthPercent);
 }

@@ -4785,6 +4785,8 @@ message SpreadsheetChartTextStyleArtifact {
   optional string language = 12;
   // Direct character strike attribute; noStrike remains distinct from absence.
   optional string strike = 13;
+  // Direct character baseline in signed thousandths of a percent, -400000..400000.
+  optional sint32 baseline_thousandth_percent = 14;
 }
 
 enum SpreadsheetChartLineDashStyle {

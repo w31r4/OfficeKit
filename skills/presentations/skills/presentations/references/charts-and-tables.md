@@ -381,6 +381,15 @@ chart text use the same field, with explicit title-run strike taking
 precedence over title defaults. Like ordinary text strike, this is a literal
 boolean/token-enum field, not a grammar token reference.
 
+`baseline` sets a signed percentage from -400 to 400, for example
+`{"baseline":30}` or `{"baseline":-25.125}`. Native chart text stores
+thousandths of a percent: finer input rounds to the nearest 0.001%, with ties
+to even, and fresh projection returns that value. Explicit `0` retains a
+direct reset; omission removes the attribute. A baseline-only style is valid
+on the same chart and trendline rich-text owners. Vector text retains the
+field, with explicit title-run baseline overriding chart defaults. The value
+is a literal number, matching ordinary text baseline.
+
 The same chart text owners may set a bounded paragraph `alignment` of `left`,
 `center`, `right`, or `justify`. PPJ maps these values to the direct DrawingML
 paragraph owner and preserves them through authored and source-bound
