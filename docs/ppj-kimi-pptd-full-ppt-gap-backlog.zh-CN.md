@@ -692,6 +692,8 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-07 Chart、ChartML、嵌入工作簿和扩展图表
 
+**图表文字删除线增量（2026-09-09）：** `chartTextStyle.strike` 接受 `true`、`false` 或 `sngStrike`、`dblStrike`、`noStrike`，复用普通文字的删除线语义。`false` 写入显式 `noStrike`，省略字段则移除直接属性；回投影统一保留原生枚举值。标题、图例、轴、数据标签、趋势线及其富文本样式共用字段，vector 标题和标签也能传递。普通图表/组合图的最小实验覆盖增改、取消、删除、重建、原字节 no-op 和目标 ChartPart 以外内容保留；宿主显示和完整 F-07 继续待补。
+
 **图表文字语言增量（2026-09-09）：** `chartTextStyle.language` 使用现有语言标签或 `string` grammar token，直接承载字符 `lang`。标题、图例、轴、数据标签和趋势线样式，以及趋势线富文本的段落、片段、段末样式共用此字段；显式 `en-US`、大小写和省略状态保留。普通图表和组合图的最小实验覆盖创建、修改、删除、重建、原字节 no-op 和二次投影；语言编辑只改目标 ChartPart。vector 标题默认语言让位于片段显式语言。宿主拼写检查、字典和完整 F-07 仍待补。
 
 **趋势线标签增量（2026-09-09）：** `data.series[].trendlines[].label` 已承载可选 `text`、`numberFormat`、`textStyle`、`fill`、`line`。省略 text 时保留自动公式/R² 内容，`{}` 保留默认标签容器，省略 label 删除标签；text/numberFormat 接受 string grammar token。普通线图和 categorical combo 的最小实验检查 authored、修改、默认容器、删除、重新添加、原生节点和去嵌入后的回投影，label-only 编辑只改目标 ChartPart。JS 工作簿接口的其他图表编辑也保留原有 wire 标签。公式文本、布局扩展、复杂效果和 extension 仍按原始数据保留，不开放 analytics 编辑；自动布局和宿主视觉效果仍未验收。

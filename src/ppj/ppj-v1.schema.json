@@ -3018,18 +3018,7 @@
           ]
         },
         "strike": {
-          "oneOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "enum": [
-                "noStrike",
-                "sngStrike",
-                "dblStrike"
-              ]
-            }
-          ]
+          "$ref": "#/$defs/textStrike"
         },
         "color": {
           "$ref": "#/$defs/color"
@@ -6225,6 +6214,12 @@
         }
       }
     },
+    "textStrike": {
+      "oneOf": [
+        { "type": "boolean" },
+        { "enum": ["noStrike", "sngStrike", "dblStrike"] }
+      ]
+    },
     "chartTextStyle": {
       "type": "object",
       "additionalProperties": false,
@@ -6245,6 +6240,10 @@
         "language": {
           "$ref": "#/$defs/languageTagOrToken",
           "description": "Direct chart character language tag; explicit presence and casing are retained."
+        },
+        "strike": {
+          "$ref": "#/$defs/textStrike",
+          "description": "Direct character strike: booleans alias sngStrike/noStrike; explicit noStrike is preserved."
         },
         "underline": {
           "enum": [

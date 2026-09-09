@@ -1565,6 +1565,7 @@ internal static partial class PpjPresentationProjector
         if (source.FontFamilyEastAsia.Length > 0) output["fontFamilyEastAsia"] = StringNode(source.FontFamilyEastAsia);
         if (source.FontFamilyComplexScript.Length > 0) output["fontFamilyComplexScript"] = StringNode(source.FontFamilyComplexScript);
         if (source.HasLanguage) output["language"] = StringNode(source.Language);
+        if (source.HasStrike) output["strike"] = StringNode(source.Strike);
         if (source.HasBold) output["bold"] = JsonValue.Create(source.Bold);
         if (source.HasItalic) output["italic"] = JsonValue.Create(source.Italic);
         if (source.Underline.Length > 0)

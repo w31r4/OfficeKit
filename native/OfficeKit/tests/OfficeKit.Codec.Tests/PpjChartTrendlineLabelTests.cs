@@ -115,6 +115,8 @@ public sealed partial class PptxCodecTests
             Rich("<a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr/><a:defRPr/></a:pPr></a:p>"),
             Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr><a:hlinkClick/></a:rPr><a:t>Fit</a:t></a:r></a:p>"),
             Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang='en_US'/><a:t>Fit</a:t></a:r></a:p>"),
+            Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr strike='single'/><a:t>Fit</a:t></a:r></a:p>"),
+            Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr strike='sngStrike' baseline='100'/><a:t>Fit</a:t></a:r></a:p>"),
             Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang='en-US' altLang='zh-CN'/><a:t>Fit</a:t></a:r></a:p>"),
             Rich("<a:bodyPr/><a:lstStyle/><a:p><a:endParaRPr/><a:r><a:t>Fit</a:t></a:r></a:p>"),
             Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr b='1'>unmodeled</a:rPr><a:t>Fit</a:t></a:r></a:p>"),

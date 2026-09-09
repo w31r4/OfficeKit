@@ -4783,6 +4783,8 @@ message SpreadsheetChartTextStyleArtifact {
   SpreadsheetChartSurfaceFill fill = 11;
   // Direct character lang attribute; preserve explicit presence and casing.
   optional string language = 12;
+  // Direct character strike attribute; noStrike remains distinct from absence.
+  optional string strike = 13;
 }
 
 enum SpreadsheetChartLineDashStyle {

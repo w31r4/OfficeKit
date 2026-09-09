@@ -13,15 +13,7 @@ public sealed partial class PptxCodecTests
     [InlineData("combo", 1)]
     public void PpjChartTextLanguagePreservesEveryOwnerAndSourceLifecycle(string type, int seriesIndex)
     {
-        var program = TrendlineListProgram(type, seriesIndex);
-        var chart = TrendlineListChart(program);
-        chart["title"] = "Language chart";
-        chart["style"]!["dataLabels"] = new JsonObject { ["showValue"] = true };
-        foreach (var axis in type == "combo" ? new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" } : new[] { "xAxis", "yAxis" })
-            chart[axis] = new JsonObject { ["title"] = axis };
-        TrendlineListSeries(program, seriesIndex)["trendlines"]![0]!["label"] = JsonNode.Parse("""
-            {"text":{"paragraphs":[{"runs":[{"text":"Fit "},{"break":true},{"text":"A"}]}]}}
-            """);
+        var program = ChartTextStyleProgram(type, seriesIndex);
         SetChartLanguages(program, seriesIndex, "en-US");
         var authored = CompileTrendlineList(program);
         Assert.True(authored.Ok, Diagnostics(authored));
@@ -134,7 +126,21 @@ public sealed partial class PptxCodecTests
         Assert.Equal("ja-JP", (string?)Assert.Single(runs.Where(run => run.Element(a + "t")?.Value == "Row")).Element(a + "rPr")?.Attribute("lang"));
     }
 
-    private static IEnumerable<(JsonObject Owner, string Field)> ChartLanguageOwners(JsonObject program, int index)
+    private static JsonObject ChartTextStyleProgram(string type, int seriesIndex)
+    {
+        var program = TrendlineListProgram(type, seriesIndex);
+        var chart = TrendlineListChart(program);
+        chart["title"] = "Language chart";
+        chart["style"]!["dataLabels"] = new JsonObject { ["showValue"] = true };
+        foreach (var axis in type == "combo" ? new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" } : new[] { "xAxis", "yAxis" })
+            chart[axis] = new JsonObject { ["title"] = axis };
+        TrendlineListSeries(program, seriesIndex)["trendlines"]![0]!["label"] = JsonNode.Parse("""
+            {"text":{"paragraphs":[{"runs":[{"text":"Fit "},{"break":true},{"text":"A"}]}]}}
+            """);
+        return program;
+    }
+
+    private static IEnumerable<(JsonObject Owner, string Field)> ChartTextStyleOwners(JsonObject program, int index)
     {
         var chart = TrendlineListChart(program);
         var style = chart["style"]!.AsObject();
@@ -155,14 +161,14 @@ public sealed partial class PptxCodecTests
     {
         program["design"]!["grammar"]!["tokens"] = new JsonObject
         { ["chartLanguage"] = new JsonObject { ["kind"] = "string", ["value"] = language ?? "en-US" } };
-        foreach (var (owner, field) in ChartLanguageOwners(program, index))
+        foreach (var (owner, field) in ChartTextStyleOwners(program, index))
             if (language is null) owner.Remove(field);
             else owner[field] = new JsonObject { ["language"] = new JsonObject { ["token"] = "chartLanguage" } };
     }
 
     private static void AssertChartLanguages(JsonObject program, int index, string? language)
     {
-        foreach (var (owner, field) in ChartLanguageOwners(program, index))
+        foreach (var (owner, field) in ChartTextStyleOwners(program, index))
             Assert.Equal(language, owner[field]?["language"]?.GetValue<string>());
     }
 }

@@ -372,6 +372,15 @@ set a bounded `underline` token such as `single`, `double`, or `wavy`.
 attributes. Underline fill/line effects and unknown rich-text graphs stay
 source-owned and fail closed.
 
+The same owners accept `strike: true` (single), `strike: false` (explicit
+cancellation), or the native tokens `sngStrike`, `dblStrike`, `noStrike`.
+Fresh chart-style projection uses the native tokens. Omit `strike` to remove
+the direct attribute; `false` keeps an explicit `noStrike` override. A
+strike-only style is valid. Trendline paragraph/run/end styles and vector
+chart text use the same field, with explicit title-run strike taking
+precedence over title defaults. Like ordinary text strike, this is a literal
+boolean/token-enum field, not a grammar token reference.
+
 The same chart text owners may set a bounded paragraph `alignment` of `left`,
 `center`, `right`, or `justify`. PPJ maps these values to the direct DrawingML
 paragraph owner and preserves them through authored and source-bound

@@ -23,6 +23,10 @@ internal static class XlsxChartTextStyleCodec
     {
         "l", "ctr", "r", "just",
     };
+    private static readonly HashSet<string> StrikeValues = new(StringComparer.Ordinal)
+    {
+        "noStrike", "sngStrike", "dblStrike",
+    };
 
     internal static void Validate(SpreadsheetChartArtifact chart, string worksheetId)
     {
@@ -83,6 +87,7 @@ internal static class XlsxChartTextStyleCodec
         style.FontFamilyEastAsia.Length == 0 &&
         style.FontFamilyComplexScript.Length == 0 &&
         !style.HasLanguage &&
+        !style.HasStrike &&
         !style.HasFontSizePoints &&
         !style.HasBold &&
         !style.HasItalic &&
@@ -194,6 +199,7 @@ internal static class XlsxChartTextStyleCodec
             style.FontFamilyEastAsia.Length > 0 ? style.FontFamilyEastAsia : "default-eastAsia",
             style.FontFamilyComplexScript.Length > 0 ? style.FontFamilyComplexScript : "default-complexScript",
             style.HasLanguage ? "language=" + style.Language : "default-language",
+            style.HasStrike ? "strike=" + style.Strike : "default-strike",
             style.HasBold ? style.Bold.ToString(CultureInfo.InvariantCulture) : "default-bold",
             style.HasItalic ? style.Italic.ToString(CultureInfo.InvariantCulture) : "default-italic",
             style.Alignment.Length > 0 ? style.Alignment : "default-alignment",
@@ -233,7 +239,7 @@ internal static class XlsxChartTextStyleCodec
     {
         if (style is null) return;
         if (!style.HasFontSizePoints && style.FontFamily.Length == 0 && style.FontFamilyEastAsia.Length == 0 && style.FontFamilyComplexScript.Length == 0 &&
-            !style.HasLanguage && !style.HasBold && !style.HasItalic && style.Alignment.Length == 0 && style.Underline.Length == 0 && style.ColorRgb.Length == 0 && !style.HasOpacityThousandthPercent && style.Fill is null)
+            !style.HasStrike && !style.HasLanguage && !style.HasBold && !style.HasItalic && style.Alignment.Length == 0 && style.Underline.Length == 0 && style.ColorRgb.Length == 0 && !style.HasOpacityThousandthPercent && style.Fill is null)
             throw Invalid(worksheetId, chartId, $"{field} must declare at least one bounded property.");
         if (style.HasFontSizePoints && (!double.IsFinite(style.FontSizePoints) || style.FontSizePoints < MinimumFontSizePoints || style.FontSizePoints > MaximumFontSizePoints))
             throw Invalid(worksheetId, chartId, $"{field}.font_size_points must be from 1 through 4000.");
@@ -242,6 +248,8 @@ internal static class XlsxChartTextStyleCodec
         ValidateTypeface(style.FontFamilyComplexScript, worksheetId, chartId, field + ".font_family_complex_script");
         if (style.HasLanguage && !PptxLanguageTag.IsValid(style.Language))
             throw Invalid(worksheetId, chartId, $"{field}.language must be a bounded language tag.");
+        if (style.HasStrike && !StrikeValues.Contains(style.Strike))
+            throw Invalid(worksheetId, chartId, $"{field}.strike must be noStrike, sngStrike or dblStrike.");
         if (style.Fill is not null)
         {
             XlsxChartSurfaceFillCodec.Validate(style.Fill, field + ".fill");
@@ -321,9 +329,14 @@ internal static class XlsxChartTextStyleCodec
     internal static bool TryExactStyleProperties(XElement properties, out SpreadsheetChartTextStyleArtifact style)
     {
         style = new SpreadsheetChartTextStyleArtifact();
-        var allowedAttributes = new HashSet<XName> { "sz", "b", "i", "u", "lang" };
+        var allowedAttributes = new HashSet<XName> { "sz", "b", "i", "u", "lang", "strike" };
         var attributes = properties.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration).ToArray();
         if (attributes.Any(attribute => !allowedAttributes.Contains(attribute.Name))) return false;
+        if (properties.Attribute("strike") is { } strike)
+        {
+            if (!StrikeValues.Contains(strike.Value)) return false;
+            style.Strike = strike.Value;
+        }
         if (properties.Attribute("lang") is { } language)
         {
             if (!PptxLanguageTag.IsValid(language.Value)) return false;
@@ -373,7 +386,7 @@ internal static class XlsxChartTextStyleCodec
         }
         return index == children.Length &&
             (style.HasFontSizePoints || style.FontFamily.Length > 0 || style.FontFamilyEastAsia.Length > 0 || style.FontFamilyComplexScript.Length > 0 ||
-             style.HasLanguage || style.HasBold || style.HasItalic || style.Underline.Length > 0 || style.ColorRgb.Length > 0 || style.Fill is not null);
+             style.HasStrike || style.HasLanguage || style.HasBold || style.HasItalic || style.Underline.Length > 0 || style.ColorRgb.Length > 0 || style.Fill is not null);
     }
 
     private static void ApplyParsedFill(SpreadsheetChartTextStyleArtifact style, SpreadsheetChartSurfaceFill fill)
@@ -413,7 +426,7 @@ internal static class XlsxChartTextStyleCodec
 
     private static bool HasCharacterStyle(SpreadsheetChartTextStyleArtifact style) =>
         style.HasFontSizePoints || style.FontFamily.Length > 0 || style.FontFamilyEastAsia.Length > 0 || style.FontFamilyComplexScript.Length > 0 ||
-        style.HasLanguage || style.HasBold || style.HasItalic || style.Underline.Length > 0 || style.ColorRgb.Length > 0 || style.HasOpacityThousandthPercent || style.Fill is not null;
+        style.HasStrike || style.HasLanguage || style.HasBold || style.HasItalic || style.Underline.Length > 0 || style.ColorRgb.Length > 0 || style.HasOpacityThousandthPercent || style.Fill is not null;
 
     private static bool HasAnyStyle(SpreadsheetChartTextStyleArtifact style) => HasCharacterStyle(style) || style.Alignment.Length > 0;
 
@@ -421,6 +434,7 @@ internal static class XlsxChartTextStyleCodec
     {
         var output = new XElement(DrawingNs + name);
         if (style.HasLanguage) output.SetAttributeValue("lang", style.Language);
+        if (style.HasStrike) output.SetAttributeValue("strike", style.Strike);
         if (style.HasFontSizePoints) output.SetAttributeValue("sz", Size(style.FontSizePoints));
         if (style.HasBold) output.SetAttributeValue("b", style.Bold ? "1" : "0");
         if (style.HasItalic) output.SetAttributeValue("i", style.Italic ? "1" : "0");

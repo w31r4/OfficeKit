@@ -3604,6 +3604,7 @@ internal static class PpjSourceBoundPresentationCompiler
             output.Language = PptxLanguageTag.Validate(grammarRoot is { } languageRoot
                 ? ResolveGrammarStringToken(languageRoot, language, path + ".language")
                 : language.GetString()!);
+        if (source.TryGetProperty("strike", out var strike)) output.Strike = PpjAuthoredPresentationCompiler.NativeStrike(strike);
         if (source.TryGetProperty("bold", out var bold))
             output.Bold = grammarRoot is { } root
                 ? ResolveGrammarBooleanToken(root, bold, path + ".bold")

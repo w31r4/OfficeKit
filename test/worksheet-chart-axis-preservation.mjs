@@ -14,10 +14,10 @@ authoredSheet.charts.add("line", {
 });
 const source = wireWorksheetCharts(authoredSheet)[0];
 source.yAxis.logBase = 10;
-source.titleTextStyle = { fontSizePoints: 12, language: "en-US" };
+source.titleTextStyle = { fontSizePoints: 12, language: "en-US", strike: "noStrike" };
 source.series[0].trendlines[0].label = { numberFormatCode: "0.00", numberFormatLink: 1,
   richText: { paragraphs: [{ runs: [
-    { content: { case: "text", value: "Fit " }, style: { bold: true, language: "zh-CN" } },
+    { content: { case: "text", value: "Fit " }, style: { bold: true, language: "zh-CN", strike: "dblStrike" } },
     { content: { case: "lineBreak", value: true } },
     { content: { case: "text", value: "A" }, style: { bold: false } },
   ] }] },
@@ -31,6 +31,7 @@ chart.title = "Edited revenue";
 const edited = wireWorksheetCharts(importedSheet, state)[0];
 assert.equal(edited.title, "Edited revenue");
 assert.equal(edited.titleTextStyle.language, "en-US", "Unrelated edits retain explicit chart language");
+assert.equal(edited.titleTextStyle.strike, "noStrike", "Unrelated edits retain explicit strike cancellation");
 assert.equal(edited.yAxis.logBase, 10, "An unrelated chart edit must retain imported logarithmic scaling");
 assert.deepEqual(edited.series[0].trendlines[0].label, source.series[0].trendlines[0].label, "An unrelated chart edit must retain imported trendline label state");
 for (const layout of [undefined, {}, { manual: {} }, source.series[0].trendlines[0].label.layout]) {
@@ -50,4 +51,8 @@ console.log("worksheet chart axis and trendline label preservation ok");
 for (const language of [undefined, "en-US", "EN-us", "zh-Hans-CN"]) {
   const message = create(SpreadsheetChartTextStyleArtifactSchema, { language });
   assert.equal(fromBinary(SpreadsheetChartTextStyleArtifactSchema, toBinary(SpreadsheetChartTextStyleArtifactSchema, message)).language, language);
+}
+for (const strike of [undefined, "noStrike", "sngStrike", "dblStrike"]) {
+  const message = create(SpreadsheetChartTextStyleArtifactSchema, { strike });
+  assert.equal(fromBinary(SpreadsheetChartTextStyleArtifactSchema, toBinary(SpreadsheetChartTextStyleArtifactSchema, message)).strike, strike);
 }
