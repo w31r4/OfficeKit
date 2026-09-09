@@ -455,21 +455,27 @@ result. Scatter series lines, theme/transformed colors, picture/effect marker
 graphs, unsupported family markers, and irregular ChartML remain source-owned;
 do not redraw them as shapes to make an edit appear to succeed.
 
-For a recognized source-bound bar/column or line series, the existing
-trendline list and scalar error-bar object are separately owned by
-`setChartSeriesAnalytics`. Their bounded type, parameters, display flags and
-direct stroke can be replaced in place, but the list/object must already exist
-with the same cardinality. Adding, removing, custom error-bar data,
-formula/workbook synchronization, extensions and complex ChartML remain
-source-owned and fail closed.
+For a recognized source-bound bar/column or line series, including those in a
+categorical combo, `setChartSeriesAnalytics` owns `trendlines` as an ordered
+list. Insert, reorder, replace or remove entries directly in the array. Use
+`"trendlines": []` or remove the property to clear all trendlines. A later edit
+can add the list again. Up to 16 entries retain their existing type, parameter,
+display-flag and direct-stroke rules; only the target ChartPart changes.
+
+For example, `"trendlines": [{ "type": "linear", "name": "Fit" },
+{ "type": "polynomial", "order": 2, "name": "Curve" }]` requests two fits in
+that order. Scalar error-bar parameters can still be edited only when the
+object already exists. Error-bar additions/deletions, custom error-bar data,
+formula/workbook synchronization, trendline labels, extensions and complex
+ChartML remain source-owned and fail closed.
 
 The scalar marker spelling and `showDataLabels` / `dataLabelPosition` remain
 valid for older PPJ. Do not combine either legacy spelling with its structured
 form. On an imported source-bound chart, a `setChartData` capability owns only
 series names and values; it cannot be used to smuggle axis, marker, label,
 trendline, error-bar or paint changes. Use the separately issued
-`setChartSeriesAnalytics` capability for bounded existing trendline/error-bar
-replacement.
+`setChartSeriesAnalytics` capability for trendline-list edits and existing
+scalar error-bar replacement.
 
 Scatter and bubble charts use numeric channels rather than shared category
 labels:

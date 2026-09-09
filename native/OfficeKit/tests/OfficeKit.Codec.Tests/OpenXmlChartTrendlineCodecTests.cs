@@ -53,8 +53,18 @@ public sealed class OpenXmlChartTrendlineCodecTests
 
         var topologyChanged = imported.Clone();
         topologyChanged.Series[0].Trendlines.RemoveAt(0);
-        var error = Assert.Throws<CodecException>(() => OpenXmlChartSpaceCodec.Patch(editableDocument, topologyChanged, "trendline_topology_changed", "Test chart"));
+        OpenXmlChartSpaceCodec.Patch(editableDocument, topologyChanged, "trendline_topology_changed", "Test chart");
+        Assert.True(OpenXmlChartSpaceCodec.TryRead(editableDocument.ToString(SaveOptions.DisableFormatting), out var shortened, out _, out var shortenedEditable));
+        Assert.True(shortenedEditable);
+        Assert.Equal(5, shortened.Series[0].Trendlines.Count);
+        Assert.Equal(SpreadsheetChartTrendlineType.Linear, shortened.Series[0].Trendlines[0].Type);
+
+        topologyChanged.Series[0].Trendlines.Clear();
+        var unsupportedSeries = unsupported.Descendants(ChartNs + "ser").Single();
+        var unchangedXml = unsupportedSeries.ToString(SaveOptions.DisableFormatting);
+        var error = Assert.Throws<CodecException>(() => OpenXmlChartTrendlineCodec.Patch(unsupportedSeries, topologyChanged.Series[0], "trendline_topology_changed", "Test chart"));
         Assert.Equal("trendline_topology_changed", error.Code);
+        Assert.Equal(unchangedXml, unsupportedSeries.ToString(SaveOptions.DisableFormatting));
     }
 
     [Fact]

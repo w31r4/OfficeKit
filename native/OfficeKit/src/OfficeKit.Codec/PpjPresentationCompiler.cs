@@ -5951,20 +5951,11 @@ internal static class PpjSourceBoundPresentationCompiler
         if (PropertyChanged(before.Raw, after.Raw, "trendlines"))
         {
             RequireCapability(capabilityOwner, "setChartSeriesAnalytics", path + ".trendlines");
-            var oldTrendlines = before.Raw.TryGetProperty("trendlines", out var oldTrendlineValue)
-                ? oldTrendlineValue
-                : (JsonElement?)null;
-            var newTrendlines = after.Raw.TryGetProperty("trendlines", out var newTrendlineValue)
-                ? newTrendlineValue
-                : (JsonElement?)null;
-            if (oldTrendlines is null || newTrendlines is null ||
-                oldTrendlines.Value.ValueKind != JsonValueKind.Array ||
-                newTrendlines.Value.ValueKind != JsonValueKind.Array ||
-                oldTrendlines.Value.GetArrayLength() != newTrendlines.Value.GetArrayLength())
-                throw Unsupported(path + ".trendlines", "source-bound trendline topology change");
-            var trendlines = newTrendlines.Value.EnumerateArray()
-                .Select((item, index) => SourceBoundChartTrendline(item, $"{path}.trendlines[{index}]", grammarRoot))
-                .ToArray();
+            var trendlines = after.Raw.TryGetProperty("trendlines", out var newTrendlines)
+                ? newTrendlines.EnumerateArray()
+                    .Select((item, index) => SourceBoundChartTrendline(item, $"{path}.trendlines[{index}]", grammarRoot))
+                    .ToArray()
+                : [];
             target.Trendlines.Clear();
             target.Trendlines.Add(trendlines);
         }

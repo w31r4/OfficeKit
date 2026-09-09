@@ -308,8 +308,8 @@
       "feature": "native chart trendlines and scalar error bars",
       "ppjPath": "pages[].elements[].data.series[].trendlines and pages[].elements[].data.series[].errorBars",
       "behavior": "partial",
-      "sourceBound": "Recognized imported bar/column or line ChartParts expose the existing bounded c:trendline and scalar c:errBars children through setChartSeriesAnalytics. A source-bound edit may replace the values of an existing same-count trendline list or existing scalar error-bar object inside the ChartPart and then proves a second projection; adding, removing, or changing child topology fails closed.",
-      "reason": "The shared ChartSpace codecs already own six trendline types, polynomial/moving-average constraints, forecast/intercept/display flags, bounded direct line styling, and fixed-value/percentage/standard-deviation/standard-error error bars. Custom error-bar data, formulas/workbook synchronization, extensions, 3D/complex combo semantics, and topology changes remain source-owned and fail closed.",
+      "sourceBound": "Recognized imported bar/column or line series, including those in categorical combo ChartParts, expose their trendline list through setChartSeriesAnalytics. PPJ can insert, reorder, replace, remove or clear trendlines; omission and an empty array both clear the list, which may later be recreated. Existing scalar error-bar parameters remain editable without adding or removing that object. Edits affect only the target ChartPart and preserve series identity, data, error bars and unrelated package entries.",
+      "reason": "The shared ChartSpace codecs own up to sixteen trendlines using six types, polynomial/moving-average constraints, forecast/intercept/display flags and bounded direct line styling. They also own fixed-value/percentage/standard-deviation/standard-error error bars. Custom error-bar data, error-bar presence changes, formulas/workbook synchronization, trendline labels, extensions, 3D/complex combo semantics and unknown native owners remain source-owned and fail closed.",
       "visualStatus": "partial-or-opaque"
     },
     {

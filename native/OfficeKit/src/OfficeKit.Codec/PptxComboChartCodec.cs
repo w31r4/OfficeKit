@@ -52,7 +52,6 @@ internal static partial class PptxChartCodec
             return requested.Series.Zip(original.Series).All(pair =>
                 pair.First.Values.Count == pair.Second.Values.Count &&
                 pair.First.MissingValueIndexes.SequenceEqual(pair.Second.MissingValueIndexes) &&
-                pair.First.Trendlines.Count == pair.Second.Trendlines.Count &&
                 (pair.First.ErrorBars is null) == (pair.Second.ErrorBars is null));
         }
         if (requested.Series.Count != 0 || original.Series.Count != 0 || requested.ComboSeries.Count != original.ComboSeries.Count) return false;
@@ -63,7 +62,6 @@ internal static partial class PptxChartCodec
             pair.First.Series is not null && pair.Second.Series is not null &&
             pair.First.Series.Values.Count == pair.Second.Series.Values.Count &&
             pair.First.Series.MissingValueIndexes.SequenceEqual(pair.Second.Series.MissingValueIndexes) &&
-            pair.First.Series.Trendlines.Count == pair.Second.Series.Trendlines.Count &&
             (pair.First.Series.ErrorBars is null) == (pair.Second.Series.ErrorBars is null));
     }
 

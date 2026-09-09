@@ -79,13 +79,27 @@ internal static class OpenXmlChartTrendlineCodec
     internal static void Patch(XElement nativeSeries, SpreadsheetChartSeriesArtifact target, string errorCode, string subject)
     {
         var native = nativeSeries.Elements(ChartNs + "trendline").ToArray();
-        if (native.Length != target.Trendlines.Count) throw Topology(errorCode, subject, "trendline topology changed unexpectedly");
+        // Validate every original owner, including nodes the requested list
+        // would remove. An empty target must not erase unsupported content.
+        var originals = new SpreadsheetChartTrendlineArtifact[native.Length];
         for (var index = 0; index < native.Length; index++)
         {
-            if (!TryRead(native[index], target.Values.Count, out var original)) throw Topology(errorCode, subject, $"trendline {index + 1} no longer matches the editable profile");
-            if (Semantics(original).Equals(Semantics(target.Trendlines[index]), StringComparison.Ordinal)) continue;
+            if (!TryRead(native[index], target.Values.Count, out originals[index]))
+                throw Topology(errorCode, subject, $"trendline {index + 1} no longer matches the editable profile");
+        }
+        for (var index = 0; index < Math.Min(native.Length, target.Trendlines.Count); index++)
+        {
+            if (Semantics(originals[index]).Equals(Semantics(target.Trendlines[index]), StringComparison.Ordinal)) continue;
             native[index].ReplaceWith(Element(target.Trendlines[index]));
         }
+        foreach (var surplus in native.Skip(target.Trendlines.Count)) surplus.Remove();
+        if (target.Trendlines.Count <= native.Length) return;
+
+        // Bar and line series place trendlines before error bars and data.
+        var following = nativeSeries.Elements().FirstOrDefault(element =>
+            element.Name == ChartNs + "errBars" || element.Name == ChartNs + "cat" || element.Name == ChartNs + "val")
+            ?? throw Topology(errorCode, subject, "trendline insertion requires a recognized series data owner");
+        following.AddBeforeSelf(Elements(target.Trendlines.Skip(native.Length)));
     }
 
     internal static string Semantics(IEnumerable<SpreadsheetChartTrendlineArtifact> trendlines) =>
