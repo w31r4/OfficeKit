@@ -2767,13 +2767,15 @@ message PresentationInnerShadow {
 
 message PresentationReflection {
   // Native values use DrawingML EMUs, 1/60000 degrees, and thousandth-percent
-  // alpha. The authored profile writes a full-span reflection (stPos=0 and
-  // endPos=100000) and leaves the wider transform attributes unspecified.
+  // alpha. Ordinary authored profiles set canonical full-span positions;
+  // chart reflection also retains variable positions and their absence.
   optional int64 blur_radius_emu = 1;
   optional uint32 start_opacity_thousandth_percent = 2;
   optional uint32 end_opacity_thousandth_percent = 3;
   optional int64 distance_emu = 4;
   optional int64 direction_angle_60000 = 5;
+  optional uint32 start_position_thousandth_percent = 6;
+  optional uint32 end_position_thousandth_percent = 7;
 }
 
 message PresentationConnector {

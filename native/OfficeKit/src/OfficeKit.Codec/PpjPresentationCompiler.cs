@@ -4078,6 +4078,8 @@ internal static class PpjSourceBoundPresentationCompiler
             throw Unsupported(path, $"{subject} reflection must be an object");
         var output = new PresentationReflection
         {
+            StartPositionThousandthPercent = 0,
+            EndPositionThousandthPercent = 100_000,
             BlurRadiusEmu = Emu(source.GetProperty("blur").GetDouble()),
             StartOpacityThousandthPercent = Unit(grammarRoot is { } startRoot
                 ? ResolveGrammarOpacityToken(startRoot, source.GetProperty("startOpacity"), path + ".startOpacity")

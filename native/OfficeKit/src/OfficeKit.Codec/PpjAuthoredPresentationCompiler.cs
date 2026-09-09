@@ -3455,6 +3455,8 @@ internal static partial class PpjAuthoredPresentationCompiler
     internal static PresentationReflection BuildChartTextReflection(JsonElement value, Func<JsonElement, double> resolveOpacity)
     {
         var output = new PresentationReflection();
+        if (value.TryGetProperty("startPosition", out var startPosition)) output.StartPositionThousandthPercent = Opacity(ChartEffectNumber(startPosition.GetDouble(), 0, 1));
+        if (value.TryGetProperty("endPosition", out var endPosition)) output.EndPositionThousandthPercent = Opacity(ChartEffectNumber(endPosition.GetDouble(), 0, 1));
         if (value.TryGetProperty("blur", out var blur)) output.BlurRadiusEmu = Emu(ChartEffectNumber(blur.GetDouble(), 0, 1000));
         if (value.TryGetProperty("distance", out var distance)) output.DistanceEmu = Emu(ChartEffectNumber(distance.GetDouble(), 0, 100000));
         if (value.TryGetProperty("angle", out var angle))
@@ -4743,6 +4745,8 @@ internal static partial class PpjAuthoredPresentationCompiler
         var normalized = ((degrees % 360) + 360) % 360;
         return new PresentationReflection
         {
+            StartPositionThousandthPercent = 0,
+            EndPositionThousandthPercent = 100_000,
             BlurRadiusEmu = Emu(value.GetProperty("blur").GetDouble()),
             StartOpacityThousandthPercent = Opacity(startOpacity),
             EndOpacityThousandthPercent = Opacity(endOpacity),

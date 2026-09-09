@@ -3269,6 +3269,8 @@ internal static partial class PpjPresentationProjector
     private static JsonObject ChartTextReflection(PresentationReflection reflection)
     {
         var output = Reflection(reflection);
+        if (reflection.HasStartPositionThousandthPercent) output["startPosition"] = JsonValue.Create(Unit(reflection.StartPositionThousandthPercent));
+        if (reflection.HasEndPositionThousandthPercent) output["endPosition"] = JsonValue.Create(Unit(reflection.EndPositionThousandthPercent));
         if (!reflection.HasBlurRadiusEmu) output.Remove("blur");
         if (!reflection.HasDistanceEmu) output.Remove("distance");
         if (!reflection.HasDirectionAngle60000) output.Remove("angle");

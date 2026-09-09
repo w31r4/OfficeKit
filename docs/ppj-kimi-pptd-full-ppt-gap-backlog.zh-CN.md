@@ -692,6 +692,8 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-07 Chart、ChartML、嵌入工作簿和扩展图表
 
+**图表倒影渐变位置增量（2026-09-09）：** `chartTextStyle.reflection.startPosition/endPosition` 以 0～1 表达透明度渐变上的起止位置，按原生千分之一百分比精度保存；两端可独立设置、移除，并保留相同、反向及显式 0/1。图表倒影不再限定显式 0/100000，省略位置属性保留原生缺省；普通文字、形状、图片的 imported 完整跨度保护条件继续保留。现有普通图表/组合图生命周期实验已扩展到这两个属性的修改、移除、二次投影、样式优先级和 vector 默认值，检查其余倒影参数、其他效果、文字及非目标 ZIP 保留。位置不是裁切或幻灯片坐标；缩放/倾斜等其他倒影属性和宿主显示仍待补。
+
 **图表文字倒影增量（2026-09-09）：** `chartTextStyle.reflection` 承载完整跨度倒影，可选 `blur`、`startOpacity`、`endOpacity`、`distance`、`angle`，范围沿用普通文字倒影。`{}` 保留倒影及原生缺省，显式零独立保存，省略整个字段只删除倒影；起止透明度支持 opacity token。标题、图例、轴、数据标签、趋势线富文本和 vector 默认/片段样式贯通，原生顺序为 glow → innerShdw → outerShdw → reflection → softEdge。普通图表/组合图实验检查清空属性、删除、重建、每步二次投影、原字节 no-op、其余效果、文字和非目标 ZIP 保留。同时修复既有文字倒影角度叶子的单位归类冲突，45.5° → 90.25° 的回写按原生角度单位验证。原生起止位置为 0/100000；不同跨度、缩放/倾斜等额外属性、重复/乱序或未知后代继续保留原始内容。宿主显示和 F-07 整项仍待补。
 
 **图表文字内阴影增量（2026-09-09）：** `chartTextStyle.innerShadow` 必填 `color`，可选 `blur`（0～1000 pt）、`distance`（0～100000 pt）、`angle`（-360～360 度）、`opacity`（数值或透明度 token）。省略属性保留原生缺省，显式零独立保存；省略整个字段只移除内阴影。主题色、grammar 颜色和透明度贯通标题、图例、轴、数据标签、趋势线富文本及 vector 默认/片段样式。原生顺序为 glow → innerShdw → outerShdw → softEdge。普通图表/组合图实验检查每步二次投影、独立删除/重建、原字节 no-op、文字和非目标 ZIP 保留；重复、乱序、超范围和未知后代继续保留原始内容。完整效果图、宿主显示和 F-07 整项仍待补。

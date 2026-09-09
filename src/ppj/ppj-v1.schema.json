@@ -6310,6 +6310,18 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "startPosition": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Start alpha position along the reflection gradient ramp; preserve omission and explicit zero."
+        },
+        "endPosition": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "End alpha position along the reflection gradient ramp; preserve omission and explicit zero/one."
+        },
         "blur": {
           "type": "number",
           "minimum": 0,
@@ -6355,7 +6367,7 @@
           "description": "Reflection direction in degrees."
         }
       },
-      "description": "Full-span chart character reflection. Empty object retains the effect; scalar omission preserves native defaults."
+      "description": "Chart character reflection with optional alpha-ramp positions. Empty object retains the effect; scalar omission preserves native defaults."
     },
     "chartTextStyle": {
       "type": "object",

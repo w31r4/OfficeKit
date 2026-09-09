@@ -4,8 +4,8 @@ using A = DocumentFormat.OpenXml.Drawing;
 
 namespace OfficeKit.Codec;
 
-// Full-span DrawingML reflection. Preserve optional native values; broader
-// spans/transforms and imported sibling graphs remain outside this profile.
+// DrawingML reflection values with a chart opt-in for variable alpha-ramp
+// positions. Ordinary imported owner proofs retain the full-span profile.
 internal static class PptxReflectionCodec
 {
     private const long MaxBlurRadiusEmu = 12_700_000L;
@@ -52,7 +52,9 @@ internal static class PptxReflectionCodec
         }
         Validate(reflection, "authored");
 
-        var native = new A.Reflection { StartPosition = 0, EndPosition = FullReflectionEndPosition };
+        var native = new A.Reflection();
+        if (reflection.HasStartPositionThousandthPercent) native.StartPosition = checked((int)reflection.StartPositionThousandthPercent);
+        if (reflection.HasEndPositionThousandthPercent) native.EndPosition = checked((int)reflection.EndPositionThousandthPercent);
         if (reflection.HasBlurRadiusEmu) native.BlurRadius = reflection.BlurRadiusEmu;
         if (reflection.HasStartOpacityThousandthPercent) native.StartOpacity = checked((int)reflection.StartOpacityThousandthPercent);
         if (reflection.HasEndOpacityThousandthPercent) native.EndAlpha = checked((int)reflection.EndOpacityThousandthPercent);
@@ -81,7 +83,9 @@ internal static class PptxReflectionCodec
     internal static void Validate(PresentationReflection? reflection, string elementId, string subject = "shape")
     {
         if (reflection is null) return;
-        if (reflection.HasBlurRadiusEmu && reflection.BlurRadiusEmu is < 0 or > MaxBlurRadiusEmu ||
+        if (reflection.HasStartPositionThousandthPercent && reflection.StartPositionThousandthPercent > 100_000 ||
+            reflection.HasEndPositionThousandthPercent && reflection.EndPositionThousandthPercent > 100_000 ||
+            reflection.HasBlurRadiusEmu && reflection.BlurRadiusEmu is < 0 or > MaxBlurRadiusEmu ||
             reflection.HasStartOpacityThousandthPercent && reflection.StartOpacityThousandthPercent > 100_000 ||
             reflection.HasEndOpacityThousandthPercent && reflection.EndOpacityThousandthPercent > 100_000 ||
             reflection.HasDistanceEmu && reflection.DistanceEmu is < 0 or > MaxDistanceEmu ||
@@ -91,13 +95,14 @@ internal static class PptxReflectionCodec
                 $"Presentation {subject} {elementId} has invalid reflection geometry or opacity.");
     }
 
-    internal static bool TryReadDirectReflection(A.Reflection source, out PresentationReflection? reflection)
+    internal static bool TryReadDirectReflection(A.Reflection source, out PresentationReflection? reflection, bool allowVariablePositions = false)
     {
         reflection = null;
         if (!HasOnlyAttributes(source, "blurRad", "stA", "stPos", "endA", "endPos", "dist", "dir") ||
             source.ChildElements.Count != 0 ||
-            source.StartPosition?.Value is not 0 ||
-            source.EndPosition?.Value is not FullReflectionEndPosition ||
+            (!allowVariablePositions && (source.StartPosition?.Value is not 0 || source.EndPosition?.Value is not FullReflectionEndPosition)) ||
+            source.StartPosition?.Value is < 0 or > 100_000 ||
+            source.EndPosition?.Value is < 0 or > 100_000 ||
             source.BlurRadius?.Value is < 0 or > MaxBlurRadiusEmu ||
             source.StartOpacity?.Value is < 0 or > 100_000 ||
             source.EndAlpha?.Value is < 0 or > 100_000 ||
@@ -106,6 +111,8 @@ internal static class PptxReflectionCodec
             return false;
 
         reflection = new PresentationReflection();
+        if (source.StartPosition?.Value is { } startPosition) reflection.StartPositionThousandthPercent = checked((uint)startPosition);
+        if (source.EndPosition?.Value is { } endPosition) reflection.EndPositionThousandthPercent = checked((uint)endPosition);
         if (source.BlurRadius?.Value is { } blur) reflection.BlurRadiusEmu = blur;
         if (source.StartOpacity?.Value is { } startOpacity) reflection.StartOpacityThousandthPercent = checked((uint)startOpacity);
         if (source.EndAlpha?.Value is { } endOpacity) reflection.EndOpacityThousandthPercent = checked((uint)endOpacity);

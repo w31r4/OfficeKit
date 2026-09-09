@@ -381,14 +381,19 @@ chart text use the same field, with explicit title-run strike taking
 precedence over title defaults. Like ordinary text strike, this is a literal
 boolean/token-enum field, not a grammar token reference.
 
-`reflection` adds a full-span chart character reflection, for example
+`reflection` adds a direct chart character reflection, for example
 `{"reflection":{"blur":2,"startOpacity":0.5,"endOpacity":0,"distance":1,"angle":90}}`.
-All five chart properties are optional: blur is 0–1000 pt, distance 0–100000 pt,
+All chart reflection properties are optional: blur is 0–1000 pt, distance 0–100000 pt,
 angle -360–360 degrees, and start/end opacity 0–1 or an opacity grammar token.
 An empty object keeps the effect with native defaults; explicit zero is retained;
-omitting the field removes only reflection. Native positions are stPos=0 and
-endPos=100000. Partial spans, extra transforms and unknown descendants stay
-source-owned. Shared chart/trendline text styles and vector defaults use the
+omitting the field removes only reflection. `startPosition` and `endPosition`
+locate the start/end opacity values along the alpha gradient ramp, using 0–1
+fractions at native thousandth-percent precision. For example,
+`{"reflection":{"startPosition":0.2,"endPosition":0.7,"endOpacity":0}}`.
+Each position is independent; equal and reversed positions are retained.
+Omitting a position removes its direct attribute (native defaults are 0/1),
+while explicit zero or one remains explicit. These are not slide coordinates
+or crop geometry. Extra transforms and unknown descendants stay source-owned. Shared chart/trendline text styles and vector defaults use the
 field; explicit vector rich-run reflection overrides the default and keeps the
 ordinary text schema's five required properties. Scalar round trips do not
 establish host appearance.
