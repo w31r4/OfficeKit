@@ -10,7 +10,7 @@
     "painter": "src/ppj/preview-scene-svg.mjs",
     "painterTest": "test/ppj-preview-scene-svg.mjs",
     "contentSource": "office_kit.artifact.v1.PresentationElement.content",
-    "contract": "Read-only views preserve complete native state and use generated content descriptors. Mechanical units, asset and owner mapping are not paint support; unknown descendants require review. The internal SVG painter has bounded shape/text/image/group/table/connector mappings and explicit residuals; compiler endpoint correctness, production SVG adoption and full field coverage remain tracked separately."
+    "contract": "Read-only views preserve complete native state and use generated content descriptors. Mechanical units, asset and owner mapping are not paint support; unknown descendants require review. The internal SVG painter has bounded shape/text/image/group/table/connector and native category-line mappings, including missing-index segmentation, direct marker fill/outline and edge visibility, with explicit residuals; compiler endpoint correctness, production SVG adoption and full field coverage remain tracked separately."
   },
   "previewSupport": {
     "schema": "office-kit/ppj-preview-support/v1",

@@ -8,7 +8,8 @@ import { PresentationElementSchema, PresentationSlideSchema, PresentationTextBod
   PresentationTableCellFillSchema, PresentationTableCellBordersSchema,
   SpreadsheetChartLineStyleArtifactSchema, SpreadsheetColorSchema, SpreadsheetChartType,
   SpreadsheetChartSeriesArtifactSchema, SpreadsheetChartAxisArtifactSchema,
-  SpreadsheetChartLineOptionsArtifactSchema, SpreadsheetChartMarkerArtifactSchema } from "../generated/office_kit/artifact/v1/office_artifact_pb.js";
+  SpreadsheetChartLineOptionsArtifactSchema, SpreadsheetChartMarkerArtifactSchema,
+  SpreadsheetChartPointStyleArtifactSchema, SpreadsheetChartSurfaceFillSchema } from "../generated/office_kit/artifact/v1/office_artifact_pb.js";
 import { createPpjSceneView, scenePoints, sceneOpacity, sceneFontPoints } from "./preview-scene-view.mjs";
 import { escapePreviewText as esc, previewDiagnostic, previewReliability, aggregatePreviewStatus } from "./preview-diagnostics.mjs";
 
@@ -164,12 +165,12 @@ export function paintPpjSceneSvg(receipt) {
     const href = `data:${asset.contentType};base64,${Buffer.from(asset.data).toString("base64")}`;
     return `<image ${box(node.frame)} href="${esc(href)}" preserveAspectRatio="none" opacity="${n(sceneOpacity(s.opacityThousandthPercent ?? 100000))}"><title>${esc(s.altText || s.accessibilityTitle || "")}</title></image>`;
   }
-  function linePaint(node, field, color, width, opacity, dash, cap, join) {
+  function linePaint(node, field, color, width, opacity, dash, cap, join, dashField = "dashStyle") {
     if (width < 0) throw new RangeError("Negative native line width");
     const patterns = { solid: [], dashed: [4, 3], dotted: [1, 3], "dash-dot": [4, 3, 1, 3], "dash-dot-dot": [8, 3, 1, 3, 1, 3] };
     if (!Object.hasOwn(patterns, dash) || cap && !["flat", "round", "square"].includes(cap) || join && !["miter", "round", "bevel"].includes(join))
       throw new TypeError("Unsupported native line paint token");
-    if (patterns[dash].length) limit(node, `${field}.lineStyle`, "preview.scene.paint.dash-metrics", "Native dash kind retained; exact host dash lengths remain approximate.");
+    if (patterns[dash].length) limit(node, `${field}.${dashField}`, "preview.scene.paint.dash-metrics", "Native dash kind retained; exact host dash lengths remain approximate.");
     return `stroke="${color}" stroke-width="${n(width)}" stroke-opacity="${n(opacity)}" stroke-linecap="${cap === "flat" || !cap ? "butt" : cap}" stroke-linejoin="${join || "miter"}"${patterns[dash].length ? ` stroke-dasharray="${patterns[dash].map(v => n(v * width)).join(" ")}"` : ""}`;
   }
   function connector(node) {
@@ -192,7 +193,7 @@ export function paintPpjSceneSvg(receipt) {
     points.push(end);
     const width = scenePoints(s.lineWidthEmu), opacity = sceneOpacity(s.lineOpacityThousandthPercent ?? 100000);
     const color = s.lineStyle === "none" ? "none" : rgb(s.lineRgb);
-    const paint = linePaint(node, "connector", color, width, opacity, s.lineStyle === "none" ? "solid" : s.lineStyle || "solid", s.lineCap, s.lineJoin);
+    const paint = linePaint(node, "connector", color, width, opacity, s.lineStyle === "none" ? "solid" : s.lineStyle || "solid", s.lineCap, s.lineJoin, "lineStyle");
     const route = points.map((p, i) => `${i ? "L" : "M"} ${n(p.x)} ${n(p.y)}`).join(" ");
     const endpoint = (name, p, neighbours) => {
       const kind = s[`${name}Arrow`];
@@ -285,32 +286,17 @@ export function paintPpjSceneSvg(receipt) {
       }).join("");
     }).join("");
   }
-  function chart(node) {
-    const s = node.native, f = node.frame;
-    if (s.type !== SpreadsheetChartType.LINE) {
-      limit(node, "chart.type", "preview.scene.paint.chart-type", s.type, "opaque");
-      return placeholder(node, `chart type ${s.type}: not painted`);
-    }
-    const fail = (field, message) => {
-      limit(node, field, "preview.scene.paint.chart-semantics", message, "unavailable");
-      throw new TypeError(message);
-    };
-    unused(content.get("chart"), s, [...frameFields, "frameTransform", "type", "categories", "series", "xAxis", "yAxis", "lineOptions", "displayBlanksAs"], node, "chart.");
-    if (s.comboSeries.length || s.secondaryXAxis || s.secondaryYAxis)
-      fail("chart.comboSeries", "A simple line plot cannot replace mixed/secondary-axis topology.");
-    if (s.lineOptions) {
-      unused(SpreadsheetChartLineOptionsArtifactSchema, s.lineOptions, ["grouping", "smooth"], node, "chart.lineOptions.");
-      if (s.lineOptions.grouping !== undefined && ![0, 1].includes(s.lineOptions.grouping))
-        fail("chart.lineOptions.grouping", "Stacked lines require cumulative coordinates, not ordinary lines.");
-      if (s.lineOptions.smooth === true) fail("chart.lineOptions.smooth", "Smooth line interpolation is not yet mapped.");
-    }
-    if (s.grouping && s.grouping !== "standard") fail("chart.grouping", "Nonstandard line grouping is not yet mapped.");
-    const blank = s.displayBlanksAs ?? "gap";
-    if (!["gap", "zero", "span"].includes(blank)) fail("chart.displayBlanksAs", "Unknown native blank-display strategy.");
-    const series = s.series.map((entry, si) => {
-      const prefix = `chart.series[${si}]`;
-      unused(SpreadsheetChartSeriesArtifactSchema, entry, ["name", "values", "missingValueIndexes", "line", "marker"], node, `${prefix}.`);
-      if (entry.xValues.length || entry.bubbleSizes.length) fail(prefix, "Category-line data cannot reinterpret numeric X or size channels.");
+  function chartFail(node, field, message) {
+    limit(node, field, "preview.scene.paint.chart-semantics", message, "unavailable");
+    throw new TypeError(message);
+  }
+  // Native missing indexes own the distinction between absence and real zero
+  // for all category-chart painters; do not reconstruct it from numeric values.
+  function categorySeries(node, s, handled) {
+    return s.series.map((entry, si) => {
+      const prefix = `chart.series[${si}]`, fail = (field, message) => chartFail(node, field, message);
+      unused(SpreadsheetChartSeriesArtifactSchema, entry, handled, node, `${prefix}.`);
+      if (entry.xValues.length || entry.bubbleSizes.length) fail(prefix, "Category data cannot reinterpret numeric X or size channels.");
       if (entry.values.length !== s.categories.length) fail(`${prefix}.values`, "Category and logical value counts differ.");
       let previous = -1;
       for (const i of entry.missingValueIndexes) {
@@ -322,15 +308,131 @@ export function paintPpjSceneSvg(receipt) {
         if (!Number.isFinite(value)) fail(`${prefix}.values[${i}]`, "Nonfinite chart value.");
         if (missing.has(i) && value !== 0) fail(`${prefix}.missingValueIndexes`, "A missing native observation must carry its canonical zero placeholder.");
       });
-      if (missing.size && blank !== "gap") fail("chart.displayBlanksAs", `Explicit ${blank} would transform missing observations; this painter has not implemented separately labeled display-policy evidence.`);
       return { entry, si, prefix, missing };
     });
+  }
+  function circularChart(node) {
+    const s = node.native, f = node.frame, ring = s.type === SpreadsheetChartType.DOUGHNUT;
+    const fail = (field, message) => chartFail(node, field, message);
+    unused(content.get("chart"), s, [...frameFields, "frameTransform", "type", "categories", "series", "firstSliceAngle", "doughnutHoleSize", "title", "titleBody", "displayBlanksAs"], node, "chart.");
+    if (s.series.length !== 1 || s.comboSeries.length || s.xAxis || s.yAxis || s.secondaryXAxis || s.secondaryYAxis)
+      fail("chart.series", "This circular painter requires one native series without Cartesian/mixed axes; multi-ring topology is not yet mapped.");
+    const angle = s.firstSliceAngle ?? 0, hole = ring ? (s.doughnutHoleSize ?? 50) : 0;
+    if (!Number.isSafeInteger(angle) || angle < 0 || angle > 360) fail("chart.firstSliceAngle", "Circular start angle must be in 0..360 degrees.");
+    if ((!ring && s.doughnutHoleSize !== undefined) || (ring && (!Number.isSafeInteger(hole) || hole < 10 || hole > 90)))
+      fail("chart.doughnutHoleSize", "Doughnut hole size must be in 10..90 percent and cannot belong to a pie.");
+    const [{ entry, prefix, missing }] = categorySeries(node, s, ["name", "values", "missingValueIndexes", "fill", "seriesFill", "line", "pointStyles", "explosion"]);
+    const blank = s.displayBlanksAs ?? "gap";
+    if (!["gap", "zero", "span"].includes(blank) || (missing.size && blank !== "gap"))
+      fail("chart.displayBlanksAs", "Missing circular observations require gap until explicit display-policy evidence is mapped.");
+    if (entry.explosion) fail(`${prefix}.explosion`, "Exploded slice placement is not yet mapped.");
+    let maximum = 0;
+    entry.values.forEach((value, i) => {
+      if (!missing.has(i) && value < 0) fail(`${prefix}.values[${i}]`, "Negative circular values need an explicit signed display policy, not an implicit absolute value.");
+      if (!missing.has(i)) maximum = Math.max(maximum, value);
+    });
+    const denominator = maximum ? entry.values.reduce((total, value, i) => total + (missing.has(i) ? 0 : value / maximum), 0) : 0;
+    const pointStyles = new Map(); let previousStyle = -1;
+    for (const [pi, style] of entry.pointStyles.entries()) {
+      const field = `${prefix}.pointStyles[${pi}]`;
+      unused(SpreadsheetChartPointStyleArtifactSchema, style, ["index", "fill", "line", "explosion"], node, `${field}.`);
+      if (!Number.isSafeInteger(style.index) || style.index <= previousStyle || style.index >= entry.values.length || missing.has(style.index))
+        fail(`${field}.index`, "Point-style indexes must increase, address a real observation and be in range.");
+      previousStyle = style.index;
+      if (style.explosion) fail(`${field}.explosion`, "Exploded point placement is not yet mapped.");
+      pointStyles.set(style.index, { style, field });
+    }
+    const palette = ["#2563EB", "#B45309", "#047857", "#9333EA", "#BE123C", "#0E7490"];
+    function fill(surface, legacy, fallback, field) {
+      if (surface && legacy) fail(field, "Conflicting native solid/series fill owners.");
+      if (surface) {
+        unused(SpreadsheetChartSurfaceFillSchema, surface, ["noFill", "solidRgb", "opacityThousandthPercent"], node, `${field}.`);
+        if (surface.fill.case === "noFill" && surface.fill.value === true) return 'fill="none"';
+        if (surface.fill.case === "solidRgb") return `fill="${rgb(surface.fill.value)}" fill-opacity="${n(sceneOpacity(surface.opacityThousandthPercent ?? 100000))}"`;
+        limit(node, field, "preview.scene.paint.chart-inherited-paint", "Circular fill uses review color; native fill is not mapped.");
+      } else if (legacy) {
+        unused(SpreadsheetColorSchema, legacy, ["rgb"], node, `${field}.`);
+        if (legacy.source.case === "rgb") return `fill="${rgb(legacy.source.value)}"`;
+        limit(node, field, "preview.scene.paint.chart-inherited-paint", "Circular color inheritance remains unresolved.");
+      } else limit(node, field, "preview.scene.paint.chart-inherited-paint", "Review category palette is not a resolved theme.");
+      return `fill="${fallback}"`;
+    }
+    function outline(value, field) {
+      if (!value) return 'stroke="none"';
+      unused(SpreadsheetChartLineStyleArtifactSchema, value, ["color", "widthPoints", "opacityThousandthPercent", "dashStyle", "cap", "join"], node, `${field}.`);
+      if (value.color) unused(SpreadsheetColorSchema, value.color, ["rgb"], node, `${field}.color.`);
+      if (value.color?.source.case !== "rgb" || value.widthPoints === undefined)
+        limit(node, field, "preview.scene.paint.chart-inherited-paint", "Review outline defaults do not resolve native theme paint.");
+      return linePaint(node, field, value.color?.source.case === "rgb" ? rgb(value.color.source.value) : "#64748B",
+        value.widthPoints ?? 1, sceneOpacity(value.opacityThousandthPercent ?? 100000),
+        ["solid", "solid", "dashed", "dotted", "dash-dot", "dash-dot-dot"][value.dashStyle], value.cap, value.join);
+    }
+    // Fixed review plot, not a second PPJ layout pass. Clockwise from up is
+    // the native firstSliceAngle convention. Two arcs also handle a full turn.
+    const cx = f.x + f.width / 2, cy = f.y + f.height * .52, radius = Math.min(f.width * .4, f.height * .34), inner = radius * hole / 100;
+    if (radius <= 0) fail("chart", "Nonpositive circular plot extent.");
+    const point = (r, a) => `${n(cx + r * Math.sin(a * Math.PI / 180))} ${n(cy - r * Math.cos(a * Math.PI / 180))}`;
+    limit(node, "chart", "preview.scene.paint.chart-layout", "Circular proportions and direct point paint mapped; fixed plot margins, labels/legend, inheritance and host layout remain incomplete.");
+    if (missing.size) limit(node, `${prefix}.missingValueIndexes`, "preview.scene.paint.chart-missing-share", "Fractions describe observed positive values only; missing observations are unknown, not zero.");
+    let cumulative = 0;
+    const slices = entry.values.map((value, i) => {
+      if (missing.has(i)) return `<g data-officekit-missing-point="${i}"><title>${esc(s.categories[i])}: missing observation</title></g>`;
+      const fraction = denominator ? (value / maximum) / denominator : 0;
+      if (value > 0 && (!(fraction > 0) || cumulative + fraction === cumulative)) fail(`${prefix}.values[${i}]`, "Slice ratio is below representable precision.");
+      const start = angle + cumulative * 360;
+      cumulative += fraction;
+      const end = angle + cumulative * 360, middle = (start + end) / 2;
+      const selected = pointStyles.get(i);
+      const paint = selected?.style.fill
+        ? fill(selected.style.fill, null, palette[i % palette.length], `${selected.field}.fill`)
+        : fill(entry.seriesFill, entry.fill, palette[i % palette.length], `${prefix}.${entry.fill ? "fill" : "seriesFill"}`);
+      const stroke = outline(selected?.style.line ?? entry.line, selected?.style.line ? `${selected.field}.line` : `${prefix}.line`);
+      let geometry = "";
+      if (fraction > 0) {
+        const outerArc = `M ${point(radius, start)} A ${n(radius)} ${n(radius)} 0 0 1 ${point(radius, middle)} A ${n(radius)} ${n(radius)} 0 0 1 ${point(radius, end)}`;
+        const d = ring ? `${outerArc} L ${point(inner, end)} A ${n(inner)} ${n(inner)} 0 0 0 ${point(inner, middle)} A ${n(inner)} ${n(inner)} 0 0 0 ${point(inner, start)} Z` : `${outerArc} L ${n(cx)} ${n(cy)} Z`;
+        geometry = `<path data-officekit-slice="${i}" d="${d}" ${paint} ${stroke}/>`;
+      }
+      return `<g data-officekit-point="${i}" data-officekit-value="${n(value)}" data-officekit-fraction="${n(fraction)}" data-officekit-start-angle="${n(start)}" data-officekit-sweep-angle="${n(fraction * 360)}"><title>${esc(entry.name)} / ${esc(s.categories[i])}: ${n(value)} (${n(fraction * 100)}% of observed values)</title>${geometry}</g>`;
+    }).join("");
+    const heading = text({ ...node, frame: { x: f.x, y: f.y, width: f.width, height: f.height * .16 } }, { text: s.title, textBody: s.titleBody }, "chart");
+    const zeroCount = entry.values.filter((v, i) => !missing.has(i) && v === 0).length;
+    const note = !denominator ? "No positive observed data" : missing.size || zeroCount ? `Observed values only; ${missing.size} missing; ${zeroCount} zero` : "";
+    return `<g data-officekit-chart="${ring ? "doughnut" : "pie"}" data-officekit-first-slice-angle="${angle}" data-officekit-hole-size="${hole}">${heading}<g data-officekit-series="0" data-officekit-series-name="${esc(entry.name)}">${slices}</g>${note ? `<text data-officekit-circular-data-note="true" x="${n(f.x + 4)}" y="${n(f.y + f.height - 6)}" font-size="10">${esc(note)}</text>` : ""}</g>`;
+  }
+  function chart(node) {
+    const s = node.native, f = node.frame;
+    if ([SpreadsheetChartType.PIE, SpreadsheetChartType.DOUGHNUT].includes(s.type)) return circularChart(node);
+    if (s.type !== SpreadsheetChartType.LINE) {
+      limit(node, "chart.type", "preview.scene.paint.chart-type", s.type, "opaque");
+      return placeholder(node, `chart type ${s.type}: not painted`);
+    }
+    const fail = (field, message) => {
+      limit(node, field, "preview.scene.paint.chart-semantics", message, "unavailable");
+      throw new TypeError(message);
+    };
+    unused(content.get("chart"), s, [...frameFields, "frameTransform", "type", "categories", "series", "xAxis", "yAxis", "lineOptions", "grouping", "displayBlanksAs", "showCategoryAxis", "showValueAxis", "title", "titleBody"], node, "chart.");
+    if (s.comboSeries.length || s.secondaryXAxis || s.secondaryYAxis)
+      fail("chart.comboSeries", "A simple line plot cannot replace mixed/secondary-axis topology.");
+    if (s.lineOptions) {
+      unused(SpreadsheetChartLineOptionsArtifactSchema, s.lineOptions, ["grouping", "smooth"], node, "chart.lineOptions.");
+      if (s.lineOptions.grouping !== undefined && ![0, 1].includes(s.lineOptions.grouping))
+        fail("chart.lineOptions.grouping", "Stacked lines require cumulative coordinates, not ordinary lines.");
+      if (s.lineOptions.smooth === true) fail("chart.lineOptions.smooth", "Smooth line interpolation is not yet mapped.");
+    }
+    // OpenXmlChartSpaceCodec.NativeGrouping maps native "standard" to "none".
+    // This is the writer IR vocabulary, not the raw ChartML token.
+    if (s.grouping && s.grouping !== "none") fail("chart.grouping", "Nonstandard line grouping is not yet mapped.");
+    const blank = s.displayBlanksAs ?? "gap";
+    if (!["gap", "zero", "span"].includes(blank)) fail("chart.displayBlanksAs", "Unknown native blank-display strategy.");
+    const series = categorySeries(node, s, ["name", "values", "missingValueIndexes", "line", "marker"]);
+    if (series.some(({ missing }) => missing.size) && blank !== "gap") fail("chart.displayBlanksAs", `Explicit ${blank} would transform missing observations; this painter has not implemented separately labeled display-policy evidence.`);
     const xa = s.xAxis, ya = s.yAxis;
     if (xa) {
-      unused(SpreadsheetChartAxisArtifactSchema, xa, ["reverse"], node, "chart.xAxis.");
+      unused(SpreadsheetChartAxisArtifactSchema, xa, ["reverse", "visible", "axisLineVisible", "tickLabelsVisible", "tickLabelInterval"], node, "chart.xAxis.");
       if ([xa.minimum, xa.maximum, xa.logBase].some(v => v !== undefined)) fail("chart.xAxis", "Numeric category-axis bounds cannot be treated as evenly spaced labels.");
     }
-    if (ya) unused(SpreadsheetChartAxisArtifactSchema, ya, ["minimum", "maximum", "reverse", "logBase"], node, "chart.yAxis.");
+    if (ya) unused(SpreadsheetChartAxisArtifactSchema, ya, ["minimum", "maximum", "reverse", "logBase", "visible", "axisLineVisible", "tickLabelsVisible"], node, "chart.yAxis.");
     const logBase = ya?.logBase;
     if (logBase !== undefined && (!Number.isFinite(logBase) || logBase < 2 || logBase > 1000)) fail("chart.yAxis.logBase", "Invalid logarithm base.");
     const scaleValue = value => {
@@ -386,34 +488,74 @@ export function paintPpjSceneSvg(receipt) {
       });
       if (segment.length) segments.push(segment);
       const marker = entry.marker;
-      if (marker) unused(SpreadsheetChartMarkerArtifactSchema, marker, ["symbol", "size", "fill", "fillOpacityThousandthPercent"], node, `${prefix}.marker.`);
+      if (marker) unused(SpreadsheetChartMarkerArtifactSchema, marker, ["symbol", "size", "fill", "fillOpacityThousandthPercent", "line"], node, `${prefix}.marker.`);
       const symbol = marker?.symbol ?? 1, radius = (marker?.size ?? 5) / 2;
       if (!Number.isFinite(radius) || radius <= 0) fail(`${prefix}.marker.size`, "Invalid marker size.");
       if (marker?.fill) unused(SpreadsheetColorSchema, marker.fill, ["rgb"], node, `${prefix}.marker.fill.`);
       const markerFill = marker?.fill?.source.case === "rgb" ? rgb(marker.fill.source.value) : color;
+      let markerOutline = 'stroke="none"';
+      if (marker?.line) {
+        const ml = marker.line, field = `${prefix}.marker.line`;
+        unused(SpreadsheetChartLineStyleArtifactSchema, ml, ["color", "widthPoints", "opacityThousandthPercent", "dashStyle", "cap", "join"], node, `${field}.`);
+        if (ml.color) unused(SpreadsheetColorSchema, ml.color, ["rgb"], node, `${field}.color.`);
+        if (ml.color?.source.case !== "rgb" || ml.widthPoints === undefined)
+          limit(node, field, "preview.scene.paint.chart-inherited-paint", "Marker outline uses review defaults where direct native paint is absent.");
+        markerOutline = linePaint(node, field, ml.color?.source.case === "rgb" ? rgb(ml.color.source.value) : color,
+          numeric(ml.widthPoints ?? 1), sceneOpacity(ml.opacityThousandthPercent ?? 100000),
+          ["solid", "solid", "dashed", "dotted", "dash-dot", "dash-dot-dot"][ml.dashStyle], ml.cap, ml.join);
+      }
       if (symbol !== 1 && ![2, 3, 4, 5, 6].includes(symbol))
         limit(node, `${prefix}.marker.symbol`, "preview.scene.paint.chart-marker", symbol);
-      const geometry = segments.map(points => {
+      const paths = [], marks = [];
+      for (const points of segments) {
         const path = points.length > 1 ? `<path data-officekit-line-segment="${points[0].index}:${points.at(-1).index}" d="${points.map((p, i) => `${i ? "L" : "M"} ${n(p.x)} ${n(p.y)}`).join(" ")}" fill="none" ${paint}/>` : "";
+        paths.push(path);
         const dots = points.map(p => {
+          const outside = p.x < plot.x || p.x > plot.x + plot.width || p.y < plot.y || p.y > plot.y + plot.height;
           let mark = "";
           if ([2, 3].includes(symbol)) mark = `<circle cx="${n(p.x)}" cy="${n(p.y)}" r="${n(radius)}"/>`;
           if (symbol === 4) mark = `<rect ${box({ x: p.x - radius, y: p.y - radius, width: radius * 2, height: radius * 2 })}/>`;
           if (symbol === 5) mark = `<path d="M ${n(p.x)} ${n(p.y - radius)} L ${n(p.x + radius)} ${n(p.y)} L ${n(p.x)} ${n(p.y + radius)} L ${n(p.x - radius)} ${n(p.y)} Z"/>`;
           if (symbol === 6) mark = `<path d="M ${n(p.x)} ${n(p.y - radius)} L ${n(p.x + radius)} ${n(p.y + radius)} L ${n(p.x - radius)} ${n(p.y + radius)} Z"/>`;
-          if (!mark && points.length === 1) {
+          if (!mark && points.length === 1 && !outside) {
             limit(node, `${prefix}.values[${p.index}]`, "preview.scene.paint.chart-isolated-review-point", "Isolated observation shown as a hollow review dot, not an authored marker.");
             mark = `<circle data-officekit-review-point="isolated" cx="${n(p.x)}" cy="${n(p.y)}" r="3" fill="none" stroke="${color}" stroke-dasharray="1 1"/>`;
           }
-          return `<g data-officekit-point="${p.index}" data-officekit-value="${n(p.value)}" fill="${markerFill}" fill-opacity="${n(sceneOpacity(marker?.fillOpacityThousandthPercent ?? 100000))}"><title>${esc(entry.name)} / ${esc(s.categories[p.index])}: ${n(p.value)}</title>${mark}</g>`;
+          // A point whose centre is outside explicit axis bounds stays in the
+          // evidence, but must not be projected onto the edge as a false value.
+          // In-range markers can extend half their size beyond the plot edge.
+          return `<g data-officekit-point="${p.index}" data-officekit-value="${n(p.value)}"${outside ? ' data-officekit-point-outside-plot="true"' : ""} fill="${markerFill}" fill-opacity="${n(sceneOpacity(marker?.fillOpacityThousandthPercent ?? 100000))}" ${markerOutline}><title>${esc(entry.name)} / ${esc(s.categories[p.index])}: ${n(p.value)}</title>${outside ? "" : mark}</g>`;
         }).join("");
-        return path + dots;
-      }).join("");
-      return `<g data-officekit-series="${si}" data-officekit-series-name="${esc(entry.name)}">${missingEvidence.join("")}${geometry}</g>`;
+        marks.push(dots);
+      }
+      return `<g data-officekit-series="${si}" data-officekit-series-name="${esc(entry.name)}">${missingEvidence.join("")}<svg data-officekit-line-clip="plot" ${box(plot)} viewBox="${n(plot.x)} ${n(plot.y)} ${n(plot.width)} ${n(plot.height)}" overflow="hidden">${paths.join("")}</svg><g data-officekit-markers="unclipped-at-plot-edge">${marks.join("")}</g></g>`;
     }).join("");
-    // Nested SVG supplies a local clipping viewport without globally colliding
-    // clipPath IDs when different pages/nested groups reuse native IDs.
-    return `<g data-officekit-chart="line" data-officekit-blank-policy="${blank}" data-officekit-scale-min="${n(low)}" data-officekit-scale-max="${n(high)}" data-officekit-log-base="${logBase ?? "linear"}"><svg ${box(plot)} viewBox="${n(plot.x)} ${n(plot.y)} ${n(plot.width)} ${n(plot.height)}" overflow="hidden">${output}</svg>${observed.length ? "" : `<text x="${n(plot.x)}" y="${n(plot.y + 12)}" font-size="10">No observed data</text>`}</g>`;
+    // Per-series nested SVG clips lines at the plot; the outer chart viewport
+    // bounds markers at the chart frame, without cutting edge observations in
+    // half. Local viewports avoid colliding IDs across pages or nested groups.
+    let axes = "";
+    const bottom = plot.y + plot.height, right = plot.x + plot.width;
+    if ((xa?.visible ?? s.showCategoryAxis ?? true) === true) {
+      if (xa?.axisLineVisible !== false) axes += `<line data-officekit-axis="category" x1="${n(plot.x)}" y1="${n(bottom)}" x2="${n(right)}" y2="${n(bottom)}" stroke="#64748B"/>`;
+      const interval = xa?.tickLabelInterval ?? 1;
+      if (!Number.isSafeInteger(interval) || interval < 1) fail("chart.xAxis.tickLabelInterval", "Invalid category tick interval.");
+      if (xa?.tickLabelsVisible !== false && xa?.tickLabelPosition !== "none") axes += s.categories.map((label, i) => {
+        if (i % interval) return "";
+        let ratio = s.categories.length <= 1 ? .5 : i / (s.categories.length - 1);
+        if (xa?.reverse === true) ratio = 1 - ratio;
+        return `<text data-officekit-category="${i}" x="${n(plot.x + ratio * plot.width)}" y="${n(bottom + 12)}" text-anchor="middle" font-size="10" fill="#334155">${esc(label)}</text>`;
+      }).join("");
+    }
+    if ((ya?.visible ?? s.showValueAxis ?? true) === true) {
+      if (ya?.axisLineVisible !== false) axes += `<line data-officekit-axis="value" x1="${n(plot.x)}" y1="${n(plot.y)}" x2="${n(plot.x)}" y2="${n(bottom)}" stroke="#64748B"/>`;
+      if (ya?.tickLabelsVisible !== false && ya?.tickLabelPosition !== "none") axes += [0, .5, 1].map(ratio => {
+        const scaled = low + ratio * (high - low), value = logBase === undefined ? scaled : Math.pow(logBase, scaled);
+        const y = plot.y + (ya?.reverse === true ? ratio : 1 - ratio) * plot.height;
+        return `<text data-officekit-value-tick="${n(value)}" x="${n(plot.x - 4)}" y="${n(y + 3)}" text-anchor="end" font-size="10" fill="#334155">${n(value)}</text>`;
+      }).join("");
+    }
+    const heading = text({ ...node, frame: { x: plot.x, y: f.y, width: plot.width, height: f.height * .15 } }, { text: s.title, textBody: s.titleBody }, "chart");
+    return `<g data-officekit-chart="line" data-officekit-blank-policy="${blank}" data-officekit-scale-min="${n(low)}" data-officekit-scale-max="${n(high)}" data-officekit-log-base="${logBase ?? "linear"}">${heading}${axes}<svg ${box(f)} viewBox="${n(f.x)} ${n(f.y)} ${n(f.width)} ${n(f.height)}" overflow="hidden">${output}</svg>${observed.length ? "" : `<text x="${n(plot.x)}" y="${n(plot.y + 12)}" font-size="10">No observed data</text>`}</g>`;
   }
   function draw(node) {
     const identity = `data-officekit-native-id="${esc(node.nativeId)}" data-officekit-scene-path="${esc(node.scenePath)}"${node.semanticId ? ` data-officekit-id="${esc(node.semanticId)}"` : ""}`;

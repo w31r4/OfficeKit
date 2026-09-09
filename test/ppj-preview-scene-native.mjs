@@ -43,6 +43,7 @@ try {
   const { default: sharp } = await import("sharp");
   async function savePaint(name, receipt) {
     const painted = paintPpjSceneSvg(receipt);
+    await writeFile(path.join(artifacts, `${name}.diagnostics.json`), JSON.stringify(painted.diagnostics, null, 2), { flag: "wx" });
     for (const [i, page] of painted.pages.entries()) {
       await writeFile(path.join(artifacts, `${name}-${i}.svg`), page.svg, { flag: "wx" });
       const png = await sharp(Buffer.from(page.svg)).png().toBuffer();
@@ -54,6 +55,15 @@ try {
   const { loadPpjWorkspace, compilePpjWorkspace, validatePpjWorkspace, sha256 } = await import("../src/ppj/workspace.mjs");
   const { projectPptxToPpj } = await import("../src/ppj/native.mjs");
   const { invokeOfficeKitLazy } = await import("../src/codecs/office-kit-runtime.mjs");
+  async function withoutAuthoredSnapshot(file) {
+    const archive = await JSZip.loadAsync(file);
+    for (const name of Object.keys(archive.files)) if (name.startsWith("officeKit/")) archive.remove(name);
+    archive.file("_rels/.rels", (await archive.file("_rels/.rels").async("string")).replace(
+      /<Relationship\b(?=[^>]*\bType="https:\/\/schemas\.officekit\.dev\/relationships\/presentation-program")[^>]*(?:\/>|>[\s\S]*?<\/Relationship>)/g, ""));
+    archive.file("[Content_Types].xml", (await archive.file("[Content_Types].xml").async("string")).replace(
+      /<Override\b(?=[^>]*\bPartName="\/officeKit\/)[^>]*(?:\/>|>[\s\S]*?<\/Override>)/g, ""));
+    return archive.generateAsync({ type: "uint8array" });
+  }
   const fullWireCompile = async (workspace, { includePreviewScene = true, validationOnly = false } = {}) => {
     const request = create(CodecRequestSchema, {
     protocolVersion: 2, operation: 11, family: 2,
@@ -133,6 +143,11 @@ try {
     const chart = scene.pages[0].nodes.find(n => n.kind === "chart").native;
     assert.deepEqual(chart.series[0].values, [1, 0, 0]);
     assert.deepEqual(chart.series[0].missingValueIndexes, [1]);
+    assert.match(painted.pages[0].svg, /data-officekit-chart="line"/);
+    assert.match(painted.pages[0].svg, /data-officekit-point="0" data-officekit-value="1"/);
+    assert.match(painted.pages[0].svg, /data-officekit-point="2" data-officekit-value="0"/);
+    assert.doesNotMatch(painted.pages[0].svg, /data-officekit-line-segment=/);
+    assert.equal((painted.pages[0].svg.match(/data-officekit-review-point="isolated"/g) || []).length, 2);
     assert.match(painted.pages[0].svg, /x="110" y="110" width="60" height="40" fill="#CC5500"/);
     assert.match(painted.pages[0].svg, />0<\/tspan>/);
     const pixel = await sharp(Buffer.from(painted.pages[0].svg)).extract({ left: 130, top: 130, width: 1, height: 1 }).removeAlpha().raw().toBuffer();
@@ -140,6 +155,118 @@ try {
     pair.push(leaves.map(n => ({ frame: n.frame, fill: n.native.fillRgb, text: n.native.text })));
   }
   assert.deepEqual(pair[0], pair[1]);
+  const nativeLineInput = { id: "native-line", type: "chart", chartType: "line", title: "Missing is not zero",
+    frame: { x: 500, y: 330, width: 400, height: 160 }, yAxis: { min: 0, max: 5 },
+    data: { categories: ["A", "Missing", "Zero", "D", "E"], series: [{ id: "observed", name: "Observed",
+      values: [2, null, 0, 4, 5], stroke: { color: "#047857", width: 2 },
+      marker: { symbol: "circle", size: 8, fill: "#047857", stroke: { color: "#114477", width: 2 } } },
+      { id: "other", name: "Other series", values: [5, 4, null, 0, 1], stroke: { color: "#B45309", width: 2 }, marker: "none" }] } };
+  async function assertNativeLine(receipt, painted, middle = 0) {
+    const native = createPpjSceneView(receipt).pages[0].nodes.find(n => n.kind === "chart").native;
+    assert.deepEqual(native.series[0].values, [2, 0, middle, 4, 5]);
+    assert.deepEqual(native.series[0].missingValueIndexes, [1]);
+    assert.equal(native.series[0].marker.size, 8);
+    assert.equal(native.series[0].marker.line.color.source.value, "114477");
+    assert.equal(native.series[0].marker.line.widthPoints, 2);
+    assert.equal(native.series.length, 2);
+    assert.deepEqual(native.series[1].values, [5, 4, 0, 0, 1]);
+    assert.deepEqual(native.series[1].missingValueIndexes, [2]);
+    const svg = painted.pages[0].svg;
+    assert.match(svg, /data-officekit-chart="line"/);
+    assert.match(svg, /data-officekit-missing-point="1"/);
+    const firstSeriesSvg = svg.slice(svg.indexOf('data-officekit-series="0"'), svg.indexOf('data-officekit-series="1"'));
+    const secondSeriesSvg = svg.slice(svg.indexOf('data-officekit-series="1"'));
+    assert.doesNotMatch(firstSeriesSvg, /data-officekit-point="1"|data-officekit-line-segment="0:/);
+    assert.match(secondSeriesSvg, /data-officekit-line-segment="0:1" d="M 540 354 L 620 376.4"[^>]*stroke="#B45309"/);
+    assert.match(secondSeriesSvg, /data-officekit-line-segment="3:4" d="M 780 466 L 860 443.6"/);
+    assert.match(secondSeriesSvg, /data-officekit-missing-point="2"/);
+    assert.doesNotMatch(secondSeriesSvg, /data-officekit-point="2"/);
+    assert.ok(svg.includes(`data-officekit-point="2" data-officekit-value="${middle}"`));
+    assert.ok(svg.includes(`data-officekit-line-segment="2:4" d="M 700 ${354 + (1 - middle / 5) * 112} L 780 376.4 L 860 354"`));
+    assert.ok(!painted.diagnostics.some(d => ["preview.scene.paint.chart-semantics", "preview.scene.paint.failed"].includes(d.reason)));
+    // Actual marker interior, and empty space where joining across the gap
+    // would draw a fictitious segment. No Office or mocked raster backend.
+    // Left/top/right plot-edge markers remain whole, while the connecting
+    // paths are clipped. These pixels were outside the old plot viewport.
+    for (const [left, top, rgb] of [[780, 376, [4, 120, 87]], [620, 444, [255, 255, 255]],
+      [538, 421, [4, 120, 87]], [536, 421, [17, 68, 119]], [861, 354, [4, 120, 87]], [860, 350, [17, 68, 119]],
+      ...(middle === 0 ? [[700, 467, [4, 120, 87]]] : [])]) {
+      const pixel = await sharp(Buffer.from(svg)).extract({ left, top, width: 1, height: 1 }).removeAlpha().raw().toBuffer();
+      assert.deepEqual([...pixel], rgb);
+    }
+  }
+  const nativeLineProgram = structuredClone(pairBase);
+  nativeLineProgram.pages[0].elements = [structuredClone(nativeLineInput)];
+  const nativeLineResult = await compilePpjWorkspace({ ...sourceWorkspace, program: Buffer.from(JSON.stringify(nativeLineProgram)) }, { includePreviewScene: true });
+  await assertNativeLine(nativeLineResult, await savePaint("native-line", nativeLineResult));
+  const nativeCircular = [];
+  for (const type of ["pie", "doughnut"]) {
+    const circularProgram = structuredClone(pairBase);
+    circularProgram.pages[0].elements = [
+      { id: "behind", type: "shape", frame: { x: 60, y: 80, width: 400, height: 300 }, geometry: { kind: "preset", preset: "rect" }, style: { fill: { type: "solid", color: "#FFEEDD" } } },
+      { id: "circular", type: "chart", chartType: type, title: "Observed shares", frame: { x: 60, y: 80, width: 400, height: 300 },
+        style: { startAngle: 0, ...(type === "doughnut" ? { holeSize: 60 } : {}) },
+        data: { categories: ["Small", "Unknown", "Zero", "Large"], series: [{ id: "shares", name: "Shares", values: [1, null, 0, 9],
+          pointStyles: [{ index: 0, fill: { type: "solid", color: "#CC2200" } }, { index: 3, fill: { type: "solid", color: "#0044CC" } }] }] } },
+    ];
+    async function checkCircular(receipt, name, swapped = false, angle = 0, hole = 60) {
+      const painted = await savePaint(name, receipt), svg = painted.pages[0].svg;
+      const native = createPpjSceneView(receipt).pages[0].nodes.find(n => n.kind === "chart").native;
+      assert.equal(native.type, type === "pie" ? 3 : 5);
+      assert.equal(native.firstSliceAngle, angle);
+      if (type === "doughnut") assert.equal(native.doughnutHoleSize, hole);
+      assert.deepEqual(native.series[0].values, swapped ? [9, 0, 0, 1] : [1, 0, 0, 9]);
+      assert.deepEqual(native.series[0].missingValueIndexes, [1]);
+      assert.match(svg, new RegExp(`data-officekit-chart="${type}"`));
+      assert.match(svg, /data-officekit-missing-point="1"/);
+      assert.doesNotMatch(svg, /data-officekit-point="1"|data-officekit-slice="[12]"/);
+      assert.match(svg, /data-officekit-point="2" data-officekit-value="0" data-officekit-fraction="0"/);
+      const first = svg.match(/data-officekit-point="0" data-officekit-value="[^"]+" data-officekit-fraction="([^"]+)" data-officekit-start-angle="([^"]+)"/);
+      assert.ok(Math.abs(+first[1] - (swapped ? .9 : .1)) < 1e-12);
+      assert.equal(+first[2], angle);
+      assert.ok(!painted.diagnostics.some(d => ["preview.scene.paint.chart-semantics", "preview.scene.paint.failed"].includes(d.reason)));
+      const sample = degrees => [Math.floor(260 + 80 * Math.sin(degrees * Math.PI / 180)), Math.floor(236 - 80 * Math.cos(degrees * Math.PI / 180))];
+      for (const [[left, top], rgb] of [[sample(angle + 18), [204, 34, 0]], [sample(angle + 180), swapped ? [204, 34, 0] : [0, 68, 204]],
+        ...(type === "doughnut" ? [[[260, 236], [255, 238, 221]]] : [])]) {
+        const pixel = await sharp(Buffer.from(svg)).extract({ left, top, width: 1, height: 1 }).removeAlpha().raw().toBuffer();
+        assert.deepEqual([...pixel], rgb, `${name} pixel ${left},${top}`);
+      }
+    }
+    const compileCircular = program => compilePpjWorkspace({ ...sourceWorkspace, program: Buffer.from(JSON.stringify(program)) }, { includePreviewScene: true });
+    const authored = await compileCircular(circularProgram);
+    await checkCircular(authored, `${type}-authored`);
+    const swapped = structuredClone(circularProgram);
+    swapped.pages[0].elements[1].data.series[0].values = [9, null, 0, 1];
+    await checkCircular(await compileCircular(swapped), `${type}-swapped`, true);
+    const rotated = structuredClone(circularProgram);
+    rotated.pages[0].elements[1].style.startAngle = 90;
+    if (type === "doughnut") rotated.pages[0].elements[1].style.holeSize = 40;
+    await checkCircular(await compileCircular(rotated), `${type}-rotated`, false, 90, 40);
+    const circularSource = await withoutAuthoredSnapshot(authored.file), original = circularSource.slice();
+    const projectedCircular = await projectPptxToPpj(circularSource, { sourceUri: `${type}-source.pptx`, assetRootUri: "assets" });
+    assert.equal(projectedCircular.sourceBound, true);
+    const circularInput = { program: projectedCircular.programJson, source: circularSource, assets: projectedCircular.assets };
+    const noopCircular = await compilePpjWorkspace(circularInput, { includePreviewScene: true });
+    assert.deepEqual(noopCircular.file, circularSource);
+    await checkCircular(noopCircular, `${type}-source-noop`);
+    const editedCircular = JSON.parse(new TextDecoder().decode(projectedCircular.programJson));
+    editedCircular.pages[0].elements.find(e => e.type === "chart").data.series[0].values = [9, null, 0, 1];
+    const circularCandidate = await compilePpjWorkspace({ ...circularInput, program: Buffer.from(JSON.stringify(editedCircular)) }, { includePreviewScene: true });
+    await checkCircular(circularCandidate, `${type}-source-edited`, true);
+    const projectedAgain = await projectPptxToPpj(circularCandidate.file, { sourceUri: `${type}-candidate.pptx`, assetRootUri: "assets" });
+    assert.deepEqual(JSON.parse(new TextDecoder().decode(projectedAgain.programJson)).pages[0].elements.find(e => e.type === "chart").data.series[0].values, [9, null, 0, 1]);
+    const sourceZip = await JSZip.loadAsync(circularSource), candidateZip = await JSZip.loadAsync(circularCandidate.file);
+    assert.deepEqual(Object.keys(sourceZip.files).sort(), Object.keys(candidateZip.files).sort());
+    const changed = [];
+    for (const name of Object.keys(sourceZip.files)) if (!sourceZip.files[name].dir &&
+      !Buffer.from(await sourceZip.file(name).async("uint8array")).equals(Buffer.from(await candidateZip.file(name).async("uint8array")))) changed.push(name);
+    assert.deepEqual(changed.sort(), ["ppt/slides/charts/chart1.xml"]);
+    assert.ok(!Object.keys(sourceZip.files).some(name => name.endsWith(".xlsx")));
+    assert.deepEqual(circularSource, original);
+    nativeCircular.push({ type, authoredRatioSwap: true, rotated: true, sourceNoop: true, sourceValueEdit: true, reprojection: true,
+      ratioPixels: true, transparentHole: type === "doughnut", changedParts: changed,
+      sourceSha256: sha256(circularSource), candidateSha256: sha256(circularCandidate.file), workbook: "not present in literal-data fixture" });
+  }
   const vectorProgram = structuredClone(pairBase);
   vectorProgram.pages[0].elements = [
     { id: "sun", type: "chart", chartType: "sunburst", frame: { x: 40, y: 80, width: 360, height: 350 }, style: { sunburst: { rootColors: ["#CC5500", "#114477"] } }, data: {
@@ -195,7 +322,7 @@ try {
       const pixel = await sharp(Buffer.from(svg)).extract({ left: x + offset, top: 200, width: 1, height: 1 }).removeAlpha().raw().toBuffer();
       assert.deepEqual([...pixel], expected);
     }
-    assert.ok(!painted.diagnostics.some(d => d.reason === "preview.scene.paint.failed"));
+    assert.ok(!painted.diagnostics.some(d => d.reason === "preview.scene.paint.failed"), JSON.stringify(painted.diagnostics.filter(d => d.status === "unavailable")));
   }
   const topologyProgram = structuredClone(pairBase);
   topologyProgram.pages[0].elements = [structuredClone(gridInput),
@@ -229,14 +356,9 @@ try {
     frame: { x: 80, y: 200, width: 100, height: 100 } });
   json.pages[0].elements.push(structuredClone(gridInput));
   json.pages[0].elements.push(structuredClone(literalEdge));
+  json.pages[0].elements.push(structuredClone(nativeLineInput));
   const sourceAuthored = await compilePpjWorkspace({ ...sourceWorkspace, program: Buffer.from(JSON.stringify(json)), assets: authoredAssets.assets });
-  const zip = await JSZip.loadAsync(sourceAuthored.file);
-  for (const name of Object.keys(zip.files)) if (name.startsWith("officeKit/")) zip.remove(name);
-  zip.file("_rels/.rels", (await zip.file("_rels/.rels").async("string")).replace(
-    /<Relationship\b(?=[^>]*\bType="https:\/\/schemas\.officekit\.dev\/relationships\/presentation-program")[^>]*(?:\/>|>[\s\S]*?<\/Relationship>)/g, ""));
-  zip.file("[Content_Types].xml", (await zip.file("[Content_Types].xml").async("string")).replace(
-    /<Override\b(?=[^>]*\bPartName="\/officeKit\/)[^>]*(?:\/>|>[\s\S]*?<\/Override>)/g, ""));
-  const source = await zip.generateAsync({ type: "uint8array" });
+  const source = await withoutAuthoredSnapshot(sourceAuthored.file);
   const beforeSource = source.slice();
   const projected = await projectPptxToPpj(source, { sourceUri: "source.pptx", assetRootUri: "assets" });
   assert.equal(projected.sourceBound, true);
@@ -253,6 +375,7 @@ try {
   const noopPaint = await savePaint("source-noop", noop);
   assertLiteralEdge(noop, noopPaint);
   await assertMergedGrid(noopPaint, 40);
+  await assertNativeLine(noop, noopPaint);
   const edited = JSON.parse(new TextDecoder().decode(projected.programJson));
   edited.pages[0].elements[0].text.paragraphs[0].runs[0].text = "Actual candidate scene text";
   const editInput = { ...sourceInput, program: Buffer.from(JSON.stringify(edited)) };
@@ -273,6 +396,7 @@ try {
   const tablePaint = await savePaint("source-table-moved", tableCandidate);
   assertLiteralEdge(tableCandidate, tablePaint);
   await assertMergedGrid(tablePaint, 64);
+  await assertNativeLine(tableCandidate, tablePaint);
   assert.equal(createPpjSceneView(tableCandidate).pages[0].nodes.find(n => n.kind === "table").frame.x, 64);
   assert.match(tablePaint.pages[0].svg, /data-officekit-table-cell="0:0"[^>]*><rect x="64" y="100" width="360" height="40"/);
   const reprojected = await projectPptxToPpj(tableCandidate.file, { sourceUri: "candidate.pptx", assetRootUri: "assets" });
@@ -281,16 +405,42 @@ try {
   assert.deepEqual(Object.keys(newZip.files).filter(n => !newZip.files[n].dir).sort(), Object.keys(oldZip.files).filter(n => !oldZip.files[n].dir).sort());
   for (const name of Object.keys(oldZip.files)) if (!oldZip.files[name].dir && name !== "ppt/slides/slide1.xml")
     assert.deepEqual(await newZip.file(name).async("uint8array"), await oldZip.file(name).async("uint8array"), `Non-target part ${name}`);
+  const chartEdit = JSON.parse(new TextDecoder().decode(projected.programJson));
+  const chartTarget = chartEdit.pages[0].elements.find(e => e.type === "chart");
+  assert.ok(chartTarget, "Source projection retains the bounded native line chart.");
+  chartTarget.data.series[0].values[2] = 3;
+  const chartCandidate = await compilePpjWorkspace({ ...sourceInput, program: Buffer.from(JSON.stringify(chartEdit)) }, { includePreviewScene: true });
+  await assertNativeLine(chartCandidate, await savePaint("source-line-edited", chartCandidate), 3);
+  const chartReprojected = await projectPptxToPpj(chartCandidate.file, { sourceUri: "line-candidate.pptx", assetRootUri: "assets" });
+  assert.deepEqual(JSON.parse(new TextDecoder().decode(chartReprojected.programJson)).pages[0].elements.find(e => e.type === "chart").data.series[0].values, [2, null, 3, 4, 5]);
+  assert.deepEqual(JSON.parse(new TextDecoder().decode(chartReprojected.programJson)).pages[0].elements.find(e => e.type === "chart").data.series[1].values, [5, 4, null, 0, 1]);
+  const chartZip = await JSZip.loadAsync(chartCandidate.file);
+  assert.deepEqual(Object.keys(chartZip.files).filter(n => !chartZip.files[n].dir).sort(), Object.keys(oldZip.files).filter(n => !oldZip.files[n].dir).sort());
+  const chartChangedParts = [];
+  for (const name of Object.keys(oldZip.files)) if (!oldZip.files[name].dir &&
+    !Buffer.from(await oldZip.file(name).async("uint8array")).equals(Buffer.from(await chartZip.file(name).async("uint8array")))) chartChangedParts.push(name);
+  // The fixture is a single literal-data ChartPart, without a workbook. Keep
+  // this narrow golden delta: no slide, relationship, image or other part may
+  // change. A workbook-linked source needs its own lifecycle regression.
+  assert.ok(oldZip.file("ppt/slides/charts/chart1.xml"));
+  assert.ok(!Object.keys(oldZip.files).some(name => name.endsWith(".xlsx")));
+  assert.deepEqual(chartChangedParts.sort(), ["ppt/slides/charts/chart1.xml"]);
   assert.deepEqual(source, beforeSource);
   assert.ok(started.includes("office") && started.includes("ppj"));
-  console.log(JSON.stringify({ status: relationFailures.length ? "failed" : "passed", scope: "PPJ NativeAOT wire/view and internal SVG foundations; not production scene routing or complete paint coverage",
+  const report = { status: relationFailures.length ? "failed" : "passed", scope: "PPJ NativeAOT wire/view and internal SVG foundations; not production scene routing or complete paint coverage",
+    nativeCircular,
     relationFailures: relationFailures.map(({ shift, actual, error }) => ({ shift, actual, message: error.message })),
     internalPainting: { artifacts, pairedComponent: 1, generatedBezierPaths: paths, sourceTextEdit: true, directedAnchorCases, requiredDirectedAnchorCases: 2,
       explicitCoordinateConnector: true, sourceConnectorPreserved: true, mergedTablePixels: true, sourceTableMoveReprojection: true },
+    nativeLine: { authored: true, sourceNoop: true, preservedAcrossTableEdit: true, sourceValueEditReprojection: true,
+      multiSeriesMissing: true, markerAndGapPixels: true, unclippedMarkerOutlinePixels: true, changedParts: chartChangedParts,
+      sourceSha256: sha256(source), candidateSha256: sha256(chartCandidate.file), workbook: "not present in this literal-data fixture" },
     officeProfile: "presentation request rejected as designed", profiles: descriptors.map(d => ({
     profile: d.profile, path: d.executablePath,
     sha256: d.manifest.files.find(file => file.path === d.manifest.profiles[d.profile].executable).sha256,
-  })), authored: 2, sourceBound: ["no-op with assets/table", "text leaf edit with assets/table", "table frame edit and fresh reprojection"] }, null, 2));
+  })), authored: 2, sourceBound: ["no-op with assets/table", "text leaf edit with assets/table", "table frame edit and fresh reprojection", "literal line value edit and fresh reprojection"] };
+  await writeFile(path.join(artifacts, "integration.json"), JSON.stringify(report, null, 2), { flag: "wx" });
+  console.log(JSON.stringify(report, null, 2));
   if (relationFailures.length) throw new AggregateError(relationFailures.map(f => f.error), "Authored object-anchor regressions failed; independent table/source checks executed, not a passing integration.");
 } finally {
   fullWireClient.kill();

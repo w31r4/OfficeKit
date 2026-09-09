@@ -4,7 +4,9 @@ import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { create, clone, toBinary } from "@bufbuild/protobuf";
 import { PresentationPreviewSceneSchema, PresentationElementSchema,
-  PresentationCustomGeometryPathSchema } from "../src/generated/office_kit/artifact/v1/office_artifact_pb.js";
+  PresentationCustomGeometryPathSchema, SpreadsheetChartMarkerArtifactSchema,
+  SpreadsheetChartSeriesArtifactSchema, SpreadsheetChartPointStyleArtifactSchema,
+  SpreadsheetChartSurfaceFillSchema } from "../src/generated/office_kit/artifact/v1/office_artifact_pb.js";
 import { nativePathData, paintPpjSceneSvg } from "../src/ppj/preview-scene-svg.mjs";
 
 const sha = data => createHash("sha256").update(data).digest("hex");
@@ -186,11 +188,12 @@ const reversedLine = paintPpjSceneSvg(lineFixture(c => {
   c.xAxis = { ...c.yAxis, minimum: undefined, maximum: undefined, reverse: true };
   c.yAxis.reverse = true;
   c.series[0].line.opacityThousandthPercent = 0;
-  c.series[0].marker = { symbol: 3, size: 8, fill: { source: { case: "rgb", value: "FF0000" } }, fillOpacityThousandthPercent: 0 };
+  c.series[0].marker = create(SpreadsheetChartMarkerArtifactSchema, { symbol: 3, size: 8, fill: { source: { case: "rgb", value: "FF0000" } }, fillOpacityThousandthPercent: 0 });
 }));
 assert.match(reversedLine.pages[0].svg, /d="M 350 145 L 250 313 L 150 355"[^>]*stroke-opacity="0"/);
 assert.match(reversedLine.pages[0].svg, /data-officekit-point="0"[^>]*fill="#FF0000" fill-opacity="0"[^>]*><title>[^<]*<\/title><circle cx="550" cy="229" r="4"/);
 const autoRange = paintPpjSceneSvg(lineFixture(c => {
+  c.grouping = "none"; // imported native standard, per OpenXmlChartSpaceCodec
   c.yAxis.minimum = undefined; c.yAxis.maximum = undefined;
   c.series[0].values = [10, 0, 20, 0, 30]; c.series[0].missingValueIndexes = [1, 3];
 }));
@@ -215,6 +218,75 @@ const log = paintPpjSceneSvg(lineFixture(c => {
 }));
 assert.match(log.pages[0].svg, /data-officekit-scale-min="0" data-officekit-scale-max="2" data-officekit-log-base="10"/);
 assert.match(log.pages[0].svg, /d="M 350 250 L 450 250 L 550 145"/);
+const edgeMissing = paintPpjSceneSvg(lineFixture(c => {
+  c.categories = ["lead0", "lead1", "A", "gap", "B", "tail0", "tail1"];
+  c.series[0].values = [0, 0, 2, 0, 4, 0, 0];
+  c.series[0].missingValueIndexes = [0, 1, 3, 5, 6];
+}));
+assert.equal((edgeMissing.pages[0].svg.match(/data-officekit-missing-point=/g) || []).length, 5);
+assert.deepEqual([...edgeMissing.pages[0].svg.matchAll(/data-officekit-point="(\d+)"/g)].map(m => +m[1]), [2, 4]);
+assert.equal((edgeMissing.pages[0].svg.match(/data-officekit-review-point="isolated"/g) || []).length, 2);
+assert.doesNotMatch(edgeMissing.pages[0].svg, /data-officekit-line-segment=/);
+const multi = paintPpjSceneSvg(lineFixture(c => {
+  const second = clone(SpreadsheetChartSeriesArtifactSchema, c.series[0]);
+  second.name = "Second & distinct"; second.values = [5, 4, 0, 0, 1]; second.missingValueIndexes = [2];
+  second.line.color.source.value = "008800";
+  c.series.push(second);
+}));
+const multiSvg = multi.pages[0].svg;
+assert.ok(multiSvg.indexOf('data-officekit-series="0"') < multiSvg.indexOf('data-officekit-series="1"'));
+const secondSvg = multiSvg.slice(multiSvg.indexOf('data-officekit-series="1"'));
+assert.match(secondSvg, /data-officekit-series-name="Second &amp; distinct"/);
+assert.match(secondSvg, /data-officekit-line-segment="0:1" d="M 150 145 L 250 187"[^>]*stroke="#008800"/);
+assert.match(secondSvg, /data-officekit-line-segment="3:4" d="M 450 355 L 550 313"/);
+assert.match(secondSvg, /data-officekit-missing-point="2"/);
+assert.doesNotMatch(secondSvg, /data-officekit-point="2"|data-officekit-line-segment="2:4"/);
+assert.match(multiSvg.slice(0, multiSvg.indexOf('data-officekit-series="1"')), /data-officekit-line-segment="2:4"/);
+const hiddenAxes = paintPpjSceneSvg(lineFixture(c => {
+  c.xAxis = { ...c.yAxis, minimum: undefined, maximum: undefined, visible: false };
+  c.yAxis.visible = false;
+}));
+assert.doesNotMatch(hiddenAxes.pages[0].svg, /data-officekit-axis=|data-officekit-category=|data-officekit-value-tick=/);
+assert.match(hiddenAxes.pages[0].svg, /data-officekit-line-segment="2:4"/);
+const noAxisLines = paintPpjSceneSvg(lineFixture(c => {
+  c.xAxis = { ...c.yAxis, minimum: undefined, maximum: undefined, axisLineVisible: false, tickLabelInterval: 2 };
+  c.yAxis.axisLineVisible = false; c.yAxis.tickLabelsVisible = false;
+}));
+assert.doesNotMatch(noAxisLines.pages[0].svg, /data-officekit-axis=|data-officekit-value-tick=/);
+assert.deepEqual([...noAxisLines.pages[0].svg.matchAll(/data-officekit-category="(\d+)"/g)].map(m => +m[1]), [0, 2, 4]);
+const outlinedMarker = paintPpjSceneSvg(lineFixture(c => {
+  c.series[0].marker = create(SpreadsheetChartMarkerArtifactSchema, { symbol: 3, size: 10,
+    fill: { source: { case: "rgb", value: "00FF00" } }, fillOpacityThousandthPercent: 0,
+    line: { color: { source: { case: "rgb", value: "112233" } }, widthPoints: 2,
+      opacityThousandthPercent: 50000, dashStyle: 1, cap: "round", join: "bevel" } });
+}));
+assert.match(outlinedMarker.pages[0].svg, /data-officekit-point="0"[^>]*fill="#00FF00" fill-opacity="0" stroke="#112233" stroke-width="2" stroke-opacity="0.5" stroke-linecap="round" stroke-linejoin="bevel"/);
+assert.ok(!outlinedMarker.diagnostics.some(d => /marker\.line(?:\.|$)/.test(d.scenePath)));
+assert.match(outlinedMarker.pages[0].svg, /data-officekit-line-clip="plot" x="150" y="145" width="400" height="210"/);
+assert.match(outlinedMarker.pages[0].svg, /data-officekit-markers="unclipped-at-plot-edge"/);
+const invisibleOutline = paintPpjSceneSvg(lineFixture(c => {
+  c.series[0].marker = create(SpreadsheetChartMarkerArtifactSchema, { symbol: 3, size: 8,
+    fill: { source: { case: "rgb", value: "00FF00" } },
+    line: { color: { source: { case: "rgb", value: "112233" } }, widthPoints: 0, opacityThousandthPercent: 0 } });
+}));
+assert.match(invisibleOutline.pages[0].svg, /data-officekit-point="0"[^>]*stroke="#112233" stroke-width="0" stroke-opacity="0"/);
+assert.ok(!invisibleOutline.diagnostics.some(d => /marker\.line(?:\.|$)/.test(d.scenePath)));
+const dashedOutline = paintPpjSceneSvg(lineFixture(c => {
+  c.series[0].marker = create(SpreadsheetChartMarkerArtifactSchema, { symbol: 3, size: 8,
+    line: { color: { source: { case: "rgb", value: "112233" } }, widthPoints: 2, dashStyle: 2 } });
+}));
+assert.match(dashedOutline.pages[0].svg, /data-officekit-point="0"[^>]*stroke-dasharray="8 6"/);
+assert.ok(dashedOutline.diagnostics.some(d => d.reason === "preview.scene.paint.dash-metrics" && d.scenePath.endsWith("series[0].marker.line.dashStyle")));
+assert.ok(!dashedOutline.diagnostics.some(d => d.scenePath.endsWith("marker.line.lineStyle")));
+const outsideRange = paintPpjSceneSvg(lineFixture(c => {
+  c.series[0].values = [6, 0, 0, 4, 5];
+  c.series[0].marker = create(SpreadsheetChartMarkerArtifactSchema, { symbol: 3, size: 8 });
+}));
+assert.match(outsideRange.pages[0].svg, /data-officekit-point="0" data-officekit-value="6" data-officekit-point-outside-plot="true"[^>]*><title>[^<]*<\/title><\/g>/);
+assert.match(outsideRange.pages[0].svg, /data-officekit-point="4" data-officekit-value="5"[^>]*><title>[^<]*<\/title><circle cx="550" cy="145" r="4"/);
+const outsideNoMarker = paintPpjSceneSvg(lineFixture(c => { c.series[0].values[0] = 6; }));
+assert.ok(!outsideNoMarker.diagnostics.some(d => d.reason === "preview.scene.paint.chart-isolated-review-point"));
+assert.match(outsideNoMarker.pages[0].svg, /data-officekit-point="0" data-officekit-value="6" data-officekit-point-outside-plot="true"/);
 for (const bad of [
   c => { c.series[0].missingValueIndexes = [1, 1]; },
   c => { c.series[0].missingValueIndexes = [3, 1]; },
@@ -226,14 +298,95 @@ for (const bad of [
   c => { c.displayBlanksAs = "zero"; },
   c => { c.displayBlanksAs = "span"; },
   c => { c.lineOptions.grouping = 2; },
+  c => { c.grouping = "stacked"; },
   c => { c.lineOptions.smooth = true; },
   c => { c.yAxis.logBase = 10; }, // real zero must not be dropped to make log succeed
   c => { c.yAxis.minimum = 5; },
+  c => { c.series[0].marker = create(SpreadsheetChartMarkerArtifactSchema, { symbol: 3, size: 0 }); },
 ]) {
   const failure = paintPpjSceneSvg(lineFixture(bad));
   assert.equal(failure.reliability.status, "failed");
   assert.ok(failure.diagnostics.some(d => d.reason === "preview.scene.paint.chart-semantics"));
   assert.doesNotMatch(failure.pages[0].svg, /data-officekit-line-segment=/);
+}
+function circularFixture(edit = () => {}, type = 3) {
+  return lineFixture(c => {
+    c.type = type; c.yAxis = undefined; c.lineOptions = undefined;
+    c.categories = ["Small", "Unknown", "Real zero", "Large"];
+    c.series[0].values = [1, 0, 0, 9]; c.series[0].missingValueIndexes = [1]; c.series[0].line = undefined;
+    c.series[0].pointStyles = [create(SpreadsheetChartPointStyleArtifactSchema, { index: 0,
+      fill: { fill: { case: "solidRgb", value: "CC2200" } } }), create(SpreadsheetChartPointStyleArtifactSchema, { index: 3,
+      fill: { fill: { case: "solidRgb", value: "0044CC" } } })];
+    edit(c);
+  });
+}
+const sliceAttributes = svg => [...svg.matchAll(/data-officekit-point="(\d+)" data-officekit-value="([^"]+)" data-officekit-fraction="([^"]+)" data-officekit-start-angle="([^"]+)" data-officekit-sweep-angle="([^"]+)"/g)]
+  .map(m => ({ index: +m[1], value: +m[2], fraction: +m[3], start: +m[4], sweep: +m[5] }));
+const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} != ${expected}`);
+const pieReceipt = circularFixture(), pieBefore = toBinary(PresentationPreviewSceneSchema, pieReceipt.previewScene);
+const pie = paintPpjSceneSvg(pieReceipt), pieSvg = pie.pages[0].svg;
+assert.deepEqual(toBinary(PresentationPreviewSceneSchema, pieReceipt.previewScene), pieBefore);
+assert.match(pieSvg, /data-officekit-chart="pie" data-officekit-first-slice-angle="0" data-officekit-hole-size="0"/);
+const piePoints = sliceAttributes(pieSvg);
+assert.deepEqual(piePoints.map(p => [p.index, p.value]), [[0, 1], [2, 0], [3, 9]]);
+near(piePoints[0].fraction, .1); near(piePoints[0].sweep, 36); near(piePoints[2].sweep, 324);
+assert.match(pieSvg, /data-officekit-slice="0"[^>]*fill="#CC2200"/);
+assert.match(pieSvg, /data-officekit-slice="3"[^>]*fill="#0044CC"/);
+assert.doesNotMatch(pieSvg, /data-officekit-slice="[12]"|data-officekit-point="1"/);
+assert.match(pieSvg, /data-officekit-missing-point="1"/);
+assert.match(pieSvg, /Observed values only; 1 missing; 1 zero/);
+assert.ok(pie.diagnostics.some(d => d.reason === "preview.scene.paint.chart-missing-share"));
+assert.equal(pie.reliability.status, "requires-review");
+const swappedPie = paintPpjSceneSvg(circularFixture(c => { c.series[0].values = [9, 0, 0, 1]; }));
+near(sliceAttributes(swappedPie.pages[0].svg)[0].sweep, 324);
+assert.notEqual(pieSvg.match(/data-officekit-slice="0" d="([^"]+)"/)[1], swappedPie.pages[0].svg.match(/data-officekit-slice="0" d="([^"]+)"/)[1]);
+const doughnut = paintPpjSceneSvg(circularFixture(c => { c.firstSliceAngle = 90; c.doughnutHoleSize = 60; }, 5));
+assert.match(doughnut.pages[0].svg, /data-officekit-chart="doughnut" data-officekit-first-slice-angle="90" data-officekit-hole-size="60"/);
+near(sliceAttributes(doughnut.pages[0].svg)[0].start, 90);
+assert.equal((doughnut.pages[0].svg.match(/ A /g) || []).length, 8);
+const defaultHole = paintPpjSceneSvg(circularFixture(() => {}, 5));
+assert.match(defaultHole.pages[0].svg, /data-officekit-hole-size="50"/);
+for (const type of [3, 5]) {
+  const full = paintPpjSceneSvg(circularFixture(c => {
+    c.categories = ["All"]; c.series[0].values = [4]; c.series[0].missingValueIndexes = []; c.series[0].pointStyles = [];
+  }, type));
+  near(sliceAttributes(full.pages[0].svg)[0].sweep, 360);
+  assert.equal((full.pages[0].svg.match(/ A /g) || []).length, type === 3 ? 2 : 4);
+  const noPositive = paintPpjSceneSvg(circularFixture(c => { c.series[0].values = [0, 0, 0, 0]; }, type));
+  assert.match(noPositive.pages[0].svg, /No positive observed data/);
+  assert.doesNotMatch(noPositive.pages[0].svg, /data-officekit-slice=/);
+  const noObservations = paintPpjSceneSvg(circularFixture(c => {
+    c.series[0].values = [0, 0, 0, 0]; c.series[0].missingValueIndexes = [0, 1, 2, 3];
+  }, type));
+  assert.doesNotMatch(noObservations.pages[0].svg, /data-officekit-point=|data-officekit-slice=/);
+}
+const circularAlpha = paintPpjSceneSvg(circularFixture(c => {
+  c.series[0].pointStyles[0].fill.opacityThousandthPercent = 0;
+  c.series[0].pointStyles[1].fill = create(SpreadsheetChartSurfaceFillSchema, { fill: { case: "noFill", value: true } });
+}));
+assert.match(circularAlpha.pages[0].svg, /data-officekit-slice="0"[^>]*fill="#CC2200" fill-opacity="0"/);
+assert.match(circularAlpha.pages[0].svg, /data-officekit-slice="3"[^>]*fill="none"/);
+const largeCircular = paintPpjSceneSvg(circularFixture(c => { c.series[0].values = [1e308, 0, 0, 1e308]; }));
+near(sliceAttributes(largeCircular.pages[0].svg)[0].fraction, .5);
+for (const edit of [
+  c => { c.series[0].values[0] = -1; }, c => { c.series[0].values[0] = NaN; },
+  c => { c.series[0].values.pop(); }, c => { c.series[0].missingValueIndexes = [1, 1]; },
+  c => { c.series[0].values[1] = 2; }, c => { c.firstSliceAngle = 361; },
+  c => { c.doughnutHoleSize = 50; }, c => { c.series[0].explosion = 20; },
+  c => { c.series[0].pointStyles[0].explosion = 10; },
+  c => { c.series[0].pointStyles[1].index = 0; }, c => { c.series[0].pointStyles[1].index = 9; },
+  c => { c.series.push(clone(SpreadsheetChartSeriesArtifactSchema, c.series[0])); },
+  c => { c.displayBlanksAs = "zero"; }, c => { c.displayBlanksAs = "span"; },
+  c => { c.series[0].values = [1e-308, 0, 0, 1e308]; },
+]) {
+  const failed = paintPpjSceneSvg(circularFixture(edit));
+  assert.equal(failed.reliability.status, "failed");
+  assert.ok(failed.diagnostics.some(d => d.reason === "preview.scene.paint.chart-semantics"));
+  assert.doesNotMatch(failed.pages[0].svg, /data-officekit-slice=/);
+}
+for (const hole of [0, 9, 91, 100]) {
+  const failed = paintPpjSceneSvg(circularFixture(c => { c.doughnutHoleSize = hole; }, 5));
+  assert.equal(failed.reliability.status, "failed");
 }
 const limits = paintPpjSceneSvg(fixture(scene => {
   scene.presentation.slides[0].elements[0].content.value.shadow = create(
@@ -275,4 +428,4 @@ assert.match(paintPpjSceneSvg(r).pages[0].svg,/<ellipse/); hooks.deregister();
   assets: receipt.assets.map(a => ({ ...a, data: a.data.toString("base64") })),
 })).toString("base64") } });
 assert.equal(lazy.status, 0, lazy.stderr || lazy.stdout);
-console.log("ppj native scene SVG foundations ok: shapes/text/images/groups, directed connectors, unequal/merged tables, explicit residuals and leaf drawing");
+console.log("ppj native scene SVG foundations ok: shapes/text/images/groups, connectors/tables, native line and circular proportions, explicit residuals and leaf drawing");

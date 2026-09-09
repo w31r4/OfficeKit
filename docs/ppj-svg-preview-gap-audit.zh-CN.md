@@ -1,10 +1,12 @@
 # OfficeKit 本地 PPT 预览渲染器差距审计
 
-提交快照复核（2026-09-09）：此次原子提交保存内部 painter 的在途实现，包含尚未完成的折线图绘制。当前快照的 `node test/ppj-preview-scene-svg.mjs` 因 marker fixture 的 `ForeignFieldError` 退出 1；此前工作区 presentation gate 也在图表诊断断言处失败。下文各轮通过记录仅对应当时版本，不能作为本次提交测试全绿的证据。能力矩阵、同步后的 PPJ 参考文档和 strict OpenSpec 检查通过；对象锚点反例与生产入口切换仍未完成。
+原子提交复核（2026-09-09，基线 `3f390e71`）：本次保存折线图修正，以及内部饼图/环图比例绘制和合成回归。当前 SVG 专项、presentation 分段 4/4、能力矩阵及 strict OpenSpec 检查通过；同步了生成的 PPJ 参考文档摘要。本次没有重跑 NativeAOT 集成，下文两个对象锚点失败仍为已知未解决项。此前真实折线图证据不能用于证明新饼图/环图的编译器集成或宿主保真；生产 CLI 切换与任务完成状态不变。
+
+实施复核（2026-09-09）：基于 HEAD `d891a173` 和已有折线图修正，继续 G-01 3.4。内部 line 新增直接 marker 轮廓映射，修复图框边缘观测点被裁半的问题；增加缺失/多系列/可见性回归及源图表编辑的非目标 ZIP 保留断言，并同步 registry、tasks 和本文。未修改 C#、生产入口、任务勾选、安装包或 Skill 路由。内部 SVG 专项及 presentation 4/4 通过，真实 NativeAOT 集成仍因两个对象锚点反例退出 1。完整执行边界见第 1.3 节。
 
 审计日期：2026-09-09。状态：**预览链路已打通，功能覆盖和可靠性尚未完成**。
 
-最新实施复核：2026-09-09，起点 HEAD `5837c51e`，包含已有未提交实现。G-01 仍为 **7/15 已勾选**；内部表格、显式坐标连接线和源绑定表格移动已有真实 SVG/像素及重新投影证据，生产 CLI 仍读取 canonical JSON。**整体渲染目标未完成，真实 NativeAOT 集成仍因两个对象锚点反例失败。** 测试已改为保留锚点失败并执行独立表格/source-bound 检查，最终仍退出 1，不将部分通过写成整体通过。对象锚点根因在编译层，不是缺少渲染依赖；编译语义扩项仍待确认。7/15 是任务计数，不是功能完成率。
+当前结论：G-01 仍为 **7/15 已勾选**；内部表格、显式坐标连接线、有限原生折线图及源绑定编辑已有真实 SVG/像素和重新投影证据，生产 CLI 仍读取 canonical JSON。**整体渲染目标未完成。** 测试保留锚点失败并执行独立表格、折线图和 source-bound 检查，最终仍退出 1，不将部分通过写成整体通过。对象锚点根因在编译层，不是缺少渲染依赖；编译语义扩项仍待确认。7/15 是任务计数，不是功能完成率。
 
 阅读顺序：先看下面的差距总表；了解具体错误看第 3～5 节；安排开发看第 7 节；复跑检查看第 9 节。第 1.3 节明确分隔本轮结果与历史记录。本文中的“已完成”只适用于指定范围，不代表发布包、全部测试或人类视觉验收完成。
 
@@ -17,7 +19,8 @@
 | G-11 支持诊断 | 已接通 registry、字段检查、绘制、SVG/PNG 警示及发布清单；事实错误不因配色或发布成功而清除 | 只完成可靠性检查链路，不修复 G-01～G-10 的绘制缺陷；验收见第 5.1 节 |
 | G-01 编译场景 | 原生生产、归属、传输及适配已有分阶段验证，7/15；内部基础 painter 有真实组件、路径和历史候选文字证据 | 最新扩展集成在对象锚点断言失败；生产切换、完整等价、检查/发布集成和性能仍待完成 |
 | G-06 表格与连接线 | 内部合成测试及真实表格 SVG/像素通过；源表格移动后重新投影与非目标部件保留通过；显式坐标连接线及源导入方向/箭头通过 | 普通 authored 对象锚点两个反例仍失败；曲线、继承、完整文字排版及合并边框仍有缺口；生产 CLI 未切换 |
-| 其余 G 编号 | 保留内部绘制的有限进展，生产 CLI 的旧 painter 未变 | 本轮更新测试、注释、registry 和证据；不能推广为各 G 编号完成 |
+| G-08～G-10 内部折线图 | native 缺失索引、真实 0、孤立点、多系列顺序及有限轴有断言；marker 直接轮廓与完整边缘像素通过；真实源数值编辑、重新投影及非目标 ZIP 保留通过 | 仅原生普通 line，不含其他原生图表、堆叠、平滑、混合/副轴或完整显示策略；workbook 输入、布局、样式和覆盖仍不足，详见第 2.5 节 |
+| 其余 G 编号 | 保留内部绘制的有限进展，生产 CLI 的旧 painter 未变 | 本轮只补普通 line 的限定映射与证据，不能推广为各 G 编号完成 |
 
 G-12 使用方法与清单字段见 [预览输出说明](ppj-preview-output.md)，实施清单见 [ppj-preview-output-evidence](../openspec/changes/ppj-preview-output-evidence/tasks.md)。以上不是全部 gap 的完成声明。
 
@@ -82,7 +85,45 @@ G-11 后续实施记录（2026-09-09，9/9 任务完成）：[支持诊断变更
 
 ### 1.3 审计基线与最新复核
 
-以下第一张表是本轮 3.4 实际执行结果。折叠区中的文档复核及实施记录均为历史；其中“本次”“当前”“下一项”只指对应轮次。历史脚本通过不代表添加新断言后的当前脚本仍然通过。
+以下第一张表是本轮 3.4 实施实际执行结果。折叠区中的文档复核及实施记录均为历史；其中“本次”“当前”“下一项”只指对应轮次。历史脚本通过不代表添加新断言后的当前脚本仍然通过。
+
+| 本轮 3.4 实施 | 实际结果与证明范围 |
+| --- | --- |
+| 工作区 | HEAD `d891a173`；保留已有 line 实现及文档改动，在其上修复 marker 边缘/轮廓、补回归并同步 registry/tasks/本文；没有改编译器或生产 CLI |
+| 内部 SVG 专项 | `node test/ppj-preview-scene-svg.mjs` 退出 0；新增首尾/连续缺失、多系列各自断线、轴隐藏/轴线/标签间隔、marker 轮廓与显式零值、超界观测证据断言；仍为合成场景，不是实际 codec 全覆盖 |
+| 常规门禁 | `npm run test:slow -- --segment presentation` 退出 0，4/4 通过；gate-policy、预览摘要与能力矩阵生成器 `--check` 均通过。单跑的内部 SVG 专项也被诊断分段包含，不重复计作两份功能覆盖 |
+| 真实生产输出 | `/tmp/officekit-ppj-preview-vl2H8D`；authored `preview/`、`cli-preview/` 各两页，均 complete/partial/failed；`source-preview/` 一页，complete/opaque/requires-review。三者 visualReview 均 requires-human。此路线仍为 canonical JSON，不调用内部 painter |
+| 显式 NativeAOT 集成 | `node test/ppj-preview-scene-native.mjs /tmp/officekit-preview-runtime-xZSfO9` 退出 1；最终报告 `status: failed`。两个对象锚点案例均失败，anchors 0/2，实际都为 `(0,0.5) → (1,0.5)` |
+| 集成中实际通过的独立检查 | minimum/canonical、1 组组件/显式配对、6 条生成 Bézier 路径、源文字修改、显式坐标连接线、表格网格/像素、源表格移动及重新投影均执行通过；这些不是整条集成通过 |
+| 折线图实际通过范围 | authored、source-bound no-op、表格移动后图表不变、源图表数值编辑与重新投影、marker 填充/轮廓/边缘及缺失区间像素均通过。第一系列 `[2,null,0,4,5]→[2,null,3,4,5]`；第二系列 `[5,4,null,0,1]` 不变，各自缺失点独立断线 |
+| 保真证据的区别 | 图表数值编辑新增精确 ZIP 修改范围断言：仅 `ppt/slides/charts/chart1.xml` 改变，文件集合、其他 part 和原始源字节不变；表格移动的非目标保留回归继续通过。图表是 literal-data fixture，明确不含 workbook，不能推广为 workbook 联动或删除生命周期通过 |
+| 内部产物与看图 | 最终产物 `/tmp/officekit-native-scene-paint-4x0ZVv` 保存 SVG/PNG/diagnostics JSON 和 `integration.json`；后者保留整体失败、独立通过项及源/候选/二进制身份。同轮此前 `/tmp/officekit-native-scene-paint-rAFBXC/source-line-edited-0.png` 已看图确认边缘圆点完整且有直接轮廓；最后只纠正了虚线诊断字段路径并重跑，不把同样案例重复计数。字体、标签和图例布局仍不完整，不是人类校准或宿主保真验收 |
+| 二进制边界 | 沿用前轮显式构建包，没有重建当前 HEAD；脚本核验 manifest/hash，不能据此证明此包包含最新 C# 文字效果等功能 |
+| 维护检查 | 生成器只读检查、相关 JS 语法和 strict OpenSpec 通过；70 个本地链接存在，任务仍为 7/15，差异格式检查通过。registry 补记有限 line，tasks 追加证据，不提升支持等级或勾选。共享线型限制现区分图表/表格的 dashStyle 与连接线的 lineStyle，marker 虚线有精确路径断言。上一轮独立读者复核不计为本轮功能或视觉验收 |
+| 本轮未执行 | 全仓测试、全量 smoke、C# 专项、NativeAOT 重建及双构建验证、proto、Skill 全套检查、外部 Office、第三方 fixture 全覆盖、人类校准与性能基准；未重新核验独立 Skill 评测工作树 |
+
+本轮代码身份如下，后续工作区变动后应重新核验；临时产物可被清理，并非仓库归档的可移植证据包。
+
+| 文件 | SHA-256 |
+| --- | --- |
+| 生产 `svg-preview.mjs` | `f98c59fb95478610748e4377b906c922156fef0e64898eb1659cad2d1d7986ff` |
+| 内部 `preview-scene-svg.mjs` | `2a73506b29f37b7b83d56d4ee052a1a672c649649a7aa12e5aba06acdf09eb92` |
+| 内部合成测试 | `d87024bd259e535bf4ee58e347fbeab9c787907c272a875909811df4987fd6df` |
+| 真实 NativeAOT 集成测试 | `81a38d62cc8b0ed9cce415674a07b6ec18513c6c8579ffaab37e79c10efa5e30` |
+| 指定包 PPJ 二进制 | `9c97c6605c36c9e2b8218fe208a380745cc25b3b94742c4a620eb4ed21a496e9` |
+
+<details>
+<summary>历史证据：提交快照、3.4 表格/连接线、基础绘制、场景实施、G-11 和初次审计（不计入本轮新测）</summary>
+
+#### 历史：line 边缘修复前的文档复核
+
+上一轮仅修改本文，内部专项、presentation 4/4、gate-policy 和两个生成器检查通过；独立读者复核后修正了轮次及生产/内部范围的措辞，70 个本地链接有效。生产产物为 `/tmp/officekit-ppj-preview-ZSYGEe`，内部为 `/tmp/officekit-native-scene-paint-CXYpwN`。真实集成整体因锚点失败；当时单系列 source line 编辑仅核对值和原始字节，没有独立非目标 ZIP 断言，看图发现 marker 在 plot 边缘被裁半。该轮未重建、未跑 strict OpenSpec，也不是人类校准。上述 marker 和限定 ZIP 缺口已由本轮 3.4 处理，不能沿用旧状态覆盖最新结果。
+
+#### 历史：内部 painter 提交快照
+
+`d891a173` 保存内部 painter 的在途实现，包含尚未完成的折线图绘制。该提交快照的内部 SVG 专项曾因 marker fixture 的 `ForeignFieldError` 退出 1，之前 presentation gate 也曾在图表诊断断言处失败。当时能力矩阵、同步参考文档和 strict OpenSpec 检查通过。这些是提交时记录，不是目前带工作区修正后的测试结果。
+
+#### 历史：3.4 表格与连接线实施
 
 | 本轮 3.4 验证 | 实际结果与证明范围 |
 | --- | --- |
@@ -96,9 +137,6 @@ G-11 后续实施记录（2026-09-09，9/9 任务完成）：[支持诊断变更
 | 常规门禁 | pure scene SVG、presentation 4/4、gate-policy、两个生成器 `--check`、strict OpenSpec 通过；旧生产路线产物 `/tmp/officekit-ppj-preview-95r73S` |
 | 版本身份 | PPJ 二进制沿用 `9c97c6605c36c9e2b8218fe208a380745cc25b3b94742c4a620eb4ed21a496e9`；painter SHA-256 `de853ee2e1da8d5f05c7037afcf238c4a79b7a2dcf2429020c6bc5f222740073`；集成测试 SHA-256 `e39c9ec82ead7b412e24c07ab4ebd31ccdf3b339ccc1eb4eae1994963314ffbc` |
 | 未执行/未完成 | 未重建 NativeAOT、运行 C#/proto 专项、完整配对组、全仓测试、外部 Office 或性能验收；G-01 3.3/3.4/4.x/5.x 继续开放。编译锚点修复超出原场景消费计划，已提出扩项确认，尚未修改规划契约或 C# |
-
-<details>
-<summary>历史证据：文档复核、3.3、3.2、3.1、原生场景实施、G-11 和初次审计（不计入本轮新测）</summary>
 
 #### 历史：锚点失败后的文档复核
 
@@ -336,7 +374,7 @@ G-11 实施复核记录（历史轮次）：
 
 | 用户要求 | 当前已落实部分 | 仍然存在的差距 | 对应编号 |
 | --- | --- | --- | --- |
-| 缺失数据不得当作 0 连线 | 普通 line 有有限拆段；登记的错误会降低可靠性 | 单点段仍被丢弃；若干图表仍通过 Number/num 将 null 转 0；显式 zero/connect 显示策略尚未统一到绘制与证据 | G-08～G-11 |
+| 缺失数据不得当作 0 连线 | 生产普通 line 有有限拆段；内部原生 line 另已验证缺失索引、真实 0、孤立点和源编辑；登记的错误会降低可靠性 | 生产单点段仍被丢弃；若干图表仍通过 Number/num 将 null 转 0；内部含缺失的 zero/span 暂明确失败，尚未实现带证据的显示策略 | G-08～G-11 |
 | 图表关系必须和数据拓扑一致 | 对已知比例、通道、层级、轴等错误有事实诊断 | 饼图比例、Sankey 边、树层级、OHLC 通道、主副轴等实际图形仍可能错误；诊断没有修复它们 | G-01、G-06、G-08、G-09 |
 | source-bound / opaque 不得扁平化 | 复用编译流程与源身份；native 已从实际编辑候选采集，有限归属测试验证 owner、opaque 原内容与非目标 ZIP 保留；内部源表格移动及重新投影本轮通过 | 生产 SVG 还未消费候选场景；本项目生成的简单源输入不能替代第三方复杂内容的全面验证 | G-01、G-07、G-12、G-14 |
 | 图片不确定信息保守处理 | 使用同一资产字节，空资源失败；有字段限制和有限 contain 映射断言 | 解码、裁切、透明边缘、主体范围、mask 与阴影没有完整绘制/验证，不能依据未经证明的主体估计改图 | G-04、G-05、G-11 |
@@ -404,7 +442,7 @@ G-11 实施复核记录（历史轮次）：
 | 剩余任务 | 具体还差什么 | 最小完成证据 |
 | --- | --- | --- |
 | 3.3 基础绘制接场景 | 内部基础映射已运行；生产 painter 仍读取 canonical PPJ | 补齐生产切换与 label/value 猜测移除所需验收；保留已验证真实组件、路径、像素及未修文本/效果限制 |
-| 3.4 其他绘制接场景 | 内部 table/connector 有有限映射及真实回归；对象锚点失败，原生 chart 和剩余 opaque 内容仍未专门绘制 | 保留已通过的真实表格/源编辑证据，修正编译端关系并继续其余类型映射；不能重新猜 dataset/grammar/拓扑 |
+| 3.4 其他绘制接场景 | 内部 table/connector/普通 line 有有限映射及真实回归；对象锚点失败，其余原生 chart 和剩余 opaque 内容仍未专门绘制 | 保留真实表格、折线与源编辑证据，修正编译端关系并继续其余类型映射；不能重新猜 dataset/grammar/拓扑 |
 | 4.1 场景诊断 | 现有 G-11 判断基于旧绘制输入 | 归属路径和未知字段可定位；仅以直接绘制回归撤销旧事实错误规则 |
 | 4.2 发布绑定 | 现有清单尚未记录 scene 身份 | scene 版本/来源/摘要与实际候选绑定，返回与落盘一致；保留 G-12 所有保护 |
 | 5.1 等价案例 | 已有一组组件/显式配对和像素断言，缺完整配对组覆盖 | component/repeat/slot、样式、dataset 和图表成对比较几何/数据/样式，每对覆盖相关风险输入 |
@@ -469,13 +507,35 @@ G-01 即使完成，也只解决共用输入边界；文本排版、preset、效
 | 组与可见性 | childFrame 到父 frame 的缩放/平移、嵌套变换、元素 hidden 有断言；非法零子范围明确失败 | 未证明全部嵌套/连接组合的视觉边界；页 hidden 只是保留状态，缺页选择策略和 CLI 集成 |
 | 表格 | native 列宽/行高按实际比例映射到 frame；横/纵合并、直接 RGB/no-fill/alpha、单元格文字、显式 0/false 有合成断言；四边线型映射中已直接核对右边框。真实 authored/no-op/移动候选的网格、文字、右边框、像素及重新投影通过；畸形/重叠 merge 与被覆盖的可见文字明确失败 | 继承样式、banding、渐变/图片填充、完整排版和合并外围边框仍缺；真实正例是简单本项目源输入，不能代表任意第三方表格 |
 | 连接线 | native 有向坐标生成 straight；elbow 使用中点折线；目标/site 字段保留为证据；有限箭头方向/类型/尺寸及线样式有合成断言 | authored 对象锚点未解析；curved 明确 unavailable；导入 elbow 的原始旋转/adjustment 信息不足，dash 与箭头精确轮廓只做近似，不是宿主保真 |
-| 原生 chart | 原数据通道和缺失索引保留在场景；目前进入明确的未绘制占位 | 尚无通用 native chart painter；轴、比例、标签、图例及各图表类型仍要实现；保留 `[1,0,0]` 和 missing index `[1]` 不等于缺失点已正确画出 |
+| 原生 chart | 普通分类 line 已消费 values/缺失索引、有限线性/对数/反向轴及 marker；真实 authored/source-bound 回归通过，详见第 2.5 节 | 其他原生 chart 类型仍占位；堆叠、平滑、混合/副轴和含缺失的 zero/span 明确失败；轴、标签、图例和完整样式仍不足 |
 | diagram、媒体、opaque/OLE 等剩余内容 | 适配层保留 native 内容、归属和可用的缓存绘制树；内部 painter 对未接入分支显示限制/占位 | 尚未完整消费缓存树、海报或源预览；不能把占位当成现有静态内容的完整绘制，更不能生成新的编辑授权 |
 | 诊断与发布 | descriptor 驱动未消费字段检查；保留 scenePath、输入不可变性及页面警示 | 仍缺 G-11 的完整事实规则按 renderer profile 适配、G-12 scene 身份清单和故障集成；旧规则不能一次性撤掉 |
 
 表格的源样式边界尤其需要保留：候选导入若没有直接 fill，当前报告 `table-inherited-fill`，不套用 authored 默认白色；合并区域被覆盖的物理单元格若有 fill/border，会报告 `merged-cell-style`，尚未完成合并外围边框解析。这些诊断是保守限制，不是样式已经还原。
 
-此前内部代码声称“端点已经包含编译器锚点解析”，本轮已纠正该注释。准确结论仅是：painter 使用回执中的有向端点；回执是否表达了作者声明的对象关系，必须另做断言，当前两个 authored 对象锚点反例仍失败。
+此前内部代码声称“端点已经包含编译器锚点解析”，此前实施轮次已纠正该注释，本轮复核确认这一边界。准确结论仅是：painter 使用回执中的有向端点；回执是否表达了作者声明的对象关系，必须另做断言，当前两个 authored 对象锚点反例仍失败。
+
+### 2.5 内部原生折线图：新增覆盖与明确剩余项
+
+这是 G-01 3.4 的内部实现及回归进展，不是正式 CLI 新增支持。入口为 `paintPpjSceneSvg` 的 `chart()`；它只对 native `SpreadsheetChartType.LINE` 绘图，其他原生图表类型仍返回带诊断占位。某些 PPJ 图表由编译器降低为 group/path，走第 2.4 节的几何分支，不受这个枚举分支直接代表。
+
+| 行为 | 当前实现与证据 | 不能扩大的结论 |
+| --- | --- | --- |
+| 数据通道 | 读取 native `categories`、`series.values` 和 `missingValueIndexes`；数量不符、非有限值、无序/重复/越界索引或非 0 缺失占位明确失败 | 不接受把 `xValues`、`bubbleSizes` 混入分类折线，也没有在 JS 重算 PPJ dataset/encoding |
+| 缺失与真实 0 | 缺失索引决定断线；占位 0 不参与自动数值范围；真实 0 保留。合成测试含单点、全缺失、首尾/连续/间隔缺失、负数和不同缺失位置的双系列；真实 `[1,null,0]` 保留两个独立观测，双系列端到端检查各自断线 | 尚未证明全部缺失组合、其他图表通道或显式转换策略共享正确规则 |
+| 孤立点 | 有可映射 marker 时绘制 marker；否则用虚线空心 review 点显示独立观测，同时产生 `chart-isolated-review-point` 诊断 | review 点是审阅标记，不冒充作者指定的图形，也不等于完整 marker 保真 |
+| 显式显示策略 | 默认 gap；带缺失的 zero/span 明确 `chart-semantics` 失败，避免伪造观测或偷偷忽略策略 | 这是尚未实现的边界，不能把“拒绝已有合法策略”算成该策略已支持；后续需要保留原值和显示变换证据 |
+| 轴与尺度 | native minimum/maximum 保留显式 0；有限负值、轴反向及 logBase 有合成几何断言；对数轴出现真实非正值失败。分类轴等距；轴隐藏、单独隐藏轴线/刻度标签及分类标签间隔新增直接断言 | 只有简单分类 X/数值 Y；主副轴、数值 X、刻度算法、格式、交叉点、网格和完整轴样式未完成；有限可见性案例不代表全部继承组合 |
+| 标准分组 | 接受 native grouping `none`；这是 codec 将 ChartML standard/clustered 归一后的值，不是 PPJ 输入字符串 | 堆叠/百分比堆叠需要累计坐标；smooth 需要插值，当前均明确失败，不能画成普通折线 |
+| 线与 marker | 有限直接 RGB、线宽/透明度及基础线型；dot/circle/square/diamond/triangle 有分支，部分有直接 SVG/像素断言。新增 marker 直接轮廓的 RGB/宽度/透明度/线型/cap/join；零宽/零透明度保留，真实圆点轮廓像素通过 | 主题继承、全部线型精确外观及所有符号形状未完整验证。缺直接色/线宽时使用 review 默认并报告 `chart-inherited-paint`，不是还原主题 |
+| 标题与布局 | title/titleBody 进入富文本路径；保留 series/point/category/value 证据；线段按 plot 裁切，范围内 marker 只受 chart frame 裁切。四侧边缘圆点有真实像素断言；超界点保留真实值及 outside-plot 标记，不钳制成边界观测 | 固定边距和三个 value ticks 不是 Office 布局；图例、标签格式、碰撞、完整 title/run 效果未完成。大 marker、小图框、嵌套/旋转下的全部裁切组合仍待验证 |
+| 源绑定编辑 | 从原始源重新构造编辑；只改第一系列第三个值 `0→3`，候选绘图及重新投影为 `[2,null,3,4,5]`，第二系列 `[5,4,null,0,1]` 不变。只有 `ppt/slides/charts/chart1.xml` 字节改变；文件集合、所有非目标 part、原始源字节不变 | 只是一份本项目创建后去掉私有快照的 literal-data 源输入，不含 workbook；未验证任意第三方 line、workbook 联动或删除生命周期 |
+
+还没有专门绘制趋势线、误差线、逐点样式、数据标签、plotArea/frame paint、完整主题及 chart 文字效果。当前 `chart-layout` 和每页 `integration-pending` 限制始终保留；通过这些局部测试不应提升生产能力等级，也不能撤掉旧 painter 的 G-11 事实错误规则。
+
+本轮已在 registry 的 `previewScene.contract` 补记有限 line、marker 轮廓及边缘显示，并向 G-01 tasks 追加实际证据，没有提升生产支持等级或勾选整项。两个生成器检查通过只证明生成内容与 registry 一致，不能代替字段级绘制覆盖；完整维护闭环仍由 G-15 跟踪。
+
+下一步验收仍分三层：补齐普通 line 的剩余语义与风险例；按真实 native 类型或编译生成几何逐项补其他图表；最后把场景绘制接入按 renderer profile 区分的检查及正式发布清单。G-08、G-09、G-10 和 G-01 3.4 均保持未完成。
 
 ## 3. 元素与页面视觉差距
 
@@ -606,6 +666,8 @@ connector 直接画 frame 中线，没有读取 `from/to.element`、anchor、con
 
 ### 4.1 G-08：数据归一化和公共坐标系统缺失
 
+本节及第 4.2、4.3 节的缺陷描述针对生产 `svg-preview.mjs`。内部普通 line 已有第 2.5 节的局部修复，但尚未替换生产路径；不能把两套实现的支持范围合并。
+
 预览直接读 `data.categories` 和 `data.series[].values`，未完整处理 `dataset/encoding/dataFilter/seriesDefaults`。坐标范围基本统一使用 `Math.max(1, ...values)`，没有实现负数范围、明确 min/max、双轴、数值 X 轴、轴反向及其他缩放方式。
 
 以下字段也没有完整应用：title、legend、轴标题与刻度、网格、numberFormat、dataLabels、marker、pointStyles、trendlines、errorBars、chart frame 和 plotArea 样式。
@@ -616,7 +678,7 @@ connector 直接画 frame 中线，没有读取 `from/to.element`、anchor、con
 
 ### 4.2 G-09：逐类型差距
 
-下表覆盖当前 schema 的 16 种 `chartType`，另列两种通过字段表达的变体。具体实现见生产路线的 [chart 分支](../src/ppj/svg-preview.mjs)。内部 painter 已验证一组真实 Sunburst/Sankey 生成路径，但没有完成全部类型、样式、边界或生产绘制验收，不能据此关闭 G-09。
+下表覆盖当前 schema 的 16 种 `chartType`，另列两种通过字段表达的变体。具体实现见生产路线的 [chart 分支](../src/ppj/svg-preview.mjs)。内部 painter 已验证一组真实 Sunburst/Sankey 生成路径及有限原生 line，但没有完成全部类型、样式、边界或生产绘制验收，不能据此关闭 G-09。
 
 本表为代码与 schema 对照结果，不表示本次对每一种类型都执行了正负案例；最后一列的验证案例是待补测试。本轮实际运行范围见第 1.3 节，历史 smoke 结果见第 6.1 节。
 
@@ -851,7 +913,7 @@ G-11 的共享检查、绘制与发布已接通；G-01 的共用场景边界、�
 
 ### 7.3 后续开发如何与功能更新同步
 
-下一项从已失败的对象锚点反例继续，再按 G-01 方案推进剩余绘制与 4.x 检查/发布对接；保留本轮已通过的真实表格及源编辑验证。目前清单勾选 7/15，内部绘制已有部分实现，G-01 整项仍未完成。锚点反例同时暴露编译侧问题，后续实施前需确认扩项并同步相应变更计划；本轮仅向 tasks 追加实际实施证据，没有修改规划契约或勾选范围。G-11 是防误判措施，不能替代后续实现。对某个具体字段可以直接复用现有结果的，不必等待一套大型新框架。
+对象锚点修复仍待确认编译端扩项并同步计划；不依赖它的普通 line 和其他场景映射可分别推进，保留失败反例及已通过的表格、折线和源编辑验证。目前清单勾选 7/15，内部绘制已有部分实现，G-01 整项仍未完成。本轮已向 tasks 追加 line 的实际证据，未满足整项条件不勾选。G-11 是防误判措施，不能替代后续实现。对某个具体字段可以直接复用现有结果的，不必等待一套大型新框架。
 
 一次修改以一个明确的视觉字段或语义行为为单位，至少把以下记录放进对应变更及覆盖台账：
 
@@ -876,7 +938,7 @@ G-11 的共享检查、绘制与发布已接通；G-01 的共用场景边界、�
 
 初次审计时 `ppj-chart-axis-log-base` 尚在推进，清单曾从 0/4 变为 3/4。最新复核中，对数轴实现已提交为 `9efc8ce5`，当前任务清单为 5/5 勾选；趋势线 source-bound 列表编辑也已提交为 `fbddc7e7`。本节不再把它们笼统记录为“仅有在途文件”。
 
-本轮没有重新执行这些 C# 功能的 NativeAOT 构建和专项验收，也未核验清单勾选对应的全部原始日志。“已提交/清单已勾选”是仓库事实，“已由本次独立验收”则不是。当前 preview 仍未读取 `logBase`、`trendlines` 或 `errorBars` 来绘制对应内容。
+本轮没有重新执行这些 C# 功能的 NativeAOT 构建和专项验收，也未核验清单勾选对应的全部原始日志。“已提交/清单已勾选”是仓库事实，“已由本次独立验收”则不是。当前生产 preview 仍未读取 `logBase`、`trendlines` 或 `errorBars` 来绘制对应内容；内部 line 已有有限 logBase 几何映射及合成测试，但趋势线和误差线仍未绘制。
 
 此前收尾时新增的 errorBars 预览诊断目前已在实际绘制代码中：普通图表兜底分支对存在 errorBars 的系列增加 `chart-error-bars-not-rendered` 的 partial 诊断，最新 presentation 分段也包含相应回归。这是诊断补充，不是误差线绘制实现；提前返回的其他图表分支仍不能据此宣称全部覆盖。
 
@@ -884,17 +946,17 @@ G-11 实施轮次从 `09f79e04`（literal custom error bar data）开始，另�
 
 上述对数轴变更的范围是 value axis 的 logBase 创建、读取、修改和删除，含 numeric X 与 combo 副轴、token、非法值及所有权保护。具体跟踪见 [对数轴任务](../openspec/changes/ppj-chart-axis-log-base/tasks.md)。
 
-该接口即使通过 codec 回归，当前 preview 也未消费其缩放语义。它是“接口更新后渲染需要同步”的具体例子，不应以接口完成代替渲染完成。本文不修改或验收其他工作流正在编辑的文件。
+该接口即使通过 codec 回归，当前生产 preview 也未消费其缩放语义。内部 line 的有限进展尚不能代表 numeric X、combo 副轴等全范围同步。它是“接口更新后渲染需要同步”的具体例子，不应以接口完成代替渲染完成。本文不修改其他工作流正在编辑的文件，只核对与预览相关的证据范围。
 
 前次文档复核补记：趋势线标签实现已提交为 `93b89e67`，不再仅是 G-11 实施轮次观察到的在途工作。预览与发布器源码 hash 没有变化；此提交不代表趋势线标签已在自有 SVG 中绘制。该次复核没有重跑该接口的 C# 专项或构建对应 NativeAOT。
 
 前次实施快照补记：起点 HEAD 已包含 `f3a67617` 的趋势线标签手动布局及 `3eb58b3a` 的数字格式链接保留，当时工作区另有趋势线富文本改动；收尾时该功能已由另一工作流提交为 `3b6272dd`。它们继续扩大接口与预览的同步检查范围；本文只核对提交和差异归属，不将其算作已完成的趋势线视觉渲染或该次 C# 验收。
 
-此前快照已包含 `307106dc` 的 chart text language、`ade46bd5` 的 preview bindings 归属调整、`e092c458` 的 chart text strike 与 `654cb3e5` 的有符号 baseline 偏移。当前 SVG 仍走旧绘制路线；图表文字语言、删除线、基线偏移、趋势线标签富文本、布局和格式是否进入最终画面仍要单独验证。本轮未重新执行这些接口的 C# 专项，不能因为字段已加入接口或生成矩阵，就认定渲染器已同步支持。
+此前快照已包含 `307106dc` 的 chart text language、`ade46bd5` 的 preview bindings 归属调整、`e092c458` 的 chart text strike 与 `654cb3e5` 的有符号 baseline 偏移。当前生产 CLI 的 SVG 仍走旧绘制路线；图表文字语言、删除线、基线偏移、趋势线标签富文本、布局和格式是否进入最终画面仍要单独验证。本轮未重新执行这些接口的 C# 专项，不能因为字段已加入接口或生成矩阵，就认定渲染器已同步支持。
 
-本轮补记：又读到 chart text 的 letter spacing（`f3ebbb34`）、kerning（`4782e6e5`）及独立 highlight paint（`aee69e35`）提交。`8b5b6771` 随后提交了只读场景适配层；这四项都没有改变本轮核验的 `svg-preview.mjs` 文件摘要。后续应检查这些字段在“原生保留 → 适配保留 → 实际绘制 → 行为断言”各层的状态，而不是把接口提交或适配无损当成对应文字效果已经显示正确。本轮未对这些图表文字接口重新运行 C# 验收。
+历史场景适配复核补记：当时读到 chart text 的 letter spacing（`f3ebbb34`）、kerning（`4782e6e5`）及独立 highlight paint（`aee69e35`）提交。`8b5b6771` 随后提交了只读场景适配层；这四项都没有改变该轮核验的 `svg-preview.mjs` 文件摘要。后续应检查这些字段在“原生保留 → 适配保留 → 实际绘制 → 行为断言”各层的状态，而不是把接口提交或适配无损当成对应文字效果已经显示正确。本轮文档复核也未对这些图表文字接口重新运行 C# 验收。
 
-最新 HEAD 另包含 chart text outer shadow 与可选属性保留（`90202df2`）、glow/outer-shadow 组合（`5837c51e`）。当前生产 painter 未绘制这些文字效果；内部 painter 的原生 chart 分支仍是占位，其他文本映射也没有实现对应效果。它们是需要纳入 G-04/G-08/G-15 的具体同步项，不是新增渲染通过案例。本轮只核对提交及 painter 消费范围，没有重建/验收这些 C# 新功能；本轮指定临时包的摘要见第 1.3 节。
+当前 HEAD 已包含 chart text outer shadow 与可选属性保留（`90202df2`）、glow/outer-shadow 组合（`5837c51e`），以及 soft edge/direct effect theme colors（`3ab96832`）。生产 painter 未绘制这些文字效果；内部普通 line 虽已进入富文本标题路径，也没有实现这些效果，其余原生 chart 仍是占位。它们是需要纳入 G-04/G-08/G-15 的具体同步项，不是新增渲染通过案例。本轮只核对提交及 painter 消费范围，没有重建/验收这些 C# 新功能；指定临时包的摘要见第 1.3 节。
 
 ### 8.2 更广泛 PPJ/PowerPoint 差距
 
@@ -930,12 +992,12 @@ node test/ppj-preview-smoke.mjs
 
 单项定位时，可分别运行 `node test/ppj-preview-diagnostics.mjs`、`node test/ppj-svg-preview.mjs`、`node test/ppj-preview-capability-coverage.mjs` 或 `node test/ppj-preview-output-evidence.mjs`；这四项已包含在 presentation 分段中。此处列的是可复跑命令，本次文档复核的执行范围见第 1.3 节，历史结果见第 6.1 节；不要把列出全量 smoke 命令当作已重跑。
 
-真实运行时集成必须显式指向仓库构建命令生成的包；脚本现包含传输/适配、内部 SVG 基础绘制及新增表格/对象关系断言。**当前对指定临时包运行仍因对象锚点失败而最终退出 1**，但会收集这两个失败并执行独立表格/source-bound 检查，输出具体通过计数。不能因为部分用例通过或历史版本曾通过而记为本轮整体成功。普通 presentation 分段不自动重建运行时，也不会自动执行这个集成脚本。准备好 `global.json` 固定的 SDK 后可单独运行：
+真实运行时集成必须显式指向仓库构建命令生成的包；脚本现包含传输/适配、内部 SVG 基础绘制、表格/对象关系及有限 line 的断言。**当前对指定临时包运行仍因对象锚点失败而最终退出 1**，但会收集这两个失败并执行独立表格/折线/source-bound 检查，输出具体通过计数。不能因为部分用例通过或历史版本曾通过而记为本轮整体成功。普通 presentation 分段不自动重建运行时，也不会自动执行这个集成脚本。准备好 `global.json` 固定的 SDK 后可单独运行：
 
 ```sh
 preview_package="$(mktemp -d)"
-npm run build:office-kit -- --output "$preview_package"
-node test/ppj-preview-scene-native.mjs "$preview_package"
+npm run build:office-kit -- --output "$preview_package" &&
+  node test/ppj-preview-scene-native.mjs "$preview_package"
 ```
 
 构建成功后才运行第二条测试。测试核验包的 manifest/可执行文件 hash，输出实际 PPJ 二进制身份，并比较轻量和生成 wire 的真实回执；打包 Office profile 应拒绝 PPJ 请求。脚本还调用内部 painter/sharp，验证一组配对像素、实际生成路径及候选文字，并输出独立临时目录。C# 通用协议入口用下方原生专项验证，不能把它等同于 Office 可执行文件。以上不验证生产入口的场景切换、正式发布对接或完整功能，也不替代任务 5.2 的 `npm run verify:office-kit-build`。
@@ -970,7 +1032,7 @@ dotnet test native/OfficeKit/tests/OfficeKit.Codec.Tests/OfficeKit.Codec.Tests.c
 | 文件 | 核对用途 |
 | --- | --- |
 | [svg-preview.mjs](../src/ppj/svg-preview.mjs) | `drawElement` 绘制、`assessedDrawing` 检查合并及页面警示 |
-| [内部 native painter](../src/ppj/preview-scene-svg.mjs) | 3.3 基础几何/文本/图片/组及 literal 路径，3.4 部分表格/连接线；不是生产 CLI 或完整 G-11/G-12 集成 |
+| [内部 native painter](../src/ppj/preview-scene-svg.mjs) | 3.3 基础几何/文本/图片/组及 literal 路径，3.4 部分表格/连接线/原生 line；不是生产 CLI 或完整 G-11/G-12 集成 |
 | [内部绘制专项](../test/ppj-preview-scene-svg.mjs) | native 字段到 SVG 的直接断言、明确限制及独立进程惰性加载 |
 | [preview-output.mjs](../src/ppj/preview-output.mjs) | G-12 非覆盖发布、失败状态、文件与输入身份清单 |
 | [svg-preview-capabilities.json](../src/ppj/svg-preview-capabilities.json) | 当前 registry 派生的类型级保守声明 |
