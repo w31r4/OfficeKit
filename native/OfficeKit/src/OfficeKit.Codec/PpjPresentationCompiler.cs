@@ -2032,7 +2032,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                         RequireCapabilityField(after.NativeRef, "setGeometry", "geometry." + field, path + ".geometry." + field);
                 RequireEqualExcept(oldGeometry, newGeometry, path + ".geometry", "paths", "textRectangle", "guides", "adjustments", "connectionSites", "adjustmentHandles");
                 if (!IsEditableCustomGeometry(target))
-                    throw Unsupported(path + ".geometry", "source custom geometry is outside the common positive viewport edit profile");
+                    throw Unsupported(path + ".geometry", "source custom geometry has no editable path graph");
                 target.CustomPaths.Clear();
                 target.CustomAdjustments.Clear();
                 target.CustomGuides.Clear();
@@ -2089,16 +2089,8 @@ internal static partial class PpjSourceBoundPresentationCompiler
         return true;
     }
 
-    private static bool IsEditableCustomGeometry(PresentationShape shape)
-    {
-        if (shape.Geometry != "custom" || shape.CustomPaths.Count == 0)
-            return false;
-        var width = shape.CustomPaths[0].Width;
-        var height = shape.CustomPaths[0].Height;
-        if (width <= 0 || height <= 0 || shape.CustomPaths.Any(path => path.Width != width || path.Height != height))
-            return false;
-        return true;
-    }
+    private static bool IsEditableCustomGeometry(PresentationShape shape) =>
+        shape.Geometry == "custom" && shape.CustomPaths.Count > 0;
 
     private static bool ApplyLineElement(
         PpjProgramModel program,

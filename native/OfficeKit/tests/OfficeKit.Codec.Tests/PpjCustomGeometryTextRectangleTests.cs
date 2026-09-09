@@ -423,6 +423,81 @@ public sealed class PpjCustomGeometryTextRectangleTests
         Assert.Equal(original, source);
     }
 
+    [Fact]
+    public void CustomGeometryPathViewportsRetainIndependentAndDefaultAxes()
+    {
+        var program = Program();
+        var geometry = Element(program)["geometry"]!.AsObject();
+        var paths = geometry["paths"]!.AsArray();
+        paths[0]!["fill"] = false; paths[0]!["stroke"] = true; paths[0]!["extrusionOk"] = false;
+        foreach (var pair in new[] { (50, 200), (0, 25), (30, 0), (0, 0) })
+        {
+            var path = paths[0]!.DeepClone();
+            path["viewport"] = new JsonObject { ["width"] = pair.Item1, ["height"] = pair.Item2 };
+            paths.Add(path);
+        }
+        var authored = Compile(program);
+        AssertPathExtents(program, authored);
+        var source = PptxCodecTests.RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var original = source.ToArray();
+        var projected = Project(source);
+        Assert.True(JsonNode.DeepEquals(geometry, Element(projected)["geometry"]));
+        Assert.Equal(source, Compile(projected, source).File.ToByteArray());
+        foreach (var mode in new[] { "edit", "remove", "firstDefault", "firstLarge" })
+        {
+            var request = Project(source);
+            var requested = Element(request)["geometry"]!["paths"]!.AsArray();
+            if (mode == "edit") requested[1]!["viewport"] = new JsonObject { ["width"] = 75, ["height"] = 0 };
+            else if (mode == "remove") requested[1]!.AsObject().Remove("viewport");
+            else requested[0]!["viewport"] = new JsonObject { ["width"] = mode == "firstDefault" ? 0 : 2147483.647, ["height"] = mode == "firstDefault" ? 0 : 2147483.647 };
+            var candidate = Compile(request, source);
+            AssertPathExtents(request, candidate);
+            var fresh = Project(candidate.File.ToByteArray());
+            if (mode == "firstLarge")
+            {
+                var otherKind = fresh.DeepClone().AsObject();
+                var leaf = Element(otherKind)["nativeRef"]!["leaves"]!.AsArray()
+                    .First(l => l!["kind"]!.GetValue<string>() == "customGeometryPathWidth")!;
+                leaf["kind"] = "customGeometryPathArcWidthRadius";
+                Assert.False(PpjProgramValidator.Validate(JsonSerializer.SerializeToUtf8Bytes(otherKind)).IsValid);
+            }
+            AssertPathExtents(request, Compile(fresh, candidate.File.ToByteArray()));
+            var freshShape = Element(fresh);
+            foreach (var field in new[] { "text", "frame" }) Assert.True(JsonNode.DeepEquals(Element(request)[field], freshShape[field]));
+            Assert.True(JsonNode.DeepEquals(Element(request)["geometry"]!["textRectangle"], freshShape["geometry"]!["textRectangle"]));
+            for (var index = 0; index < paths.Count; index++)
+            {
+                var expected = requested[index]!.DeepClone().AsObject(); expected.Remove("viewport");
+                var actual = freshShape["geometry"]!["paths"]![index]!.DeepClone().AsObject(); actual.Remove("viewport");
+                Assert.True(JsonNode.DeepEquals(expected, actual));
+            }
+            AssertSlideOnly(source, candidate.File.ToByteArray());
+        }
+        foreach (var invalid in new[] { -1d, 2147483.648 })
+        {
+            var request = Project(source);
+            Element(request)["geometry"]!["paths"]![1]!["viewport"]!["width"] = invalid;
+            Assert.Empty(Compile(request, source, false).File);
+        }
+        var mask = geometry.DeepClone().AsObject(); mask.Remove("textRectangle");
+        Assert.Throws<CodecException>(() => PpjAuthoredPresentationCompiler.ApplyCustomGeometry(new PresentationShape(), JsonSerializer.SerializeToElement(mask), "mask"));
+        Assert.Equal(original, source);
+    }
+
+    private static void AssertPathExtents(JsonObject request, CodecResponse response)
+    {
+        var geometry = Element(request)["geometry"]!;
+        var paths = geometry["paths"]!.AsArray();
+        var native = response.PresentationProgram.PreviewScene.Presentation.Slides[0].Elements[0].Shape.CustomPaths;
+        Assert.Equal(paths.Count, native.Count);
+        for (var index = 0; index < paths.Count; index++)
+        {
+            var extent = JsonSerializer.SerializeToElement(paths[index]!["viewport"] ?? geometry["viewBox"]!);
+            Assert.Equal((long)Math.Round(extent.GetProperty("width").GetDouble() * 1000), native[index].Width);
+            Assert.Equal((long)Math.Round(extent.GetProperty("height").GetDouble() * 1000), native[index].Height);
+        }
+    }
+
     private static JsonObject Program()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

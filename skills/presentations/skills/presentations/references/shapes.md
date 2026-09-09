@@ -76,7 +76,7 @@ projection. Existing path-edit authority supports adding, changing or removing
 it, and coordinate edits retain it. This native eligibility flag supplies no
 3-D depth/material; preview reports the unrendered field explicitly.
 
-An imported custom geometry with a common positive path viewport may issue `setGeometry`
+An imported recognized custom geometry may issue `setGeometry`
 for `geometry.paths`, `geometry.textRectangle`, `geometry.guides` and
 `geometry.adjustments`, `geometry.connectionSites` and `geometry.adjustmentHandles`. These fields can be edited
 independently in the existing SlidePart; unsupported or extension-bearing custom
@@ -171,9 +171,23 @@ therefore supplies 20000 native path units (20 viewBox units), while `w` resolve
 to the native shape extent. Authored export and source `geometry.paths` edits
 retain these references; changing an adjustment updates its dependent values.
 Unknown references, nonpositive arc radii and invalid resolved sweeps reject.
-This profile needs one common positive viewport across paths; default or mixed
-viewports remain source-owned. Standalone lines and masks/clips keep literal
-paths. Preview diagnoses unrendered reference semantics explicitly.
+Per-path viewports can retain different/default coordinate extents. Standalone
+lines and masks/clips keep literal paths. Preview diagnoses unrendered reference
+semantics explicitly.
+
+Custom-shape paths accept `viewport: {width, height}` to override the common
+`geometry.viewBox` extents. Both values are required, each from 0 to 2147483.647
+in existing path units (1000 native units per unit). Omission inherits the
+common extents; zero independently selects the native shape-coordinate default
+on that axis. `{ "width": 0, "height": 50 }` therefore retains a default X axis
+and an explicit Y extent. Command origin and reference units stay unchanged.
+
+Source `geometry.paths` edits can add, change or remove the override; removing
+it restores current viewBox inheritance. Projection factors a valid positive
+baseline into geometry.viewBox and emits overrides where needed, so redundant
+values normalize away. Effective native extents, commands and flags survive;
+XML zero/omitted attributes share the native default meaning. Masks/clips reject
+viewport overrides. Preview reports unsupported per-path viewport semantics.
 
 The same preset profile can clip an image. `image.mask.adjustments` uses the
 identical parameter order and defaults; see [Media and layers](media-and-layers.md#image-masks).

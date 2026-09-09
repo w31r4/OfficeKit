@@ -3699,6 +3699,12 @@ internal static partial class PpjAuthoredPresentationCompiler
         foreach (var sourcePath in paths.EnumerateArray())
         {
             var path = new PresentationCustomGeometryPath { Width = width, Height = height };
+            if (sourcePath.TryGetProperty("viewport", out var viewport))
+            {
+                if (!allowShapeGraph) throw Unsupported(elementId, "path viewport overrides belong to custom shapes, not masks or clips");
+                path.Width = CustomPathCoordinate(viewport.GetProperty("width").GetDouble());
+                path.Height = CustomPathCoordinate(viewport.GetProperty("height").GetDouble());
+            }
             if (sourcePath.TryGetProperty("fill", out var fill))
                 path.FillMode = fill.GetBoolean()
                     ? PresentationCustomGeometryPath.Types.FillMode.Normal

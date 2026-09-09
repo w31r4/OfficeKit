@@ -706,7 +706,7 @@ internal static partial class PpjPresentationProjector
         if (shape.ImageFill is not null && !context.TryMaterializeAsset(shape.ImageFill.AssetId, out _))
             return ProjectOpaque(element, id, nativeRef, "shape", "Preserved source shape whose image fill cannot be materialized safely.");
         if (!isPlaceholder && !isTextBox && !PptxPresetGeometryAdjustmentCodec.HasProfile(shape.Geometry) &&
-            !CanProjectCustomGeometry(shape, allowReferences: true) && !sourceImageFill && !sourceCustomGeometry && !lineLike)
+            !CanProjectCustomGeometry(shape, allowShapeGraph: true) && !sourceImageFill && !sourceCustomGeometry && !lineLike)
             return ProjectOpaque(element, id, nativeRef, "shape", $"Preserved source shape with unsupported geometry '{shape.Geometry}'.");
 
         var common = ElementBase(id, element.Name, frame, Accessibility(shape.Accessibility), nativeRef);
@@ -765,7 +765,7 @@ internal static partial class PpjPresentationProjector
         var hasCompoundOpacity = element.Source?.Editable == true &&
             TryGetCompoundShapeOpacity(shape, out compoundOpacity);
         if (shape.Geometry == "custom")
-            common["geometry"] = CanProjectCustomGeometry(shape, allowReferences: true)
+            common["geometry"] = CanProjectCustomGeometry(shape, allowShapeGraph: true)
                 ? ProjectCustomGeometry(shape)
                 : new JsonObject
                 {
@@ -826,23 +826,23 @@ internal static partial class PpjPresentationProjector
         return values.All(value => Math.Abs(value - candidate) < 0.000005);
     }
 
-    private static bool CanProjectCustomGeometry(PresentationShape shape, bool allowReferences = false)
+    private static bool CanProjectCustomGeometry(PresentationShape shape, bool allowShapeGraph = false)
     {
         if (shape.Geometry != "custom" || shape.CustomPaths.Count == 0)
             return false;
         var width = shape.CustomPaths[0].Width;
         var height = shape.CustomPaths[0].Height;
-        if (width <= 0 || height <= 0 || shape.CustomPaths.Any(path => path.Width != width || path.Height != height))
+        if (!allowShapeGraph && (width <= 0 || height <= 0 || width > 100_000_000 || height > 100_000_000 || shape.CustomPaths.Any(path => path.Width != width || path.Height != height)))
             return false;
         return shape.CustomPaths.SelectMany(path => path.Commands).All(command => command.CommandCase switch
         {
-            PresentationCustomGeometryCommand.CommandOneofCase.MoveTo => allowReferences || Literal(command.MoveTo),
-            PresentationCustomGeometryCommand.CommandOneofCase.LineTo => allowReferences || Literal(command.LineTo),
+            PresentationCustomGeometryCommand.CommandOneofCase.MoveTo => allowShapeGraph || Literal(command.MoveTo),
+            PresentationCustomGeometryCommand.CommandOneofCase.LineTo => allowShapeGraph || Literal(command.LineTo),
             PresentationCustomGeometryCommand.CommandOneofCase.QuadraticBezierTo =>
-                allowReferences || Literal(command.QuadraticBezierTo.Control) && Literal(command.QuadraticBezierTo.End),
+                allowShapeGraph || Literal(command.QuadraticBezierTo.Control) && Literal(command.QuadraticBezierTo.End),
             PresentationCustomGeometryCommand.CommandOneofCase.CubicBezierTo =>
-                allowReferences || Literal(command.CubicBezierTo.Control1) && Literal(command.CubicBezierTo.Control2) && Literal(command.CubicBezierTo.End),
-            PresentationCustomGeometryCommand.CommandOneofCase.ArcTo => allowReferences || Literal(command.ArcTo),
+                allowShapeGraph || Literal(command.CubicBezierTo.Control1) && Literal(command.CubicBezierTo.Control2) && Literal(command.CubicBezierTo.End),
+            PresentationCustomGeometryCommand.CommandOneofCase.ArcTo => allowShapeGraph || Literal(command.ArcTo),
             PresentationCustomGeometryCommand.CommandOneofCase.Close => true,
             _ => false,
         });
@@ -855,16 +855,24 @@ internal static partial class PpjPresentationProjector
         !arc.HasWidthRadiusReference && !arc.HasHeightRadiusReference &&
         !arc.HasStartAngleReference && !arc.HasSweepAngleReference;
 
+    private static double ProjectPathBaseline(long extent) =>
+        extent is > 0 and <= 100_000_000 ? extent / 1_000d : 1d;
+
     private static JsonObject ProjectCustomGeometry(PresentationShape shape)
     {
-        var width = shape.CustomPaths[0].Width / 1_000d;
-        var height = shape.CustomPaths[0].Height / 1_000d;
+        var width = ProjectPathBaseline(shape.CustomPaths[0].Width);
+        var height = ProjectPathBaseline(shape.CustomPaths[0].Height);
         var paths = new JsonArray();
         foreach (var source in shape.CustomPaths)
         {
             var commands = new JsonArray();
             foreach (var command in source.Commands) commands.Add(ProjectCustomCommand(command));
             var path = new JsonObject { ["commands"] = commands };
+            if (source.Width / 1_000d != width || source.Height / 1_000d != height)
+                path["viewport"] = new JsonObject
+                {
+                    ["width"] = source.Width / 1_000d, ["height"] = source.Height / 1_000d,
+                };
             if (source.FillMode == PresentationCustomGeometryPath.Types.FillMode.Normal) path["fill"] = JsonValue.Create(true);
             else if (source.FillMode == PresentationCustomGeometryPath.Types.FillMode.None) path["fill"] = JsonValue.Create(false);
             if (source.HasStroke) path["stroke"] = JsonValue.Create(source.Stroke);
@@ -2977,7 +2985,7 @@ internal static partial class PpjPresentationProjector
                         output.Add(new("setGeometry", ["geometry.adjustments"]));
                     else if (element.Shape.Placeholder is null &&
                              element.Shape.Geometry == "custom" &&
-                             CanProjectCustomGeometry(element.Shape, allowReferences: true))
+                             CanProjectCustomGeometry(element.Shape, allowShapeGraph: true))
                         output.Add(new("setGeometry", ["geometry.paths", "geometry.textRectangle", "geometry.guides", "geometry.adjustments", "geometry.connectionSites", "geometry.adjustmentHandles"]));
                 }
                 break;

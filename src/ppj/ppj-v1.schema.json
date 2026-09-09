@@ -2045,6 +2045,25 @@
         "expectedHash",
         "value"
       ],
+      "anyOf": [
+        {
+          "properties": {
+            "value": {
+              "maximum": 1000000000
+            }
+          }
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "customGeometryPathWidth",
+                "customGeometryPathHeight"
+              ]
+            }
+          }
+        }
+      ],
       "properties": {
         "id": {
           "$ref": "#/$defs/id"
@@ -2338,7 +2357,7 @@
             {
               "type": "number",
               "minimum": -1000000000,
-              "maximum": 1000000000
+              "maximum": 2147483647
             },
             {
               "type": "boolean"
@@ -4678,6 +4697,27 @@
         "extrusionOk": {
           "type": "boolean",
           "description": "Optional native path extrusion eligibility; omission preserves absence. This flag does not author 3-D depth or appearance."
+        },
+        "viewport": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "width",
+            "height"
+          ],
+          "description": "Custom-shape path extent override, in existing path units. Omission inherits geometry.viewBox; zero selects the native default independently per axis. Redundant overrides normalize away.",
+          "properties": {
+            "width": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2147483.647
+            },
+            "height": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2147483.647
+            }
+          }
         },
         "commands": {
           "type": "array",

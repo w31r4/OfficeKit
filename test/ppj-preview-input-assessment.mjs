@@ -53,6 +53,10 @@ const referencePathShape = assessPpjPreviewInput(deck([{ type: "shape", id: "ref
   geometry: { kind: "custom", viewBox: frame, paths: [{ commands: [{ op: "moveTo", x: "hc", y: 10 }] }] } }]));
 assert.ok(referencePathShape.diagnostics.some(d => d.path.endsWith(".geometry.paths[0].commands[0].x") && d.status !== "supported"));
 
+const viewportShape = assessPpjPreviewInput(deck([{ type: "shape", id: "viewport", frame,
+  geometry: { kind: "custom", viewBox: frame, paths: [{ viewport: { width: 0, height: 50 }, commands: [{ op: "moveTo", x: 0, y: 0 }] }] } }]));
+assert.ok(viewportShape.diagnostics.some(d => d.path.includes(".geometry.paths[0].viewport") && d.status !== "supported"));
+
 const repeated = { pages: [{ id: "p1", elements: [text] }, { id: "p2", elements: [text] }] };
 const diagnostics = assessPpjPreviewInput(repeated).diagnostics.filter((d) => d.path.endsWith(".text") && d.reason === "preview.text.unassessed");
 assert.deepEqual(diagnostics.map((d) => d.pageId).sort(), ["p1", "p2"]);

@@ -14,7 +14,7 @@
     "schemaDefinitions": 198,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 56,
+    "authoredCompilerBoundaries": 57,
     "nativeLeafKinds": 278,
     "helpApis": 151,
     "hostOnlyApis": 13
@@ -1133,18 +1133,26 @@
       "visualStatus": "partial-or-opaque"
     },
     {
+      "feature": "custom path independent viewports",
+      "ppjPath": "pages[].elements[].geometry.paths[].viewport",
+      "behavior": "partial",
+      "sourceBound": "Custom-shape paths accept width/height overrides in existing path units. Omitted viewport inherits geometry.viewBox; zero selects the native default per axis. Existing paths authority supports addition/change/removal. Fresh projection preserves effective extents while canonicalizing shared baseline and redundant overrides.",
+      "reason": "CustomGeometryPathViewportsRetainIndependentAndDefaultAxes verifies inherited/mixed/zero/large native extents, original-source no-op and viewport lifecycle, fresh projection and unchanged commands/flags/rectangle/text/frame/non-target ZIP data. Negative/over-budget dimensions and mask/clip overrides reject. Native zero and omitted w/h share the default-axis meaning; exact original bytes survive no-op. Preview diagnoses viewport limitations; host geometry fidelity is unverified.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
       "feature": "custom path native references",
       "ppjPath": "pages[].elements[].geometry.paths[].commands[] coordinate and arc slots",
       "behavior": "partial",
-      "sourceBound": "Custom shapes with common positive path viewports retain native reference strings in move/line/quadratic/cubic points and arc radii/angles. Existing paths authority permits literal/reference replacements; native graph validation retains dependencies and rejects unresolved references or invalid evaluated arcs. Masks/clips and standalone lines retain literal-only paths.",
-      "reason": "CustomGeometryPathReferencesRetainEverySlotAndSourceDependencies verifies every point/control/arc slot, original-source no-op and replacements, adjustment evaluation change with unchanged path XML, non-target geometry/text/frame/ZIP preservation and invalid reference/arc/owner rejection. Numeric viewBox and degree conversions remain unchanged; reference strings retain native units. Preview reports reference limits. Default/heterogeneous viewports and host geometry fidelity remain unverified.",
+      "sourceBound": "Recognized custom shapes retain native reference strings in move/line/quadratic/cubic points and arc radii/angles. Existing paths authority permits literal/reference replacements; native graph validation retains dependencies and rejects unresolved references or invalid evaluated arcs. Masks/clips and standalone lines retain literal-only paths.",
+      "reason": "CustomGeometryPathReferencesRetainEverySlotAndSourceDependencies verifies every point/control/arc slot, original-source no-op and replacements, adjustment evaluation change with unchanged path XML, non-target geometry/text/frame/ZIP preservation and invalid reference/arc/owner rejection. Numeric viewBox and degree conversions remain unchanged; reference strings retain native units. Preview reports reference limits. Per-path viewports have a separate PPJ field; host geometry fidelity remains unverified.",
       "visualStatus": "partial-or-opaque"
     },
     {
       "feature": "custom geometry adjustment handles",
       "ppjPath": "pages[].elements[].geometry.adjustmentHandles where geometry.kind is custom",
       "behavior": "partial",
-      "sourceBound": "Recognized common-positive-viewport custom shapes retain ordered XY/polar controls, optional paired ranges and required positions. Numeric local points/degrees and native references preserve presence. setGeometry geometry.adjustmentHandles edits ranges/positions while native topology fixes order, kind and controlled adjustment names; empty authored lists project as omission.",
+      "sourceBound": "Recognized custom shapes retain ordered XY/polar controls, optional paired ranges and required positions. Numeric local points/degrees and native references preserve presence. setGeometry geometry.adjustmentHandles edits ranges/positions while native topology fixes order, kind and controlled adjustment names; empty authored lists project as omission.",
       "reason": "CustomGeometryAdjustmentHandlesRetainKindsRangesAndSourceIdentity verifies both kinds, exact native units, paired-bound add/change/removal, source no-op, position edits, topology/range/reference/position/owner rejection and unchanged paths/text/frame/non-target ZIP data. Custom-shape reference paths have a separate PPJ field profile; masks/clips reject handles. Preview diagnoses unrendered handle semantics; host drag interaction is unverified.",
       "visualStatus": "partial-or-opaque"
     },
@@ -1152,7 +1160,7 @@
       "feature": "custom geometry connection sites",
       "ppjPath": "pages[].elements[].geometry.connectionSites where geometry.kind is custom",
       "behavior": "partial",
-      "sourceBound": "Recognized common-positive-viewport custom shapes preserve ordered angle/x/y sites with native reference strings or numeric degrees/local points. Issued setGeometry geometry.connectionSites permits per-index value edits; native source list length remains fixed because indexes identify connector bindings. Empty authored lists project as omission.",
+      "sourceBound": "Recognized custom shapes preserve ordered angle/x/y sites with native reference strings or numeric degrees/local points. Issued setGeometry geometry.connectionSites permits per-index value edits; native source list length remains fixed because indexes identify connector bindings. Empty authored lists project as omission.",
       "reason": "CustomGeometryConnectionSitesPreserveReferencesAndSourceIdentity verifies mixed adjustment/guide/built-in references, native units, fresh projection, source no-op and per-field edits, fixed-length/bounds/reference/capability rejection and unchanged paths/text/frame/non-target ZIP data. Masks/clips reject sites. Reference paths and handles have separate PPJ field profiles; preview reports explicit site limitations and host dragging is unverified.",
       "visualStatus": "partial-or-opaque"
     },
@@ -1168,7 +1176,7 @@
       "feature": "custom geometry adjustment formulas",
       "ppjPath": "pages[].elements[].geometry.adjustments where geometry.kind is custom",
       "behavior": "partial",
-      "sourceBound": "Recognized common-positive-viewport custom shapes issue setGeometry for ordered geometry.adjustments name/formula pairs. Native validation evaluates adjustments before guides in one namespace. Source add/change/coordinated removal preserves unchanged guides, rectangle references, paths, text, frame and non-target ZIP members. Empty lists project as omission; preset geometry keeps its separate integer-vector contract.",
+      "sourceBound": "Recognized custom shapes issue setGeometry for ordered geometry.adjustments name/formula pairs. Native validation evaluates adjustments before guides in one namespace. Source add/change/coordinated removal preserves unchanged guides, rectangle references, paths, text, frame and non-target ZIP members. Empty lists project as omission; preset geometry keeps its separate integer-vector contract.",
       "reason": "CustomGeometryAdjustmentsFeedGuidesAndRetainSourceLifecycle verifies a two-adjustment chain feeding an ordinary guide and text rectangle, actual evaluated source change, list lifecycle, cross-list duplicate/forward/dangling rejection and preset integer compatibility. Masks/clips reject the shape-only graph. Referenced paths, handles and connection sites have separate PPJ profiles; preview retains formula/layout limitations.",
       "visualStatus": "partial-or-opaque"
     },
@@ -1176,7 +1184,7 @@
       "feature": "custom geometry formula guides",
       "ppjPath": "pages[].elements[].geometry.guides where type is shape",
       "behavior": "partial",
-      "sourceBound": "Recognized common-positive-viewport custom shapes issue setGeometry for ordered geometry.guides name/formula pairs. Add/change/remove the guide list under native final-graph validation; dependent textRectangle references retain identity and coordinated removal is supported. Empty/omitted lists project as absence. Paths, text, frame and non-target ZIP members remain unchanged.",
+      "sourceBound": "Recognized custom shapes issue setGeometry for ordered geometry.guides name/formula pairs. Add/change/remove the guide list under native final-graph validation; dependent textRectangle references retain identity and coordinated removal is supported. Empty/omitted lists project as absence. Paths, text, frame and non-target ZIP members remain unchanged.",
       "reason": "CustomGeometryGuidesRetainDependenciesAndSupportCoherentSourceEdits proves a prior-guide graph feeding a text rectangle, actual changed evaluation, original-source add/edit/removal and duplicate/forward/dangling rejection. Native private rectangle scaling guides remain hidden. References, adjustments, handles and connection sites have separate PPJ profiles. Preview retains explicit guide/text-layout limitations; host layout is unverified.",
       "visualStatus": "partial-or-opaque"
     },

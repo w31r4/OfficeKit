@@ -110,9 +110,20 @@ strings keep native identity and units. The focused geometry/connector/preview s
 fixture checks every slot's source replacement, adjustment evaluation 20000 to
 30000 with unchanged path-reference XML, source no-op and non-target ZIP/text/
 frame/graph preservation. Unknown references and invalid evaluated arcs reject;
-standalone lines and masks/clips retain literal-only contracts. Common positive
-viewports remain required; default/heterogeneous viewports are source-owned.
+standalone lines and masks/clips retain literal-only contracts. Per-path
+viewports now preserve different/default extents (see the increment below).
 Preview reports unrendered reference semantics; no host geometry claim is made.
+
+PPJ `geometry.paths[].viewport` (2026-09-10) retains each custom-shape path's
+width/height in existing path units. Omission inherits geometry.viewBox; zero
+selects the native default per axis. Projection preserves effective native
+extents while normalizing the common baseline and redundant overrides. The
+focused native geometry/connector/preview suite passes 128/128, zero skipped.
+The fixture covers mixed/default/large extents, original-source no-op and
+add/change/remove, commands/flags/rectangle/text/frame/non-target ZIP retention,
+and invalid extent/mask rejection. Numeric width/height native leaves now
+accept the existing native int32 maximum; other leaf ceilings remain unchanged.
+Masks/clips keep their prior viewport profile; preview input assessment diagnoses per-path viewport limitations.
 
 Latest PPTX evidence: candidate product commit `e1bb8699671c3599b44b999ca308ff8d0d9581d7` and packed `office-kit@0.6.0` tarball SHA-256 `0152742d17a07a7b53e53f83f75c08c829804ab8f73ad65841a5e49946e7e8a9` passed the frozen three-sample programmable-import acceptance. All `90/90` clean-source matrix runs passed, all `30/30` declared intents produced deterministic bytes and oracle results across three repetitions, and rendering used LibreOffice for 60 runs plus Keynote for 30 text changes that LibreOffice did not display. Every run preserved the source, reimported successfully, kept the declared non-target parts and relationships byte-identical, recovered target XML/SVG after masking only the issued mutation, and kept non-target pages pixel-identical.
 
