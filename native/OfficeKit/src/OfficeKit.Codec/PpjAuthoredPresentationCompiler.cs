@@ -66,9 +66,12 @@ internal static partial class PpjAuthoredPresentationCompiler
         var assets = ValidateAssets(program, request.Assets);
         var catalog = new Catalog(program.Root, assets);
         var plan = new AuthoredSourceFreeBuildPlan(program, validation.Expansion!, catalog);
+        if (request.IncludePreviewScene && program.Components.Count != 0 && validation.Expansion!.PreviewOrigins is null)
+            throw new CodecException("ppj.preview.originsRequired",
+                "Component preview requires provenance captured during the original validation/expansion pass.", "$.components");
         // Ordinary builds keep the original plan and its per-slide lifetime.
         var preview = request.IncludePreviewScene
-            ? new PpjPreviewSourceFreeBuildPlan(plan, validation.Expansion.Nodes, limits)
+            ? new PpjPreviewSourceFreeBuildPlan(plan, validation.Expansion.Nodes, limits, validation.Expansion.PreviewOrigins)
             : null;
         var originalProgramJson = request.ProgramJson.ToByteArray();
         PptxExportResult exported;

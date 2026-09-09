@@ -16,7 +16,12 @@ using P14 = DocumentFormat.OpenXml.Office2010.PowerPoint;
 
 namespace OfficeKit.Codec;
 
-internal sealed record PptxImportResult(ArtifactEnvelope Artifact, IReadOnlyList<Diagnostic> Diagnostics);
+internal sealed record PptxImportResult(ArtifactEnvelope Artifact, IReadOnlyList<Diagnostic> Diagnostics)
+{
+    // Read-only import provenance, allocated only by scene callers. Never
+    // confused with source edit capabilities or serialized into the artifact.
+    internal IReadOnlyList<PptxNativeBinding> NativeBindings { get; init; } = [];
+}
 internal sealed record PptxExportResult(
     byte[] File,
     IReadOnlyList<Diagnostic> Diagnostics,
@@ -189,19 +194,23 @@ internal static class PptxCodec
         byte[] bytes,
         EffectiveCodecLimits limits,
         bool retainImportedAssetData = true,
-        string? verifiedPackageSha256 = null) => Import(
+        string? verifiedPackageSha256 = null,
+        bool includeNativeBindings = false) => Import(
             new PptxPackageSource(bytes),
             limits,
             retainImportedAssetData,
-            verifiedPackageSha256);
+            verifiedPackageSha256,
+            includeNativeBindings);
 
     internal static PptxImportResult Import(
         PptxPackageSource source,
         EffectiveCodecLimits limits,
         bool retainImportedAssetData = true,
-        string? verifiedPackageSha256 = null)
+        string? verifiedPackageSha256 = null,
+        bool includeNativeBindings = false)
     {
         using var importStage = PpjBuildProfiler.Measure("pptx.import");
+        List<PptxNativeBinding>? previewBindings = includeNativeBindings ? [] : null;
         var opaque = PackageGuards.ValidateAndCollectOpaque(
             source.OpenRead,
             source.Length,
@@ -373,7 +382,7 @@ internal static class PptxCodec
             var deletionAnalysis = PptxElementDeletionCodec.AnalyzeSlide(slidePart);
             var zOrderPlan = AnalyzeElementZOrder(elements);
             var slideArtifactId = $"presentation/slide/{slideIndex + 1}";
-            var elementIdsByNativeId = NativeElementIds(elements, slideArtifactId);
+            var elementIdsByNativeId = NativeElementIds(elements, slideArtifactId, previewBindings, PartPath(slidePart));
             P.Slide? previousSlideRoot = null;
             IReadOnlyDictionary<uint, string>? previousElementIdsByNativeId = null;
             string? previousSlideArtifactId = null;
@@ -508,7 +517,7 @@ internal static class PptxCodec
         };
         envelope.Assets.Add(assetCatalog.ImportedAssets);
         envelope.Diagnostics.Add(diagnostics);
-        return new PptxImportResult(envelope, diagnostics);
+        return new PptxImportResult(envelope, diagnostics) { NativeBindings = previewBindings ?? [] };
     }
 
     internal static void HydrateSourceImageAssets(ArtifactEnvelope envelope, PptxPackageSource source)
@@ -3371,23 +3380,31 @@ internal static class PptxCodec
     private static OpenXmlElement[] GroupElements(P.GroupShape group) =>
         group.ChildElements.Where(child => child is not P.NonVisualGroupShapeProperties and not P.GroupShapeProperties).ToArray();
 
-    private static IReadOnlyDictionary<uint, string> NativeElementIds(IReadOnlyList<OpenXmlElement> elements, string ownerId)
+    private static IReadOnlyDictionary<uint, string> NativeElementIds(IReadOnlyList<OpenXmlElement> elements, string ownerId,
+        List<PptxNativeBinding>? previewBindings = null, string? partPath = null)
     {
         var output = new Dictionary<uint, string>();
-        CollectNativeElementIds(elements, ownerId, output);
+        CollectNativeElementIds(elements, ownerId, output, previewBindings, ownerId, partPath);
         return output;
     }
 
-    private static void CollectNativeElementIds(IReadOnlyList<OpenXmlElement> elements, string ownerId, IDictionary<uint, string> output)
+    private static void CollectNativeElementIds(IReadOnlyList<OpenXmlElement> elements, string ownerId, IDictionary<uint, string> output,
+        List<PptxNativeBinding>? previewBindings, string pageId, string? partPath)
     {
         for (var index = 0; index < elements.Count; index++)
         {
             var elementId = $"{ownerId}/element/{index + 1}";
             var nativeId = elements[index].Descendants<P.NonVisualDrawingProperties>().FirstOrDefault()?.Id?.Value ??
                            elements[index].Descendants<P14.NonVisualDrawingProperties>().FirstOrDefault()?.Id?.Value;
-            if (nativeId is not null) output[nativeId.Value] = elementId;
+            if (nativeId is not null)
+            {
+                output[nativeId.Value] = elementId;
+                // Unlike the timing lookup, retain duplicates in provenance so
+                // a later join can reject ambiguous native identities.
+                previewBindings?.Add(new(pageId, elementId, elements[index].LocalName, partPath!, nativeId.Value));
+            }
             if (elements[index] is P.GroupShape group)
-                CollectNativeElementIds(GroupElements(group), elementId, output);
+                CollectNativeElementIds(GroupElements(group), elementId, output, previewBindings, pageId, partPath);
         }
     }
 

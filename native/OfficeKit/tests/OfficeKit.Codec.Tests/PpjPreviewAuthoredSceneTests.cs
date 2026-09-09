@@ -1,6 +1,8 @@
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
+using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using Google.Protobuf;
 using OfficeKit.Artifact.Wire.V1;
 using Xunit;
@@ -139,6 +141,140 @@ public sealed class PpjPreviewAuthoredSceneTests
         Assert.Equal(new uint[] { 1 }, line.Chart.Series[0].MissingValueIndexes);
         Assert.Contains(scene.Bindings, binding => binding.SemanticId == "heat" &&
             binding.Attribution == PresentationPreviewAttribution.Generated && binding.ScenePath.Contains(".group.children["));
+        Assert.All(scene.Bindings.Where(binding => binding.SemanticId == "heat"), binding =>
+        {
+            Assert.Equal("$.pages[0].elements[1]", binding.ProgramPath);
+            Assert.Equal("heat", binding.SourceId);
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void NestedRepeatAndReplacedSlotsKeepOriginalOwnersWithoutChangingExpansion(bool ppjOnly)
+    {
+        var request = NestedOriginRequest();
+        var original = request.PresentationProgram.ProgramJson;
+        var json = JsonNode.Parse(original.ToStringUtf8())!;
+        using var ordinaryValidation = PpjProgramValidator.Validate(original.Memory);
+        using var previewValidation = PpjProgramValidator.Validate(original.Memory, includePreviewOrigins: true);
+        Assert.True(ordinaryValidation.IsValid, string.Join("\n", ordinaryValidation.Diagnostics));
+        Assert.True(previewValidation.IsValid, string.Join("\n", previewValidation.Diagnostics));
+        Assert.Null(ordinaryValidation.Expansion!.PreviewOrigins);
+        Assert.Equal(ordinaryValidation.CanonicalJson, previewValidation.CanonicalJson);
+        Assert.Equal(ordinaryValidation.Expansion.NodeMapJson, previewValidation.Expansion!.NodeMapJson);
+        Assert.Equal(ordinaryValidation.Expansion.NodeMapSha256, previewValidation.Expansion.NodeMapSha256);
+        Assert.Equal(previewValidation.Expansion.Nodes.Count, previewValidation.Expansion.PreviewOrigins!.Count);
+        request.PresentationProgram.IncludeNodeMap = true;
+        var ordinary = Invoke(request, ppjOnly);
+        request.PresentationProgram.IncludePreviewScene = true;
+        var compiled = Invoke(request, ppjOnly);
+        Assert.Equal(ordinary.File, compiled.File);
+        Assert.Equal(ordinary.PresentationProgram.NodeMapJson, compiled.PresentationProgram.NodeMapJson);
+        Assert.Equal(original, request.PresentationProgram.ProgramJson);
+        var scene = compiled.PresentationProgram.PreviewScene;
+        Assert.All(scene.Bindings, binding =>
+        {
+            Assert.DoesNotContain("#component", binding.ProgramPath);
+            Assert.Equal(binding.SourceId, ResolveOrigin(json, binding.ProgramPath)["id"]!.GetValue<string>());
+            Assert.Equal(PresentationPreviewAttribution.Generated, binding.Attribution);
+            Assert.Equal("opening", binding.PageId);
+            Assert.Equal(binding.NativeId, ResolveSceneNode(scene, binding.ScenePath).Id);
+        });
+        Assert.Equal(scene.Bindings.Count, scene.Bindings.Select(binding => binding.ScenePath).Distinct().Count());
+        var after = scene.Bindings.Where(binding => binding.SourceId == "after").ToArray();
+        Assert.Equal(2, after.Length);
+        // The two supplied nodes replace one nested slot. The following node
+        // moves to scene index 3, but its original definition index stays 2.
+        Assert.All(after, binding =>
+        {
+            Assert.Equal("$.components[1].elements[0].elements[2]", binding.ProgramPath);
+            Assert.EndsWith(".group.children[3]", binding.ScenePath);
+            Assert.Equal(3u, binding.ZOrder);
+        });
+        foreach (var (sourceId, slotIndex) in new[] { ("slot-a", 0), ("slot-b", 1) })
+        {
+            var supplied = scene.Bindings.Where(binding => binding.SourceId == sourceId).ToArray();
+            Assert.Equal(2, supplied.Length);
+            Assert.All(supplied, binding => Assert.Equal($"$.pages[0].elements[0].slots[\"body\"][{slotIndex}]", binding.ProgramPath));
+        }
+        var nestedLeaves = scene.Bindings.Where(binding => binding.SourceId == "leaf").ToArray();
+        Assert.Equal(4, nestedLeaves.Length);
+        Assert.All(nestedLeaves, binding => Assert.Equal("$.components[0].elements[0]", binding.ProgramPath));
+        Assert.Equal(4, nestedLeaves.Select(binding => binding.InstanceId).Distinct().Count());
+        Assert.Equal(new[] { "inner-one", "inner-two" }, nestedLeaves.Select(binding => binding.RepeatKey).Distinct().Order().ToArray());
+        var nestedSupplied = scene.Bindings.Where(binding => binding.SourceId == "inner-supplied").ToArray();
+        Assert.Equal(4, nestedSupplied.Length);
+        Assert.All(nestedSupplied, binding => Assert.Equal(
+            "$.components[1].elements[0].elements[3].slots[\"extra\"][0]", binding.ProgramPath));
+        Assert.Equal(new[] { "outer-one", "outer-two" }, after.Select(binding => binding.RepeatKey).Order().ToArray());
+    }
+
+    [Fact]
+    public void ValidatedComponentPreviewRequiresOriginalPassProvenance()
+    {
+        var request = NestedOriginRequest().PresentationProgram;
+        using var validation = PpjProgramValidator.Validate(request.ProgramJson.Memory);
+        Assert.True(validation.IsValid, string.Join("\n", validation.Diagnostics));
+        request.IncludePreviewScene = true;
+        var failure = Assert.Throws<CodecException>(() => PpjPresentationCompiler.CompileValidated(
+            request, Array.Empty<byte>(), EffectiveCodecLimits.From(null), validation));
+        Assert.Equal("ppj.preview.originsRequired", failure.Code);
+    }
+
+    private static CodecRequest NestedOriginRequest()
+    {
+        var request = Request(Fixture("examples/ppj/minimum.ppj"));
+        var json = JsonNode.Parse(request.PresentationProgram.ProgramJson.ToStringUtf8())!;
+        json["components"] = JsonNode.Parse("""
+            [{"id":"inner","frame":{"x":0,"y":0,"width":120,"height":50},
+              "slots":[{"name":"extra","accepts":["text"],"minItems":1,"maxItems":1}],
+              "elements":[
+                {"id":"leaf","type":"text","frame":{"x":0,"y":0,"width":60,"height":20},"text":"inner leaf"},
+                {"id":"extra-slot","type":"slot","frame":{"x":60,"y":0,"width":60,"height":20},"slot":"extra"}]},
+             {"id":"outer","frame":{"x":0,"y":0,"width":400,"height":240},
+              "slots":[{"name":"body","accepts":["text"],"minItems":2,"maxItems":2}],
+              "elements":[{"id":"container","type":"group","frame":{"x":0,"y":0,"width":400,"height":240},
+                "childFrame":{"x":0,"y":0,"width":400,"height":240},"elements":[
+                  {"id":"before","type":"text","frame":{"x":0,"y":0,"width":100,"height":20},"text":"before"},
+                  {"id":"body-slot","type":"slot","frame":{"x":0,"y":30,"width":100,"height":40},"slot":"body"},
+                  {"id":"after","type":"text","frame":{"x":0,"y":90,"width":100,"height":20},"text":"after"},
+                  {"id":"nested","type":"component","component":"inner","frame":{"x":20,"y":130,"width":240,"height":100},
+                   "repeat":{"items":[{"key":"inner-one","arguments":{}},{"key":"inner-two","arguments":{}}],"layout":{"direction":"vertical","gap":0}},
+                   "slots":{"extra":[{"id":"inner-supplied","type":"text","frame":{"x":60,"y":0,"width":60,"height":20},"text":"supplied inside definition"}]}}
+                ]}]}]
+            """);
+        json["pages"]![0]!["elements"] = JsonNode.Parse("""
+            [{"id":"outer-instance","type":"component","component":"outer","frame":{"x":40,"y":30,"width":800,"height":240},
+              "repeat":{"items":[{"key":"outer-one","arguments":{}},{"key":"outer-two","arguments":{}}],"layout":{"direction":"horizontal","gap":0}},
+              "slots":{"body":[
+                {"id":"slot-a","type":"text","frame":{"x":0,"y":30,"width":100,"height":20},"text":"first supplied"},
+                {"id":"slot-b","type":"text","frame":{"x":0,"y":60,"width":100,"height":20},"text":"second supplied"}]}}]
+            """);
+        request.PresentationProgram.ProgramJson = ByteString.CopyFromUtf8(json.ToJsonString());
+        return request;
+    }
+
+    private static JsonNode ResolveOrigin(JsonNode root, string path)
+    {
+        var tokens = Regex.Matches(path[1..], "\\.([a-zA-Z][a-zA-Z0-9]*)|\\[(\\d+|\"(?:[^\"\\\\]|\\\\.)*\")\\]");
+        Assert.Equal(path[1..], string.Concat(tokens.Select(token => token.Value)));
+        foreach (Match token in tokens)
+        {
+            if (token.Groups[1].Success) root = root[token.Groups[1].Value]!;
+            else if (token.Groups[2].Value.StartsWith('"')) root = root[JsonSerializer.Deserialize<string>(token.Groups[2].Value)!]!;
+            else root = root[int.Parse(token.Groups[2].Value)]!;
+            Assert.NotNull(root);
+        }
+        return root;
+    }
+
+    private static PresentationElement ResolveSceneNode(PresentationPreviewScene scene, string path)
+    {
+        var indexes = Regex.Matches(path, "\\[(\\d+)\\]").Select(match => int.Parse(match.Groups[1].Value)).ToArray();
+        var element = scene.Presentation.Slides[indexes[0]].Elements[indexes[1]];
+        foreach (var index in indexes.Skip(2)) element = element.Group.Children[index];
+        return element;
     }
 
     [Theory]

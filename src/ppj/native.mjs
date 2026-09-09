@@ -24,9 +24,12 @@ function programBytes(value) {
   return result;
 }
 
-function result(response) {
+async function result(response, { includePreviewScene = false, limits } = {}) {
   const program = response.presentationProgram;
   if (!program) throw new Error("OfficeKit native codec returned no PPJ receipt.");
+  const previewScene = includePreviewScene
+    ? (await import("./preview-scene.mjs")).readPpjPreviewScene(program, response.file, { limits })
+    : undefined;
   return Object.freeze({
     file: response.file,
     programJson: program.programJson,
@@ -47,6 +50,7 @@ function result(response) {
     restoredEmbeddedProgram: Boolean(program.restoredEmbeddedProgram),
     sourceBound: Boolean(program.sourceBound),
     expandedElementCount: Number(program.expandedElementCount),
+    ...(includePreviewScene ? { previewScene } : {}),
     diagnostics: Object.freeze(response.diagnostics.map((diagnostic) => Object.freeze({
       severity: diagnostic.severity,
       code: diagnostic.code,
@@ -87,8 +91,10 @@ export async function compilePpjToPptx(program, {
   assets = [],
   includeNodeMap = true,
   validationOnly = false,
+  includePreviewScene = false,
   limits = {},
 } = {}) {
+  if (includePreviewScene && validationOnly) throw new TypeError("A preview scene requires compilation, not validationOnly.");
   const file = bytes(source, "PPTX source");
   const suppliedAssets = assets.map((asset, index) => {
     if (!asset || typeof asset !== "object") throw new TypeError(`PPJ asset ${index + 1} must be an object.`);
@@ -111,9 +117,10 @@ export async function compilePpjToPptx(program, {
       assets: suppliedAssets,
       includeNodeMap: Boolean(includeNodeMap),
       validationOnly: Boolean(validationOnly),
+      includePreviewScene: Boolean(includePreviewScene),
     },
   }), {
     fileSidecar: true,
-    consumeResponse: result,
+    consumeResponse: (response) => result(response, { includePreviewScene, limits }),
   });
 }

@@ -26,14 +26,18 @@ internal sealed record PpjExpansionResult(
     IReadOnlyList<PpjExpandedNodeModel> Nodes,
     byte[] NodeMapJson,
     string NodeMapSha256,
-    int ExpandedElementCount);
+    int ExpandedElementCount)
+{
+    internal IReadOnlyDictionary<(string PageId, string Id), string>? PreviewOrigins { get; init; }
+}
 
 internal static class PpjComponentExpander
 {
     internal static PpjExpansionResult? Expand(
         PpjProgramModel program,
         string programSha256,
-        List<PpjDiagnostic> diagnostics)
+        List<PpjDiagnostic> diagnostics,
+        bool includePreviewOrigins = false)
     {
         // Semantic validation has already ruled out component instances when
         // no definitions exist, so these typed nodes need no JSON round-trip.
@@ -46,6 +50,7 @@ internal static class PpjComponentExpander
         var pages = new List<PpjExpandedPageModel>(program.Pages.Count);
         var nodes = new List<PpjExpandedNodeModel>();
         var outputIds = new HashSet<string>(StringComparer.Ordinal);
+        var origins = includePreviewOrigins ? new PpjPreviewOrigins(program) : null;
 
         for (var pageIndex = 0; pageIndex < program.Pages.Count; pageIndex++)
         {
@@ -67,7 +72,8 @@ internal static class PpjComponentExpander
                     expandedJson,
                     nodes,
                     outputIds,
-                    diagnostics);
+                    diagnostics,
+                    origins);
                 if (diagnostics.Count > 0 && nodes.Count > PpjProgramValidator.MaxExpandedElements)
                     return null;
             }
@@ -93,7 +99,7 @@ internal static class PpjComponentExpander
 
         var nodeMapJson = WriteNodeMap(programSha256, nodes);
         var nodeMapSha256 = Convert.ToHexString(SHA256.HashData(nodeMapJson)).ToLowerInvariant();
-        return new(pages, nodes, nodeMapJson, nodeMapSha256, nodes.Count);
+        return new(pages, nodes, nodeMapJson, nodeMapSha256, nodes.Count) { PreviewOrigins = origins?.Expanded };
     }
 
     private static PpjExpansionResult ReuseComponentFreeProgram(
@@ -166,7 +172,8 @@ internal static class PpjComponentExpander
         List<JsonElement> output,
         List<PpjExpandedNodeModel> nodes,
         HashSet<string> outputIds,
-        List<PpjDiagnostic> diagnostics)
+        List<PpjDiagnostic> diagnostics,
+        PpjPreviewOrigins? origins)
     {
         if (nodes.Count >= PpjProgramValidator.MaxExpandedElements)
         {
@@ -198,7 +205,8 @@ internal static class PpjComponentExpander
                 output,
                 nodes,
                 outputIds,
-                diagnostics);
+                diagnostics,
+                origins);
             return;
         }
         if (element is PpjSlotElementModel)
@@ -234,7 +242,8 @@ internal static class PpjComponentExpander
                     childOutput,
                     nodes,
                     outputIds,
-                    diagnostics);
+                    diagnostics,
+                    origins);
                 foreach (var child in childOutput)
                     children.Add(JsonNode.Parse(child.GetRawText()));
             }
@@ -251,6 +260,7 @@ internal static class PpjComponentExpander
         var serialized = ToElement(json);
         output.Add(serialized);
         nodes.Add(new(pageId, outputId, sourceId, element.Type, componentId, identityPrefix, repeatKey, path, zOrder));
+        origins?.Record(pageId, outputId, element);
     }
 
     private static void ExpandComponent(
@@ -264,7 +274,8 @@ internal static class PpjComponentExpander
         List<JsonElement> output,
         List<PpjExpandedNodeModel> nodes,
         HashSet<string> outputIds,
-        List<PpjDiagnostic> diagnostics)
+        List<PpjDiagnostic> diagnostics,
+        PpjPreviewOrigins? origins)
     {
         if (!components.TryGetValue(instance.ComponentId, out var definition)) return;
         var instanceId = parentIdentity is null ? instance.Id : DerivedId(parentIdentity, instance.Id);
@@ -301,52 +312,54 @@ internal static class PpjComponentExpander
                             output,
                             nodes,
                             outputIds,
-                            diagnostics);
+                            diagnostics,
+                            origins);
                     }
                     continue;
                 }
 
-                var bound = BindElement(templateElement.Raw, definition, arguments, instance.VariantId, instance.Slots, elementPath, diagnostics);
-                if (bound is null) continue;
-                PpjElementModel typed;
+                var typed = BindElement(templateElement, definition, arguments, instance.VariantId, instance.Slots,
+                    elementPath, diagnostics, origins);
+                if (typed is null) continue;
                 try
                 {
-                    typed = PpjProgramParser.ParseElement(bound.Value);
+                    ExpandElement(
+                        typed,
+                        elementPath,
+                        pageId,
+                        components,
+                        itemTransform,
+                        identity,
+                        definition.Id,
+                        key,
+                        depth + 1,
+                        output,
+                        nodes,
+                        outputIds,
+                        diagnostics,
+                        origins);
                 }
-                catch (Exception exception) when (exception is InvalidOperationException or KeyNotFoundException or FormatException)
+                finally
                 {
-                    diagnostics.Add(new("ppj.component.bindingOutput", "A component binding produced an invalid typed element.", elementPath));
-                    continue;
+                    origins?.ReleaseParsed(typed);
                 }
-                ExpandElement(
-                    typed,
-                    elementPath,
-                    pageId,
-                    components,
-                    itemTransform,
-                    identity,
-                    definition.Id,
-                    key,
-                    depth + 1,
-                    output,
-                    nodes,
-                    outputIds,
-                    diagnostics);
             }
         }
     }
 
-    private static JsonElement? BindElement(
-        JsonElement raw,
+    private static PpjElementModel? BindElement(
+        PpjElementModel template,
         PpjComponentModel definition,
         IReadOnlyDictionary<string, JsonElement> arguments,
         string? requestedVariant,
         IReadOnlyDictionary<string, IReadOnlyList<PpjElementModel>> slots,
         string path,
-        List<PpjDiagnostic> diagnostics)
+        List<PpjDiagnostic> diagnostics,
+        PpjPreviewOrigins? origins)
     {
-        var element = CloneObject(raw);
-        ReplaceNestedSlots(element, slots);
+        var element = CloneObject(template.Raw);
+        var paths = origins?.TrackClone(template, element);
+        ReplaceNestedSlots(element, slots, origins, paths);
         foreach (var binding in definition.Bindings)
         {
             var target = FindById(element, binding.TargetId);
@@ -368,7 +381,18 @@ internal static class PpjComponentExpander
             }
         }
 
-        return ToElement(element);
+        PpjElementModel typed;
+        try
+        {
+            typed = PpjProgramParser.ParseElement(ToElement(element));
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or KeyNotFoundException or FormatException)
+        {
+            diagnostics.Add(new("ppj.component.bindingOutput", "A component binding produced an invalid typed element.", path));
+            return null;
+        }
+        origins?.RecordParsed(typed, element, paths!);
+        return typed;
     }
 
     private static IReadOnlyDictionary<string, JsonElement> MergeArguments(
@@ -501,12 +525,14 @@ internal static class PpjComponentExpander
 
     private static void ReplaceNestedSlots(
         JsonNode? node,
-        IReadOnlyDictionary<string, IReadOnlyList<PpjElementModel>> slots)
+        IReadOnlyDictionary<string, IReadOnlyList<PpjElementModel>> slots,
+        PpjPreviewOrigins? origins,
+        Dictionary<JsonNode, string>? paths)
     {
         if (node is JsonObject value)
         {
             foreach (var property in value.ToArray())
-                ReplaceNestedSlots(property.Value, slots);
+                ReplaceNestedSlots(property.Value, slots, origins, paths);
         }
         else if (node is JsonArray array)
         {
@@ -519,12 +545,16 @@ internal static class PpjComponentExpander
                     if (slotId is not null && slots.TryGetValue(slotId, out var supplied))
                     {
                         for (var suppliedIndex = supplied.Count - 1; suppliedIndex >= 0; suppliedIndex--)
-                            array.Insert(index, JsonNode.Parse(supplied[suppliedIndex].Raw.GetRawText()));
+                        {
+                            var clone = JsonNode.Parse(supplied[suppliedIndex].Raw.GetRawText())!;
+                            origins?.TrackClone(supplied[suppliedIndex], clone, paths!);
+                            array.Insert(index, clone);
+                        }
                     }
                 }
                 else
                 {
-                    ReplaceNestedSlots(array[index], slots);
+                    ReplaceNestedSlots(array[index], slots, origins, paths);
                 }
             }
         }

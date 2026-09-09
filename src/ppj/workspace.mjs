@@ -251,11 +251,12 @@ export async function validatePpjWorkspace(workspace, { includeNodeMap = true } 
   });
 }
 
-export async function compilePpjWorkspace(workspace, { includeNodeMap = true } = {}) {
+export async function compilePpjWorkspace(workspace, { includeNodeMap = true, includePreviewScene = false } = {}) {
   return compilePpjToPptx(workspace.program, {
     source: workspace.source,
     assets: workspace.assets,
     includeNodeMap,
+    includePreviewScene,
   });
 }
 

@@ -45,6 +45,16 @@ public sealed partial class PptxCodecTests
         Assert.Equal(original, source);
         Assert.Equal(PreviewSha(source), preview.Program.SourceSha256);
         AssertCandidateScene(preview.Program, preview.File);
+        foreach (var (element, index) in elements.Select((element, index) => (element, index)))
+        {
+            var binding = Assert.Single(preview.Program.PreviewScene.Bindings,
+                binding => binding.SemanticId == element!["id"]!.GetValue<string>());
+            Assert.Equal(PresentationPreviewAttribution.Direct, binding.Attribution);
+            Assert.Equal(json["pages"]![0]!["id"]!.GetValue<string>(), binding.PageId);
+            Assert.Equal($"$.pages[0].elements[{index}]", binding.ProgramPath);
+            Assert.Equal($"$.presentation.slides[0].elements[{index}]", binding.ScenePath);
+            Assert.Equal((uint)index, binding.ZOrder);
+        }
         if (mode == "noop")
         {
             Assert.Equal(source, preview.File);
@@ -72,6 +82,148 @@ public sealed partial class PptxCodecTests
         if (mode == "text") Assert.Contains(scene.Slides[0].Elements, element => element.Shape?.Text == "Candidate text changed");
         if (mode == "frame") Assert.Equal(93 * 12700L, scene.Slides[0].Elements[0].Shape.LeftEmu);
         if (mode == "semantic") Assert.Contains(scene.Slides[0].Elements, element => element.Shape?.FillRgb == "AB1234");
+    }
+
+    [Fact]
+    public void PpjPreviewCandidateKeepsSemanticOwnersWhenPageAndElementOrdinalsChange()
+    {
+        var source = PreviewSource(secondPage: true);
+        using var projected = PpjPresentationProjector.Project(source,
+            new PresentationProgramRequest { SourceUri = "deck.assets/source/reorder.pptx" }, EffectiveCodecLimits.From(null));
+        var json = JsonNode.Parse(projected.Program.ProgramJson.ToStringUtf8())!;
+        var pages = json["pages"]!.AsArray();
+        var second = pages[1]!.DeepClone();
+        var first = pages[0]!.DeepClone();
+        pages.Clear(); pages.Add(second); pages.Add(first);
+        var elements = second["elements"]!.AsArray();
+        var originalFirst = elements[0]!.DeepClone();
+        var originalSecond = elements[1]!.DeepClone();
+        elements[0] = originalSecond; elements[1] = originalFirst;
+        second["readingOrder"] = new JsonArray(elements.Select(element => JsonValue.Create(element!["id"]!.GetValue<string>())).ToArray());
+        var request = new PresentationProgramRequest { ProgramJson = ByteString.CopyFromUtf8(json.ToJsonString()), IncludePreviewScene = true };
+        var compiled = PpjPresentationCompiler.Compile(request, source, EffectiveCodecLimits.From(null));
+        var scene = compiled.Program.PreviewScene;
+        var binding = Assert.Single(scene.Bindings, binding => binding.ScenePath == "$.presentation.slides[0].elements[0]");
+        Assert.Equal(second["id"]!.GetValue<string>(), binding.PageId);
+        Assert.Equal(originalSecond["id"]!.GetValue<string>(), binding.SemanticId);
+        Assert.Equal("$.pages[0].elements[0]", binding.ProgramPath);
+        Assert.Equal("336699", scene.Presentation.Slides[0].Elements[0].Shape.FillRgb);
+        var movedText = Assert.Single(scene.Bindings, binding => binding.ScenePath == "$.presentation.slides[0].elements[1]");
+        Assert.Equal(originalFirst["id"]!.GetValue<string>(), movedText.SemanticId);
+        Assert.Equal("$.pages[0].elements[1]", movedText.ProgramPath);
+        Assert.Equal("Second page claim", scene.Presentation.Slides[0].Elements[1].Shape.Text);
+        AssertCandidateScene(compiled.Program, compiled.File);
+        // The same native cNvPr IDs occur on both pages. Part identity must
+        // distinguish them rather than creating an accidental cross-page join.
+        var otherText = Assert.Single(scene.Bindings, binding => binding.ScenePath == "$.presentation.slides[1].elements[0]");
+        Assert.Equal(first["elements"]![0]!["id"]!.GetValue<string>(), otherText.SemanticId);
+        Assert.NotEqual(movedText.PageId, otherText.PageId);
+    }
+
+    [Fact]
+    public void PpjPreviewNativeIdentityCollectionIsOptInAndAmbiguityDoesNotGrantOwnership()
+    {
+        var source = PreviewSource();
+        var limits = EffectiveCodecLimits.From(null);
+        var plain = PptxCodec.Import(source, limits);
+        var captured = PptxCodec.Import(source, limits, includeNativeBindings: true);
+        Assert.Empty(plain.NativeBindings);
+        Assert.Equal(plain.Artifact, captured.Artifact);
+        Assert.Equal(4, captured.NativeBindings.Count);
+        using var projected = PpjPresentationProjector.Project(source,
+            new PresentationProgramRequest { SourceUri = "deck.assets/source/identity.pptx" }, limits,
+            includeNativeBindings: true);
+        Assert.Equal(4, projected.NativeBindings.Count);
+        var identity = captured.NativeBindings[0];
+        var ownership = new PpjPreviewCandidateBindings(projected.NativeBindings, projected.Validation!.Expansion!);
+        Assert.NotNull(ownership.Owner(identity));
+        var duplicate = projected.NativeBindings.Concat([projected.NativeBindings[0] with { ElementId = projected.NativeBindings[1].ElementId }]).ToArray();
+        Assert.Null(new PpjPreviewCandidateBindings(duplicate, projected.Validation.Expansion!).Owner(identity));
+        Assert.Null(ownership.Owner(identity with { NativeId = 0 }));
+        Assert.Null(ownership.Owner(identity with { PartPath = "ppt/slides/not-the-source.xml" }));
+    }
+
+    [Fact]
+    public void PpjPreviewNestedGroupBindsRequestedPathsSeparatelyFromNativeReadingOrder()
+    {
+        var source = PreviewSource(nestedGroup: true);
+        var original = source.ToArray();
+        using var projected = PpjPresentationProjector.Project(source,
+            new PresentationProgramRequest { SourceUri = "deck.assets/source/group.pptx" }, EffectiveCodecLimits.From(null));
+        var json = JsonNode.Parse(projected.Program.ProgramJson.ToStringUtf8())!;
+        var group = json["pages"]![0]!["elements"]![3]!;
+        Assert.Equal("group", group["type"]!.GetValue<string>());
+        var children = group["elements"]!.AsArray();
+        var first = children[0]!["id"]!.GetValue<string>();
+        var second = children[1]!["id"]!.GetValue<string>();
+        group["readingOrder"] = new JsonArray(second, first);
+        var compiled = PpjPresentationCompiler.Compile(new PresentationProgramRequest
+        {
+            ProgramJson = ByteString.CopyFromUtf8(json.ToJsonString()), IncludePreviewScene = true,
+        }, source, EffectiveCodecLimits.From(null));
+        var scene = compiled.Program.PreviewScene;
+        var groupBinding = Assert.Single(scene.Bindings, binding => binding.SemanticId == group["id"]!.GetValue<string>());
+        Assert.Equal("$.pages[0].elements[3]", groupBinding.ProgramPath);
+        var firstPainted = Assert.Single(scene.Bindings, binding => binding.SemanticId == second);
+        Assert.Equal("$.pages[0].elements[3].elements[1]", firstPainted.ProgramPath);
+        Assert.Equal("$.presentation.slides[0].elements[3].group.children[0]", firstPainted.ScenePath);
+        Assert.Equal(0u, firstPainted.ZOrder);
+        Assert.Equal(PresentationPreviewAttribution.Direct, firstPainted.Attribution);
+        var secondPainted = Assert.Single(scene.Bindings, binding => binding.SemanticId == first);
+        Assert.Equal("$.pages[0].elements[3].elements[0]", secondPainted.ProgramPath);
+        Assert.Equal("$.presentation.slides[0].elements[3].group.children[1]", secondPainted.ScenePath);
+        Assert.Equal(1u, secondPainted.ZOrder);
+        Assert.Equal("Nested second", scene.Presentation.Slides[0].Elements[3].Group.Children[0].Shape.Text);
+        Assert.Equal(original, source);
+        AssertCandidateScene(compiled.Program, compiled.File);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void PpjPreviewDeletionAndNewOverlaysRespectIdentityBoundaries(bool delete)
+    {
+        var source = PreviewSource();
+        var original = source.ToArray();
+        using var projected = PpjPresentationProjector.Project(source,
+            new PresentationProgramRequest { SourceUri = "deck.assets/source/overlay.pptx" }, EffectiveCodecLimits.From(null));
+        var json = JsonNode.Parse(projected.Program.ProgramJson.ToStringUtf8())!;
+        var page = json["pages"]![0]!;
+        var elements = page["elements"]!.AsArray();
+        var removed = elements[1]!["id"]!.GetValue<string>();
+        // Deletion and appending overlays are separate compiler profiles.
+        // An overlay requires the complete original source prefix.
+        if (delete) elements.RemoveAt(1);
+        else elements.Add(JsonNode.Parse("""
+            {"id":"new-overlay","type":"text","frame":{"x":40,"y":400,"width":300,"height":40},"text":"New candidate overlay"}
+            """));
+        page["readingOrder"] = new JsonArray(elements.Select(element => JsonValue.Create(element!["id"]!.GetValue<string>())).ToArray());
+        var compiled = PpjPresentationCompiler.Compile(new PresentationProgramRequest
+        {
+            ProgramJson = ByteString.CopyFromUtf8(json.ToJsonString()), IncludePreviewScene = true,
+        }, source, EffectiveCodecLimits.From(null));
+        var scene = compiled.Program.PreviewScene;
+        if (delete)
+        {
+            Assert.DoesNotContain(scene.Bindings, binding => binding.SemanticId == removed);
+            Assert.Equal(3, scene.Presentation.Slides[0].Elements.Count);
+            Assert.All(scene.Bindings, binding => Assert.Equal(PresentationPreviewAttribution.Direct, binding.Attribution));
+            var movedImage = Assert.Single(scene.Bindings, binding => binding.SemanticId == elements[1]!["id"]!.GetValue<string>());
+            Assert.Equal("$.pages[0].elements[1]", movedImage.ProgramPath);
+            Assert.Equal("$.presentation.slides[0].elements[1]", movedImage.ScenePath);
+        }
+        else
+        {
+            var overlay = Assert.Single(scene.Presentation.Slides[0].Elements, element => element.Shape?.Text == "New candidate overlay");
+            var binding = Assert.Single(scene.Bindings, binding => binding.NativeId == overlay.Id);
+            Assert.Equal(PresentationPreviewAttribution.Unmapped, binding.Attribution);
+            Assert.Equal(string.Empty, binding.SemanticId);
+            Assert.Equal("$.pages[0]", binding.ProgramPath);
+            Assert.Equal(page["id"]!.GetValue<string>(), binding.PageId);
+            Assert.Equal("$.presentation.slides[0].elements[4]", binding.ScenePath);
+        }
+        Assert.Equal(original, source);
+        AssertCandidateScene(compiled.Program, compiled.File);
     }
 
     [Fact]
@@ -155,7 +307,7 @@ public sealed partial class PptxCodecTests
         }
     }
 
-    private static byte[] PreviewSource(bool keepEmbedded = false)
+    private static byte[] PreviewSource(bool keepEmbedded = false, bool secondPage = false, bool nestedGroup = false)
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
         while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json"))) root = root.Parent;
@@ -172,6 +324,21 @@ public sealed partial class PptxCodecTests
         elements.Add(JsonNode.Parse("""
             {"id":"mark","type":"image","asset":"evidence-mark","frame":{"x":260,"y":180,"width":100,"height":100}}
             """));
+        if (nestedGroup) elements.Add(JsonNode.Parse("""
+            {"id":"nested-group","type":"group","frame":{"x":400,"y":180,"width":300,"height":200},
+             "childFrame":{"x":0,"y":0,"width":300,"height":200},
+             "elements":[
+               {"id":"nested-first","type":"text","frame":{"x":0,"y":0,"width":200,"height":40},"text":"Nested first"},
+               {"id":"nested-second","type":"text","frame":{"x":0,"y":80,"width":200,"height":40},"text":"Nested second"}]}
+            """));
+        if (secondPage)
+        {
+            var page = json["pages"]![0]!.DeepClone();
+            page["id"] = "second";
+            foreach (var element in page["elements"]!.AsArray()) element!["id"] = element["id"]!.GetValue<string>() + "-second";
+            page["elements"]![0]!["text"] = "Second page claim";
+            json["pages"]!.AsArray().Add(page);
+        }
         var request = new PresentationProgramRequest { ProgramJson = ByteString.CopyFromUtf8(json.ToJsonString()) };
         foreach (var asset in assets.AsArray())
         {

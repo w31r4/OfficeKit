@@ -5,17 +5,17 @@ namespace OfficeKit.Codec;
 internal static class PpjPreviewCandidateScene
 {
     internal static IReadOnlyList<Diagnostic> Attach(PptxPackageSource candidate,
-        PresentationProgramResult receipt, EffectiveCodecLimits limits)
+        PresentationProgramResult receipt, EffectiveCodecLimits limits, PpjPreviewCandidateBindings? provenance = null)
     {
         using var stage = PpjBuildProfiler.Measure("preview.candidate-import");
         // Import native candidate bytes directly. The projector can restore an
         // embedded authored program and therefore is not a visual-state oracle.
         var imported = PptxCodec.Import(candidate, limits, retainImportedAssetData: true,
-            verifiedPackageSha256: receipt.OutputSha256);
+            verifiedPackageSha256: receipt.OutputSha256, includeNativeBindings: provenance is not null);
         var presentation = imported.Artifact.Presentation ??
             throw new CodecException("invalid_preview_scene", "Candidate has no native presentation scene.");
         var scene = PpjPreviewSceneBuilder.Build(presentation, PresentationPreviewSceneOrigin.CandidateImport,
-            receipt.ProgramSha256, receipt.OutputSha256, UnmappedBindings(presentation), imported.Artifact.Assets, limits);
+            receipt.ProgramSha256, receipt.OutputSha256, Bindings(presentation, imported.NativeBindings, provenance), imported.Artifact.Assets, limits);
 
         // Public projected asset IDs may differ from native import IDs. Resolve
         // payloads by MIME/hash; do not duplicate bytes just to create ID aliases.
@@ -42,31 +42,39 @@ internal static class PpjPreviewCandidateScene
     private static (string MimeType, string Sha256) AssetKey(Asset asset) =>
         (asset.ContentType.ToLowerInvariant(), asset.Sha256.ToLowerInvariant());
 
-    // Until an authoritative part/native-ID join is available, keep native
-    // identity and exact scene paths. Ordinal import IDs must not be mistaken
-    // for editable PPJ IDs after a reorder. Full semantic binding is task 2.3.
-    private static IEnumerable<PresentationPreviewNodeBinding> UnmappedBindings(PresentationArtifact presentation)
+    private static IEnumerable<PresentationPreviewNodeBinding> Bindings(PresentationArtifact presentation,
+        IReadOnlyList<PptxNativeBinding> identities, PpjPreviewCandidateBindings? provenance)
     {
+        var unambiguous = identities.GroupBy(identity => (identity.PartPath, identity.NativeId))
+            .Where(group => group.Key.NativeId != 0 && group.Count() == 1).Select(group => group.Single())
+            .GroupBy(identity => identity.ElementId, StringComparer.Ordinal).Where(group => group.Count() == 1)
+            .ToDictionary(group => group.Key, group => group.Single(), StringComparer.Ordinal);
         foreach (var (slide, index) in presentation.Slides.Select((slide, index) => (slide, index)))
-            foreach (var binding in Walk(slide.Elements, slide.Id, $"$.presentation.slides[{index}].elements"))
+            foreach (var binding in Walk(slide.Elements, slide.Id, $"$.presentation.slides[{index}].elements",
+                unambiguous, provenance, provenance?.Page(slide.Source?.PartPath ?? string.Empty)))
                 yield return binding;
     }
 
     private static IEnumerable<PresentationPreviewNodeBinding> Walk(IEnumerable<PresentationElement> elements,
-        string pageId, string path)
+        string pageId, string path, IReadOnlyDictionary<string, PptxNativeBinding> identities,
+        PpjPreviewCandidateBindings? provenance, (string Id, string Path)? page)
     {
         foreach (var (element, index) in elements.Select((element, index) => (element, index)))
         {
             var scenePath = $"{path}[{index}]";
+            var owner = identities.TryGetValue(element.Id, out var identity) ? provenance?.Owner(identity) : null;
             yield return new PresentationPreviewNodeBinding
             {
-                PageId = pageId, NativeId = element.Id, ProgramPath = "$", ScenePath = scenePath,
-                Attribution = PresentationPreviewAttribution.Unmapped, ZOrder = checked((uint)index),
+                PageId = owner?.PageId ?? page?.Id ?? pageId, NativeId = element.Id,
+                SemanticId = owner?.Id ?? string.Empty, SourceId = owner?.SourceId ?? string.Empty,
+                ProgramPath = owner?.ProgramPath ?? page?.Path ?? "$", ScenePath = scenePath,
+                Attribution = owner is null ? PresentationPreviewAttribution.Unmapped : PresentationPreviewAttribution.Direct,
+                ZOrder = checked((uint)index),
             };
             if (element.Group is not null)
-                foreach (var binding in Walk(element.Group.Children, pageId, scenePath + ".group.children")) yield return binding;
+                foreach (var binding in Walk(element.Group.Children, pageId, scenePath + ".group.children", identities, provenance, page)) yield return binding;
             if (element.Diagram?.Drawing is not null)
-                foreach (var binding in Walk(element.Diagram.Drawing.Children, pageId, scenePath + ".diagram.drawing.children")) yield return binding;
+                foreach (var binding in Walk(element.Diagram.Drawing.Children, pageId, scenePath + ".diagram.drawing.children", identities, provenance, page)) yield return binding;
         }
     }
 }

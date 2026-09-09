@@ -9,14 +9,17 @@ internal sealed class PpjPreviewSourceFreeBuildPlan : IPptxSourceFreeBuildPlan
     private readonly IPptxSourceFreeBuildPlan inner;
     private readonly PpjPreviewSceneBuilder.Collector collector;
     private readonly Dictionary<(string Page, string Id), PpjExpandedNodeModel> nodes;
+    private readonly IReadOnlyDictionary<(string PageId, string Id), string>? origins;
     private readonly List<PresentationPreviewNodeBinding> bindings = [];
 
     internal PpjPreviewSourceFreeBuildPlan(IPptxSourceFreeBuildPlan inner,
-        IEnumerable<PpjExpandedNodeModel> expandedNodes, EffectiveCodecLimits limits)
+        IEnumerable<PpjExpandedNodeModel> expandedNodes, EffectiveCodecLimits limits,
+        IReadOnlyDictionary<(string PageId, string Id), string>? origins = null)
     {
         this.inner = inner;
         collector = new(inner.Presentation, limits);
         nodes = expandedNodes.ToDictionary(node => (node.PageId, node.Id));
+        this.origins = origins;
     }
 
     public PresentationArtifact Presentation => inner.Presentation;
@@ -41,6 +44,8 @@ internal sealed class PpjPreviewSourceFreeBuildPlan : IPptxSourceFreeBuildPlan
         {
             var direct = nodes.TryGetValue((pageId, element.Id), out var node);
             var owner = direct ? node : ancestor;
+            var ownerPath = owner is null ? null : origins?.GetValueOrDefault((pageId, owner.Id)) ??
+                (owner.ComponentId is null ? owner.ProgramPath : null);
             var path = $"{scenePath}[{index}]";
             bindings.Add(new PresentationPreviewNodeBinding
             {
@@ -48,10 +53,10 @@ internal sealed class PpjPreviewSourceFreeBuildPlan : IPptxSourceFreeBuildPlan
                 SemanticId = owner?.Id ?? string.Empty,
                 // Native IR identity; numeric OOXML cNvPr IDs remain writer-owned.
                 NativeId = element.Id,
-                ProgramPath = owner?.ProgramPath ?? pagePath,
+                ProgramPath = ownerPath ?? pagePath,
                 ScenePath = path,
-                Attribution = owner is null ? PresentationPreviewAttribution.Unmapped :
-                    direct ? PresentationPreviewAttribution.Direct : PresentationPreviewAttribution.Generated,
+                Attribution = ownerPath is null ? PresentationPreviewAttribution.Unmapped :
+                    direct && owner!.ComponentId is null ? PresentationPreviewAttribution.Direct : PresentationPreviewAttribution.Generated,
                 SourceId = owner?.SourceId ?? string.Empty,
                 ComponentId = owner?.ComponentId ?? string.Empty,
                 InstanceId = owner?.InstanceId ?? string.Empty,

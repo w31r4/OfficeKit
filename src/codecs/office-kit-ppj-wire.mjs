@@ -49,6 +49,7 @@ function writeProgramRequest(writer, program) {
   writeString(writer, 4, program.sourceUri);
   writeString(writer, 5, program.assetRootUri);
   writeBool(writer, 6, program.validationOnly);
+  writeBool(writer, 7, program.includePreviewScene);
 }
 
 function writeAsset(writer, asset) {
@@ -87,6 +88,9 @@ function readProgramResult(bytes) {
     else if (field === 10) program.expandedElementCount = readUint32(reader, wire);
     else if (field === 11) program.changedNodeIds.push(readString(reader, wire));
     else if (field === 12) program.originalProgramJson = readBytes(reader, wire);
+    // Keep the ordinary PPJ path descriptor-free. The opt-in consumer decodes
+    // this typed submessage with the generated schema; never handwrite native IR.
+    else if (field === 13) program.previewSceneBytes = readBytes(reader, wire);
     else return false;
     return true;
   });

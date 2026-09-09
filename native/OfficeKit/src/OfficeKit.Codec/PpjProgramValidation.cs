@@ -32,7 +32,7 @@ internal static class PpjProgramValidator
     internal const int MaxComponentDepth = 16;
     private const int MaxJsonDepth = 96;
 
-    internal static PpjValidationResult Validate(ReadOnlyMemory<byte> json)
+    internal static PpjValidationResult Validate(ReadOnlyMemory<byte> json, bool includePreviewOrigins = false)
     {
         var diagnostics = new List<PpjDiagnostic>();
         if (json.Length == 0)
@@ -98,7 +98,7 @@ internal static class PpjProgramValidator
 
         var canonical = PpjCanonicalJson.Write(root);
         var hash = Convert.ToHexString(SHA256.HashData(canonical)).ToLowerInvariant();
-        var expansion = PpjComponentExpander.Expand(program, hash, diagnostics);
+        var expansion = PpjComponentExpander.Expand(program, hash, diagnostics, includePreviewOrigins);
         if (diagnostics.Count != 0 || expansion is null)
             return Invalid(diagnostics, document);
         return new PpjValidationResult(program, diagnostics, canonical, hash, expansion) { Document = document };

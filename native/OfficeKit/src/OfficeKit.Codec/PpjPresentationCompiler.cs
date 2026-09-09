@@ -23,7 +23,7 @@ internal static class PpjPresentationCompiler
         EffectiveCodecLimits limits)
     {
         using var validationStage = PpjBuildProfiler.Measure("validation");
-        using var validation = PpjProgramValidator.Validate(request.ProgramJson.Memory);
+        using var validation = PpjProgramValidator.Validate(request.ProgramJson.Memory, request.IncludePreviewScene);
         validationStage.Dispose();
         if (!validation.IsValid)
         {
@@ -148,7 +148,8 @@ internal static class PpjSourceBoundPresentationCompiler
             },
             limits,
             retainSourceAssetData,
-            sourceSha256);
+            sourceSha256,
+            includeNativeBindings: request.IncludePreviewScene);
         projectionStage.Dispose();
         using var reparsedBaselineValidation = projected.Validation is null
             ? PpjProgramValidator.Validate(projected.Program.ProgramJson.Memory)
@@ -305,7 +306,8 @@ internal static class PpjSourceBoundPresentationCompiler
             // to obtain preview evidence. Other branches import exact output.
             using var candidate = outputUsesSource ? null : new PptxPackageSource(output);
             diagnostics = diagnostics.Concat(PpjPreviewCandidateScene.Attach(
-                candidate ?? sourcePackage, receipt, limits)).ToArray();
+                candidate ?? sourcePackage, receipt, limits,
+                new PpjPreviewCandidateBindings(projected.NativeBindings, validation.Expansion!))).ToArray();
         }
         return new(output, receipt, diagnostics, reuseSourceFile);
     }
