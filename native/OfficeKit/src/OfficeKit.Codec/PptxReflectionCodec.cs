@@ -4,8 +4,8 @@ using A = DocumentFormat.OpenXml.Drawing;
 
 namespace OfficeKit.Codec;
 
-// DrawingML reflection values with a chart opt-in for variable alpha-ramp
-// positions. Ordinary imported owner proofs retain the full-span profile.
+// Direct DrawingML reflection values. Charts opt into variable positions and
+// transforms; ordinary imported proofs retain their full-span profile.
 internal static class PptxReflectionCodec
 {
     private const long MaxBlurRadiusEmu = 12_700_000L;
@@ -53,6 +53,13 @@ internal static class PptxReflectionCodec
         Validate(reflection, "authored");
 
         var native = new A.Reflection();
+        if (reflection.HasFadeDirectionAngle60000) native.FadeDirection = checked((int)reflection.FadeDirectionAngle60000);
+        if (reflection.HasScaleXThousandthPercent) native.HorizontalRatio = reflection.ScaleXThousandthPercent;
+        if (reflection.HasScaleYThousandthPercent) native.VerticalRatio = reflection.ScaleYThousandthPercent;
+        if (reflection.HasSkewXAngle60000) native.HorizontalSkew = reflection.SkewXAngle60000;
+        if (reflection.HasSkewYAngle60000) native.VerticalSkew = reflection.SkewYAngle60000;
+        if (reflection.HasAlignment) native.Alignment = PptxShadowCodec.AlignmentValue(reflection.Alignment);
+        if (reflection.HasRotateWithShape) native.RotateWithShape = reflection.RotateWithShape;
         if (reflection.HasStartPositionThousandthPercent) native.StartPosition = checked((int)reflection.StartPositionThousandthPercent);
         if (reflection.HasEndPositionThousandthPercent) native.EndPosition = checked((int)reflection.EndPositionThousandthPercent);
         if (reflection.HasBlurRadiusEmu) native.BlurRadius = reflection.BlurRadiusEmu;
@@ -83,7 +90,11 @@ internal static class PptxReflectionCodec
     internal static void Validate(PresentationReflection? reflection, string elementId, string subject = "shape")
     {
         if (reflection is null) return;
-        if (reflection.HasStartPositionThousandthPercent && reflection.StartPositionThousandthPercent > 100_000 ||
+        if (reflection.HasFadeDirectionAngle60000 && reflection.FadeDirectionAngle60000 is < 0 or >= MaxDirectionAngle60000 ||
+            reflection.HasSkewXAngle60000 && reflection.SkewXAngle60000 is <= -5_400_000 or >= 5_400_000 ||
+            reflection.HasSkewYAngle60000 && reflection.SkewYAngle60000 is <= -5_400_000 or >= 5_400_000 ||
+            reflection.HasAlignment && !IsAlignment(reflection.Alignment) ||
+            reflection.HasStartPositionThousandthPercent && reflection.StartPositionThousandthPercent > 100_000 ||
             reflection.HasEndPositionThousandthPercent && reflection.EndPositionThousandthPercent > 100_000 ||
             reflection.HasBlurRadiusEmu && reflection.BlurRadiusEmu is < 0 or > MaxBlurRadiusEmu ||
             reflection.HasStartOpacityThousandthPercent && reflection.StartOpacityThousandthPercent > 100_000 ||
@@ -95,11 +106,17 @@ internal static class PptxReflectionCodec
                 $"Presentation {subject} {elementId} has invalid reflection geometry or opacity.");
     }
 
-    internal static bool TryReadDirectReflection(A.Reflection source, out PresentationReflection? reflection, bool allowVariablePositions = false)
+    internal static bool TryReadDirectReflection(A.Reflection source, out PresentationReflection? reflection, bool allowVariablePositions = false, bool allowTransforms = false)
     {
         reflection = null;
-        if (!HasOnlyAttributes(source, "blurRad", "stA", "stPos", "endA", "endPos", "dist", "dir") ||
+        if (!HasOnlyAttributes(source, allowTransforms
+                ? ["blurRad", "stA", "stPos", "endA", "endPos", "dist", "dir", "fadeDir", "sx", "sy", "kx", "ky", "algn", "rotWithShape"]
+                : ["blurRad", "stA", "stPos", "endA", "endPos", "dist", "dir"]) ||
             source.ChildElements.Count != 0 ||
+            source.FadeDirection?.Value is < 0 or >= MaxDirectionAngle60000 ||
+            source.HorizontalSkew?.Value is <= -5_400_000 or >= 5_400_000 ||
+            source.VerticalSkew?.Value is <= -5_400_000 or >= 5_400_000 ||
+            source.Alignment?.Value is { } alignment && !IsAlignment(PptxShadowCodec.AlignmentName(alignment)) ||
             (!allowVariablePositions && (source.StartPosition?.Value is not 0 || source.EndPosition?.Value is not FullReflectionEndPosition)) ||
             source.StartPosition?.Value is < 0 or > 100_000 ||
             source.EndPosition?.Value is < 0 or > 100_000 ||
@@ -111,6 +128,13 @@ internal static class PptxReflectionCodec
             return false;
 
         reflection = new PresentationReflection();
+        if (source.FadeDirection?.Value is { } fadeDirection) reflection.FadeDirectionAngle60000 = fadeDirection;
+        if (source.HorizontalRatio?.Value is { } scaleX) reflection.ScaleXThousandthPercent = scaleX;
+        if (source.VerticalRatio?.Value is { } scaleY) reflection.ScaleYThousandthPercent = scaleY;
+        if (source.HorizontalSkew?.Value is { } skewX) reflection.SkewXAngle60000 = skewX;
+        if (source.VerticalSkew?.Value is { } skewY) reflection.SkewYAngle60000 = skewY;
+        if (source.Alignment?.Value is { } parsedAlignment) reflection.Alignment = PptxShadowCodec.AlignmentName(parsedAlignment);
+        if (source.RotateWithShape?.Value is { } rotateWithShape) reflection.RotateWithShape = rotateWithShape;
         if (source.StartPosition?.Value is { } startPosition) reflection.StartPositionThousandthPercent = checked((uint)startPosition);
         if (source.EndPosition?.Value is { } endPosition) reflection.EndPositionThousandthPercent = checked((uint)endPosition);
         if (source.BlurRadius?.Value is { } blur) reflection.BlurRadiusEmu = blur;
@@ -120,6 +144,8 @@ internal static class PptxReflectionCodec
         if (source.Direction?.Value is { } direction) reflection.DirectionAngle60000 = direction;
         return true;
     }
+
+    private static bool IsAlignment(string value) => value is "tl" or "t" or "tr" or "l" or "ctr" or "r" or "bl" or "b" or "br";
 
     private static bool HasOnlyAttributes(OpenXmlElement element, params string[] names)
     {

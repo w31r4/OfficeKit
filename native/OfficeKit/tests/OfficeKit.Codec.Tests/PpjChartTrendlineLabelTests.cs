@@ -156,7 +156,7 @@ public sealed partial class PptxCodecTests
             Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr><a:effectLst><a:innerShdw><a:srgbClr val='FFFFFF'><a:alpha val='0'><a:ext/></a:alpha></a:srgbClr></a:innerShdw></a:effectLst></a:rPr><a:t>Fit</a:t></a:r></a:p>"),
             Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr><a:effectLst><a:reflection stPos='0' endPos='100001'/></a:effectLst></a:rPr><a:t>Fit</a:t></a:r></a:p>"),
             Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr><a:effectLst><a:reflection stPos='-1' endPos='100000'/></a:effectLst></a:rPr><a:t>Fit</a:t></a:r></a:p>"),
-            Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr><a:effectLst><a:reflection stPos='0' endPos='100000' sx='100000'/></a:effectLst></a:rPr><a:t>Fit</a:t></a:r></a:p>"),
+            Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr><a:effectLst><a:reflection stPos='0' endPos='100000' sx='2147483648'/></a:effectLst></a:rPr><a:t>Fit</a:t></a:r></a:p>"),
             Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr><a:effectLst><a:reflection stPos='0' endPos='100000' blurRad='12700001'/></a:effectLst></a:rPr><a:t>Fit</a:t></a:r></a:p>"),
             Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr><a:effectLst><a:reflection stPos='0' endPos='100000' stA='-1'/></a:effectLst></a:rPr><a:t>Fit</a:t></a:r></a:p>"),
             Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr><a:effectLst><a:reflection stPos='0' endPos='100000' endA='100001'/></a:effectLst></a:rPr><a:t>Fit</a:t></a:r></a:p>"),

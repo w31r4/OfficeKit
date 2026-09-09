@@ -50,7 +50,7 @@ internal static class XlsxChartTextEffectsCodec
                         break;
                     case 3:
                         if (child.HasElements || properties.GetFirstChild<A.EffectList>()?.GetFirstChild<A.Reflection>() is not { } nativeReflection ||
-                            !PptxReflectionCodec.TryReadDirectReflection(nativeReflection, out reflection, allowVariablePositions: true)) return false;
+                            !PptxReflectionCodec.TryReadDirectReflection(nativeReflection, out reflection, allowVariablePositions: true, allowTransforms: true)) return false;
                         break;
                     case 4:
                         if (child.HasElements || properties.GetFirstChild<A.EffectList>()?.GetFirstChild<A.SoftEdge>() is not { } native ||

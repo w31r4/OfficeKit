@@ -42,6 +42,9 @@ public sealed partial class PptxCodecTests
             ("""{"endOpacity":0.25,"startPosition":0,"endPosition":0}""", """{"endOpacity":0.25,"startPosition":0,"endPosition":0}"""),
             ("""{"endOpacity":0.25,"startPosition":0,"endPosition":1}""", """{"endOpacity":0.25,"startPosition":0,"endPosition":1}"""),
             ("""{"endOpacity":0.25,"endPosition":1}""", """{"endOpacity":0.25,"endPosition":1}"""),
+            ("""{"scaleX":-1,"scaleY":0,"skewX":-12.5,"skewY":0,"fadeAngle":-90,"alignment":"b","rotateWithShape":false,"endPosition":1}""", """{"scaleX":-1,"scaleY":0,"skewX":-12.5,"skewY":0,"fadeAngle":270,"alignment":"b","rotateWithShape":false,"endPosition":1}"""),
+            ("""{"scaleX":0,"scaleY":1.5,"skewX":0,"skewY":25,"fadeAngle":0,"alignment":"tr","rotateWithShape":true}""", """{"scaleX":0,"scaleY":1.5,"skewX":0,"skewY":25,"fadeAngle":0,"alignment":"tr","rotateWithShape":true}"""),
+            ("""{"rotateWithShape":false}""", """{"rotateWithShape":false}"""),
             ("{}", "{}"), (null, null), ("{}", "{}"),
         })
         {
@@ -64,8 +67,10 @@ public sealed partial class PptxCodecTests
                 var value = JsonNode.Parse(expected)!;
                 Assert.All(reflections, reflection =>
                 {
-                    foreach (var (key, attr, scale) in new[] { ("blur", "blurRad", 12700), ("distance", "dist", 12700), ("angle", "dir", 60000), ("startOpacity", "stA", 100000), ("endOpacity", "endA", 100000), ("startPosition", "stPos", 100000), ("endPosition", "endPos", 100000) })
+                    foreach (var (key, attr, scale) in new[] { ("blur", "blurRad", 12700), ("distance", "dist", 12700), ("angle", "dir", 60000), ("startOpacity", "stA", 100000), ("endOpacity", "endA", 100000), ("startPosition", "stPos", 100000), ("endPosition", "endPos", 100000), ("scaleX", "sx", 100000), ("scaleY", "sy", 100000), ("skewX", "kx", 60000), ("skewY", "ky", 60000), ("fadeAngle", "fadeDir", 60000) })
                         Assert.Equal(value[key] is null ? null : (long?)(value[key]!.GetValue<double>() * scale), (long?)reflection.Attribute(attr));
+                    Assert.Equal(value["alignment"]?.GetValue<string>(), (string?)reflection.Attribute("algn"));
+                    Assert.Equal(value["rotateWithShape"]?.GetValue<bool>(), (bool?)reflection.Attribute("rotWithShape"));
                 });
             }
             Assert.All(native.Descendants(a + "effectLst"), effects =>
@@ -97,6 +102,9 @@ public sealed partial class PptxCodecTests
         Assert.NotEqual(XlsxChartTextStyleCodec.Semantics(valid), XlsxChartTextStyleCodec.Semantics(zero));
         Assert.NotEqual(XlsxChartTextStyleCodec.Semantics(valid), XlsxChartTextStyleCodec.Semantics(null));
         Assert.False(XlsxChartTextStyleCodec.IsGlobalFontFamilyProfile(new SpreadsheetChartTextStyleArtifact { FontFamily = "Arial", Reflection = new PresentationReflection() }));
+        valid.Reflection = new PresentationReflection { ScaleXThousandthPercent = int.MinValue, ScaleYThousandthPercent = int.MaxValue,
+            SkewXAngle60000 = -5_399_999, SkewYAngle60000 = 5_399_999, FadeDirectionAngle60000 = 21_599_999,
+            Alignment = "b", RotateWithShape = false };
         valid.Glow = new PresentationGlow { ColorRgb = "FFFFFF", RadiusEmu = 0 };
         valid.InnerShadow = new PresentationInnerShadow { ColorScheme = "accent1" };
         valid.Shadow = new PresentationShadow { ColorRgb = "000000" };
@@ -116,18 +124,37 @@ public sealed partial class PptxCodecTests
         Assert.Equal(zero.Reflection, read);
         foreach (var invalid in new[]
         {
+            new PresentationReflection { FadeDirectionAngle60000 = -1 }, new PresentationReflection { FadeDirectionAngle60000 = 21_600_000 },
+            new PresentationReflection { SkewXAngle60000 = -5_400_000 }, new PresentationReflection { SkewYAngle60000 = 5_400_000 },
+            new PresentationReflection { Alignment = "" }, new PresentationReflection { Alignment = "bottom" },
             new PresentationReflection { StartPositionThousandthPercent = 100001 }, new PresentationReflection { EndPositionThousandthPercent = 100001 },
             new PresentationReflection { BlurRadiusEmu = -1 }, new PresentationReflection { BlurRadiusEmu = 12_700_001 },
             new PresentationReflection { DistanceEmu = 1_270_000_001 }, new PresentationReflection { DirectionAngle60000 = 21_600_000 },
             new PresentationReflection { StartOpacityThousandthPercent = 100001 }, new PresentationReflection { EndOpacityThousandthPercent = 100001 },
         }) Assert.Throws<CodecException>(() => XlsxChartTextStyleCodec.ValidateStyle(new SpreadsheetChartTextStyleArtifact { Reflection = invalid }, "s", "c", "style"));
 
+        XNamespace a = "http://schemas.openxmlformats.org/drawingml/2006/main";
+        foreach (var attributes in new[] { "sx='2147483648'", "sy='-2147483649'", "kx='5400000'", "ky='-5400000'", "fadeDir='21600000'", "algn='bottom'", "rotWithShape='maybe'", "unknown='0'" })
+            Assert.False(XlsxChartTextStyleCodec.TryExactStyleProperties(XElement.Parse($"<a:rPr xmlns:a='{a}'><a:effectLst><a:reflection {attributes}/></a:effectLst></a:rPr>"), out _));
+        foreach (var attributes in new[] { "sx='100000'", "sy='0'", "kx='0'", "ky='0'", "fadeDir='0'", "algn='b'", "rotWithShape='0'" })
+        {
+            var element = XElement.Parse($"<a:rPr xmlns:a='{a}'><a:effectLst><a:reflection stPos='0' endPos='100000' {attributes}/></a:effectLst></a:rPr>");
+            Assert.True(XlsxChartTextStyleCodec.TryExactStyleProperties(element, out _));
+            Assert.False(PptxReflectionCodec.TryRead(new DocumentFormat.OpenXml.Drawing.RunProperties(element.ToString()), out _));
+        }
+        foreach (var alignment in new[] { "tl", "t", "tr", "l", "ctr", "r", "bl", "b", "br" })
+        {
+            var style = new SpreadsheetChartTextStyleArtifact { Reflection = new PresentationReflection { Alignment = alignment } };
+            Assert.True(XlsxChartTextStyleCodec.TryExactStyleProperties(XlsxChartTextStyleCodec.StyleProperties("rPr", style), out var aligned));
+            Assert.Equal(style, aligned);
+        }
+
         var baseline = ChartTextStyleProgram("line", 0);
         SetChartReflections(baseline, 0, new JsonObject());
         var compiled = CompileTrendlineList(baseline);
         Assert.True(compiled.Ok, Diagnostics(compiled));
         var source = RemoveEmbeddedPpj(compiled.File.ToByteArray());
-        foreach (var input in new[] { """{"startPosition":-0.1}""", """{"endPosition":1.1}""", """{"startPosition":null}""", """{"endPosition":{"token":"fade"}}""", "null", """{"blur":-1}""", """{"distance":100001}""", """{"angle":361}""", """{"startOpacity":1.1}""", """{"endOpacity":-0.1}""", """{"blur":{"token":"fade"}}""", """{"startOpacity":{"token":"wrongKind"}}""", """{"endOpacity":{"token":"missing"}}""", """{"extra":0}""" })
+        foreach (var input in new[] { """{"scaleX":21474.83648}""", """{"scaleY":-21474.83649}""", """{"skewX":90}""", """{"skewY":-90}""", """{"skewX":89.999999}""", """{"skewY":-89.999999}""", """{"fadeAngle":361}""", """{"alignment":"bottom"}""", """{"rotateWithShape":0}""", """{"scaleX":null}""", """{"startPosition":-0.1}""", """{"endPosition":1.1}""", """{"startPosition":null}""", """{"endPosition":{"token":"fade"}}""", "null", """{"blur":-1}""", """{"distance":100001}""", """{"angle":361}""", """{"startOpacity":1.1}""", """{"endOpacity":-0.1}""", """{"blur":{"token":"fade"}}""", """{"startOpacity":{"token":"wrongKind"}}""", """{"endOpacity":{"token":"missing"}}""", """{"extra":0}""" })
             foreach (var sourceBound in new[] { false, true })
             {
                 var program = sourceBound ? ProjectTrendlineList(source) : ChartTextStyleProgram("line", 0);
@@ -146,7 +173,7 @@ public sealed partial class PptxCodecTests
         {
             var program = sourceBound ? ProjectTrendlineList(source) : ChartTextStyleProgram("line", 0);
             program["design"]!["grammar"]!["tokens"] = JsonNode.Parse("""{"fade":{"kind":"opacity","value":0.25}}""");
-            SetChartReflections(program, 0, JsonNode.Parse("""{"startOpacity":{"token":"fade"},"endOpacity":{"token":"fade"},"angle":360,"blur":0.0001,"startPosition":0.123456,"endPosition":0.654324}"""));
+            SetChartReflections(program, 0, JsonNode.Parse("""{"startOpacity":{"token":"fade"},"endOpacity":{"token":"fade"},"angle":360,"blur":0.0001,"startPosition":0.123456,"endPosition":0.654324,"scaleX":-1.123456,"scaleY":0.000025,"skewX":-12.500025,"skewY":0.000025,"fadeAngle":-45.500025,"alignment":"ctr","rotateWithShape":false}"""));
             var result = CompileTrendlineList(program, sourceBound ? source : null);
             Assert.True(result.Ok, Diagnostics(result));
             var reflection = TrendlineListChart(ProjectTrendlineList(RemoveEmbeddedPpj(result.File.ToByteArray())))["style"]!["titleTextStyle"]!["reflection"]!;
@@ -157,6 +184,13 @@ public sealed partial class PptxCodecTests
             Assert.Null(reflection["distance"]);
             Assert.Equal(0.12346, reflection["startPosition"]!.GetValue<double>());
             Assert.Equal(0.65432, reflection["endPosition"]!.GetValue<double>());
+            Assert.Equal(-1.12346, reflection["scaleX"]!.GetValue<double>());
+            Assert.Equal(0.00002, reflection["scaleY"]!.GetValue<double>());
+            Assert.Equal(-750002d / 60000, reflection["skewX"]!.GetValue<double>());
+            Assert.Equal(2d / 60000, reflection["skewY"]!.GetValue<double>());
+            Assert.Equal(18869998d / 60000, reflection["fadeAngle"]!.GetValue<double>());
+            Assert.Equal("ctr", reflection["alignment"]!.GetValue<string>());
+            Assert.False(reflection["rotateWithShape"]!.GetValue<bool>());
         }
     }
 
@@ -167,7 +201,7 @@ public sealed partial class PptxCodecTests
         var chart = TrendlineListChart(program);
         chart["styleRef"] = "reflection-style";
         chart["style"]!["legendTextStyle"] = JsonNode.Parse("""{"reflection":{"blur":1},"bold":false}""");
-        program["design"]!["styles"]!["chart"]!.AsArray().Add(JsonNode.Parse("""{"id":"reflection-style","style":{"legendTextStyle":{"reflection":{"blur":3,"startPosition":0.2,"endPosition":0.7}}}}"""));
+        program["design"]!["styles"]!["chart"]!.AsArray().Add(JsonNode.Parse("""{"id":"reflection-style","style":{"legendTextStyle":{"reflection":{"blur":3,"startPosition":0.2,"endPosition":0.7,"scaleY":-1,"rotateWithShape":false}}}}"""));
         program["design"]!["grammar"]!["stylePrecedence"] = JsonNode.Parse("""[{"target":"chart.legendTextStyle.reflection","sources":["styleRef","inline"]}]""");
         var compiled = CompileTrendlineList(program);
         Assert.True(compiled.Ok, Diagnostics(compiled));
@@ -176,11 +210,13 @@ public sealed partial class PptxCodecTests
         Assert.False(projected["style"]!["legendTextStyle"]!["bold"]!.GetValue<bool>());
         Assert.Equal(0.2, projected["style"]!["legendTextStyle"]!["reflection"]!["startPosition"]!.GetValue<double>());
         Assert.Equal(0.7, projected["style"]!["legendTextStyle"]!["reflection"]!["endPosition"]!.GetValue<double>());
+        Assert.Equal(-1d, projected["style"]!["legendTextStyle"]!["reflection"]!["scaleY"]!.GetValue<double>());
+        Assert.False(projected["style"]!["legendTextStyle"]!["reflection"]!["rotateWithShape"]!.GetValue<bool>());
         chart.Remove("styleRef"); chart.Remove("xAxis"); chart.Remove("yAxis");
         chart["chartType"] = "heatmap";
         chart["data"] = JsonNode.Parse("""{"categories":["A","B"],"series":[{"id":"row","name":"Row","values":[1,2]}]}""");
         program["design"]!["grammar"]!["tokens"] = JsonNode.Parse("""{"fade":{"kind":"opacity","value":0.25}}""");
-        chart["style"] = JsonNode.Parse("""{"titleTextStyle":{"reflection":{"endPosition":0.6},"glow":{"color":"#445566","radius":1}},"heatmap":{"colors":["#FFFFFF","#114477"],"showColorBar":false,"axisTextStyle":{"reflection":{"endOpacity":{"token":"fade"},"startPosition":0.15}}}}""");
+        chart["style"] = JsonNode.Parse("""{"titleTextStyle":{"reflection":{"endPosition":0.6,"scaleY":-1,"rotateWithShape":false},"glow":{"color":"#445566","radius":1}},"heatmap":{"colors":["#FFFFFF","#114477"],"showColorBar":false,"axisTextStyle":{"reflection":{"endOpacity":{"token":"fade"},"startPosition":0.15,"skewX":-15,"fadeAngle":90,"alignment":"b"}}}}""");
         chart["title"] = JsonNode.Parse("""{"paragraphs":[{"runs":[{"text":"Default"},{"text":"Override","style":{"reflection":{"blur":0,"distance":0,"angle":0,"startOpacity":0,"endOpacity":0}}}]}]}""");
         compiled = CompileTrendlineList(program);
         Assert.True(compiled.Ok, Diagnostics(compiled));
@@ -193,6 +229,11 @@ public sealed partial class PptxCodecTests
             var reflection = run.Element(a + "rPr")?.Element(a + "effectLst")?.Element(a + "reflection");
             Assert.NotNull(reflection);
             Assert.Equal(alpha, (long?)reflection.Attribute("endA"));
+            Assert.Equal(text == "Default" ? -100000L : (long?)null, (long?)reflection.Attribute("sy"));
+            Assert.Equal(text == "Default" ? false : (bool?)null, (bool?)reflection.Attribute("rotWithShape"));
+            Assert.Equal(text == "Row" ? -900000L : (long?)null, (long?)reflection.Attribute("kx"));
+            Assert.Equal(text == "Row" ? 5400000L : (long?)null, (long?)reflection.Attribute("fadeDir"));
+            Assert.Equal(text == "Row" ? "b" : null, (string?)reflection.Attribute("algn"));
             Assert.Equal(text == "Default" ? (long?)null : text == "Override" ? 0L : 15000L, (long?)reflection.Attribute("stPos"));
             Assert.Equal(text == "Row" ? (long?)null : text == "Override" ? 100000L : 60000L, (long?)reflection.Attribute("endPos"));
             Assert.Equal(text == "Override" ? 0L : (long?)null, (long?)reflection.Attribute("blurRad"));

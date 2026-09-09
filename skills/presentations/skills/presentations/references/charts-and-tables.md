@@ -393,8 +393,21 @@ fractions at native thousandth-percent precision. For example,
 Each position is independent; equal and reversed positions are retained.
 Omitting a position removes its direct attribute (native defaults are 0/1),
 while explicit zero or one remains explicit. These are not slide coordinates
-or crop geometry. Extra transforms and unknown descendants stay source-owned. Shared chart/trendline text styles and vector defaults use the
-field; explicit vector rich-run reflection overrides the default and keeps the
+or crop geometry.
+
+Transform attributes are optional too:
+`{"reflection":{"scaleX":1,"scaleY":-1,"skewX":0,"skewY":12.5,"fadeAngle":90,"alignment":"b","rotateWithShape":false}}`.
+`scaleX/scaleY` are signed ratios (1 = original size), with range
+[-21474.83648,21474.83647] and precision 0.00001; zero and negative values survive.
+`skewX/skewY` use degrees strictly between -90 and 90, rounded to 1/60000 degree;
+values rounding to either excluded bound are rejected. `fadeAngle` maps native
+`fadeDir`, separately from `angle` (`dir`), and normalizes -360–360 to [0,360).
+`alignment` uses tl/t/tr/l/ctr/r/bl/b/br. `rotateWithShape: false` remains explicit.
+Omission removes each direct attribute, preserving its native default. Unknown
+descendants remain source-owned; ordinary imported text/shape/image transform
+profiles remain outside their existing scalar edit scope.
+
+Shared chart/trendline text styles and vector defaults use the field; explicit vector rich-run reflection overrides the default and keeps the
 ordinary text schema's five required properties. Scalar round trips do not
 establish host appearance.
 

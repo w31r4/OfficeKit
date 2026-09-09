@@ -3455,6 +3455,14 @@ internal static partial class PpjAuthoredPresentationCompiler
     internal static PresentationReflection BuildChartTextReflection(JsonElement value, Func<JsonElement, double> resolveOpacity)
     {
         var output = new PresentationReflection();
+        if (value.TryGetProperty("fadeAngle", out var fadeAngle))
+            output.FadeDirectionAngle60000 = Angle(((ChartEffectNumber(fadeAngle.GetDouble(), -360, 360) % 360) + 360) % 360) % 21_600_000;
+        if (value.TryGetProperty("scaleX", out var scaleX)) output.ScaleXThousandthPercent = checked((int)Math.Round(ChartEffectNumber(scaleX.GetDouble(), int.MinValue / 100000d, int.MaxValue / 100000d) * 100000d, MidpointRounding.ToEven));
+        if (value.TryGetProperty("scaleY", out var scaleY)) output.ScaleYThousandthPercent = checked((int)Math.Round(ChartEffectNumber(scaleY.GetDouble(), int.MinValue / 100000d, int.MaxValue / 100000d) * 100000d, MidpointRounding.ToEven));
+        if (value.TryGetProperty("skewX", out var skewX)) output.SkewXAngle60000 = checked((int)Angle(ChartEffectNumber(skewX.GetDouble(), -90, 90)));
+        if (value.TryGetProperty("skewY", out var skewY)) output.SkewYAngle60000 = checked((int)Angle(ChartEffectNumber(skewY.GetDouble(), -90, 90)));
+        if (value.TryGetProperty("alignment", out var alignment)) output.Alignment = alignment.GetString()!;
+        if (value.TryGetProperty("rotateWithShape", out var rotateWithShape)) output.RotateWithShape = rotateWithShape.GetBoolean();
         if (value.TryGetProperty("startPosition", out var startPosition)) output.StartPositionThousandthPercent = Opacity(ChartEffectNumber(startPosition.GetDouble(), 0, 1));
         if (value.TryGetProperty("endPosition", out var endPosition)) output.EndPositionThousandthPercent = Opacity(ChartEffectNumber(endPosition.GetDouble(), 0, 1));
         if (value.TryGetProperty("blur", out var blur)) output.BlurRadiusEmu = Emu(ChartEffectNumber(blur.GetDouble(), 0, 1000));

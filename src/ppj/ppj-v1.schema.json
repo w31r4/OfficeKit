@@ -6310,6 +6310,45 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "fadeAngle": {
+          "type": "number",
+          "minimum": -360,
+          "maximum": 360,
+          "description": "Native fadeDir in degrees, normalized to [0,360); independent of angle (dir)."
+        },
+        "scaleX": {
+          "type": "number",
+          "minimum": -21474.83648,
+          "maximum": 21474.83647,
+          "description": "Horizontal reflection scale ratio, 1 = original size; negative and zero retained, precision 0.00001."
+        },
+        "scaleY": {
+          "type": "number",
+          "minimum": -21474.83648,
+          "maximum": 21474.83647,
+          "description": "Vertical reflection scale ratio, 1 = original size; negative and zero retained, precision 0.00001."
+        },
+        "skewX": {
+          "type": "number",
+          "exclusiveMinimum": -90,
+          "exclusiveMaximum": 90,
+          "description": "Horizontal skew in degrees; rounded 1/60000-degree value must remain strictly between -90 and 90."
+        },
+        "skewY": {
+          "type": "number",
+          "exclusiveMinimum": -90,
+          "exclusiveMaximum": 90,
+          "description": "Vertical skew in degrees; rounded 1/60000-degree value must remain strictly between -90 and 90."
+        },
+        "alignment": {
+          "type": "string",
+          "enum": ["tl", "t", "tr", "l", "ctr", "r", "bl", "b", "br"],
+          "description": "Native reflection rectangle alignment; omission preserves the native default."
+        },
+        "rotateWithShape": {
+          "type": "boolean",
+          "description": "Whether reflection rotates with its shape; explicit false differs from omission."
+        },
         "startPosition": {
           "type": "number",
           "minimum": 0,

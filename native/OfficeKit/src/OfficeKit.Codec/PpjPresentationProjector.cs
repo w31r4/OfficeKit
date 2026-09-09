@@ -3269,6 +3269,13 @@ internal static partial class PpjPresentationProjector
     private static JsonObject ChartTextReflection(PresentationReflection reflection)
     {
         var output = Reflection(reflection);
+        if (reflection.HasFadeDirectionAngle60000) output["fadeAngle"] = JsonValue.Create(reflection.FadeDirectionAngle60000 / 60000d);
+        if (reflection.HasScaleXThousandthPercent) output["scaleX"] = JsonValue.Create(reflection.ScaleXThousandthPercent / 100000d);
+        if (reflection.HasScaleYThousandthPercent) output["scaleY"] = JsonValue.Create(reflection.ScaleYThousandthPercent / 100000d);
+        if (reflection.HasSkewXAngle60000) output["skewX"] = JsonValue.Create(reflection.SkewXAngle60000 / 60000d);
+        if (reflection.HasSkewYAngle60000) output["skewY"] = JsonValue.Create(reflection.SkewYAngle60000 / 60000d);
+        if (reflection.HasAlignment) output["alignment"] = StringNode(reflection.Alignment);
+        if (reflection.HasRotateWithShape) output["rotateWithShape"] = JsonValue.Create(reflection.RotateWithShape);
         if (reflection.HasStartPositionThousandthPercent) output["startPosition"] = JsonValue.Create(Unit(reflection.StartPositionThousandthPercent));
         if (reflection.HasEndPositionThousandthPercent) output["endPosition"] = JsonValue.Create(Unit(reflection.EndPositionThousandthPercent));
         if (!reflection.HasBlurRadiusEmu) output.Remove("blur");

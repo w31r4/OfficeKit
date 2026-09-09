@@ -139,7 +139,7 @@ internal static class PptxShadowCodec
         return element.GetAttributes().All(attribute => attribute.NamespaceUri.Length == 0 && allowed.Contains(attribute.LocalName));
     }
 
-    private static string AlignmentName(A.RectangleAlignmentValues value) =>
+    internal static string AlignmentName(A.RectangleAlignmentValues value) =>
         value == A.RectangleAlignmentValues.TopLeft ? "tl" :
         value == A.RectangleAlignmentValues.Top ? "t" :
         value == A.RectangleAlignmentValues.TopRight ? "tr" :
@@ -150,7 +150,7 @@ internal static class PptxShadowCodec
         value == A.RectangleAlignmentValues.Bottom ? "b" :
         value == A.RectangleAlignmentValues.BottomRight ? "br" : string.Empty;
 
-    private static A.RectangleAlignmentValues AlignmentValue(string value) => value switch
+    internal static A.RectangleAlignmentValues AlignmentValue(string value) => value switch
     {
         "tl" => A.RectangleAlignmentValues.TopLeft,
         "t" => A.RectangleAlignmentValues.Top,

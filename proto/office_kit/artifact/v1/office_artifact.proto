@@ -2776,6 +2776,13 @@ message PresentationReflection {
   optional int64 direction_angle_60000 = 5;
   optional uint32 start_position_thousandth_percent = 6;
   optional uint32 end_position_thousandth_percent = 7;
+  optional int64 fade_direction_angle_60000 = 8;
+  optional sint32 scale_x_thousandth_percent = 9;
+  optional sint32 scale_y_thousandth_percent = 10;
+  optional sint32 skew_x_angle_60000 = 11;
+  optional sint32 skew_y_angle_60000 = 12;
+  optional string alignment = 13;
+  optional bool rotate_with_shape = 14;
 }
 
 message PresentationConnector {
