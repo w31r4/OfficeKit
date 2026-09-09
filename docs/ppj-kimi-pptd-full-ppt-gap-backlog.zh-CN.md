@@ -463,6 +463,8 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**水平溢出删除增量（2026-09-10）：** `horizontalOverflow` 的 overflow/clip/省略已闭合源编辑与恢复；删除只移除 `bodyPr/@horzOverflow`，保留独立的 verticalOverflow。文本、shape、master/layout placeholder、表格共用枚举生命周期实验，新增 7 例，相关专项 61/61、零跳过；覆盖原源 no-op、双值恢复、简单样式删除、表格纯文本后的结构化恢复及其它 XML/非目标 ZIP 保留。简单样式删除字段在此前五项基础上增加 horizontalOverflow；其它属性删除仍受约束。预览保留字段诊断，宿主裁切及完整继承仍开放。
+
 **换行模式删除增量（2026-09-10）：** `wrap` 已区分 `square`、`none` 和省略；显式 none 保留原生不换行属性，删除字段才移除 `bodyPr/@wrap`。文本、shape、master/layout placeholder 和表格复用枚举生命周期实验，新增 7 例，相关专项 54/54、零跳过，覆盖原源 no-op、双值恢复、简单样式整体删除、表格纯文本后的结构化恢复及其它 XML/非目标 ZIP 保留。可整体删除的简单样式现可由 upright、rotation、columnDirection、verticalText、wrap 组成，其它字段继续受删除边界约束。预览保留换行布局诊断，宿主自动换行和完整继承仍开放。
 
 **文字方向删除增量（2026-09-10）：** `verticalText` 的 `horizontal`、`vertical`、`vertical270` 与省略已接通源编辑：显式 horizontal 保留 `vert=horz`，删除才移除原生 `bodyPr/@vert`。文本、shape、master/layout placeholder 和表格均复用方向生命周期实验，新增 7 例，相关专项 47/47、零跳过；检查原源 no-op、三种值恢复、简单样式整体删除、表格纯文本后的结构化恢复，以及其它正文/frame/非目标 ZIP 保留。可整体删除的简单样式字段现为 upright、rotation、columnDirection、verticalText。预览保留文字布局诊断，宿主排版、继承及其它属性删除继续开放。
@@ -703,6 +705,8 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 **本轮继续拆出同一图片 owner 的 bottom bevel 枚举：** 已有 `shape3dBevelBottomPreset` 也绑定严格图片 owner 的 `p:pic/p:spPr/a:sp3d/a:bevelB/@prst`；新增 additive `PresentationImage.shape_3d_bevel_bottom_preset` source-bound 载体，`PpjSourceBoundPictureShape3dBevelBottomPresetLeafEditsAndReprojects` 验证 `angle` → `softRound` 的单 `bevelB/@prst` token splice、仅目标 SlidePart、图片关系/crop/mask/effect、bevel 尺寸与其它 3-D 状态保留、Open XML 和二次投影。未知属性、额外子节点、顶面 bevel、scene、颜色和复杂/扩展 3-D graph 仍 source-owned。
 
 ### F-06 Table、Cell Style 和 Table Layout
+
+**水平溢出删除增量（2026-09-10）：** 表格 `text.style.horizontalOverflow` 的 overflow/clip/省略和恢复已闭合，verticalOverflow 保持独立；简单样式删除与纯文本规范化/恢复证据见 F-03。
 
 **换行模式删除增量（2026-09-10）：** 表格 `text.style.wrap` 的 square/none/省略和恢复已闭合；与文本 owner 共用最小实验，简单样式删除及纯文本规范化/恢复证据见 F-03。
 

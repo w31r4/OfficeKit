@@ -158,7 +158,8 @@ internal static class PptxBodyPropertiesCodec
             (source.RotationCase is PresentationTextBodyProperties.RotationOneofCase.None or PresentationTextBodyProperties.RotationOneofCase.RotationAngle60000 ||
                 source.RotationCase == PresentationTextBodyProperties.RotationOneofCase.NoRotation && source.NoRotation) &&
             (source.VerticalOverflowCase is PresentationTextBodyProperties.VerticalOverflowOneofCase.None or PresentationTextBodyProperties.VerticalOverflowOneofCase.VerticalOverflowMode) &&
-            (source.HorizontalOverflowCase is PresentationTextBodyProperties.HorizontalOverflowOneofCase.None or PresentationTextBodyProperties.HorizontalOverflowOneofCase.HorizontalOverflowMode) &&
+            (source.HorizontalOverflowCase is PresentationTextBodyProperties.HorizontalOverflowOneofCase.None or PresentationTextBodyProperties.HorizontalOverflowOneofCase.HorizontalOverflowMode ||
+                source.HorizontalOverflowCase == PresentationTextBodyProperties.HorizontalOverflowOneofCase.NoHorizontalOverflowMode && source.NoHorizontalOverflowMode) &&
             (source.UprightTextCase is PresentationTextBodyProperties.UprightTextOneofCase.None or PresentationTextBodyProperties.UprightTextOneofCase.Upright ||
                 source.UprightTextCase == PresentationTextBodyProperties.UprightTextOneofCase.NoUpright && source.NoUpright) &&
             SupportsBoundedNormalAutoFit(source);

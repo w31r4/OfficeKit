@@ -306,6 +306,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             if (requested.HorizontalOverflowCase == PresentationTextBodyProperties.HorizontalOverflowOneofCase.HorizontalOverflowMode)
                 current.HorizontalOverflowMode = requested.HorizontalOverflowMode;
         }
+        else if (previousStyle is { ValueKind: JsonValueKind.Object } previousHorizontalOverflow && previousHorizontalOverflow.TryGetProperty("horizontalOverflow", out _))
+            current.NoHorizontalOverflowMode = true;
         if (style.TryGetProperty("upright", out _))
         {
             current.ClearUprightText();

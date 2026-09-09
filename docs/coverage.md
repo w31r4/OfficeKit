@@ -2,6 +2,17 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ text-body `horizontalOverflow` lifecycle (2026-09-10): explicit overflow/clip
+and source removal now preserve distinct native horzOverflow states. Seven added
+shared enum cases cover text/shape/master/layout/table, both restored values,
+simple style deletion, compact table restoration, source no-op bytes, unchanged
+verticalOverflow and surrounding XML/non-target ZIP. Related native body/placeholder/
+table-text selection passes 61/61, zero skipped (SDK 8.0.128, repository TMPDIR,
+single-process build). Preview input/capability, Skill maintenance, matrix,
+portability (255 files), reference sync (333 files) and strict OpenSpec pass.
+No wire change, NativeAOT rebuild or host clipping acceptance. Other body deletions
+and inherited layout remain open; the known broader table failure was not rerun.
+
 PPJ text-body `wrap` lifecycle (2026-09-10): source omission removes native
 bodyPr wrap; square and none remain explicit values. The shared enum experiment
 adds 7 wrap cases covering text/shape/master/layout/table, no-op bytes, removal

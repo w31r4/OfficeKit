@@ -4236,7 +4236,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
     {
         if (after.TryGetProperty(field, out var style)) return style;
         if (PreviousTextBodyStyle(before, field) is { ValueKind: JsonValueKind.Object } previous &&
-            previous.EnumerateObject().Any() && previous.EnumerateObject().All(property => property.Name is "upright" or "rotation" or "columnDirection" or "verticalText" or "wrap"))
+            previous.EnumerateObject().Any() && previous.EnumerateObject().All(property => property.Name is "upright" or "rotation" or "columnDirection" or "verticalText" or "wrap" or "horizontalOverflow"))
             return JsonSerializer.SerializeToElement(new Dictionary<string, object>());
         throw Unsupported(path + "." + field, "removing source-bound text body style with other fields is not an explicit bounded operation");
     }
@@ -4296,6 +4296,13 @@ internal static partial class PpjSourceBoundPresentationCompiler
         {
             body.BodyProperties ??= new PresentationTextBodyProperties();
             body.BodyProperties.NoWrap = true;
+        }
+        if (PreviousTextBodyStyle(previousSource, "style") is { ValueKind: JsonValueKind.Object } previousHorizontalOverflow &&
+            previousHorizontalOverflow.TryGetProperty("horizontalOverflow", out _) &&
+            (PreviousTextBodyStyle(source, "style") is not { ValueKind: JsonValueKind.Object } nextHorizontalOverflow || !nextHorizontalOverflow.TryGetProperty("horizontalOverflow", out _)))
+        {
+            body.BodyProperties ??= new PresentationTextBodyProperties();
+            body.BodyProperties.NoHorizontalOverflowMode = true;
         }
         return body;
     }

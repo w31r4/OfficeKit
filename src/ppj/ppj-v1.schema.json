@@ -3673,7 +3673,7 @@
             "square",
             "none"
           ],
-          "description": "Direct text wrapping choice. Explicit none retains native wrap=none; it does not delete the attribute. Removing a previously projected wrap field removes bodyPr wrap under existing source edit authority. Simple styles containing only wrap, upright, rotation, columnDirection and/or verticalText may be removed. Preview retains text-layout limitations."
+          "description": "Direct text wrapping choice. Explicit none retains native wrap=none; it does not delete the attribute. Removing a previously projected wrap field removes bodyPr wrap under existing source edit authority. Simple styles containing only wrap, upright, rotation, columnDirection, verticalText and/or horizontalOverflow may be removed. Preview retains text-layout limitations."
         },
         "autoFit": {
           "enum": [
@@ -3720,7 +3720,7 @@
             "left-to-right",
             "right-to-left"
           ],
-          "description": "Text column flow direction. Explicit left-to-right retains native rtlCol=false; right-to-left retains true. Removing a previously projected field removes rtlCol under existing source edit authority. Style owners containing only columnDirection, verticalText, upright, rotation and/or wrap may be removed."
+          "description": "Text column flow direction. Explicit left-to-right retains native rtlCol=false; right-to-left retains true. Removing a previously projected field removes rtlCol under existing source edit authority. Style owners containing only columnDirection, verticalText, upright, rotation, wrap and/or horizontalOverflow may be removed."
         },
         "verticalText": {
           "enum": [
@@ -3728,13 +3728,13 @@
             "vertical",
             "vertical270"
           ],
-          "description": "Direct text-body direction, including explicit horizontal. Removing a previously projected field removes native bodyPr vert under existing source edit authority. A style containing only verticalText, upright, rotation, columnDirection and/or wrap may be removed. Preview retains text-layout limitations."
+          "description": "Direct text-body direction, including explicit horizontal. Removing a previously projected field removes native bodyPr vert under existing source edit authority. A style containing only verticalText, upright, rotation, columnDirection, wrap and/or horizontalOverflow may be removed. Preview retains text-layout limitations."
         },
         "rotation": {
           "type": "number",
           "minimum": -360,
           "maximum": 360,
-          "description": "Text-body rotation in degrees, separate from element frame rotation. Explicit zero remains present. Removing a previously projected rotation from an authorized source style removes bodyPr rot and restores inherited/default behavior; style owners containing only rotation/upright/columnDirection/verticalText/wrap may be removed."
+          "description": "Text-body rotation in degrees, separate from element frame rotation. Explicit zero remains present. Removing a previously projected rotation from an authorized source style removes bodyPr rot and restores inherited/default behavior; style owners containing only rotation/upright/columnDirection/verticalText/wrap/horizontalOverflow may be removed."
         },
         "verticalOverflow": {
           "enum": [
@@ -3747,11 +3747,12 @@
           "enum": [
             "overflow",
             "clip"
-          ]
+          ],
+          "description": "Direct horizontal text overflow choice, independent of verticalOverflow. Explicit overflow/clip remain native values; removing a projected field removes bodyPr horzOverflow under existing source edit authority. Simple styles containing only horizontalOverflow, upright, rotation, columnDirection, verticalText and/or wrap may be removed. Preview retains text-layout limitations."
         },
         "upright": {
           "type": "boolean",
-          "description": "Explicit true/false retains the direct native upright value. In an authorized source style edit, removing a previously projected upright property removes that native attribute and restores its inherited/default behavior. A style object containing only upright, rotation, columnDirection, verticalText and/or wrap can also be removed. Preview does not guarantee host text layout."
+          "description": "Explicit true/false retains the direct native upright value. In an authorized source style edit, removing a previously projected upright property removes that native attribute and restores its inherited/default behavior. A style object containing only upright, rotation, columnDirection, verticalText, wrap and/or horizontalOverflow can also be removed. Preview does not guarantee host text layout."
         }
       }
     },
