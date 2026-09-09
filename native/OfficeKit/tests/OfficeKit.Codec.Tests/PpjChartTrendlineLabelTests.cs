@@ -80,7 +80,11 @@ public sealed partial class PptxCodecTests
             "{\"layout\":{\"manual\":{\"target\":\"invalid\"}}}", "{\"layout\":{\"manual\":{\"x\":\"0\"}}}",
             "{\"layout\":{\"manual\":{\"x\":1e999}}}", "{\"layout\":{\"manual\":{\"rotation\":1}}}",
             "{\"numberFormatSourceLinked\":true}", "{\"numberFormatSourceLinked\":false}", "{\"numberFormatSourceLinked\":null}",
-            "{\"numberFormat\":\"0\",\"numberFormatSourceLinked\":\"true\"}", "{\"numberFormat\":\"0\",\"numberFormatSourceLinked\":1}" })
+            "{\"numberFormat\":\"0\",\"numberFormatSourceLinked\":\"true\"}", "{\"numberFormat\":\"0\",\"numberFormatSourceLinked\":1}",
+            """{"text":{"paragraphs":[]}}""", """{"text":{"paragraphs":[{"runs":[{}]}]}}""",
+            """{"text":{"paragraphs":[{"runs":[{"break":false}]}]}}""", """{"text":{"paragraphs":[{"runs":[{"text":"x","break":true}]}]}}""",
+            """{"text":{"paragraphs":[{"runs":[{"text":"x","style":{"alignment":"center"}}]}]}}""",
+            """{"text":{"paragraphs":[{"runs":[{"text":"bad\nrun"}]}]}}""" })
         {
             var input = program.DeepClone().AsObject();
             TrendlineListSeries(input, 0)["trendlines"]![0]!["label"] = JsonNode.Parse(invalid);
@@ -93,6 +97,7 @@ public sealed partial class PptxCodecTests
         }
         var path = SingleZipEntryPath(source, name => name.Contains("/charts/", StringComparison.Ordinal) && name.EndsWith(".xml", StringComparison.Ordinal));
         XNamespace c = "http://schemas.openxmlformats.org/drawingml/2006/chart";
+        string Rich(string content) => $"<c:tx><c:rich xmlns:a='http://schemas.openxmlformats.org/drawingml/2006/main'>{content}</c:rich></c:tx>";
         foreach (var invalid in new[]
         {
             "<c:layout><c:manualLayout><c:extLst/></c:manualLayout></c:layout>",
@@ -106,6 +111,13 @@ public sealed partial class PptxCodecTests
             "<c:layout><c:manualLayout>unknown</c:manualLayout></c:layout>",
             "<c:tx><c:strRef><c:f>Sheet1!$A$1</c:f></c:strRef></c:tx>",
             "<c:tx>unmodeled<c:rich xmlns:a='http://schemas.openxmlformats.org/drawingml/2006/main'><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Fit</a:t></a:r></a:p></c:rich></c:tx>",
+            Rich("<a:bodyPr rot='60000'/><a:lstStyle/><a:p/>"),
+            Rich("<a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr/><a:defRPr/></a:pPr></a:p>"),
+            Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr><a:hlinkClick/></a:rPr><a:t>Fit</a:t></a:r></a:p>"),
+            Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang='en-US'/><a:t>Fit</a:t></a:r></a:p>"),
+            Rich("<a:bodyPr/><a:lstStyle/><a:p><a:endParaRPr/><a:r><a:t>Fit</a:t></a:r></a:p>"),
+            Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr b='1'>unmodeled</a:rPr><a:t>Fit</a:t></a:r></a:p>"),
+            Rich("<a:bodyPr/><a:lstStyle/><a:p><a:fld id='field' type='slidenum'><a:t>1</a:t></a:fld></a:p>"),
             "<c:numFmt formatCode='0' sourceLinked='invalid'/>",
             "<c:numFmt formatCode='0' sourceLinked='0'/><c:numFmt formatCode='0.0' sourceLinked='0'/>",
             "<c:extLst/>",

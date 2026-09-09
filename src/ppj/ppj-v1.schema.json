@@ -6927,12 +6927,39 @@
       "description": "Native trendline label. An empty object retains the automatic label container; omit the property to remove it.",
       "properties": {
         "layout": { "$ref": "#/$defs/chartLayout" },
-        "text": { "$ref": "#/$defs/stringOrToken", "description": "One literal run; resolves to 1–255 characters without controls. Omit for automatic equation/R-squared content." },
+        "text": { "oneOf": [{ "$ref": "#/$defs/stringOrToken" }, { "$ref": "#/$defs/chartRichText" }], "description": "Literal string/token or structured chart paragraphs/runs. Simple unstyled nonempty text up to 255 characters canonicalizes to string. Omit for automatic equation/R-squared content." },
         "numberFormat": { "$ref": "#/$defs/stringOrToken", "description": "Native number format; resolves to 1–255 characters without controls." },
         "numberFormatSourceLinked": { "type": ["boolean", "null"], "description": "Native sourceLinked flag; requires numberFormat. True/false write an explicit flag, null omits the native attribute. Omitted PPJ field defaults to false; projection omits false. Office ignores this flag on trendline labels; this field preserves native state, not workbook synchronization." },
         "textStyle": { "$ref": "#/$defs/chartTextStyle" },
         "fill": { "$ref": "#/$defs/fill" },
         "line": { "$ref": "#/$defs/stroke" }
+      }
+    },
+    "chartRichText": {
+      "type": "object", "additionalProperties": false, "required": ["paragraphs"],
+      "description": "Ordered native chart paragraphs. At most 4096 paragraphs, 16384 total inlines and 1048576 UTF-16 text characters. Use typed breaks rather than control characters; complex text containers and relationship-bearing text remain source-owned.",
+      "properties": {
+        "paragraphs": { "type": "array", "minItems": 1, "maxItems": 4096, "items": { "$ref": "#/$defs/chartTextParagraph" } }
+      }
+    },
+    "chartTextParagraph": {
+      "type": "object", "additionalProperties": false, "required": ["runs"],
+      "properties": {
+        "style": { "$ref": "#/$defs/chartTextStyle" },
+        "runs": { "type": "array", "maxItems": 16384, "items": { "$ref": "#/$defs/chartTextRun" } },
+        "endStyle": { "$ref": "#/$defs/chartCharacterStyle" }
+      }
+    },
+    "chartCharacterStyle": {
+      "allOf": [{ "$ref": "#/$defs/chartTextStyle" }, { "not": { "required": ["alignment"] } }]
+    },
+    "chartTextRun": {
+      "type": "object", "additionalProperties": false,
+      "oneOf": [{ "required": ["text"], "not": { "required": ["break"] } }, { "required": ["break"], "not": { "required": ["text"] } }],
+      "properties": {
+        "text": { "$ref": "#/$defs/stringOrToken" },
+        "break": { "const": true },
+        "style": { "$ref": "#/$defs/chartCharacterStyle" }
       }
     },
     "chartLayout": {

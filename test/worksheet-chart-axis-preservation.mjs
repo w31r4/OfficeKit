@@ -14,7 +14,12 @@ authoredSheet.charts.add("line", {
 });
 const source = wireWorksheetCharts(authoredSheet)[0];
 source.yAxis.logBase = 10;
-source.series[0].trendlines[0].label = { text: "Imported fit", numberFormatCode: "0.00", numberFormatLink: 1,
+source.series[0].trendlines[0].label = { numberFormatCode: "0.00", numberFormatLink: 1,
+  richText: { paragraphs: [{ runs: [
+    { content: { case: "text", value: "Fit " }, style: { bold: true } },
+    { content: { case: "lineBreak", value: true } },
+    { content: { case: "text", value: "A" }, style: { bold: false } },
+  ] }] },
   layout: { manual: { xMode: "edge", x: 0, y: -0.125, width: 1.25 } } };
 source.source = { editable: true };
 const importedSheet = workbook.worksheets.add("Imported");
@@ -36,4 +41,7 @@ for (const numberFormatLink of [undefined, 0, 1, 2]) {
   const roundTrip = fromBinary(SpreadsheetChartTrendlineLabelArtifactSchema, toBinary(SpreadsheetChartTrendlineLabelArtifactSchema, message));
   assert.equal(roundTrip.numberFormatLink, numberFormatLink ?? 0, "Link state must survive wire serialization; legacy default remains zero");
 }
+const richLabel = create(SpreadsheetChartTrendlineLabelArtifactSchema, source.series[0].trendlines[0].label);
+assert.deepEqual(fromBinary(SpreadsheetChartTrendlineLabelArtifactSchema, toBinary(SpreadsheetChartTrendlineLabelArtifactSchema, richLabel)), richLabel,
+  "Styled text and ordered breaks must survive wire serialization");
 console.log("worksheet chart axis and trendline label preservation ok");

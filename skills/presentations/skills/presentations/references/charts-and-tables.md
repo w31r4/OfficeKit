@@ -485,8 +485,8 @@ Each trendline can own a native `label`:
 }
 ```
 
-Omit `text` for automatic equation/R-squared content, or set it to one literal
-text run. Text and numberFormat also accept string grammar tokens, resolving to
+Omit `text` for automatic equation/R-squared content, or set it to a literal
+string or structured paragraphs. Literal text and numberFormat also accept string grammar tokens, resolving to
 1–255 characters without controls. Label textStyle/fill/line use the existing
 bounded chart-label styling. `{}` retains the default label container; omitting
 `label` removes it. Authored and imported ordinary/combo trendlines support
@@ -508,6 +508,39 @@ Omit `layout` to remove it while keeping label text and style. Imported empty
 mode/target leaves project the standard `factor`/`outer` defaults. Native
 line/combo regressions cover this layout lifecycle; host positioning and SVG
 layout fidelity still need separate evidence.
+
+Structured `label.text` keeps ordered paragraphs and runs:
+
+```json
+{
+  "text": {
+    "paragraphs": [
+      {
+        "style": { "fontSize": 12, "bold": true, "alignment": "center" },
+        "runs": [
+          { "text": "Fit ", "style": { "color": "#2563EB" } },
+          { "text": "A", "style": { "bold": false } },
+          { "break": true },
+          { "text": "R² = 0.98" }
+        ],
+        "endStyle": { "italic": false }
+      }
+    ]
+  }
+}
+```
+
+Run text accepts string tokens, and styles reuse chart text-style tokens.
+Paragraph `style` supplies defaults; run `style` and `endStyle` are character
+styles and cannot contain alignment. Empty runs (`"text": ""`) and empty
+paragraphs (`"runs": []`) are retained. Use `"break": true` for line breaks.
+A single unstyled nonempty run of at most 255 characters reprojects as the
+existing string form. The codec limits one label to 4096 paragraphs, 16384
+inlines and 1,048,576 UTF-16 characters. Literal controls are rejected.
+Authored/source-bound ordinary and combo charts support replacement, conversion
+to literal text, removal for automatic content and recreation. Formula text,
+fields, hyperlinks, nonempty body/list formatting and unsupported character
+properties/effects remain source-owned; this is not full DrawingML text coverage.
 
 `label.numberFormatSourceLinked` requires `numberFormat`: `true` writes the
 native flag as 1, `false` or an omitted PPJ field writes 0, and `null` retains

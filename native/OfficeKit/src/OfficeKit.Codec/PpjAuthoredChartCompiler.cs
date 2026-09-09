@@ -4370,7 +4370,14 @@ internal static partial class PpjAuthoredPresentationCompiler
             var value = new SpreadsheetChartTrendlineLabelArtifact();
             value.NumberFormatLink = OpenXmlChartTrendlineLabelCodec.NumberFormatLinkFromPpj(label);
             if (label.TryGetProperty("layout", out var layout)) value.Layout = OpenXmlChartLayoutCodec.FromPpj(layout);
-            if (label.TryGetProperty("text", out var text)) value.Text = catalog.StringToken(text, "string", "trendline label text");
+            if (label.TryGetProperty("text", out var text))
+            {
+                if (text.ValueKind == JsonValueKind.Object && text.TryGetProperty("paragraphs", out _))
+                    value.RichText = OpenXmlChartRichTextCodec.FromPpj(text,
+                        literal => catalog.StringToken(literal, "string", "trendline label run text", allowEmpty: true), style => BuildChartTextStyle(style, catalog));
+                else value.Text = catalog.StringToken(text, "string", "trendline label text");
+                OpenXmlChartRichTextCodec.NormalizeLabel(value);
+            }
             if (label.TryGetProperty("numberFormat", out var format)) value.NumberFormatCode = catalog.StringToken(format, "string", "trendline label numberFormat");
             if (label.TryGetProperty("textStyle", out var style)) value.TextStyle = BuildChartTextStyle(style, catalog);
             if (label.TryGetProperty("fill", out var fill)) value.Fill = BuildChartFill(fill, catalog, "trendline label fill");

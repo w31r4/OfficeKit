@@ -5475,6 +5475,7 @@ message SpreadsheetChartTrendlineLabelArtifact {
   SpreadsheetChartLineStyleArtifact line = 5;
   SpreadsheetChartLayoutArtifact layout = 6;
   SpreadsheetChartNumberFormatLink number_format_link = 7;
+  SpreadsheetChartRichTextArtifact rich_text = 8;
 }
 
 // Container presence distinguishes absent layout from automatic/empty layout.
@@ -5502,4 +5503,23 @@ enum SpreadsheetChartNumberFormatLink {
   SPREADSHEET_CHART_NUMBER_FORMAT_LINK_UNSPECIFIED = 0;
   SPREADSHEET_CHART_NUMBER_FORMAT_LINK_SOURCE = 1;
   SPREADSHEET_CHART_NUMBER_FORMAT_LINK_OMITTED = 2;
+}
+
+// Literal chart text; no package relationships, formulas or slide ownership.
+message SpreadsheetChartRichTextArtifact {
+  repeated SpreadsheetChartTextParagraphArtifact paragraphs = 1;
+}
+
+message SpreadsheetChartTextParagraphArtifact {
+  SpreadsheetChartTextStyleArtifact style = 1;
+  repeated SpreadsheetChartTextRunArtifact runs = 2;
+  SpreadsheetChartTextStyleArtifact end_style = 3;
+}
+
+message SpreadsheetChartTextRunArtifact {
+  oneof content {
+    string text = 1;
+    bool line_break = 2;
+  }
+  SpreadsheetChartTextStyleArtifact style = 3;
 }

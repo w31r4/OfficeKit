@@ -749,7 +749,7 @@ internal static class PpjSourceBoundPresentationCompiler
         return document.RootElement.Clone();
     }
 
-    private static string ResolveGrammarStringToken(JsonElement root, JsonElement value, string path)
+    private static string ResolveGrammarStringToken(JsonElement root, JsonElement value, string path, bool allowEmpty = false)
     {
         if (value.ValueKind == JsonValueKind.String)
             return value.GetString()!;
@@ -768,8 +768,8 @@ internal static class PpjSourceBoundPresentationCompiler
             throw new CodecException("ppj.grammar.tokenKind", $"PPJ grammar token {token} for {path} must declare kind string.", path);
         if (!definition.TryGetProperty("value", out var tokenText) ||
             tokenText.ValueKind != JsonValueKind.String ||
-            string.IsNullOrEmpty(tokenText.GetString()))
-            throw new CodecException("ppj.grammar.tokenValue", $"PPJ grammar token {token} for {path} must resolve to a non-empty string.", path);
+            !allowEmpty && string.IsNullOrEmpty(tokenText.GetString()))
+            throw new CodecException("ppj.grammar.tokenValue", $"PPJ grammar token {token} for {path} must resolve to {(allowEmpty ? "a string" : "a non-empty string")}.", path);
         return tokenText.GetString()!;
     }
 
@@ -6010,7 +6010,15 @@ internal static class PpjSourceBoundPresentationCompiler
             var value = new SpreadsheetChartTrendlineLabelArtifact();
             value.NumberFormatLink = OpenXmlChartTrendlineLabelCodec.NumberFormatLinkFromPpj(label);
             if (label.TryGetProperty("layout", out var layout)) value.Layout = OpenXmlChartLayoutCodec.FromPpj(layout);
-            if (label.TryGetProperty("text", out var text)) value.Text = grammarRoot is { } textRoot ? ResolveGrammarStringToken(textRoot, text, path + ".label.text") : text.GetString()!;
+            if (label.TryGetProperty("text", out var text))
+            {
+                if (text.ValueKind == JsonValueKind.Object && text.TryGetProperty("paragraphs", out _))
+                    value.RichText = OpenXmlChartRichTextCodec.FromPpj(text,
+                        literal => grammarRoot is { } root ? ResolveGrammarStringToken(root, literal, path + ".label.text", allowEmpty: true) : literal.GetString()!,
+                        style => SourceBoundChartTextStyle(style, path + ".label.text.style", grammarRoot));
+                else value.Text = grammarRoot is { } textRoot ? ResolveGrammarStringToken(textRoot, text, path + ".label.text") : text.GetString()!;
+                OpenXmlChartRichTextCodec.NormalizeLabel(value);
+            }
             if (label.TryGetProperty("numberFormat", out var format)) value.NumberFormatCode = grammarRoot is { } formatRoot ? ResolveGrammarStringToken(formatRoot, format, path + ".label.numberFormat") : format.GetString()!;
             if (label.TryGetProperty("textStyle", out var style)) value.TextStyle = SourceBoundChartTextStyle(style, path + ".label.textStyle", grammarRoot);
             if (label.TryGetProperty("fill", out var fill)) value.Fill = SourceBoundChartFill(fill, path + ".label.fill", grammarRoot);

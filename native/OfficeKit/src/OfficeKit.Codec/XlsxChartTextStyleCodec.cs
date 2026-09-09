@@ -297,6 +297,12 @@ internal static class XlsxChartTextStyleCodec
         if (paragraphChildren.Length != 2 || paragraphChildren[0].Name != DrawingNs + "pPr" || paragraphChildren[1].Name != DrawingNs + "endParaRPr" ||
             paragraphChildren[1].HasAttributes || paragraphChildren[1].HasElements) return false;
         var paragraphProperties = paragraphChildren[0];
+        return TryReadParagraphStyle(paragraphProperties, out style);
+    }
+
+    internal static bool TryReadParagraphStyle(XElement paragraphProperties, out SpreadsheetChartTextStyleArtifact style)
+    {
+        style = new SpreadsheetChartTextStyleArtifact();
         var defaults = paragraphProperties.Elements().ToArray();
         var attributes = paragraphProperties.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration).ToArray();
         if (attributes.Any(attribute => attribute.Name != "algn") ||
@@ -308,7 +314,7 @@ internal static class XlsxChartTextStyleCodec
         return defaults.Length == 1 || style.Alignment.Length > 0;
     }
 
-    private static bool TryExactStyleProperties(XElement properties, out SpreadsheetChartTextStyleArtifact style)
+    internal static bool TryExactStyleProperties(XElement properties, out SpreadsheetChartTextStyleArtifact style)
     {
         style = new SpreadsheetChartTextStyleArtifact();
         var allowedAttributes = new HashSet<XName> { "sz", "b", "i", "u" };
@@ -388,7 +394,7 @@ internal static class XlsxChartTextStyleCodec
             ParagraphProperties(style),
             new XElement(DrawingNs + "endParaRPr")));
 
-    private static XElement ParagraphProperties(SpreadsheetChartTextStyleArtifact style)
+    internal static XElement ParagraphProperties(SpreadsheetChartTextStyleArtifact style)
     {
         var output = new XElement(DrawingNs + "pPr");
         if (style.Alignment.Length > 0) output.SetAttributeValue("algn", style.Alignment);
@@ -402,7 +408,7 @@ internal static class XlsxChartTextStyleCodec
 
     private static bool HasAnyStyle(SpreadsheetChartTextStyleArtifact style) => HasCharacterStyle(style) || style.Alignment.Length > 0;
 
-    private static XElement StyleProperties(string name, SpreadsheetChartTextStyleArtifact style)
+    internal static XElement StyleProperties(string name, SpreadsheetChartTextStyleArtifact style)
     {
         var output = new XElement(DrawingNs + name);
         if (style.HasFontSizePoints) output.SetAttributeValue("sz", Size(style.FontSizePoints));

@@ -4160,11 +4160,11 @@ internal static partial class PpjAuthoredPresentationCompiler
             return resolved.GetBoolean();
         }
 
-        internal string StringToken(JsonElement value, string expectedKind, string owner)
+        internal string StringToken(JsonElement value, string expectedKind, string owner, bool allowEmpty = false)
         {
             var resolved = ResolveToken(value, expectedKind, owner);
-            if (resolved.ValueKind != JsonValueKind.String || string.IsNullOrEmpty(resolved.GetString()))
-                throw new CodecException("ppj.grammar.tokenValue", $"PPJ grammar token for {owner} must resolve to a non-empty string.");
+            if (resolved.ValueKind != JsonValueKind.String || !allowEmpty && string.IsNullOrEmpty(resolved.GetString()))
+                throw new CodecException("ppj.grammar.tokenValue", $"PPJ grammar token for {owner} must resolve to {(allowEmpty ? "a string" : "a non-empty string")}.");
             return resolved.GetString()!;
         }
 

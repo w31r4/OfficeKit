@@ -13,6 +13,9 @@ internal static class OpenXmlChartTrendlineLabelCodec
     internal static void Validate(SpreadsheetChartTrendlineLabelArtifact? label, string worksheet, string chart, string series)
     {
         if (label is null) return;
+        if (label.HasText && label.RichText is not null)
+            throw new CodecException("invalid_spreadsheet_chart", "A trendline label cannot combine literal and structured text.");
+        OpenXmlChartRichTextCodec.Validate(label.RichText);
         if (label.HasText && !ValidText(label.Text) || label.HasNumberFormatCode && !ValidText(label.NumberFormatCode))
             throw new CodecException("invalid_spreadsheet_chart", $"Chart {chart} trendline label text/number format must contain 1 through 255 characters without controls.");
         if (label.NumberFormatLink is not (SpreadsheetChartNumberFormatLink.Unspecified or SpreadsheetChartNumberFormatLink.Source or SpreadsheetChartNumberFormatLink.Omitted) ||
@@ -45,8 +48,13 @@ internal static class OpenXmlChartTrendlineLabelCodec
             XNamespace drawing = "http://schemas.openxmlformats.org/drawingml/2006/main";
             if (text.DescendantNodes().Any(node => node is not (XElement or XText) ||
                 node is XText literalText && literalText.Parent?.Name != drawing + "t" && !string.IsNullOrWhiteSpace(literalText.Value))) return false;
-            if (!XlsxChartSeriesDataLabelsCodec.TryReadPointText(text, out var literal)) return false;
-            label.Text = literal;
+            if (XlsxChartSeriesDataLabelsCodec.TryReadPointText(text, out var literal)) label.Text = literal;
+            else
+            {
+                if (!OpenXmlChartRichTextCodec.TryRead(text, out var rich)) return false;
+                label.RichText = rich;
+                OpenXmlChartRichTextCodec.NormalizeLabel(label);
+            }
         }
         if (source.Element(C + "numFmt") is { } format)
         {
@@ -79,6 +87,7 @@ internal static class OpenXmlChartTrendlineLabelCodec
         new XElement(C + "trendlineLbl",
             OpenXmlChartLayoutCodec.Element(label.Layout),
             label.HasText ? XlsxChartSeriesDataLabelsCodec.PointTextElement(label.Text) : null,
+            label.RichText is null ? null : OpenXmlChartRichTextCodec.Element(label.RichText),
             label.HasNumberFormatCode ? new XElement(C + "numFmt", new XAttribute("formatCode", label.NumberFormatCode),
                 label.NumberFormatLink == SpreadsheetChartNumberFormatLink.Omitted ? null :
                     new XAttribute("sourceLinked", label.NumberFormatLink == SpreadsheetChartNumberFormatLink.Source ? "1" : "0")) : null,
