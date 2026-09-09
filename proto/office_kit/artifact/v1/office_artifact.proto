@@ -144,6 +144,10 @@ message PresentationProgramRequest {
   // keeps check/inspect on the same native semantic path as compilation while
   // preserving the two-operation PPJ wire boundary.
   bool validation_only = 6;
+  // Compile-only opt-in. Ordinary build/check calls do not collect scenes.
+  // Incompatible runtimes may ignore this field; preview consumers must require
+  // a supported, candidate-bound scene rather than fall back to program_json.
+  bool include_preview_scene = 7;
 }
 
 // Typed receipt shared by projection and compilation. Projection returns
@@ -165,6 +169,8 @@ message PresentationProgramResult {
   // canonical program_json and program_sha256 remain the semantic revision;
   // this field preserves whitespace and member ordering for direct AI edits.
   bytes original_program_json = 12;
+  // Read-only visual evidence, never an artifact authorized for re-export.
+  PresentationPreviewScene preview_scene = 13;
 }
 
 // Internal compiler IR for byte-bound source-preserving PresentationML edits.
@@ -5495,6 +5501,59 @@ message SpreadsheetChartManualLayoutArtifact {
   optional double y = 7;
   optional double width = 8;
   optional double height = 9;
+}
+
+// Preview-only envelope around the existing writer IR, not another authoring
+// language. Source ownership capabilities and opaque package payloads are
+// removed from presentation; their visible descriptors remain. Asset bytes are
+// resolved from PresentationProgramResult.assets by content_type and sha256.
+message PresentationPreviewScene {
+  uint32 version = 1;
+  PresentationPreviewSceneOrigin origin = 2;
+  string program_sha256 = 3;
+  string candidate_sha256 = 4;
+  PresentationArtifact presentation = 5;
+  repeated PresentationPreviewNodeBinding bindings = 6;
+  repeated PresentationPreviewAssetReference assets = 7;
+  // Lowercase SHA-256 of deterministic protobuf serialization of this message
+  // with sha256 cleared. Includes version, provenance and the complete scene.
+  string sha256 = 8;
+}
+
+enum PresentationPreviewSceneOrigin {
+  PRESENTATION_PREVIEW_SCENE_ORIGIN_UNSPECIFIED = 0;
+  PRESENTATION_PREVIEW_SCENE_ORIGIN_AUTHORED_LOWERING = 1;
+  PRESENTATION_PREVIEW_SCENE_ORIGIN_CANDIDATE_IMPORT = 2;
+}
+
+// Identity and attribution only. None of these fields grants edit authority.
+// Paths use the public PPJ ($.pages...) and scene ($.presentation.slides...)
+// roots respectively. Generated children retain their original semantic owner.
+message PresentationPreviewNodeBinding {
+  string page_id = 1;
+  string semantic_id = 2;
+  string native_id = 3;
+  string program_path = 4;
+  string scene_path = 5;
+  PresentationPreviewAttribution attribution = 6;
+  string source_id = 7;
+  string component_id = 8;
+  string instance_id = 9;
+  string repeat_key = 10;
+  uint32 z_order = 11;
+}
+
+enum PresentationPreviewAttribution {
+  PRESENTATION_PREVIEW_ATTRIBUTION_UNSPECIFIED = 0;
+  PRESENTATION_PREVIEW_ATTRIBUTION_DIRECT = 1;
+  PRESENTATION_PREVIEW_ATTRIBUTION_GENERATED = 2;
+  PRESENTATION_PREVIEW_ATTRIBUTION_UNMAPPED = 3;
+}
+
+message PresentationPreviewAssetReference {
+  string native_id = 1;
+  string content_type = 2;
+  string sha256 = 3;
 }
 
 // Unspecified retains the established explicit-false number format behavior.

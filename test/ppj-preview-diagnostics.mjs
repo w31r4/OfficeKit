@@ -100,3 +100,4 @@ await import("./ppj-preview-input-assessment.mjs");
 await import("./ppj-preview-field-limits.mjs");
 await import("./ppj-preview-factual-errors.mjs");
 await import("./ppj-preview-render-assessment.mjs");
+await import("./ppj-preview-scene-wire.mjs");

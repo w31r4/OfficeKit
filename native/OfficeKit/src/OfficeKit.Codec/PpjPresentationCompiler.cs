@@ -299,6 +299,14 @@ internal static class PpjSourceBoundPresentationCompiler
         receipt.ChangedNodeIds.Add(changedNodeIds.OrderBy(id => id, StringComparer.Ordinal));
         if (!outputUsesSource)
             receipt.ChangedParts.Add(exportedChangedParts ?? ChangedParts(materializedSource ?? sourcePackage.Materialize(), output));
+        if (request.IncludePreviewScene)
+        {
+            // A file-backed no-op stays file-backed; never materialize merely
+            // to obtain preview evidence. Other branches import exact output.
+            using var candidate = outputUsesSource ? null : new PptxPackageSource(output);
+            diagnostics = diagnostics.Concat(PpjPreviewCandidateScene.Attach(
+                candidate ?? sourcePackage, receipt, limits)).ToArray();
+        }
         return new(output, receipt, diagnostics, reuseSourceFile);
     }
 

@@ -214,6 +214,7 @@ public static class CodecProtocol
             throw new CodecException("empty_ppj", "PPJ compilation requires non-empty program_json bytes.");
         if (request.ThinPresentationImportResponse && request.Operation != CodecOperation.ImportPptx)
             throw new CodecException("invalid_request", "thin_presentation_import_response is valid only for PPTX import.");
+        PpjPreviewSceneRequest.Validate(request);
     }
 
     private static void ThinPresentationImportResponse(ArtifactEnvelope artifact)

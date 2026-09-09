@@ -90,6 +90,7 @@ public static class PpjCodecProtocol
             throw new CodecException("empty_ppj", "PPJ compilation requires non-empty program_json bytes.");
         if (request.ThinPresentationImportResponse)
             throw new CodecException("invalid_request", "thin_presentation_import_response is valid only for the legacy PPTX import operation.");
+        PpjPreviewSceneRequest.Validate(request);
     }
 
     private static byte[] RequestFileBytes(ByteString file)

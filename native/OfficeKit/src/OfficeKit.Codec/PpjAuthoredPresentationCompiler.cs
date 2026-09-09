@@ -66,12 +66,16 @@ internal static partial class PpjAuthoredPresentationCompiler
         var assets = ValidateAssets(program, request.Assets);
         var catalog = new Catalog(program.Root, assets);
         var plan = new AuthoredSourceFreeBuildPlan(program, validation.Expansion!, catalog);
+        // Ordinary builds keep the original plan and its per-slide lifetime.
+        var preview = request.IncludePreviewScene
+            ? new PpjPreviewSourceFreeBuildPlan(plan, validation.Expansion.Nodes, limits)
+            : null;
         var originalProgramJson = request.ProgramJson.ToByteArray();
         PptxExportResult exported;
         using (PpjBuildProfiler.Measure("writer"))
         {
             exported = PptxCodec.ExportSourceFree(
-                plan,
+                (IPptxSourceFreeBuildPlan?)preview ?? plan,
                 assets,
                 limits,
                 parts => PpjEmbeddedProgramCodec.AddToSourceFreePackage(
@@ -96,6 +100,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             receipt.NodeMapJson = UnsafeByteOperations.UnsafeWrap(validation.Expansion.NodeMapJson);
         receipt.Assets.Add(assets.Select(asset => asset.Clone()));
         receipt.ChangedNodeIds.Add(validation.Expansion.Nodes.Select(node => node.Id));
+        if (preview is not null)
+            receipt.PreviewScene = preview.Complete(validation.ProgramSha256, fileSha256, assets);
         return new(file, receipt, exported.Diagnostics);
     }
 
