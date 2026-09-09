@@ -2,6 +2,18 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ text-body `verticalAlignment` lifecycle (2026-09-10): top/middle/bottom
+remain explicit values (middle maps to native Center); source omission removes
+bodyPr anchor independently of anchorCenter. Seven new shared enum cases cover
+text/shape/master/layout/table, every restored value, simple style removal,
+compact table restoration, source no-op, surrounding XML and non-target ZIP.
+Related native body/placeholder/table-text selection passes 75/75, zero skipped
+(SDK 8.0.128, repository TMPDIR, single-process build). Preview input/capability,
+Skill maintenance, matrix, portability (255 files), reference sync (333 files)
+and strict OpenSpec pass. No wire change, NativeAOT rebuild or host layout
+acceptance. Other deletions/inheritance remain open; the known broader table
+failure was not rerun.
+
 PPJ text-body `verticalOverflow` lifecycle (2026-09-10): overflow/ellipsis/clip
 remain explicit values and source omission removes native vertOverflow. Seven new
 shared enum cases cover text/shape/master/layout/table, all restored values,

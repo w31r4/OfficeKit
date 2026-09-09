@@ -177,6 +177,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             if (requested.AnchorCase == PresentationTextBodyProperties.AnchorOneofCase.VerticalAnchor)
                 current.VerticalAnchor = requested.VerticalAnchor;
         }
+        else if (previousStyle is { ValueKind: JsonValueKind.Object } previousAlignment && previousAlignment.TryGetProperty("verticalAlignment", out _))
+            current.NoVerticalAnchor = true;
         if (style.TryGetProperty("anchorCenter", out _))
             current.AnchorCenter = requested.AnchorCenter;
         if (style.TryGetProperty("forceAntiAlias", out _))

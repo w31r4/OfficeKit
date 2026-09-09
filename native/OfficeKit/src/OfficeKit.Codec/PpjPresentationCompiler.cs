@@ -4236,7 +4236,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
     {
         if (after.TryGetProperty(field, out var style)) return style;
         if (PreviousTextBodyStyle(before, field) is { ValueKind: JsonValueKind.Object } previous &&
-            previous.EnumerateObject().Any() && previous.EnumerateObject().All(property => property.Name is "upright" or "rotation" or "columnDirection" or "verticalText" or "wrap" or "horizontalOverflow" or "verticalOverflow"))
+            previous.EnumerateObject().Any() && previous.EnumerateObject().All(property => property.Name is "upright" or "rotation" or "columnDirection" or "verticalText" or "wrap" or "horizontalOverflow" or "verticalOverflow" or "verticalAlignment"))
             return JsonSerializer.SerializeToElement(new Dictionary<string, object>());
         throw Unsupported(path + "." + field, "removing source-bound text body style with other fields is not an explicit bounded operation");
     }
@@ -4310,6 +4310,13 @@ internal static partial class PpjSourceBoundPresentationCompiler
         {
             body.BodyProperties ??= new PresentationTextBodyProperties();
             body.BodyProperties.NoVerticalOverflowMode = true;
+        }
+        if (PreviousTextBodyStyle(previousSource, "style") is { ValueKind: JsonValueKind.Object } previousAlignment &&
+            previousAlignment.TryGetProperty("verticalAlignment", out _) &&
+            (PreviousTextBodyStyle(source, "style") is not { ValueKind: JsonValueKind.Object } nextAlignment || !nextAlignment.TryGetProperty("verticalAlignment", out _)))
+        {
+            body.BodyProperties ??= new PresentationTextBodyProperties();
+            body.BodyProperties.NoVerticalAnchor = true;
         }
         return body;
     }

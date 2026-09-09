@@ -18,31 +18,37 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [InlineData("shape", "wrap")]
     [InlineData("shape", "horizontalOverflow")]
     [InlineData("shape", "verticalOverflow")]
+    [InlineData("shape", "verticalAlignment")]
     [InlineData("text", "columnDirection")]
     [InlineData("text", "verticalText")]
     [InlineData("text", "wrap")]
     [InlineData("text", "horizontalOverflow")]
     [InlineData("text", "verticalOverflow")]
+    [InlineData("text", "verticalAlignment")]
     [InlineData("master", "columnDirection")]
     [InlineData("master", "verticalText")]
     [InlineData("master", "wrap")]
     [InlineData("master", "horizontalOverflow")]
     [InlineData("master", "verticalOverflow")]
+    [InlineData("master", "verticalAlignment")]
     [InlineData("layout", "columnDirection")]
     [InlineData("layout", "verticalText")]
     [InlineData("layout", "wrap")]
     [InlineData("layout", "horizontalOverflow")]
     [InlineData("layout", "verticalOverflow")]
+    [InlineData("layout", "verticalAlignment")]
     [InlineData("table", "columnDirection")]
     [InlineData("table", "verticalText")]
     [InlineData("table", "wrap")]
     [InlineData("table", "horizontalOverflow")]
     [InlineData("table", "verticalOverflow")]
+    [InlineData("table", "verticalAlignment")]
     public void EnumBodyPropertySourceRemovalAndRestorationPreserveOtherState(string kind, string field)
     {
         var program = Program(kind); Style(program, kind)[field] = BodyPropertyValues(field).Last();
         if (field == "horizontalOverflow") Style(program, kind)["verticalOverflow"] = "ellipsis";
         if (field == "verticalOverflow") Style(program, kind)["horizontalOverflow"] = "clip";
+        if (field == "verticalAlignment") Style(program, kind)["anchorCenter"] = true;
         var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
         var original = source.ToArray();
         var request = Project(source);
@@ -75,11 +81,13 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [InlineData("shape", "wrap")]
     [InlineData("shape", "horizontalOverflow")]
     [InlineData("shape", "verticalOverflow")]
+    [InlineData("shape", "verticalAlignment")]
     [InlineData("table", "columnDirection")]
     [InlineData("table", "verticalText")]
     [InlineData("table", "wrap")]
     [InlineData("table", "horizontalOverflow")]
     [InlineData("table", "verticalOverflow")]
+    [InlineData("table", "verticalAlignment")]
     public void EnumBodyPropertyOnlyAndCombinedRemovableStylesPreservePresence(string kind, string field)
     {
         foreach (var withOtherProperties in new[] { false, true })
@@ -89,7 +97,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             if (withOtherProperties)
             {
                 style["upright"] = false; style["rotation"] = 12;
-                foreach (var sibling in new[] { "columnDirection", "verticalText", "wrap", "horizontalOverflow", "verticalOverflow" }.Where(key => key != field))
+                foreach (var sibling in new[] { "columnDirection", "verticalText", "wrap", "horizontalOverflow", "verticalOverflow", "verticalAlignment" }.Where(key => key != field))
                     style[sibling] = BodyPropertyValues(sibling).First();
             }
             var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
@@ -106,6 +114,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             Assert.Null(Body(deleted, kind).Wrap);
             Assert.Null(Body(deleted, kind).HorizontalOverflow);
             Assert.Null(Body(deleted, kind).VerticalOverflow);
+            Assert.Null(Body(deleted, kind).Anchor);
             if (!withOtherProperties) AssertOnlyBodyPropertyChanged(source, deleted, kind, field);
             var restore = Project(deleted);
             var element = restore["pages"]![0]!["elements"]![0]!;
@@ -277,13 +286,25 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         "wrap" => ["none", "square"],
         "horizontalOverflow" => ["overflow", "clip"],
         "verticalOverflow" => ["overflow", "ellipsis", "clip"],
+        "verticalAlignment" => ["top", "middle", "bottom"],
         _ => throw new ArgumentException(field),
     };
 
     private static void AssertBodyPropertyValue(byte[] bytes, string kind, string field, string? value)
     {
         var body = Body(bytes, kind);
-        if (field == "verticalOverflow")
+        if (field == "verticalAlignment")
+        {
+            if (value is null) Assert.Null(body.Anchor);
+            else Assert.Equal(value switch
+            {
+                "top" => A.TextAnchoringTypeValues.Top,
+                "middle" => A.TextAnchoringTypeValues.Center,
+                "bottom" => A.TextAnchoringTypeValues.Bottom,
+                _ => throw new ArgumentException(value),
+            }, body.Anchor!.Value);
+        }
+        else if (field == "verticalOverflow")
         {
             if (value is null) Assert.Null(body.VerticalOverflow);
             else Assert.Equal(value switch
@@ -400,7 +421,12 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         using var right = PresentationDocument.Open(new MemoryStream(after), false);
         var oldSlide = Owner(left, kind);
         var newSlide = Owner(right, kind);
-        if (field == "verticalOverflow")
+        if (field == "verticalAlignment")
+        {
+            Assert.Single(oldSlide.Descendants<A.BodyProperties>()).Anchor = null;
+            Assert.Single(newSlide.Descendants<A.BodyProperties>()).Anchor = null;
+        }
+        else if (field == "verticalOverflow")
         {
             Assert.Single(oldSlide.Descendants<A.BodyProperties>()).VerticalOverflow = null;
             Assert.Single(newSlide.Descendants<A.BodyProperties>()).VerticalOverflow = null;
