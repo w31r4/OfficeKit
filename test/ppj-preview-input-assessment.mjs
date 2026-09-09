@@ -60,8 +60,8 @@ const falseParagraphSpacingText = assessPpjPreviewInput(deck([{ ...text, style: 
 assert.ok(falseParagraphSpacingText.diagnostics.some(d => d.path.endsWith(".style.spaceFirstLastParagraph") && d.status !== "supported"));
 const falseCompatibleSpacingText = assessPpjPreviewInput(deck([{ ...text, style: { compatibleLineSpacing: false } }]));
 assert.ok(falseCompatibleSpacingText.diagnostics.some(d => d.path.endsWith(".style.compatibleLineSpacing") && d.status !== "supported"));
-for (const field of ["bold", "italic", "size"]) {
-  const defaults = assessPpjPreviewInput(deck([{ ...text, text: { paragraphs: [{ style: { defaultText: { [field]: field === "size" ? 18.25 : false } }, runs: [{ text: "Default style" }] }] } }]));
+for (const field of ["bold", "italic", "size", "fontFamily"]) {
+  const defaults = assessPpjPreviewInput(deck([{ ...text, text: { paragraphs: [{ style: { defaultText: { [field]: field === "fontFamily" ? "Georgia" : field === "size" ? 18.25 : false } }, runs: [{ text: "Default style" }] }] } }]));
   assert.ok(defaults.diagnostics.some(d => d.path.endsWith(".style.defaultText." + field) && d.status !== "supported"));
 }
 const explicitNoWarp = assessPpjPreviewInput(deck([{ ...text, style: { textWarpPreset: "textNoShape", textWarpAdjustments: [] } }]));

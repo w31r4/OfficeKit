@@ -46,6 +46,14 @@ rounding (18.256 becomes 18.26; 18.125 becomes 18.12); out-of-range sizes are re
 Size-only defaultText/paragraph style wrappers can also be removed.
 Other paragraph defaults and direct run sizes are preserved.
 
+Use defaultText.fontFamily for the same direct paragraph Latin-font lifecycle,
+with its own issued field authority. Names must be nonblank and at most 255
+characters. Delete the field or its font-only defaultText/style wrapper to
+remove the direct Latin font; set a name again to restore it. Other script
+fonts, defaults and direct runs remain unchanged. Extra native font metadata
+or child content rejects replacement. This does not prove font availability
+or host substitution.
+
 
 `textWarpPreset`, `textWarpAdjustments`, `flatTextZ`, `fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.

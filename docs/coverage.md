@@ -2,6 +2,20 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ paragraph default fontFamily (2026-09-10): ordinary text/shape owners
+issue an independent defaultText.fontFamily authority for simple direct a:latin
+nodes. Assignment, deletion, font-only defaultText/style wrapper removal and
+restoration preserve script fonts, soft-edge effects, direct run fonts,
+unknown attributes and non-target XML/ZIP state. Names are nonblank and at
+most 255 characters; theme typeface spelling and the length boundary round-trip.
+Additional font metadata and hidden leaf children reject replacement without
+output. The source-only font fixture removes the authored East Asian fallback;
+mixed-font sources keep it unchanged. Related native tests passed 165/165,
+zero skipped (SDK 8.0.128), retaining the documented whole-default-style baseline
+exclusion. Unsupported-field rejection now uses fontFamilyEastAsia. Generated
+references/matrix, preview input/capability, portability/reference sync and strict
+OpenSpec pass. No wire change, NativeAOT rebuild or host font-substitution claim.
+
 PPJ paragraph default size (2026-09-10): ordinary text/shape paragraphs expose
 defaultText.size through independent setTextParagraphStyle authority. Assignment,
 removal, size-only defaultText/style wrapper removal and restoration preserve
@@ -12,7 +26,7 @@ restoration failed native validation (sz minimum 100); default-run validation
 now enforces 1pt and the invalid value remains a rejection case. Four added
 cases bring the related selection to 159/159 passing, zero skipped (SDK 8.0.128),
 with the previously reproduced whole-default-style baseline failure excluded.
-Unsupported-field rejection now uses fontFamily. Generated reference/matrix,
+That increment used fontFamily for unsupported-field rejection. Generated reference/matrix,
 preview input/capability, portability/reference sync and strict OpenSpec pass.
 No wire change, NativeAOT rebuild or host layout acceptance.
 

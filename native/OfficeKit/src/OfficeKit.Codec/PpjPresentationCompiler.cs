@@ -5529,27 +5529,30 @@ internal static partial class PpjSourceBoundPresentationCompiler
     {
         if (JsonEqual(beforeRaw, afterRaw)) return false;
         var tabStopsChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true),
-            MaskTextValues(afterRaw, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true));
+            MaskTextValues(beforeRaw, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true),
+            MaskTextValues(afterRaw, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true));
         var alignmentChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true));
         var defaultBoldChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultItalic: true, maskDefaultSize: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultItalic: true, maskDefaultSize: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true));
         var defaultItalicChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultSize: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultSize: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultSize: true, maskDefaultFontFamily: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultSize: true, maskDefaultFontFamily: true));
         var defaultSizeChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultFontFamily: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultFontFamily: true));
+        var defaultFontFamilyChanged = !JsonEqual(
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true));
         if (!JsonEqual(
-                MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true),
-                MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true)))
+                MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true),
+                MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true)))
             throw Unsupported(path, "rich-text topology or styling change");
         if (target.TextBody is null)
             throw Unsupported(path, "text edit without one imported bounded text body");
-        if (tabStopsChanged || alignmentChanged || defaultBoldChanged || defaultItalicChanged || defaultSizeChanged)
+        if (tabStopsChanged || alignmentChanged || defaultBoldChanged || defaultItalicChanged || defaultSizeChanged || defaultFontFamilyChanged)
         {
             if (tabStopsChanged)
                 RequireCapabilityField(
@@ -5572,8 +5575,11 @@ internal static partial class PpjSourceBoundPresentationCompiler
             if (defaultSizeChanged)
                 RequireCapabilityField(nativeRef, "setTextParagraphStyle",
                     "text.paragraphs[].style.defaultText.size", path + ".paragraphStyle.defaultText.size");
+            if (defaultFontFamilyChanged)
+                RequireCapabilityField(nativeRef, "setTextParagraphStyle",
+                    "text.paragraphs[].style.defaultText.fontFamily", path + ".paragraphStyle.defaultText.fontFamily");
             ApplyTextParagraphStyleMutation(afterRaw, target, programRoot, path,
-                tabStopsChanged, alignmentChanged, defaultBoldChanged, defaultItalicChanged, defaultSizeChanged);
+                tabStopsChanged, alignmentChanged, defaultBoldChanged, defaultItalicChanged, defaultSizeChanged, defaultFontFamilyChanged);
             mutations.SemanticChanges = true;
         }
 
@@ -6742,7 +6748,8 @@ internal static partial class PpjSourceBoundPresentationCompiler
         bool maskAlignment = false,
         bool maskDefaultBold = false,
         bool maskDefaultItalic = false,
-        bool maskDefaultSize = false)
+        bool maskDefaultSize = false,
+        bool maskDefaultFontFamily = false)
     {
         if (value.ValueKind == JsonValueKind.String)
         {
@@ -6762,7 +6769,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                         if (run["field"] is System.Text.Json.Nodes.JsonObject field)
                             field["text"] = string.Empty;
                     }
-                if ((maskTabStops || maskAlignment || maskDefaultBold || maskDefaultItalic || maskDefaultSize) && paragraph["style"] is System.Text.Json.Nodes.JsonObject style)
+                if ((maskTabStops || maskAlignment || maskDefaultBold || maskDefaultItalic || maskDefaultSize || maskDefaultFontFamily) && paragraph["style"] is System.Text.Json.Nodes.JsonObject style)
                 {
                     if (maskTabStops)
                     {
@@ -6770,11 +6777,12 @@ internal static partial class PpjSourceBoundPresentationCompiler
                         style.Remove("noTabStops");
                     }
                     if (maskAlignment) style.Remove("alignment");
-                    if ((maskDefaultBold || maskDefaultItalic || maskDefaultSize) && style["defaultText"] is System.Text.Json.Nodes.JsonObject defaults)
+                    if ((maskDefaultBold || maskDefaultItalic || maskDefaultSize || maskDefaultFontFamily) && style["defaultText"] is System.Text.Json.Nodes.JsonObject defaults)
                     {
                         if (maskDefaultBold) defaults.Remove("bold");
                         if (maskDefaultItalic) defaults.Remove("italic");
                         if (maskDefaultSize) defaults.Remove("size");
+                        if (maskDefaultFontFamily) defaults.Remove("fontFamily");
                         if (defaults.Count == 0) style.Remove("defaultText");
                     }
                     if (style.Count == 0) paragraph.Remove("style");
@@ -6794,7 +6802,8 @@ internal static partial class PpjSourceBoundPresentationCompiler
         bool alignmentChanged,
         bool defaultBoldChanged,
         bool defaultItalicChanged,
-        bool defaultSizeChanged)
+        bool defaultSizeChanged,
+        bool defaultFontFamilyChanged)
     {
         PresentationTextBody requested;
         try
@@ -6825,7 +6834,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 current.ClearNoTabStops();
                 if (next.HasNoTabStops && next.NoTabStops) current.NoTabStops = true;
             }
-            if (defaultBoldChanged || defaultItalicChanged || defaultSizeChanged)
+            if (defaultBoldChanged || defaultItalicChanged || defaultSizeChanged || defaultFontFamilyChanged)
             {
                 var defaults = current.DefaultRunProperties?.Clone() ?? new PresentationTextStyle();
                 if (defaultBoldChanged)
@@ -6850,6 +6859,12 @@ internal static partial class PpjSourceBoundPresentationCompiler
                             throw Unsupported(path, "paragraph default size must be within 1..768 points");
                         defaults.FontSizePoints = Math.Round(size * 100) / 100d;
                     }
+                }
+                if (defaultFontFamilyChanged)
+                {
+                    defaults.ClearFontFamily();
+                    if (next.DefaultRunProperties is { HasFontFamily: true } nextFamily)
+                        defaults.FontFamily = nextFamily.FontFamily;
                 }
                 if (PptxDefaultRunStyleCodec.HasFields(defaults))
                     current.DefaultRunProperties = defaults;

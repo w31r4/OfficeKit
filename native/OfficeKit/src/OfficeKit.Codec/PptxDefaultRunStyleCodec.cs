@@ -115,8 +115,8 @@ internal static class PptxDefaultRunStyleCodec
         var after = source.DefaultRunProperties;
         var beforeWithoutScalars = before.Clone();
         var afterWithoutScalars = after.Clone();
-        beforeWithoutScalars.ClearBold(); beforeWithoutScalars.ClearItalic(); beforeWithoutScalars.ClearFontSizePoints();
-        afterWithoutScalars.ClearBold(); afterWithoutScalars.ClearItalic(); afterWithoutScalars.ClearFontSizePoints();
+        beforeWithoutScalars.ClearBold(); beforeWithoutScalars.ClearItalic(); beforeWithoutScalars.ClearFontSizePoints(); beforeWithoutScalars.ClearFontFamily();
+        afterWithoutScalars.ClearBold(); afterWithoutScalars.ClearItalic(); afterWithoutScalars.ClearFontSizePoints(); afterWithoutScalars.ClearFontFamily();
         if (beforeWithoutScalars.Equals(afterWithoutScalars))
         {
             // Patch changed scalars without rebuilding unrelated font/fill/effect
@@ -127,6 +127,8 @@ internal static class PptxDefaultRunStyleCodec
                 properties.Italic = after.HasItalic ? after.Italic : null;
             if (before.HasFontSizePoints != after.HasFontSizePoints || before.FontSizePoints != after.FontSizePoints)
                 properties.FontSize = after.HasFontSizePoints ? checked((int)Math.Round(after.FontSizePoints * 100)) : null;
+            if (before.HasFontFamily != after.HasFontFamily || before.FontFamily != after.FontFamily)
+                ApplyLatinFont(properties, after);
             RemoveIfEmpty(properties);
             return;
         }
@@ -376,6 +378,8 @@ internal static class PptxDefaultRunStyleCodec
     };
 
     private static bool ModeledLatinFont(A.LatinFont source) =>
+        // Inspect serialized content before SDK leaf access can hide children.
+        !System.Xml.Linq.XElement.Parse(source.OuterXml).Nodes().Any() &&
         SimpleValue(source, "typeface") && !string.IsNullOrWhiteSpace(source.Typeface?.Value) && source.Typeface.Value.Length <= 255;
 
     private static bool ModeledEastAsianFont(A.EastAsianFont source) =>
