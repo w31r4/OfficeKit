@@ -31,6 +31,8 @@ const uprightText = assessPpjPreviewInput(deck([{ ...text, style: { upright: fal
 assert.ok(uprightText.diagnostics.some(d => d.path.endsWith(".style.upright") && d.status !== "supported"));
 const columnText = assessPpjPreviewInput(deck([{ ...text, style: { columnDirection: "left-to-right" } }]));
 assert.ok(columnText.diagnostics.some(d => d.path.endsWith(".style.columnDirection") && d.status !== "supported"));
+const verticalText = assessPpjPreviewInput(deck([{ ...text, style: { verticalText: "horizontal" } }]));
+assert.ok(verticalText.diagnostics.some(d => d.path.endsWith(".style.verticalText") && d.status !== "supported"));
 const rotatedText = assessPpjPreviewInput(deck([{ ...text, style: { rotation: 0 } }]));
 assert.ok(rotatedText.diagnostics.some(d => d.path.endsWith(".style.rotation") && d.status !== "supported"));
 

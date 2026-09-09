@@ -148,7 +148,8 @@ internal static class PptxBodyPropertiesCodec
             (source.AnchorCase is PresentationTextBodyProperties.AnchorOneofCase.None or PresentationTextBodyProperties.AnchorOneofCase.VerticalAnchor) &&
             (source.WrappingCase is PresentationTextBodyProperties.WrappingOneofCase.None or PresentationTextBodyProperties.WrappingOneofCase.Wrap) &&
             (source.AutoFitCase is PresentationTextBodyProperties.AutoFitOneofCase.None or PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode) &&
-            (source.VerticalTextCase is PresentationTextBodyProperties.VerticalTextOneofCase.None or PresentationTextBodyProperties.VerticalTextOneofCase.VerticalTextMode) &&
+            (source.VerticalTextCase is PresentationTextBodyProperties.VerticalTextOneofCase.None or PresentationTextBodyProperties.VerticalTextOneofCase.VerticalTextMode ||
+                source.VerticalTextCase == PresentationTextBodyProperties.VerticalTextOneofCase.NoVerticalTextMode && source.NoVerticalTextMode) &&
             (source.ColumnCountCase is PresentationTextBodyProperties.ColumnCountOneofCase.None or PresentationTextBodyProperties.ColumnCountOneofCase.Columns) &&
             (source.ColumnSpacingCase is PresentationTextBodyProperties.ColumnSpacingOneofCase.None or PresentationTextBodyProperties.ColumnSpacingOneofCase.ColumnSpacingEmu) &&
             (source.ColumnDirectionCase is PresentationTextBodyProperties.ColumnDirectionOneofCase.None or PresentationTextBodyProperties.ColumnDirectionOneofCase.RightToLeftColumns ||

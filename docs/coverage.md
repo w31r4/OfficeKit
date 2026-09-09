@@ -2,6 +2,19 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ text-body `verticalText` lifecycle (2026-09-10): source omission removes
+native bodyPr vert, while horizontal/vertical/vertical270 retain explicit values.
+The existing direction lifecycle experiment now covers both columnDirection and
+verticalText: 7 additional cases verify supported text/shape/master/layout/table
+owners, every restored direction, no-op bytes, simple style deletion, compact
+table restoration and surrounding XML/non-target ZIP preservation. Related native
+body/placeholder/table-text selection passes 47/47, zero skipped (SDK 8.0.128,
+repository TMPDIR, single-process build). Preview input/capability, Skill maintenance,
+matrix, portability (255 files), reference sync (333 files) and strict OpenSpec pass.
+No wire change, NativeAOT rebuild or host text-layout acceptance. Other deletion
+and inheritance gaps remain; the previously documented broader table failure
+was not rerun.
+
 PPJ text-body `columnDirection` lifecycle (2026-09-10): source edits now distinguish
 left-to-right (native rtlCol=false), right-to-left (true) and removal (absent).
 The 7 new cases in PpjTextBodyPropertyLifecycleTests cover text/shape/master/layout/table,

@@ -282,6 +282,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             if (requested.VerticalTextCase == PresentationTextBodyProperties.VerticalTextOneofCase.VerticalTextMode)
                 current.VerticalTextMode = requested.VerticalTextMode;
         }
+        else if (previousStyle is { ValueKind: JsonValueKind.Object } previousVertical && previousVertical.TryGetProperty("verticalText", out _))
+            current.NoVerticalTextMode = true;
         if (style.TryGetProperty("rotation", out _))
         {
             current.ClearRotation();

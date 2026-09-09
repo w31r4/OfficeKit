@@ -463,6 +463,8 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**文字方向删除增量（2026-09-10）：** `verticalText` 的 `horizontal`、`vertical`、`vertical270` 与省略已接通源编辑：显式 horizontal 保留 `vert=horz`，删除才移除原生 `bodyPr/@vert`。文本、shape、master/layout placeholder 和表格均复用方向生命周期实验，新增 7 例，相关专项 47/47、零跳过；检查原源 no-op、三种值恢复、简单样式整体删除、表格纯文本后的结构化恢复，以及其它正文/frame/非目标 ZIP 保留。可整体删除的简单样式字段现为 upright、rotation、columnDirection、verticalText。预览保留文字布局诊断，宿主排版、继承及其它属性删除继续开放。
+
 **分栏方向删除增量（2026-09-10）：** `columnDirection` 的 `left-to-right`、`right-to-left` 与省略已闭合 authored/去嵌入/source-bound/二次投影；前两者保留原生 `rtlCol=false/true`，删除才移除属性。文本、shape、master/layout placeholder 和表格共用生命周期实验；只含该字段、upright、rotation 的样式可整体移除，表格变回纯文本后可按原段落/run 拓扑恢复结构化样式。新增 7 例，相关专项 40/40、零跳过，验证原源 no-op、其它正文属性/frame/非目标 ZIP 保留。预览保持分栏诊断；其它属性删除、继承和宿主排版仍开放。
 
 **文本体 rotation 完整增改删（2026-09-10）：** `style.rotation` / `textStyle.rotation` / 表格 `text.style.rotation` 删除后移除原生 `bodyPr/@rot`，显式 0 与正负角度仍保留。文本、形状、master/layout 占位符及表格均支持原源删除和恢复；只含 rotation/upright 的样式对象可整体移除。新增 7 个最小回归核对实际 60000 分之一度数值、原源 no-op、0/负角恢复、表格普通文本规范化后的字段重建，以及 frame/正文/其它属性和非目标 ZIP 保留；相关专项 33/33 通过。预览保留文本旋转限制，未重建 NativeAOT 或做宿主布局验收，其它 body 字段删除仍逐项推进。
@@ -699,6 +701,8 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 **本轮继续拆出同一图片 owner 的 bottom bevel 枚举：** 已有 `shape3dBevelBottomPreset` 也绑定严格图片 owner 的 `p:pic/p:spPr/a:sp3d/a:bevelB/@prst`；新增 additive `PresentationImage.shape_3d_bevel_bottom_preset` source-bound 载体，`PpjSourceBoundPictureShape3dBevelBottomPresetLeafEditsAndReprojects` 验证 `angle` → `softRound` 的单 `bevelB/@prst` token splice、仅目标 SlidePart、图片关系/crop/mask/effect、bevel 尺寸与其它 3-D 状态保留、Open XML 和二次投影。未知属性、额外子节点、顶面 bevel、scene、颜色和复杂/扩展 3-D graph 仍 source-owned。
 
 ### F-06 Table、Cell Style 和 Table Layout
+
+**文字方向删除增量（2026-09-10）：** 表格 `text.style.verticalText` 支持三种显式方向、删除和恢复；与 columnDirection 共用最小实验，简单样式删除及纯文本规范化/恢复证据见 F-03。
 
 **分栏方向删除增量（2026-09-10）：** 表格 structured `text.style.columnDirection` 已支持双向显式值、删除和恢复；简单样式整体移除及表格纯文本规范化/恢复证据见 F-03 的共享生命周期实验。
 
