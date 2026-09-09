@@ -21,13 +21,17 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [InlineData("shape", false, "italic")]
     [InlineData("shape", true, "bold")]
     [InlineData("shape", true, "italic")]
-    public void ParagraphDefaultBooleanPresencePreservesOtherState(string kind, bool otherDefaults, string field)
+    [InlineData("text", false, "size")]
+    [InlineData("text", true, "size")]
+    [InlineData("shape", false, "size")]
+    [InlineData("shape", true, "size")]
+    public void ParagraphDefaultScalarPresencePreservesOtherState(string kind, bool otherDefaults, string field)
     {
         var program = Program(kind);
-        var defaults = new JsonObject { [field] = true };
+        var defaults = new JsonObject { [field] = field == "size" ? JsonValue.Create(18.25) : JsonValue.Create(true) };
         if (otherDefaults)
         {
-            defaults[field == "bold" ? "italic" : "bold"] = true; defaults["size"] = 18; defaults["fontFamily"] = "Arial";
+            defaults[field == "bold" ? "italic" : "bold"] = true; if (field != "size") defaults["size"] = 18; defaults["fontFamily"] = "Arial";
             defaults["softEdge"] = new JsonObject { ["radius"] = 2 };
         }
         var paragraphStyle = new JsonObject { ["defaultText"] = defaults };
@@ -52,7 +56,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         var source = stream.ToArray(); var original = source.ToArray();
         var projected = Project(source);
         Assert.Equal(source, Compile(projected, source).File.ToByteArray());
-        Assert.True(ParagraphDefaultBoolean(source, kind, field));
+        Assert.Equal(field == "size" ? "18.25" : "true", ParagraphDefaultScalar(source, kind, field)?.ToJsonString());
         foreach (var mode in otherDefaults ? new[] { "field" } : new[] { "field", "defaultText", "style" })
         {
             var request = Project(source); var paragraph = FirstTextParagraph(request);
@@ -60,43 +64,59 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             else if (mode == "defaultText") paragraph["style"]!.AsObject().Remove("defaultText");
             else paragraph.Remove("style");
             var deleted = Compile(request, source).File.ToByteArray();
-            Assert.Null(ParagraphDefaultBoolean(deleted, kind, field));
+            Assert.Null(ParagraphDefaultScalar(deleted, kind, field));
             Assert.Null(FirstTextParagraph(Project(deleted))["style"]?["defaultText"]?[field]);
             AssertOnlyBodyPropertyChanged(source, deleted, kind, "paragraphDefault." + field);
-            foreach (var value in new[] { false, true })
+            foreach (var value in field == "size" ? new[] { "1", "18.25", "18.256", "18.125", "768" } : new[] { "false", "true" })
             {
                 var restore = Project(deleted); var restoredParagraph = FirstTextParagraph(restore);
                 restoredParagraph["style"] ??= new JsonObject();
                 restoredParagraph["style"]!["defaultText"] ??= new JsonObject();
-                restoredParagraph["style"]!["defaultText"]![field] = value;
+                restoredParagraph["style"]!["defaultText"]![field] = JsonNode.Parse(value);
                 var restored = Compile(restore, deleted).File.ToByteArray();
-                Assert.Equal(value, ParagraphDefaultBoolean(restored, kind, field));
-                Assert.Equal(value, FirstTextParagraph(Project(restored))["style"]!["defaultText"]![field]!.GetValue<bool>());
+                var expected = field == "size"
+                    ? JsonValue.Create(Math.Round(double.Parse(value, System.Globalization.CultureInfo.InvariantCulture) * 100) / 100d)!.ToJsonString()
+                    : value;
+                Assert.Equal(expected, ParagraphDefaultScalar(restored, kind, field)?.ToJsonString());
+                Assert.Equal(expected, FirstTextParagraph(Project(restored))["style"]!["defaultText"]![field]!.ToJsonString());
                 AssertOnlyBodyPropertyChanged(deleted, restored, kind, "paragraphDefault." + field);
             }
         }
         var denied = Project(source);
-        FirstTextParagraph(denied)["style"]!["defaultText"]![field] = false;
+        FirstTextParagraph(denied)["style"]!["defaultText"]![field] = field == "size" ? JsonValue.Create(24) : JsonValue.Create(false);
         var capability = denied["pages"]![0]!["elements"]![0]!["nativeRef"]!["capabilities"]!.AsArray()
             .Single(c => c!["operation"]!.GetValue<string>() == "setTextParagraphStyle")!;
         var fields = capability["fields"]!.AsArray();
         fields.Remove(fields.Single(f => f!.GetValue<string>() == "text.paragraphs[].style.defaultText." + field));
         Assert.Empty(Compile(denied, source, success: false).File);
         var unsupported = Project(source);
-        FirstTextParagraph(unsupported)["style"]!["defaultText"]!["size"] = 24;
+        FirstTextParagraph(unsupported)["style"]!["defaultText"]!["fontFamily"] = "Georgia";
         Assert.Empty(Compile(unsupported, source, success: false).File);
+        if (field == "size")
+            foreach (var invalid in new[] { 0d, -1d, 768.01, 0.001, 0.01, 0.99 })
+            {
+                var request = Project(source);
+                FirstTextParagraph(request)["style"]!["defaultText"]!["size"] = invalid;
+                Assert.Empty(Compile(request, source, success: false).File);
+            }
         Assert.Equal(original, source);
     }
 
     private static JsonObject FirstTextParagraph(JsonObject program) =>
         program["pages"]![0]!["elements"]![0]!["text"]!["paragraphs"]![0]!.AsObject();
 
-    private static bool? ParagraphDefaultBoolean(byte[] bytes, string kind, string field)
+    private static JsonNode? ParagraphDefaultScalar(byte[] bytes, string kind, string field)
     {
         using var document = PresentationDocument.Open(new MemoryStream(bytes), false);
         var paragraph = Owner(document, kind).Descendants<A.Paragraph>().First();
         var defaults = paragraph.ParagraphProperties?.GetFirstChild<A.DefaultRunProperties>();
-        return field == "bold" ? defaults?.Bold?.Value : defaults?.Italic?.Value;
+        return field switch
+        {
+            "bold" => defaults?.Bold is { } bold ? JsonValue.Create(bold.Value) : null,
+            "italic" => defaults?.Italic is { } italic ? JsonValue.Create(italic.Value) : null,
+            "size" => defaults?.FontSize is { } size ? JsonValue.Create(size.Value / 100d) : null,
+            _ => throw new ArgumentOutOfRangeException(nameof(field)),
+        };
     }
 
     [Theory]
@@ -1076,7 +1096,8 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                 if (defaults is not null)
                 {
                     if (field == "paragraphDefault.bold") defaults.Bold = null;
-                    else defaults.Italic = null;
+                    else if (field == "paragraphDefault.italic") defaults.Italic = null;
+                    else defaults.FontSize = null;
                     if (defaults.GetAttributes().Count == 0 && defaults.ChildElements.Count == 0) defaults.Remove();
                 }
                 if (paragraphProperties is not null && paragraphProperties.GetAttributes().Count == 0 && paragraphProperties.ChildElements.Count == 0)

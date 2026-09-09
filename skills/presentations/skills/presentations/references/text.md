@@ -39,6 +39,13 @@ True and false remain explicit; delete the field (or its flag-only
 boolean again. Each field needs its own issued `setTextParagraphStyle` authority;
 other defaults, direct run styles and placeholder inheritance are separate.
 
+The same owner supports defaultText.size with its own field authority.
+Set a point size from 1 to 768, delete it to clear the direct default,
+and set it again to restore it. Native precision is 0.01pt with nearest-even
+rounding (18.256 becomes 18.26; 18.125 becomes 18.12); out-of-range sizes are rejected.
+Size-only defaultText/paragraph style wrappers can also be removed.
+Other paragraph defaults and direct run sizes are preserved.
+
 
 `textWarpPreset`, `textWarpAdjustments`, `flatTextZ`, `fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.

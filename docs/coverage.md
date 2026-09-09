@@ -2,6 +2,20 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ paragraph default size (2026-09-10): ordinary text/shape paragraphs expose
+defaultText.size through independent setTextParagraphStyle authority. Assignment,
+removal, size-only defaultText/style wrapper removal and restoration preserve
+other defaults/effects, direct runs, second paragraphs, unknown attributes and
+non-target XML/ZIP entries. Sizes are 1..768pt with nearest-even hundredth-point
+rounding; 18.256 -> 18.26 and 18.125 -> 18.12 are checked. Initial 0.01pt
+restoration failed native validation (sz minimum 100); default-run validation
+now enforces 1pt and the invalid value remains a rejection case. Four added
+cases bring the related selection to 159/159 passing, zero skipped (SDK 8.0.128),
+with the previously reproduced whole-default-style baseline failure excluded.
+Unsupported-field rejection now uses fontFamily. Generated reference/matrix,
+preview input/capability, portability/reference sync and strict OpenSpec pass.
+No wire change, NativeAOT rebuild or host layout acceptance.
+
 PPJ paragraph default italic (2026-09-10): ordinary text/shape owners now
 expose defaultText.italic with independent field authority. The shared boolean
 fixture covers bold and italic true/false/removal/restoration, flag-only
@@ -10,7 +24,7 @@ state and non-target XML/ZIP preservation. Untouched boolean XML spelling is
 retained. Four additional cases bring the related native selection to 155/155
 passing, zero skipped (SDK 8.0.128); the previously reproduced native
 default-style baseline failure remains excluded as documented below.
-Unsupported-field rejection now uses size. Generated reference/matrix,
+That increment used size for unsupported-field rejection. Generated reference/matrix,
 preview input/capability, portability/reference sync and strict OpenSpec pass.
 Existing wire unchanged; no NativeAOT rebuild or host reflow acceptance.
 

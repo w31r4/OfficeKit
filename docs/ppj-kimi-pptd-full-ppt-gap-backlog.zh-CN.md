@@ -463,6 +463,17 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**段落默认字号增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.defaultText.size` 支持赋值、删除、恢复，
+也支持移除仅含字号的 defaultText/style 包装；要求独立字段权限。
+字号范围为 1..768pt，以 0.01pt 精度就近舍入，中点取偶数
+（18.256→18.26，18.125→18.12）。首次实验发现 0.01pt 不满足原生字号下限，
+已补前置校验并保留拒绝用例。只更新直接 sz，保留其它默认样式、效果、
+直接 run、第二段、未知属性及非目标 XML/ZIP。相关 **159/159 通过，0 跳过**，
+沿用下方已复现的整组默认样式基线失败排除项。资料、生成检查和 OpenSpec 通过；
+未重建 NativeAOT，字体、其它默认样式及继承继续逐项补齐。
+
+
 **段落默认斜体增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.defaultText.italic` 支持 true、false、删除和恢复，
 含仅有斜体的包装对象删除；与 bold 分别检查字段权限。共享实验验证其它默认样式、

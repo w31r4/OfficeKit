@@ -113,18 +113,20 @@ internal static class PptxDefaultRunStyleCodec
         Read(imported, target);
         var before = imported.DefaultRunProperties ?? new PresentationTextStyle();
         var after = source.DefaultRunProperties;
-        var beforeWithoutFlags = before.Clone();
-        var afterWithoutFlags = after.Clone();
-        beforeWithoutFlags.ClearBold(); beforeWithoutFlags.ClearItalic();
-        afterWithoutFlags.ClearBold(); afterWithoutFlags.ClearItalic();
-        if (beforeWithoutFlags.Equals(afterWithoutFlags))
+        var beforeWithoutScalars = before.Clone();
+        var afterWithoutScalars = after.Clone();
+        beforeWithoutScalars.ClearBold(); beforeWithoutScalars.ClearItalic(); beforeWithoutScalars.ClearFontSizePoints();
+        afterWithoutScalars.ClearBold(); afterWithoutScalars.ClearItalic(); afterWithoutScalars.ClearFontSizePoints();
+        if (beforeWithoutScalars.Equals(afterWithoutScalars))
         {
-            // Patch changed flags without rebuilding unrelated font/fill/effect
-            // children or canonicalizing the untouched flag's XML spelling.
+            // Patch changed scalars without rebuilding unrelated font/fill/effect
+            // children or canonicalizing the untouched scalar's XML spelling.
             if (before.HasBold != after.HasBold || before.Bold != after.Bold)
                 properties.Bold = after.HasBold ? after.Bold : null;
             if (before.HasItalic != after.HasItalic || before.Italic != after.Italic)
                 properties.Italic = after.HasItalic ? after.Italic : null;
+            if (before.HasFontSizePoints != after.HasFontSizePoints || before.FontSizePoints != after.FontSizePoints)
+                properties.FontSize = after.HasFontSizePoints ? checked((int)Math.Round(after.FontSizePoints * 100)) : null;
             RemoveIfEmpty(properties);
             return;
         }
@@ -142,8 +144,8 @@ internal static class PptxDefaultRunStyleCodec
     private static void ValidateStyle(PresentationTextStyle style)
     {
         if (!HasFields(style)) throw Invalid("Presentation default run properties must contain at least one modeled field.");
-        if (style.HasFontSizePoints && (!(style.FontSizePoints > 0) || style.FontSizePoints > MaxFontSizePoints || !double.IsFinite(style.FontSizePoints)))
-            throw Invalid($"Presentation default-run font size must be finite and between 0 and {MaxFontSizePoints} points.");
+        if (style.HasFontSizePoints && (!(style.FontSizePoints >= 1) || style.FontSizePoints > MaxFontSizePoints || !double.IsFinite(style.FontSizePoints)))
+            throw Invalid($"Presentation default-run font size must be finite and between 1 and {MaxFontSizePoints} points.");
         if (style.HasFontFamily && (string.IsNullOrWhiteSpace(style.FontFamily) || style.FontFamily.Length > 255))
             throw Invalid("Presentation default-run font family must contain 1 through 255 characters.");
         if (style.HasFontFamilyEastAsia && (string.IsNullOrWhiteSpace(style.FontFamilyEastAsia) || style.FontFamilyEastAsia.Length > 255))
