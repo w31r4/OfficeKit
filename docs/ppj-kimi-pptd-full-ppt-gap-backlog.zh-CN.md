@@ -463,6 +463,8 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**文本 upright 完整增改删（2026-09-10）：** `style.upright` / `textStyle.upright` / 表格 `text.style.upright` 保留 true、false 与省略的区别；从已投影源样式删除该字段，会移除原生 `upright` 属性，恢复继承/默认行为。样式只含 upright 时也可删除整个对象。文本、形状、master/layout 占位符和表格的最小实验 7/7 通过，核对原源 no-op、删除后再添加 true/false、属性实际存在性、其它 XML 语义及非目标 ZIP 保留、缺权限和连带删除拒绝。表格删除最后一个 body 属性后可规范投影为普通文本，再以相同原生拓扑恢复结构化样式。相关专项 103/104，唯一异常合并表格断言在干净 `bbc1065b` 基线上同样失败；预览保留布局限制，未重建 NativeAOT 或做宿主验收。
+
 **优先级：P0；状态：部分完成（rich text 子集已交付）。**
 
 **当前进度：** PPJ 有 string/rich text、paragraph/run、字体、字号、颜色、渐变、阴影、项目符号、段落间距、缩进、文本框边距、列、方向、AutoFit、垂直文字和有限 inline LaTeX；新增 typed `run.field`（固定 `type/text`、可选花括号 UUID）可 authored 编译为 `p:fld` 并在去嵌入 PPJ 后恢复字段类型/文本/ID；`run.break: true` 现在可以表示一个不新建段落的原生 DrawingML line break，并在普通文本和固定拓扑表格 cell 中 authored/投影；source-bound 现在允许在保持 field ID/type 不变的前提下修改静态 display text，只改目标 SlidePart，并通过二次投影恢复；普通文本框、带文本形状和占位符的固定拓扑 text body 现在还可通过独立 `setTextBodyStyle` 回写直接 bodyPr 的 vertical alignment、wrap、四边 inset、columns、column gap/direction、vertical text、rotation、horizontal/vertical overflow、upright 和有限 auto-fit，保持段落/run 拓扑与未建模 XML，`PpjSourceBoundTextBodyStyleEditsTextShapeAndReprojects` 覆盖 authored、capability、SlidePart-only source-bound 编辑和二次投影；固定拓扑表格 cell 也允许 direct text/field/break 混合 body，只修改文字或字段缓存文本并保持字段 ID/type、段落/run 拓扑和其余 XML；普通文本、默认 run、表格和图表样式新增 `text.fontFamilyComplexScript`/`fontFamilyComplexScript`，authored 与 imported/source-bound 单叶回归分别证明直接 `a:cs` 的写入、投影和 token-splice 编辑；已有多个 source-bound text leaf。
@@ -693,6 +695,8 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 **本轮继续拆出同一图片 owner 的 bottom bevel 枚举：** 已有 `shape3dBevelBottomPreset` 也绑定严格图片 owner 的 `p:pic/p:spPr/a:sp3d/a:bevelB/@prst`；新增 additive `PresentationImage.shape_3d_bevel_bottom_preset` source-bound 载体，`PpjSourceBoundPictureShape3dBevelBottomPresetLeafEditsAndReprojects` 验证 `angle` → `softRound` 的单 `bevelB/@prst` token splice、仅目标 SlidePart、图片关系/crop/mask/effect、bevel 尺寸与其它 3-D 状态保留、Open XML 和二次投影。未知属性、额外子节点、顶面 bevel、scene、颜色和复杂/扩展 3-D graph 仍 source-owned。
 
 ### F-06 Table、Cell Style 和 Table Layout
+
+**文本体删除增量（2026-09-10）：** 表格 `text.style.upright` 已与其它文本 owner 对齐，支持 true/false/删除及移除 upright-only style；删除最后一个属性后的普通文本规范化与恢复路径已验证。证据和已有失败见 F-03 upright 增量，其它 body style 删除与复杂继承仍开放。
 
 **优先级：P1；状态：部分完成（固定矩形表格 profile 已交付）。**
 

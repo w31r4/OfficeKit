@@ -427,7 +427,7 @@ internal static class PptxTableCodec
                 if (original.CellTextStyleEditable)
                 {
                     allowedCell.TextStyle = requestedCell.TextStyle?.Clone();
-                    if (originalCell.TextBody is not null)
+                    if (originalCell.TextBody is not null || requestedCell.TextBody is not null)
                     {
                         if (requestedCell.TextBody is null)
                             throw new CodecException("unsupported_presentation_edit", "Source-preserving mixed-run table-cell text must retain its structured text body.");
@@ -542,17 +542,9 @@ internal static class PptxTableCodec
             {
                 var semantic = PptxTextCodec.ReadDrawingTextBody(body, context);
                 var runs = semantic.Paragraphs.SelectMany(paragraph => paragraph.Runs).ToArray();
-                var styles = runs.Select(TextStyle).ToArray();
-                var hasStructuredInline = runs.Any(run => run.ContentCase is
-                    PresentationTextRun.ContentOneofCase.Field or PresentationTextRun.ContentOneofCase.LineBreak);
-                if (runs.Length > 0 && !hasStructuredInline && runs.All(run =>
-                        run.ContentCase == PresentationTextRun.ContentOneofCase.Text &&
-                        CellTextStyleSupported(run)) &&
-                    styles.Skip(1).All(style => Equals(style, styles[0])) &&
-                    semantic.Paragraphs.All(paragraph => !PptxParagraphPropertiesCodec.HasModeledProperties(paragraph)) &&
-                    !PptxBodyPropertiesCodec.HasModeledProperties(semantic.BodyProperties))
+                if (TryUniformCellTextStyle(semantic, out var uniformStyle))
                 {
-                    textStyle = styles[0];
+                    textStyle = uniformStyle;
                 }
                 else if (runs.Length > 0 && IsBoundedMixedRunTextBody(semantic))
                 {
@@ -667,6 +659,38 @@ internal static class PptxTableCodec
         style.GradientFill is null && style.Shadow is null &&
         style.ColorCase != PresentationTextStyle.ColorOneofCase.ColorScheme &&
         (!style.HasLanguage || style.Language.Equals("en-US", StringComparison.OrdinalIgnoreCase));
+
+    // Reading a uniform body without layout state uses the compact cell
+    // text/style representation. Source edit intents must normalize to that
+    // same representation after their final body property is removed.
+    internal static void NormalizeTextSemantics(PresentationTableCell cell)
+    {
+        if (cell.TextBody is null) return;
+        var shape = new PresentationShape { Text = cell.Text, TextBody = cell.TextBody.Clone() };
+        PptxTextCodec.NormalizeSemantics(shape);
+        cell.Text = shape.Text;
+        cell.TextBody = shape.TextBody;
+        if (TryUniformCellTextStyle(shape.TextBody, out var style))
+        {
+            cell.TextBody = null;
+            cell.TextStyle = style;
+        }
+    }
+
+    private static bool TryUniformCellTextStyle(PresentationTextBody body, out PresentationTextStyle? style)
+    {
+        style = null;
+        var runs = body.Paragraphs.SelectMany(paragraph => paragraph.Runs).ToArray();
+        if (runs.Length == 0 || runs.Any(run => run.ContentCase != PresentationTextRun.ContentOneofCase.Text ||
+                !CellTextStyleSupported(run)) ||
+            body.Paragraphs.Any(PptxParagraphPropertiesCodec.HasModeledProperties) ||
+            PptxBodyPropertiesCodec.HasModeledProperties(body.BodyProperties))
+            return false;
+        var styles = runs.Select(TextStyle).ToArray();
+        if (!styles.Skip(1).All(item => Equals(item, styles[0]))) return false;
+        style = styles[0];
+        return true;
+    }
 
     private static PresentationTextStyle? TextStyle(PresentationTextRun run)
     {

@@ -649,12 +649,11 @@ internal static partial class PpjSourceBoundPresentationCompiler
             }
             if (styleChanged)
             {
-                if (!newPlaceholder.Raw.TryGetProperty("style", out var style))
-                    throw Unsupported(placeholderPath + ".style", "removing source-bound placeholder text body style is not an explicit bounded operation");
+                var style = RequestedTextBodyStyle(oldPlaceholder.Raw, newPlaceholder.Raw, "style", placeholderPath);
                 PpjAuthoredPresentationCompiler.MergeSourceBoundTextBodyStyle(
                     requestedWire.TextBody ?? throw Unsupported(placeholderPath + ".style", "source-bound placeholder text body style requires an existing text body"),
                     style,
-                    placeholderPath + ".style");
+                    placeholderPath + ".style", PreviousTextBodyStyle(oldPlaceholder.Raw, "style"));
             }
             target[targetIndex] = requestedWire;
             changed = true;
@@ -1965,9 +1964,8 @@ internal static partial class PpjSourceBoundPresentationCompiler
         if (PropertyChanged(before.Raw, after.Raw, "style"))
         {
             RequireCapabilityField(after.NativeRef, "setTextBodyStyle", "text.style", path + ".style");
-            if (!after.Raw.TryGetProperty("style", out var style))
-                throw Unsupported(path + ".style", "removing source-bound text body style is not an explicit bounded operation");
-            PpjAuthoredPresentationCompiler.MergeSourceBoundTextBodyStyle(target.TextBody!, style, path + ".style");
+            var style = RequestedTextBodyStyle(before.Raw, after.Raw, "style", path);
+            PpjAuthoredPresentationCompiler.MergeSourceBoundTextBodyStyle(target.TextBody!, style, path + ".style", PreviousTextBodyStyle(before.Raw, "style"));
             semanticChanged = true;
         }
         if (PropertyChanged(before.Raw, after.Raw, "text"))
@@ -2008,9 +2006,8 @@ internal static partial class PpjSourceBoundPresentationCompiler
         if (PropertyChanged(before.Raw, after.Raw, "textStyle"))
         {
             RequireCapabilityField(after.NativeRef, "setTextBodyStyle", "textStyle", path + ".textStyle");
-            if (!after.Raw.TryGetProperty("textStyle", out var textStyle))
-                throw Unsupported(path + ".textStyle", "removing source-bound text body style is not an explicit bounded operation");
-            PpjAuthoredPresentationCompiler.MergeSourceBoundTextBodyStyle(target.TextBody!, textStyle, path + ".textStyle");
+            var textStyle = RequestedTextBodyStyle(before.Raw, after.Raw, "textStyle", path);
+            PpjAuthoredPresentationCompiler.MergeSourceBoundTextBodyStyle(target.TextBody!, textStyle, path + ".textStyle", PreviousTextBodyStyle(before.Raw, "textStyle"));
             semanticChanged = true;
         }
         if (PropertyChanged(before.Raw, after.Raw, "text"))
@@ -2198,9 +2195,8 @@ internal static partial class PpjSourceBoundPresentationCompiler
         if (PropertyChanged(before.Raw, after.Raw, "style"))
         {
             RequireCapabilityField(after.NativeRef, "setTextBodyStyle", "text.style", path + ".style");
-            if (!after.Raw.TryGetProperty("style", out var style))
-                throw Unsupported(path + ".style", "removing source-bound placeholder text body style is not an explicit bounded operation");
-            PpjAuthoredPresentationCompiler.MergeSourceBoundTextBodyStyle(target.TextBody!, style, path + ".style");
+            var style = RequestedTextBodyStyle(before.Raw, after.Raw, "style", path);
+            PpjAuthoredPresentationCompiler.MergeSourceBoundTextBodyStyle(target.TextBody!, style, path + ".style", PreviousTextBodyStyle(before.Raw, "style"));
             semanticChanged = true;
         }
         if (PropertyChanged(before.Raw, after.Raw, "text"))
@@ -4207,7 +4203,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                         bodyStyleRow != row || bodyStyleColumn < 0 || bodyStyleColumn >= target.Rows[row].Cells.Count)
                         throw Unsupported(cellPath + ".text", "mixed-run table-cell text requires a canonical visible cell coordinate");
                     target.Rows[bodyStyleRow].Cells[bodyStyleColumn].TextBody =
-                        SourceBoundTableCellTextBody(newTextRaw, cellPath + ".text", program.Root);
+                        SourceBoundTableCellTextBody(newTextRaw, cellPath + ".text", program.Root, oldTextRaw);
                     target.Rows[bodyStyleRow].Cells[bodyStyleColumn].Text =
                         PptxTextCodec.Flatten(target.Rows[bodyStyleRow].Cells[bodyStyleColumn].TextBody);
                     changed = true;
@@ -4222,7 +4218,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 if (newStructuredText)
                 {
                     target.Rows[physicalRow].Cells[physicalColumn].TextBody =
-                        SourceBoundTableCellTextBody(newTextRaw, cellPath + ".text", program.Root);
+                        SourceBoundTableCellTextBody(newTextRaw, cellPath + ".text", program.Root, oldTextRaw);
                     target.Rows[physicalRow].Cells[physicalColumn].Text =
                         PptxTextCodec.Flatten(target.Rows[physicalRow].Cells[physicalColumn].TextBody);
                 }
@@ -4233,13 +4229,28 @@ internal static partial class PpjSourceBoundPresentationCompiler
         return changed;
     }
 
+    private static JsonElement? PreviousTextBodyStyle(JsonElement owner, string field) =>
+        owner.ValueKind == JsonValueKind.Object && owner.TryGetProperty(field, out var style) ? style : null;
+
+    private static JsonElement RequestedTextBodyStyle(JsonElement before, JsonElement after, string field, string path)
+    {
+        if (after.TryGetProperty(field, out var style)) return style;
+        if (PreviousTextBodyStyle(before, field) is { ValueKind: JsonValueKind.Object } previous &&
+            previous.TryGetProperty("upright", out _) && previous.EnumerateObject().Count() == 1)
+            return JsonSerializer.SerializeToElement(new Dictionary<string, object>());
+        throw Unsupported(path + "." + field, "removing source-bound text body style with other fields is not an explicit bounded operation");
+    }
+
     private static PresentationTextBody SourceBoundTableCellTextBody(
         JsonElement source,
         string path,
-        JsonElement programRoot)
+        JsonElement programRoot,
+        JsonElement previousSource)
     {
         if (source.ValueKind != JsonValueKind.Object)
             throw Unsupported(path, "source-bound mixed-run table-cell text must be a structured text body");
+        if (PreviousTextBodyStyle(previousSource, "style") is not null && !source.TryGetProperty("style", out _))
+            _ = RequestedTextBodyStyle(previousSource, source, "style", path);
         PresentationTextBody body;
         try
         {
@@ -4251,6 +4262,13 @@ internal static partial class PpjSourceBoundPresentationCompiler
         }
         if (!PptxTableCodec.IsBoundedMixedRunTextBody(body))
             throw Unsupported(path, "mixed-run table-cell text must contain only fixed-topology plain runs with bounded direct styles");
+        if (PreviousTextBodyStyle(previousSource, "style") is { ValueKind: JsonValueKind.Object } previous &&
+            previous.TryGetProperty("upright", out _) &&
+            (PreviousTextBodyStyle(source, "style") is not { ValueKind: JsonValueKind.Object } next || !next.TryGetProperty("upright", out _)))
+        {
+            body.BodyProperties ??= new PresentationTextBodyProperties();
+            body.BodyProperties.NoUpright = true;
+        }
         return body;
     }
 

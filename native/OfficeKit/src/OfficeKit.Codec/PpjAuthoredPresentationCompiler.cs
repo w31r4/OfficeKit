@@ -162,7 +162,8 @@ internal static partial class PpjAuthoredPresentationCompiler
     internal static void MergeSourceBoundTextBodyStyle(
         PresentationTextBody target,
         JsonElement style,
-        string path)
+        string path,
+        JsonElement? previousStyle)
     {
         if (target is null || target.Paragraphs.Count == 0)
             throw Unsupported(path, "source-bound text body style requires an existing text body");
@@ -303,6 +304,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             if (requested.UprightTextCase == PresentationTextBodyProperties.UprightTextOneofCase.Upright)
                 current.Upright = requested.Upright;
         }
+        else if (previousStyle is { ValueKind: JsonValueKind.Object } previous && previous.TryGetProperty("upright", out _))
+            current.NoUpright = true;
         target.BodyProperties = PptxBodyPropertiesCodec.HasModeledProperties(current) ? current : null;
     }
 

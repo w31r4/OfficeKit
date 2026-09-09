@@ -3481,23 +3481,10 @@ internal static class PptxCodec
         }
         if (element.ContentCase == PresentationElement.ContentOneofCase.Table)
         {
-            // A direct tab-stop delete is represented in PPJ as the explicit
-            // noTabStops edit intent, while DrawingML represents the result
-            // simply by omitting a:tabLst. Normalize the table-cell text body
-            // through the same semantic rule used by ordinary text shapes so
-            // post-write validation treats those two forms as equivalent.
+            // Normalize edit markers and the same uniform text/body choice
+            // used by the table reader, including removal of the last bodyPr.
             foreach (var cell in element.Table.Rows.SelectMany(row => row.Cells))
-            {
-                if (cell.TextBody is null) continue;
-                var text = new PresentationShape
-                {
-                    Text = cell.Text,
-                    TextBody = cell.TextBody.Clone(),
-                };
-                PptxTextCodec.NormalizeSemantics(text);
-                cell.Text = text.Text;
-                cell.TextBody = text.TextBody;
-            }
+                PptxTableCodec.NormalizeTextSemantics(cell);
             return;
         }
         if (element.ContentCase == PresentationElement.ContentOneofCase.Chart)

@@ -2,6 +2,22 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ text-body `upright` lifecycle (2026-09-10): authorized source edits now
+distinguish true, false and removal. Removing the sole upright property can also
+remove its style owner. `PpjTextUprightLifecycleTests` passes 7/7: text, shape,
+master/layout placeholder and table source no-op/removal/true-false restoration,
+native attribute presence, unchanged surrounding XML semantics and non-target ZIP
+bytes, plus upright-only owner removal and denied/overbroad deletion. Removing
+the last table body property reprojects to the reader's compact plain-text form;
+the same fixed native topology can regain upright through structured text.
+Related body/placeholder/table tests pass 103/104, zero skipped. The one failure,
+`TopLevelTablesAuthorImportEditResizeAndFailClosedOnMergedCells` at the opaque
+Editable assertion (line 6567), also fails unchanged in clean baseline `bbc1065b`
+under `tmp/ppj-upright-baseline`. SDK 8.0.128, repository TMPDIR, single-process
+build. No new wire or NativeAOT package; preview retains upright layout diagnostics,
+and host layout, other style removals and unsupported placeholder owners remain
+outside this increment.
+
 PPJ custom-site connector endpoints (2026-09-10): `from/to: {element, connectionSite}`
 binds index 0..1023 of a supported custom shape's ordered connectionSites.
 `CustomSiteBindingsRetainIdentityAndFollowSourceDependencies` proves native target/index,

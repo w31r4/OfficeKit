@@ -3746,7 +3746,8 @@
           ]
         },
         "upright": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Explicit true/false retains the direct native upright value. In an authorized source style edit, removing a previously projected upright property removes that native attribute and restores its inherited/default behavior. An otherwise upright-only style object can also be removed. Preview does not guarantee host text layout."
         }
       }
     },

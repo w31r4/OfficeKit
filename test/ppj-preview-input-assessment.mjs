@@ -27,6 +27,9 @@ const siteConnector = assessPpjPreviewInput(deck([{ type: "connector", id: "site
   stroke: { color: "#112233", width: 2 } }]));
 assert.ok(siteConnector.diagnostics.some(d => d.path.endsWith(".from.connectionSite") && d.status !== "supported"));
 
+const uprightText = assessPpjPreviewInput(deck([{ ...text, style: { upright: false } }]));
+assert.ok(uprightText.diagnostics.some(d => d.path.endsWith(".style.upright") && d.status !== "supported"));
+
 const rectangleShape = assessPpjPreviewInput(deck([{ type: "shape", id: "custom", frame, text: "Text",
   geometry: { kind: "custom", viewBox: frame, paths: [],
     textRectangle: { left: 10, top: 5, right: "r", bottom: "b" } } }]));

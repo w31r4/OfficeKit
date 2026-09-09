@@ -32,6 +32,15 @@ Simple PPJ text is a string. Mixed formatting uses `paragraphs[]` and `runs[]`.
 Do not put Markdown, HTML, CSS, or invented inline markup into a text string.
 Assign language and font roles explicitly for mixed-script runs.
 
+`upright` belongs to the text body: `text.style` on structured table-cell text,
+`style` on text and supported owner-local placeholders, and `textStyle` on shapes.
+Explicit `true` and `false` retain a direct native value. On a fresh source PPJ,
+delete `upright` to remove that attribute and restore the native inherited/default
+behavior. You may remove the style object if its only property is `upright`.
+Keep other body properties and use the issued `setTextBodyStyle` or table-cell
+text-style capability; unsupported placeholder owners retain their source boundary.
+Preview reports text-layout limits; this field does not prove host rendering.
+
 ## Keep the talk track in speaker notes
 
 Use `pages[].notes` for the spoken bridge, caveat, source detail, or facilitation
