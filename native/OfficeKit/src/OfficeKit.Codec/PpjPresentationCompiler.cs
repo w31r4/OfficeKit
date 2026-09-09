@@ -2031,8 +2031,8 @@ internal static partial class PpjSourceBoundPresentationCompiler
                     if (PropertyChanged(oldGeometry, newGeometry, field))
                         RequireCapabilityField(after.NativeRef, "setGeometry", "geometry." + field, path + ".geometry." + field);
                 RequireEqualExcept(oldGeometry, newGeometry, path + ".geometry", "paths", "textRectangle", "guides", "adjustments", "connectionSites", "adjustmentHandles");
-                if (!IsLiteralCustomGeometry(target))
-                    throw Unsupported(path + ".geometry", "source custom geometry is outside the literal path edit profile");
+                if (!IsEditableCustomGeometry(target))
+                    throw Unsupported(path + ".geometry", "source custom geometry is outside the common positive viewport edit profile");
                 target.CustomPaths.Clear();
                 target.CustomAdjustments.Clear();
                 target.CustomGuides.Clear();
@@ -2089,7 +2089,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
         return true;
     }
 
-    private static bool IsLiteralCustomGeometry(PresentationShape shape)
+    private static bool IsEditableCustomGeometry(PresentationShape shape)
     {
         if (shape.Geometry != "custom" || shape.CustomPaths.Count == 0)
             return false;
@@ -2097,26 +2097,8 @@ internal static partial class PpjSourceBoundPresentationCompiler
         var height = shape.CustomPaths[0].Height;
         if (width <= 0 || height <= 0 || shape.CustomPaths.Any(path => path.Width != width || path.Height != height))
             return false;
-        return shape.CustomPaths.SelectMany(path => path.Commands).All(command => command.CommandCase switch
-        {
-            PresentationCustomGeometryCommand.CommandOneofCase.MoveTo => IsLiteral(command.MoveTo),
-            PresentationCustomGeometryCommand.CommandOneofCase.LineTo => IsLiteral(command.LineTo),
-            PresentationCustomGeometryCommand.CommandOneofCase.QuadraticBezierTo =>
-                IsLiteral(command.QuadraticBezierTo.Control) && IsLiteral(command.QuadraticBezierTo.End),
-            PresentationCustomGeometryCommand.CommandOneofCase.CubicBezierTo =>
-                IsLiteral(command.CubicBezierTo.Control1) && IsLiteral(command.CubicBezierTo.Control2) && IsLiteral(command.CubicBezierTo.End),
-            PresentationCustomGeometryCommand.CommandOneofCase.ArcTo => IsLiteral(command.ArcTo),
-            PresentationCustomGeometryCommand.CommandOneofCase.Close => true,
-            _ => false,
-        });
+        return true;
     }
-
-    private static bool IsLiteral(PresentationCustomGeometryPoint point) =>
-        !point.HasXReference && !point.HasYReference;
-
-    private static bool IsLiteral(PresentationCustomGeometryArc arc) =>
-        !arc.HasWidthRadiusReference && !arc.HasHeightRadiusReference &&
-        !arc.HasStartAngleReference && !arc.HasSweepAngleReference;
 
     private static bool ApplyLineElement(
         PpjProgramModel program,

@@ -357,6 +357,72 @@ public sealed class PpjCustomGeometryTextRectangleTests
         Assert.Equal(original, source);
     }
 
+    [Fact]
+    public void CustomGeometryPathReferencesRetainEverySlotAndSourceDependencies()
+    {
+        var program = Program();
+        var geometry = Element(program)["geometry"]!.AsObject();
+        geometry["adjustments"] = JsonNode.Parse("""[{"name":"ax","formula":"val 20000"}]""");
+        geometry["guides"] = JsonNode.Parse("""[{"name":"edge","formula":"val ax"},{"name":"zero","formula":"val 0"}]""");
+        geometry["paths"]![0]!["commands"] = JsonNode.Parse("""
+            [{"op":"moveTo","x":"l","y":"t"},{"op":"lineTo","x":"edge","y":20},
+             {"op":"quadraticTo","x1":"edge","y1":"edge","x":"edge","y":"edge"},
+             {"op":"cubicTo","x1":"edge","y1":"edge","x2":"edge","y2":"edge","x":"edge","y":"edge"},
+             {"op":"arcTo","radiusX":"edge","radiusY":"edge","startAngle":"zero","sweepAngle":"cd4"},{"op":"close"}]
+            """);
+        var authored = Compile(program);
+        var native = authored.PresentationProgram.PreviewScene.Presentation.Slides[0].Elements[0].Shape;
+        Assert.Equal("edge", native.CustomPaths[0].Commands[2].QuadraticBezierTo.Control.XReference);
+        Assert.True(PptxCustomGeometryFormulaCodec.Validate(native, "custom").TryResolveReference("edge", out var initial));
+        Assert.Equal(20000d, initial);
+        var source = PptxCodecTests.RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var original = source.ToArray();
+        var projected = Project(source);
+        Assert.True(JsonNode.DeepEquals(geometry, Element(projected)["geometry"]));
+        Assert.Equal(source, Compile(projected, source).File.ToByteArray());
+        var commands = geometry["paths"]![0]!["commands"]!.AsArray();
+        for (var index = 0; index < commands.Count; index++)
+        foreach (var field in commands[index]!.AsObject().Where(p => p.Key != "op").Select(p => p.Key))
+        {
+            var request = Project(source);
+            var target = Element(request)["geometry"]!["paths"]![0]!["commands"]![index]!;
+            target[field] = index == 1 && field == "y" ? JsonValue.Create("edge") : JsonValue.Create(10);
+            var candidate = Compile(request, source).File.ToByteArray();
+            var fresh = Element(Project(candidate));
+            Assert.True(JsonNode.DeepEquals(Element(request)["geometry"], fresh["geometry"]), $"{index}.{field}");
+            foreach (var retained in new[] { "text", "frame" }) Assert.True(JsonNode.DeepEquals(Element(request)[retained], fresh[retained]));
+            AssertSlideOnly(source, candidate);
+        }
+        var dependency = Project(source);
+        Element(dependency)["geometry"]!["adjustments"]![0]!["formula"] = "val 30000";
+        var changed = Compile(dependency, source);
+        var changedShape = changed.PresentationProgram.PreviewScene.Presentation.Slides[0].Elements[0].Shape;
+        Assert.True(PptxCustomGeometryFormulaCodec.Validate(changedShape, "custom").TryResolveReference("edge", out var resolved));
+        Assert.Equal(30000d, resolved);
+        Assert.Equal(PathXml(source), PathXml(changed.File.ToByteArray()));
+        AssertSlideOnly(source, changed.File.ToByteArray());
+        Assert.True(JsonNode.DeepEquals(Element(dependency)["geometry"], Element(Project(changed.File.ToByteArray()))["geometry"]));
+        foreach (var mode in new[] { "missing", "radius", "sweep" })
+        {
+            var request = Project(source);
+            var requested = Element(request)["geometry"]!["paths"]![0]!["commands"]!;
+            if (mode == "missing") requested[1]!["x"] = "unknown";
+            else requested[4]![mode == "radius" ? "radiusX" : "sweepAngle"] = "zero";
+            Assert.Empty(Compile(request, source, false).File);
+        }
+        var mask = geometry.DeepClone().AsObject(); mask.Remove("adjustments"); mask.Remove("guides"); mask.Remove("textRectangle");
+        Assert.Throws<CodecException>(() => PpjAuthoredPresentationCompiler.ApplyCustomGeometry(new PresentationShape(), JsonSerializer.SerializeToElement(mask), "mask"));
+        var lineProgram = Program();
+        Element(lineProgram).Remove("geometry"); Element(lineProgram).Remove("text"); Element(lineProgram).Remove("fill");
+        Element(lineProgram)["type"] = "line";
+        Element(lineProgram)["stroke"] = JsonNode.Parse("""{"color":"#112233","width":1}""");
+        Element(lineProgram)["path"] = JsonNode.Parse("""{"viewBox":{"x":0,"y":0,"width":100,"height":100},"commands":[{"op":"moveTo","x":0,"y":0},{"op":"lineTo","x":"w","y":10}]}""");
+        Assert.Empty(Compile(lineProgram, null, false).File);
+        Element(lineProgram)["path"]!["commands"]![1]!["x"] = 50;
+        Assert.NotEmpty(Compile(lineProgram).File);
+        Assert.Equal(original, source);
+    }
+
     private static JsonObject Program()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

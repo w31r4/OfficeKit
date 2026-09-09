@@ -103,6 +103,17 @@ units, absence/zero, source no-op and identity/range/reference/position rejectio
 with unchanged paths/text/frame and non-target ZIP members. Masks/clips reject
 handles. Preview diagnoses handle fields; host dragging remains unverified.
 
+PPJ custom-shape path reference parameters (2026-09-10) retain native
+built-in/adjustment/guide names in every move/line/quadratic/cubic coordinate and
+arc radius/angle slot. Numeric viewBox/degree conversions stay unchanged;
+strings keep native identity and units. The focused geometry/connector/preview suite passes 127/127, zero skipped. The
+fixture checks every slot's source replacement, adjustment evaluation 20000 to
+30000 with unchanged path-reference XML, source no-op and non-target ZIP/text/
+frame/graph preservation. Unknown references and invalid evaluated arcs reject;
+standalone lines and masks/clips retain literal-only contracts. Common positive
+viewports remain required; default/heterogeneous viewports are source-owned.
+Preview reports unrendered reference semantics; no host geometry claim is made.
+
 Latest PPTX evidence: candidate product commit `e1bb8699671c3599b44b999ca308ff8d0d9581d7` and packed `office-kit@0.6.0` tarball SHA-256 `0152742d17a07a7b53e53f83f75c08c829804ab8f73ad65841a5e49946e7e8a9` passed the frozen three-sample programmable-import acceptance. All `90/90` clean-source matrix runs passed, all `30/30` declared intents produced deterministic bytes and oracle results across three repetitions, and rendering used LibreOffice for 60 runs plus Keynote for 30 text changes that LibreOffice did not display. Every run preserved the source, reimported successfully, kept the declared non-target parts and relationships byte-identical, recovered target XML/SVG after masking only the issued mutation, and kept non-target pages pixel-identical.
 
 The same candidate passed `9/9` fresh Codex trials, each using a packed clean install and three durable task sessions with reviewed commits `c0001`/`c0002` and only `c0002` published. The separately frozen source-derived companion suite passed `24/24` runs over eight deterministic cases covering text, geometry, image, table, chart, component, add, delete, and reorder. Exact component hashes and boundaries live in `evals/pptx-programmable-import/candidate.v1.json`. This closes the declared macOS three-sample acceptance, not arbitrary OOXML semantics; broader imported-object profiles remain partial, and Windows PowerPoint is tracked as a separate host lane rather than a portable completion gate. Repeated component candidates still require source-bound capabilities, and opaque or topology-bearing components do not become generally editable.

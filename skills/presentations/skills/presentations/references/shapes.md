@@ -76,7 +76,7 @@ projection. Existing path-edit authority supports adding, changing or removing
 it, and coordinate edits retain it. This native eligibility flag supplies no
 3-D depth/material; preview reports the unrendered field explicitly.
 
-An imported custom geometry with literal path coordinates may issue `setGeometry`
+An imported custom geometry with a common positive path viewport may issue `setGeometry`
 for `geometry.paths`, `geometry.textRectangle`, `geometry.guides` and
 `geometry.adjustments`, `geometry.connectionSites` and `geometry.adjustmentHandles`. These fields can be edited
 independently in the existing SlidePart; unsupported or extension-bearing custom
@@ -110,8 +110,7 @@ to 1024 guides; native validation rejects invalid arithmetic or unresolved
 references. Source `setGeometry` can edit the list, add entries or remove it;
 remove dependent rectangle references in the same request. Empty/omitted lists
 project as absence; formula whitespace may normalize. Native private numeric
-rectangle scaling guides are not user guides. Reference-backed paths remain
-source-owned. These shape guides
+rectangle scaling guides are not user guides. These shape guides
 are rejected on masks/clips, and preview retains explicit limitations.
 
 For `kind: "custom"`, `geometry.adjustments` uses the same `{name, formula}`
@@ -156,6 +155,25 @@ Source `setGeometry` can add/change/remove paired bounds and change positions;
 handle order, kind and controlled names stay fixed. Empty authored lists project
 as omission. Masks/clips reject controls and preview reports handle limitations;
 PowerPoint dragging behavior remains unverified.
+
+Custom-shape path commands accept a number or a native reference string in every
+point/control coordinate (`x/y/x1/y1/x2/y2`) and arc parameter
+(`radiusX/radiusY/startAngle/sweepAngle`). For example:
+
+```json
+{"op":"lineTo","x":"edge","y":80}
+```
+
+Numeric points retain viewBox-origin subtraction and 1000 native path units per
+viewBox unit; arc angles use degrees. Strings copy native built-in/adjustment/
+guide names without conversion or origin subtraction. A guide `val 20000`
+therefore supplies 20000 native path units (20 viewBox units), while `w` resolves
+to the native shape extent. Authored export and source `geometry.paths` edits
+retain these references; changing an adjustment updates its dependent values.
+Unknown references, nonpositive arc radii and invalid resolved sweeps reject.
+This profile needs one common positive viewport across paths; default or mixed
+viewports remain source-owned. Standalone lines and masks/clips keep literal
+paths. Preview diagnoses unrendered reference semantics explicitly.
 
 The same preset profile can clip an image. `image.mask.adjustments` uses the
 identical parameter order and defaults; see [Media and layers](media-and-layers.md#image-masks).

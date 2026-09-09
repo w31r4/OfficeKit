@@ -3709,6 +3709,9 @@ internal static partial class PpjAuthoredPresentationCompiler
             var hasSubpathStart = false;
             foreach (var sourceCommand in sourcePath.GetProperty("commands").EnumerateArray())
             {
+                if (!allowShapeGraph && sourceCommand.EnumerateObject().Any(property =>
+                    property.Name != "op" && property.Value.ValueKind == JsonValueKind.String))
+                    throw Unsupported(elementId, "referenced paths belong to custom shapes, not masks or clips");
                 var command = new PresentationCustomGeometryCommand();
                 switch (sourceCommand.GetProperty("op").GetString())
                 {
@@ -3743,13 +3746,7 @@ internal static partial class PpjAuthoredPresentationCompiler
                             throw new CodecException(
                                 "ppj.geometry.arcCurrentPoint",
                                 $"PPJ custom geometry {elementId} has an arc without an established current point.");
-                        command.ArcTo = new PresentationCustomGeometryArc
-                        {
-                            WidthRadius = CustomPathCoordinate(sourceCommand.GetProperty("radiusX").GetDouble()),
-                            HeightRadius = CustomPathCoordinate(sourceCommand.GetProperty("radiusY").GetDouble()),
-                            StartAngle = Angle(sourceCommand.GetProperty("startAngle").GetDouble()),
-                            SweepAngle = Angle(sourceCommand.GetProperty("sweepAngle").GetDouble()),
-                        };
+                        command.ArcTo = CustomArc(sourceCommand);
                         hasCurrentPoint = true;
                         break;
                     case "close":
@@ -3770,11 +3767,32 @@ internal static partial class PpjAuthoredPresentationCompiler
         double originX,
         double originY,
         string xName,
-        string yName) => new()
+        string yName)
     {
-        X = CustomPathCoordinate(command.GetProperty(xName).GetDouble() - originX),
-        Y = CustomPathCoordinate(command.GetProperty(yName).GetDouble() - originY),
-    };
+        var point = new PresentationCustomGeometryPoint();
+        var x = command.GetProperty(xName); var y = command.GetProperty(yName);
+        if (x.ValueKind == JsonValueKind.String) point.XReference = x.GetString()!;
+        else point.X = CustomPathCoordinate(x.GetDouble() - originX);
+        if (y.ValueKind == JsonValueKind.String) point.YReference = y.GetString()!;
+        else point.Y = CustomPathCoordinate(y.GetDouble() - originY);
+        return point;
+    }
+
+    private static PresentationCustomGeometryArc CustomArc(JsonElement command)
+    {
+        var arc = new PresentationCustomGeometryArc();
+        var rx = command.GetProperty("radiusX"); var ry = command.GetProperty("radiusY");
+        var start = command.GetProperty("startAngle"); var sweep = command.GetProperty("sweepAngle");
+        if (rx.ValueKind == JsonValueKind.String) arc.WidthRadiusReference = rx.GetString()!;
+        else arc.WidthRadius = CustomPathCoordinate(rx.GetDouble());
+        if (ry.ValueKind == JsonValueKind.String) arc.HeightRadiusReference = ry.GetString()!;
+        else arc.HeightRadius = CustomPathCoordinate(ry.GetDouble());
+        if (start.ValueKind == JsonValueKind.String) arc.StartAngleReference = start.GetString()!;
+        else arc.StartAngle = Angle(start.GetDouble());
+        if (sweep.ValueKind == JsonValueKind.String) arc.SweepAngleReference = sweep.GetString()!;
+        else arc.SweepAngle = Angle(sweep.GetDouble());
+        return arc;
+    }
 
     private static long CustomPathCoordinate(double value) =>
         checked((long)Math.Round(value * CustomPathUnitsPerPoint, MidpointRounding.AwayFromZero));

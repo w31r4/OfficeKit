@@ -706,7 +706,7 @@ internal static partial class PpjPresentationProjector
         if (shape.ImageFill is not null && !context.TryMaterializeAsset(shape.ImageFill.AssetId, out _))
             return ProjectOpaque(element, id, nativeRef, "shape", "Preserved source shape whose image fill cannot be materialized safely.");
         if (!isPlaceholder && !isTextBox && !PptxPresetGeometryAdjustmentCodec.HasProfile(shape.Geometry) &&
-            !CanProjectCustomGeometry(shape) && !sourceImageFill && !sourceCustomGeometry && !lineLike)
+            !CanProjectCustomGeometry(shape, allowReferences: true) && !sourceImageFill && !sourceCustomGeometry && !lineLike)
             return ProjectOpaque(element, id, nativeRef, "shape", $"Preserved source shape with unsupported geometry '{shape.Geometry}'.");
 
         var common = ElementBase(id, element.Name, frame, Accessibility(shape.Accessibility), nativeRef);
@@ -765,7 +765,7 @@ internal static partial class PpjPresentationProjector
         var hasCompoundOpacity = element.Source?.Editable == true &&
             TryGetCompoundShapeOpacity(shape, out compoundOpacity);
         if (shape.Geometry == "custom")
-            common["geometry"] = CanProjectCustomGeometry(shape)
+            common["geometry"] = CanProjectCustomGeometry(shape, allowReferences: true)
                 ? ProjectCustomGeometry(shape)
                 : new JsonObject
                 {
@@ -826,7 +826,7 @@ internal static partial class PpjPresentationProjector
         return values.All(value => Math.Abs(value - candidate) < 0.000005);
     }
 
-    private static bool CanProjectCustomGeometry(PresentationShape shape)
+    private static bool CanProjectCustomGeometry(PresentationShape shape, bool allowReferences = false)
     {
         if (shape.Geometry != "custom" || shape.CustomPaths.Count == 0)
             return false;
@@ -836,13 +836,13 @@ internal static partial class PpjPresentationProjector
             return false;
         return shape.CustomPaths.SelectMany(path => path.Commands).All(command => command.CommandCase switch
         {
-            PresentationCustomGeometryCommand.CommandOneofCase.MoveTo => Literal(command.MoveTo),
-            PresentationCustomGeometryCommand.CommandOneofCase.LineTo => Literal(command.LineTo),
+            PresentationCustomGeometryCommand.CommandOneofCase.MoveTo => allowReferences || Literal(command.MoveTo),
+            PresentationCustomGeometryCommand.CommandOneofCase.LineTo => allowReferences || Literal(command.LineTo),
             PresentationCustomGeometryCommand.CommandOneofCase.QuadraticBezierTo =>
-                Literal(command.QuadraticBezierTo.Control) && Literal(command.QuadraticBezierTo.End),
+                allowReferences || Literal(command.QuadraticBezierTo.Control) && Literal(command.QuadraticBezierTo.End),
             PresentationCustomGeometryCommand.CommandOneofCase.CubicBezierTo =>
-                Literal(command.CubicBezierTo.Control1) && Literal(command.CubicBezierTo.Control2) && Literal(command.CubicBezierTo.End),
-            PresentationCustomGeometryCommand.CommandOneofCase.ArcTo => Literal(command.ArcTo),
+                allowReferences || Literal(command.CubicBezierTo.Control1) && Literal(command.CubicBezierTo.Control2) && Literal(command.CubicBezierTo.End),
+            PresentationCustomGeometryCommand.CommandOneofCase.ArcTo => allowReferences || Literal(command.ArcTo),
             PresentationCustomGeometryCommand.CommandOneofCase.Close => true,
             _ => false,
         });
@@ -921,28 +921,28 @@ internal static partial class PpjPresentationProjector
         PresentationCustomGeometryCommand.CommandOneofCase.QuadraticBezierTo => new JsonObject
         {
             ["op"] = StringNode("quadraticTo"),
-            ["x1"] = JsonValue.Create(CustomPathPoint(command.QuadraticBezierTo.Control.X)),
-            ["y1"] = JsonValue.Create(CustomPathPoint(command.QuadraticBezierTo.Control.Y)),
-            ["x"] = JsonValue.Create(CustomPathPoint(command.QuadraticBezierTo.End.X)),
-            ["y"] = JsonValue.Create(CustomPathPoint(command.QuadraticBezierTo.End.Y)),
+            ["x1"] = CustomPathValue(command.QuadraticBezierTo.Control.HasXReference, command.QuadraticBezierTo.Control.XReference, CustomPathPoint(command.QuadraticBezierTo.Control.X)),
+            ["y1"] = CustomPathValue(command.QuadraticBezierTo.Control.HasYReference, command.QuadraticBezierTo.Control.YReference, CustomPathPoint(command.QuadraticBezierTo.Control.Y)),
+            ["x"] = CustomPathValue(command.QuadraticBezierTo.End.HasXReference, command.QuadraticBezierTo.End.XReference, CustomPathPoint(command.QuadraticBezierTo.End.X)),
+            ["y"] = CustomPathValue(command.QuadraticBezierTo.End.HasYReference, command.QuadraticBezierTo.End.YReference, CustomPathPoint(command.QuadraticBezierTo.End.Y)),
         },
         PresentationCustomGeometryCommand.CommandOneofCase.CubicBezierTo => new JsonObject
         {
             ["op"] = StringNode("cubicTo"),
-            ["x1"] = JsonValue.Create(CustomPathPoint(command.CubicBezierTo.Control1.X)),
-            ["y1"] = JsonValue.Create(CustomPathPoint(command.CubicBezierTo.Control1.Y)),
-            ["x2"] = JsonValue.Create(CustomPathPoint(command.CubicBezierTo.Control2.X)),
-            ["y2"] = JsonValue.Create(CustomPathPoint(command.CubicBezierTo.Control2.Y)),
-            ["x"] = JsonValue.Create(CustomPathPoint(command.CubicBezierTo.End.X)),
-            ["y"] = JsonValue.Create(CustomPathPoint(command.CubicBezierTo.End.Y)),
+            ["x1"] = CustomPathValue(command.CubicBezierTo.Control1.HasXReference, command.CubicBezierTo.Control1.XReference, CustomPathPoint(command.CubicBezierTo.Control1.X)),
+            ["y1"] = CustomPathValue(command.CubicBezierTo.Control1.HasYReference, command.CubicBezierTo.Control1.YReference, CustomPathPoint(command.CubicBezierTo.Control1.Y)),
+            ["x2"] = CustomPathValue(command.CubicBezierTo.Control2.HasXReference, command.CubicBezierTo.Control2.XReference, CustomPathPoint(command.CubicBezierTo.Control2.X)),
+            ["y2"] = CustomPathValue(command.CubicBezierTo.Control2.HasYReference, command.CubicBezierTo.Control2.YReference, CustomPathPoint(command.CubicBezierTo.Control2.Y)),
+            ["x"] = CustomPathValue(command.CubicBezierTo.End.HasXReference, command.CubicBezierTo.End.XReference, CustomPathPoint(command.CubicBezierTo.End.X)),
+            ["y"] = CustomPathValue(command.CubicBezierTo.End.HasYReference, command.CubicBezierTo.End.YReference, CustomPathPoint(command.CubicBezierTo.End.Y)),
         },
         PresentationCustomGeometryCommand.CommandOneofCase.ArcTo => new JsonObject
         {
             ["op"] = StringNode("arcTo"),
-            ["radiusX"] = JsonValue.Create(CustomPathPoint(command.ArcTo.WidthRadius)),
-            ["radiusY"] = JsonValue.Create(CustomPathPoint(command.ArcTo.HeightRadius)),
-            ["startAngle"] = JsonValue.Create(NormalizeCustomPathStartAngle(command.ArcTo.StartAngle)),
-            ["sweepAngle"] = JsonValue.Create(CustomPathAngle(command.ArcTo.SweepAngle)),
+            ["radiusX"] = CustomPathValue(command.ArcTo.HasWidthRadiusReference, command.ArcTo.WidthRadiusReference, CustomPathPoint(command.ArcTo.WidthRadius)),
+            ["radiusY"] = CustomPathValue(command.ArcTo.HasHeightRadiusReference, command.ArcTo.HeightRadiusReference, CustomPathPoint(command.ArcTo.HeightRadius)),
+            ["startAngle"] = CustomPathValue(command.ArcTo.HasStartAngleReference, command.ArcTo.StartAngleReference, NormalizeCustomPathStartAngle(command.ArcTo.StartAngle)),
+            ["sweepAngle"] = CustomPathValue(command.ArcTo.HasSweepAngleReference, command.ArcTo.SweepAngleReference, CustomPathAngle(command.ArcTo.SweepAngle)),
         },
         PresentationCustomGeometryCommand.CommandOneofCase.Close => new JsonObject { ["op"] = StringNode("close") },
         _ => throw new InvalidOperationException("Unsupported PPJ custom path command passed the projection gate."),
@@ -951,9 +951,12 @@ internal static partial class PpjPresentationProjector
     private static JsonObject ProjectCustomPoint(string operation, PresentationCustomGeometryPoint point) => new()
     {
         ["op"] = StringNode(operation),
-        ["x"] = JsonValue.Create(CustomPathPoint(point.X)),
-        ["y"] = JsonValue.Create(CustomPathPoint(point.Y)),
+        ["x"] = CustomPathValue(point.HasXReference, point.XReference, CustomPathPoint(point.X)),
+        ["y"] = CustomPathValue(point.HasYReference, point.YReference, CustomPathPoint(point.Y)),
     };
+
+    private static JsonNode CustomPathValue(bool hasReference, string reference, double literal) =>
+        hasReference ? JsonValue.Create(reference)! : JsonValue.Create(literal)!;
 
     private static double CustomPathPoint(long value) => value / 1_000d;
 
@@ -2974,7 +2977,7 @@ internal static partial class PpjPresentationProjector
                         output.Add(new("setGeometry", ["geometry.adjustments"]));
                     else if (element.Shape.Placeholder is null &&
                              element.Shape.Geometry == "custom" &&
-                             CanProjectCustomGeometry(element.Shape))
+                             CanProjectCustomGeometry(element.Shape, allowReferences: true))
                         output.Add(new("setGeometry", ["geometry.paths", "geometry.textRectangle", "geometry.guides", "geometry.adjustments", "geometry.connectionSites", "geometry.adjustmentHandles"]));
                 }
                 break;

@@ -510,6 +510,8 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 **优先级：P0；状态：部分完成。**
 
+**自定义形状引用型路径增量（2026-09-10）：** `geometry.paths[].commands[]` 的 move/line/quadratic/cubic 坐标及 arc 半径/角度均可使用数值或原生引用字符串。数值沿用 viewBox/角度转换，字符串保留内建/adjustment/guide 名称及原生单位。已接通 authored、去嵌入投影和源 paths 引用/数值替换；最小实验逐槽回写，并验证 adjustment 20000→30000 的求值变化及路径引用 XML 不变，保留其它 graph/文字/frame/非目标 ZIP。悬空引用、非法求值弧、line/mask/clip 引用路径拒绝；相关 geometry/connector/preview 专项 127/127 通过；默认或不同 path viewport、宿主几何行为仍开放，预览明确报告引用限制。
+
 **自定义形状 adjustment handle 增量（2026-09-10）：** `geometry.adjustmentHandles[]` 以 `kind: xy/polar` 表达两类手柄。XY 包含 X/Y 受控调整项及范围，polar 包含半径/角度受控调整项及范围，两类均有 `position: {x,y}`；数值为局部 points/角度，字符串保留原生引用。已支持 authored、去嵌入投影、源文件中成对范围的增改删和位置修改；源顺序、类型及受控名称保持固定。最小实验核对实际单位、零/省略、两类引用、原源 no-op、非法范围/身份/位置拒绝和 path XML/文字/frame/非目标 ZIP 保留，相关专项 126/126 通过。预览保留手柄诊断；引用型路径和宿主拖拽仍开放。
 
 **自定义形状 connection site 增量（2026-09-10）：** `geometry.connectionSites` 用最多 1024 项有序 `{angle, x, y}` 表达连接点；数值是角度和形状局部 points，字符串保留内建/adjustment/guide 引用。literal-path custom shape 已支持 authored、去嵌入投影和 source-bound 逐槽值修改；空 authored 列表投影为省略。源列表数量保持固定，避免改变连接线使用的下标身份。最小实验覆盖实际单位、引用互换、原源 no-op、path XML/文字/frame/非目标 ZIP 保留，以及越界、悬空引用、列表数量变更和缺权限拒绝；相关 custom geometry/connector/preview 专项 125/125 通过。handle、引用型 path、连接点绑定的高层 authored 语法和宿主拖拽仍开放；预览给出明确限制。
