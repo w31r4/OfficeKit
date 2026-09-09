@@ -115,8 +115,8 @@ internal static class PptxDefaultRunStyleCodec
         var after = source.DefaultRunProperties;
         var beforeWithoutScalars = before.Clone();
         var afterWithoutScalars = after.Clone();
-        beforeWithoutScalars.ClearBold(); beforeWithoutScalars.ClearItalic(); beforeWithoutScalars.ClearFontSizePoints(); beforeWithoutScalars.ClearFontFamily();
-        afterWithoutScalars.ClearBold(); afterWithoutScalars.ClearItalic(); afterWithoutScalars.ClearFontSizePoints(); afterWithoutScalars.ClearFontFamily();
+        beforeWithoutScalars.ClearBold(); beforeWithoutScalars.ClearItalic(); beforeWithoutScalars.ClearFontSizePoints(); beforeWithoutScalars.ClearFontFamily(); beforeWithoutScalars.ClearFontFamilyEastAsia();
+        afterWithoutScalars.ClearBold(); afterWithoutScalars.ClearItalic(); afterWithoutScalars.ClearFontSizePoints(); afterWithoutScalars.ClearFontFamily(); afterWithoutScalars.ClearFontFamilyEastAsia();
         if (beforeWithoutScalars.Equals(afterWithoutScalars))
         {
             // Patch changed scalars without rebuilding unrelated font/fill/effect
@@ -129,6 +129,8 @@ internal static class PptxDefaultRunStyleCodec
                 properties.FontSize = after.HasFontSizePoints ? checked((int)Math.Round(after.FontSizePoints * 100)) : null;
             if (before.HasFontFamily != after.HasFontFamily || before.FontFamily != after.FontFamily)
                 ApplyLatinFont(properties, after);
+            if (before.HasFontFamilyEastAsia != after.HasFontFamilyEastAsia || before.FontFamilyEastAsia != after.FontFamilyEastAsia)
+                ApplyEastAsianFont(properties, after);
             RemoveIfEmpty(properties);
             return;
         }
@@ -383,6 +385,7 @@ internal static class PptxDefaultRunStyleCodec
         SimpleValue(source, "typeface") && !string.IsNullOrWhiteSpace(source.Typeface?.Value) && source.Typeface.Value.Length <= 255;
 
     private static bool ModeledEastAsianFont(A.EastAsianFont source) =>
+        !System.Xml.Linq.XElement.Parse(source.OuterXml).Nodes().Any() &&
         SimpleValue(source, "typeface") && !string.IsNullOrWhiteSpace(source.Typeface?.Value) && source.Typeface.Value.Length <= 255;
 
     private static bool ModeledComplexScriptFont(A.ComplexScriptFont source) =>

@@ -2,6 +2,21 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ paragraph default fontFamilyEastAsia (2026-09-10): ordinary text/shape
+owners issue independent authority for direct a:ea assignment, deletion,
+font-only wrapper removal and restoration. Source-bound deletion checks raw
+PPJ presence, so retaining fontFamily does not regenerate an East Asian
+fallback. Latin/complex-script defaults, effects, direct runs, second paragraphs,
+unknown attributes and non-target XML/ZIP state remain unchanged. Shared
+fixtures cover names through 255 characters, theme typeface spelling,
+invalid names, missing authority and unmodeled metadata/hidden leaf children.
+Six added cases bring related native tests to 171/171 passing, zero skipped
+(SDK 8.0.128), with the documented whole-default-style baseline failure excluded.
+Unsupported-field rejection now uses fontFamilyComplexScript. Generated
+references/matrix, preview input/capability, portability/reference sync and
+strict OpenSpec pass. Existing authored fallback and wire remain unchanged;
+no AOT rebuild or host font-substitution acceptance.
+
 PPJ paragraph default fontFamily (2026-09-10): ordinary text/shape owners
 issue an independent defaultText.fontFamily authority for simple direct a:latin
 nodes. Assignment, deletion, font-only defaultText/style wrapper removal and
@@ -12,7 +27,7 @@ Additional font metadata and hidden leaf children reject replacement without
 output. The source-only font fixture removes the authored East Asian fallback;
 mixed-font sources keep it unchanged. Related native tests passed 165/165,
 zero skipped (SDK 8.0.128), retaining the documented whole-default-style baseline
-exclusion. Unsupported-field rejection now uses fontFamilyEastAsia. Generated
+exclusion. That increment used fontFamilyEastAsia for unsupported-field rejection. Generated
 references/matrix, preview input/capability, portability/reference sync and strict
 OpenSpec pass. No wire change, NativeAOT rebuild or host font-substitution claim.
 

@@ -1938,6 +1938,7 @@
             "text.paragraphs[].style.defaultText.italic",
             "text.paragraphs[].style.defaultText.size",
             "text.paragraphs[].style.defaultText.fontFamily",
+            "text.paragraphs[].style.defaultText.fontFamilyEastAsia",
               "text.style",
               "textStyle",
               "textStyles",
@@ -3115,7 +3116,7 @@
       "properties": {
         "defaultText": {
           "$ref": "#/$defs/textStyle",
-          "description": "Direct paragraph default run style. On ordinary source-bound text/shape owners, defaultText.bold and defaultText.italic support true, false, removal and restoration under their independent setTextParagraphStyle field authorities. defaultText.size supports assignment, removal and restoration under its own field authority; finite values from 1 to 768pt round to native hundredths (nearest even), and out-of-range sizes are rejected. defaultText.fontFamily supports independent assignment/removal/restoration of a simple direct Latin font, with a nonblank name of at most 255 characters; unmodeled native font metadata/children reject replacement. Removing a defaultText wrapper containing only these scalars clears their direct values. Other defaults and direct run styles remain unchanged; other field edits and placeholder inheritance retain their own boundaries."
+          "description": "Direct paragraph default run style. On ordinary source-bound text/shape owners, defaultText.bold and defaultText.italic support true, false, removal and restoration under their independent setTextParagraphStyle field authorities. defaultText.size supports assignment, removal and restoration under its own field authority; finite values from 1 to 768pt round to native hundredths (nearest even), and out-of-range sizes are rejected. defaultText.fontFamily supports independent assignment/removal/restoration of a simple direct Latin font, with a nonblank name of at most 255 characters; unmodeled native font metadata/children reject replacement. defaultText.fontFamilyEastAsia has the same independent lifecycle for a simple direct East Asian font; omission removes it even when fontFamily remains, without authored fallback. Removing a defaultText wrapper containing only these scalars clears their direct values. Other defaults and direct run styles remain unchanged; other field edits and placeholder inheritance retain their own boundaries."
         },
         "alignment": {
           "enum": [

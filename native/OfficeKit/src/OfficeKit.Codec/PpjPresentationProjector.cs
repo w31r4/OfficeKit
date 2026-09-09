@@ -2957,6 +2957,7 @@ internal static partial class PpjPresentationProjector
                             "text.paragraphs[].style.defaultText.italic",
                             "text.paragraphs[].style.defaultText.size",
                             "text.paragraphs[].style.defaultText.fontFamily",
+                            "text.paragraphs[].style.defaultText.fontFamilyEastAsia",
                         ]));
                         if (PptxBodyPropertiesCodec.SupportsBoundedDirectLayout(element.Shape.TextBody?.BodyProperties))
                         {

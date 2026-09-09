@@ -54,6 +54,12 @@ fonts, defaults and direct runs remain unchanged. Extra native font metadata
 or child content rejects replacement. This does not prove font availability
 or host substitution.
 
+Use defaultText.fontFamilyEastAsia for the independent direct East Asian font.
+It has the same name and simple-node limits and supports field or font-only
+wrapper deletion and restoration. On source-bound edits, deleting it removes
+a:ea even when fontFamily remains; the authored Latin fallback is not reapplied.
+Latin/complex-script defaults and direct run fonts are retained.
+
 
 `textWarpPreset`, `textWarpAdjustments`, `flatTextZ`, `fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.
