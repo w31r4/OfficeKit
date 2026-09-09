@@ -24,35 +24,128 @@ const numeric = value => {
   return Object.is(value, -0) ? 0 : value;
 };
 const n = value => String(numeric(value));
+const arcN = value => {
+  const number = numeric(value), rounded = Math.round(number);
+  return Math.abs(number - rounded) < 1e-12 ? String(rounded) : String(number);
+};
 const rgb = (value, fallback = "none") => /^[0-9a-f]{6}$/iu.test(value || "") ? `#${value}` : fallback;
 const box = f => `x="${n(f.x)}" y="${n(f.y)}" width="${n(f.width)}" height="${n(f.height)}"`;
 
 /** Literal native paths only. An unresolved command fails the whole path,
  * never drops one segment and rejoins unrelated endpoints. Coordinates are
- * mapped before painting so anisotropic viewport scaling does not scale pens. */
+ * mapped before painting so anisotropic viewport scaling does not scale pens.
+ *
+ * DrawingML arcTo uses a view angle (0 degrees is the positive x axis and
+ * positive sweep is clockwise in the document's y-down coordinate system).
+ * The current pen position fixes the ellipse centre; the angle must therefore
+ * be converted to the ellipse parameter angle before emitting SVG's A
+ * command. This is the same distinction made by the established OOXML
+ * implementations, and matters whenever the two radii differ. */
 export function nativePathData(path, frame) {
   const width = numeric(path.width), height = numeric(path.height);
   if (width < 0 || height < 0) throw new RangeError("Negative path viewport");
-  const sx = width === 0 ? 1 / 12700 : frame.width / width;
-  const sy = height === 0 ? 1 / 12700 : frame.height / height;
-  const point = value => {
+  const frameX = numeric(frame.x), frameY = numeric(frame.y);
+  const frameWidth = numeric(frame.width), frameHeight = numeric(frame.height);
+  const sx = width === 0 ? 1 / 12700 : frameWidth / width;
+  const sy = height === 0 ? 1 / 12700 : frameHeight / height;
+  const localPoint = value => {
     if (!value || value.xReference !== undefined || value.yReference !== undefined)
       throw new TypeError("Unresolved path point/reference");
-    return `${n(frame.x + numeric(value.x) * sx)} ${n(frame.y + numeric(value.y) * sy)}`;
+    return { x: numeric(value.x), y: numeric(value.y) };
+  };
+  const mappedPoint = value => ({ x: frameX + value.x * sx, y: frameY + value.y * sy });
+  const ellipseParameterAngle = (viewAngle, radiusX, radiusY) =>
+    Math.atan2(radiusX * Math.sin(viewAngle), radiusY * Math.cos(viewAngle));
+  const arc = (value, current) => {
+    if (!value || value.widthRadiusReference !== undefined || value.heightRadiusReference !== undefined ||
+        value.startAngleReference !== undefined || value.sweepAngleReference !== undefined)
+      throw new TypeError("Unresolved arc value/reference");
+    const radiusX = numeric(value.widthRadius), radiusY = numeric(value.heightRadius);
+    if (!(radiusX > 0) || !(radiusY > 0)) throw new RangeError("Nonpositive arc radius");
+    const startUnits = numeric(value.startAngle), sweepUnits = numeric(value.sweepAngle);
+    const fullTurn = 360 * 60000;
+    if (!Number.isInteger(startUnits) || !Number.isInteger(sweepUnits) ||
+        sweepUnits === 0 || Math.abs(sweepUnits) > fullTurn)
+      throw new RangeError("Invalid arc angle");
+    if (!(sx > 0) || !(sy > 0)) throw new RangeError("Nonpositive arc extent");
+    const start = startUnits / 60000 * Math.PI / 180;
+    const sweep = sweepUnits / 60000 * Math.PI / 180;
+    const startParameter = ellipseParameterAngle(start, radiusX, radiusY);
+    const startOffset = { x: radiusX * Math.cos(startParameter), y: radiusY * Math.sin(startParameter) };
+    const center = { x: current.x - startOffset.x, y: current.y - startOffset.y };
+    const endParameter = ellipseParameterAngle(start + sweep, radiusX, radiusY);
+    let parameterSweep = endParameter - startParameter;
+    const direction = sweep >= 0 ? 1 : -1;
+    // atan2 wraps at +/-pi. Unwrap into the direction selected by swAng;
+    // the absolute sweep is bounded by one full turn by the codec contract.
+    while (direction > 0 && parameterSweep <= 0) parameterSweep += Math.PI * 2;
+    while (direction < 0 && parameterSweep >= 0) parameterSweep -= Math.PI * 2;
+    if (Math.abs(Math.abs(sweep) - Math.PI * 2) < 1e-12) parameterSweep = direction * Math.PI * 2;
+    if (Math.abs(parameterSweep) > Math.PI * 2 + 1e-9)
+      throw new RangeError("Arc sweep exceeds one turn");
+    const end = Math.abs(Math.abs(sweep) - Math.PI * 2) < 1e-12
+      ? current
+      : { x: center.x + radiusX * Math.cos(startParameter + parameterSweep),
+          y: center.y + radiusY * Math.sin(startParameter + parameterSweep) };
+    const rx = radiusX * sx, ry = radiusY * sy;
+    const mapped = p => mappedPoint(p);
+    const fmt = p => {
+      const m = mapped(p);
+      return `${arcN(m.x)} ${arcN(m.y)}`;
+    };
+    const sweepFlag = direction > 0 ? 1 : 0;
+    const largeArc = Math.abs(parameterSweep) > Math.PI + 1e-12 ? 1 : 0;
+    const emit = (target, large) => `A ${arcN(rx)} ${arcN(ry)} 0 ${large} ${sweepFlag} ${fmt(target)}`;
+    // SVG cannot represent a complete turn with one A command because its
+    // start and end points would coincide. Split it into two half turns.
+    let d;
+    if (Math.abs(parameterSweep) > Math.PI * 2 - 1e-12) {
+      const middle = { x: center.x + radiusX * Math.cos(startParameter + direction * Math.PI),
+        y: center.y + radiusY * Math.sin(startParameter + direction * Math.PI) };
+      d = `${emit(middle, 0)} ${emit(end, 0)}`;
+    } else {
+      d = emit(end, largeArc);
+    }
+    return { d, end };
   };
   let started = false;
+  let current, subpathStart;
   return path.commands.map(({ command }) => {
-    if (command.case === "moveTo") { started = true; return `M ${point(command.value)}`; }
+    if (command.case === "moveTo") {
+      const value = localPoint(command.value);
+      started = true; current = subpathStart = value;
+      return `M ${fmtPoint(mappedPoint(value))}`;
+    }
     if (!started) throw new TypeError("Path requires moveTo");
     switch (command.case) {
-      case "lineTo": return `L ${point(command.value)}`;
-      case "cubicBezierTo": return `C ${point(command.value.control1)} ${point(command.value.control2)} ${point(command.value.end)}`;
-      case "quadraticBezierTo": return `Q ${point(command.value.control)} ${point(command.value.end)}`;
-      case "close": return "Z";
+      case "lineTo": {
+        const value = localPoint(command.value); current = value;
+        return `L ${fmtPoint(mappedPoint(value))}`;
+      }
+      case "cubicBezierTo": {
+        const control1 = localPoint(command.value.control1), control2 = localPoint(command.value.control2);
+        const end = localPoint(command.value.end); current = end;
+        return `C ${fmtPoint(mappedPoint(control1))} ${fmtPoint(mappedPoint(control2))} ${fmtPoint(mappedPoint(end))}`;
+      }
+      case "quadraticBezierTo": {
+        const control = localPoint(command.value.control), end = localPoint(command.value.end); current = end;
+        return `Q ${fmtPoint(mappedPoint(control))} ${fmtPoint(mappedPoint(end))}`;
+      }
+      case "arcTo": {
+        const result = arc(command.value, current);
+        current = result.end;
+        return result.d;
+      }
+      case "close":
+        if (command.value !== true) throw new TypeError("Invalid close command");
+        current = subpathStart;
+        return "Z";
       default: throw new TypeError(`Unpainted native path command: ${command.case}`);
     }
   }).join(" ");
 }
+
+const fmtPoint = value => `${n(value.x)} ${n(value.y)}`;
 
 function frameTransform(f, transform) {
   if (!transform) return "";

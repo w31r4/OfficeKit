@@ -89,6 +89,10 @@ G-11 后续实施记录（2026-09-09，9/9 任务完成）：[支持诊断变更
 
 本节先记录本次文档核对，再保留各轮实施结果。后面的折叠区和[历史验证记录](ppj-svg-preview-gap-audit-history.zh-CN.md) 保留更早轮次。历史通过或失败不自动延续到新代码，各表的执行范围不可混用。
 
+#### 提交时补记：literal arcTo（2026-09-10）
+
+内部 painter 已加入解析后 `arcTo` 的 SVG 椭圆弧绘制，覆盖不等半径、正反扫角、整圈和 close 后笔位置。SVG 专项通过；原生集成夹具已加入自定义弧，但本次提交没有重跑该集成。下述较早文档核对中的“尚无绘制分支”保留为当时状态，G-01 3.4 继续开放。
+
 #### 最新文档核对：`066a6924`（2026-09-10）
 
 - 重新核对生产 `svg-preview.mjs`、内部 `preview-scene-svg.mjs`、CLI 及对象锚点 resolver。正式 preview 仍消费 `compiled.programJson`；内部 painter 仍是独立未集成路线，literal 自定义路径的 `arcTo` 尚无绘制分支。

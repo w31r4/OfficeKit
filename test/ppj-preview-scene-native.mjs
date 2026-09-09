@@ -39,6 +39,7 @@ try {
   console.log(`Native scene integration artifacts: ${artifacts}`);
   const relationFailures = [];
   let directedAnchorCases = 0;
+  let customArcPath = false;
   const { default: sharp } = await import("sharp");
   async function savePaint(name, receipt) {
     const painted = paintPpjSceneSvg(receipt);
@@ -125,7 +126,10 @@ try {
   // chart edge in both. This is not all of task 5.1's required equivalences.
   const pairBase = JSON.parse(new TextDecoder().decode(sourceWorkspace.program));
   const primitive = { id: "tile", type: "shape", frame: { x: 10, y: 10, width: 60, height: 40 },
-    geometry: { kind: "preset", preset: "rect" }, style: { fill: { type: "solid", color: "#CC5500" } } };
+    geometry: { kind: "custom", viewBox: { x: 0, y: 0, width: 100, height: 100 }, paths: [{ fill: true, stroke: false,
+      commands: [{ op: "moveTo", x: 50, y: 0 }, { op: "arcTo", radiusX: 50, radiusY: 25, startAngle: 45, sweepAngle: 90 },
+        { op: "lineTo", x: 0, y: 100 }, { op: "close" }] }] },
+    style: { fill: { type: "solid", color: "#CC5500" } } };
   const zeroLabel = { id: "zero", type: "text", frame: { x: 10, y: 60, width: 80, height: 30 }, text: "0" };
   const missingLine = { id: "missing-line", type: "chart", chartType: "line", frame: { x: 500, y: 100, width: 300, height: 200 },
     data: { categories: ["A", "B", "C"], series: [{ id: "values", name: "Values", values: [1, null, 0] }] } };
@@ -153,9 +157,10 @@ try {
     assert.match(painted.pages[0].svg, /data-officekit-point="2" data-officekit-value="0"/);
     assert.doesNotMatch(painted.pages[0].svg, /data-officekit-line-segment=/);
     assert.equal((painted.pages[0].svg.match(/data-officekit-review-point="isolated"/g) || []).length, 2);
-    assert.match(painted.pages[0].svg, /x="110" y="110" width="60" height="40" fill="#CC5500"/);
+    assert.match(painted.pages[0].svg, /data-officekit-path="0" d="M 140 110 A 30 10 0 0 1 113\.16718427[0-9]+ 110 L 110 150 Z"/);
+    customArcPath = true;
     assert.match(painted.pages[0].svg, />0<\/tspan>/);
-    const pixel = await sharp(Buffer.from(painted.pages[0].svg)).extract({ left: 130, top: 130, width: 1, height: 1 }).removeAlpha().raw().toBuffer();
+    const pixel = await sharp(Buffer.from(painted.pages[0].svg)).extract({ left: 118, top: 130, width: 1, height: 1 }).removeAlpha().raw().toBuffer();
     assert.deepEqual([...pixel], [204, 85, 0]);
     pair.push(leaves.map(n => ({ frame: n.frame, fill: n.native.fillRgb, text: n.native.text })));
   }
@@ -660,7 +665,7 @@ try {
   const report = { status: relationFailures.length ? "failed" : "passed", scope: "PPJ NativeAOT wire/view and internal SVG foundations; not production scene routing or complete paint coverage",
     nativeBars, nativeStacks, nativeCircular,
     relationFailures: relationFailures.map(({ shift, actual, error }) => ({ shift, actual, message: error.message })),
-    internalPainting: { artifacts, pairedComponent: 1, generatedBezierPaths: paths, sourceTextEdit: true, directedAnchorCases, requiredDirectedAnchorCases: 2,
+    internalPainting: { artifacts, pairedComponent: 1, customArcPath, generatedBezierPaths: paths, sourceTextEdit: true, directedAnchorCases, requiredDirectedAnchorCases: 2,
       explicitCoordinateConnector: true, sourceConnectorPreserved: true, mergedTablePixels: true, sourceTableMoveReprojection: true },
     nativeLine: { authored: true, sourceNoop: true, preservedAcrossTableEdit: true, sourceValueEditReprojection: true,
       multiSeriesMissing: true, markerAndGapPixels: true, unclippedMarkerOutlinePixels: true, changedParts: chartChangedParts,

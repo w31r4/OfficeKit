@@ -23,11 +23,43 @@ const polygon = path({ width: 100n, height: 100n, stroke: false, commands: [
 assert.equal(nativePathData(polygon, { x: 10, y: 20, width: 200, height: 100 }), "M 10 20 L 210 20 C 210 40 50 120 10 120 Q 110 70 10 20 Z");
 const noViewport = path({ commands: [command("moveTo", { x: 12700n, y: 25400n }), command("lineTo", { x: 38100n, y: 0n })] });
 assert.equal(nativePathData(noViewport, { x: 10, y: 20, width: 999, height: 999 }), "M 11 22 L 13 20");
+const arcCommand = (widthRadius, heightRadius, startAngle, sweepAngle) => command("arcTo", {
+  widthRadius: BigInt(widthRadius), heightRadius: BigInt(heightRadius),
+  startAngle: startAngle * 60000, sweepAngle: sweepAngle * 60000,
+});
+const quarterArc = path({ width: 100n, height: 100n, commands: [
+  command("moveTo", { x: 50n, y: 0n }), arcCommand(50, 50, 0, 90),
+] });
+assert.equal(nativePathData(quarterArc, { x: 10, y: 20, width: 200, height: 100 }), "M 110 20 A 100 50 0 0 1 10 70");
+const reverseArc = path({ width: 100n, height: 100n, commands: [
+  command("moveTo", { x: 50n, y: 0n }), arcCommand(50, 50, 0, -90),
+] });
+assert.equal(nativePathData(reverseArc, { x: 10, y: 20, width: 200, height: 100 }), "M 110 20 A 100 50 0 0 0 10 -30");
+const anisotropicArc = path({ width: 100n, height: 100n, commands: [
+  command("moveTo", { x: 50n, y: 0n }), arcCommand(50, 25, 45, 90),
+] });
+assert.equal(nativePathData(anisotropicArc, { x: 10, y: 20, width: 200, height: 100 }), "M 110 20 A 100 25 0 0 1 20.5572809000084 20");
+const fullArc = path({ width: 100n, height: 100n, commands: [
+  command("moveTo", { x: 50n, y: 0n }), arcCommand(50, 50, 0, 360),
+] });
+assert.equal(nativePathData(fullArc, { x: 10, y: 20, width: 200, height: 100 }), "M 110 20 A 100 50 0 0 1 -90 20 A 100 50 0 0 1 110 20");
+const closeThenArc = path({ width: 100n, height: 100n, commands: [
+  command("moveTo", { x: 0n, y: 0n }), command("lineTo", { x: 100n, y: 0n }), command("close", true),
+  arcCommand(50, 50, 180, 90),
+] });
+assert.equal(nativePathData(closeThenArc, { x: 10, y: 20, width: 200, height: 100 }), "M 10 20 L 210 20 Z A 100 50 0 0 1 110 -30");
+const arcPath = path({ width: 100n, height: 100n, stroke: false, commands: [
+  command("moveTo", { x: 50n, y: 0n }), arcCommand(50, 25, 45, 90),
+] });
 for (const bad of [
   path({ commands: [command("lineTo", { x: 0n, y: 0n })] }),
   path({ commands: [command("moveTo", { xReference: "guide" })] }),
   path({ commands: [command("moveTo", { x: 2n ** 63n })] }),
   path({ commands: [command("moveTo", {}), command("arcTo", {})] }),
+  path({ width: 100n, height: 100n, commands: [command("moveTo", { x: 50n, y: 0n }), arcCommand(0, 50, 0, 90)] }),
+  path({ width: 100n, height: 100n, commands: [command("moveTo", { x: 50n, y: 0n }), arcCommand(50, 50, 0, 0)] }),
+  path({ width: 100n, height: 100n, commands: [command("moveTo", { x: 50n, y: 0n }), arcCommand(50, 50, 0, 90), command("close", false)] }),
+  path({ width: 100n, height: 100n, commands: [command("moveTo", { x: 50n, y: 0n }), command("arcTo", { widthRadius: 50n, heightRadius: 50n, startAngle: 0, sweepAngle: 90, widthRadiusReference: "guide" })] }),
 ]) assert.throws(() => nativePathData(bad, { x: 0, y: 0, width: 100, height: 100 }));
 
 // Synthetic native receipts isolate drawing semantics; real compiler coverage
@@ -43,7 +75,7 @@ function fixture(edit = () => {}) {
           { content: { case: "lineBreak", value: true } }, { content: { case: "text", value: "C" }, colorOpacityThousandthPercent: 0 }],
       }] } }),
     child("diamond", "shape", { ...frame(220, 40, 100, 100), geometry: "flowChartDecision", fillRgb: "33AA44", text: "Decision" }),
-    child("vector", "shape", { ...frame(10, 150, 200, 100), geometry: "custom", fillRgb: "CC5500", customPaths: [clone(PresentationCustomGeometryPathSchema, polygon)] }),
+    child("vector", "shape", { ...frame(10, 150, 200, 100), geometry: "custom", fillRgb: "CC5500", customPaths: [clone(PresentationCustomGeometryPathSchema, polygon), clone(PresentationCustomGeometryPathSchema, arcPath)] }),
     child("photo", "image", { ...frame(330, 40, 50, 100), assetId: "native-asset", opacityThousandthPercent: 0, transform: { rotationAngle60000: -5400000, flipHorizontal: true, flipVertical: false } }),
     child("outer", "group", { ...frame(100, 280, 200, 100), childLeftEmu: emu(10), childTopEmu: emu(20), childWidthEmu: emu(100), childHeightEmu: emu(50),
       frameTransform: { rotationAngle60000: 5400000 }, children: [child("inner", "group", { ...frame(10, 20, 40, 20), childWidthEmu: emu(40), childHeightEmu: emu(20), children: [
@@ -93,6 +125,7 @@ assert.match(svg, /<text x="110"[^>]*text-anchor="middle"[^>]*><tspan[^>]*font-w
 assert.doesNotMatch(svg, /WRONG FLATTENED|HIDDEN TEXT/);
 assert.match(svg, /d="M 270 40 L 320 90 L 270 140 L 220 90 Z"/);
 assert.match(svg, /data-officekit-path="0" d="M 10 150 L 210 150 C 210 170 50 250 10 250 Q 110 200 10 150 Z" stroke="none"/);
+assert.match(svg, /data-officekit-path="1" d="M 110 150 A 100 25 0 0 1 20.5572809000084 150" stroke="none"/);
 assert.match(svg, /translate\(355 90\) rotate\(-90\) scale\(-1 1\) translate\(-355 -90\)/);
 assert.match(svg, /<image x="330" y="40" width="50" height="100"[^>]*preserveAspectRatio="none" opacity="0"/);
 assert.equal(Buffer.from(svg.match(/href="data:image\/png;base64,([^"]+)"/)[1], "base64").compare(receipt.assets[0].data), 0);
