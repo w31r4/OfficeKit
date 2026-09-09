@@ -83,10 +83,27 @@ internal static class OpenXmlChartErrorBarsCodec
     internal static void Patch(XElement nativeSeries, SpreadsheetChartSeriesArtifact target, string errorCode, string subject)
     {
         var native = nativeSeries.Elements(ChartNs + "errBars").Take(2).ToArray();
-        var expected = target.ErrorBars is null ? 0 : 1;
-        if (native.Length != expected) throw Topology(errorCode, subject, "error-bar topology changed unexpectedly");
-        if (expected == 0) return;
+        if (native.Length > 1) throw Topology(errorCode, subject, "error-bar topology changed unexpectedly");
+        if (native.Length == 0)
+        {
+            if (target.ErrorBars is null) return;
+            if (target.ErrorBars.ValueType == SpreadsheetChartErrorBarValueType.Custom)
+                throw Topology(errorCode, subject, "custom error-bar insertion is outside the editable profile");
+            var data = nativeSeries.Elements().FirstOrDefault(element => element.Name == ChartNs + "cat" || element.Name == ChartNs + "val");
+            if (data is null) throw Topology(errorCode, subject, "error-bar insertion requires category or value data");
+            data.AddBeforeSelf(Element(target.ErrorBars)!);
+            return;
+        }
+        // Check ownership before removing anything, including extension data
+        // that would otherwise disappear when the requested object is absent.
         if (!TryRead(native[0], target.Values.Count, out var original)) throw Topology(errorCode, subject, "error bars no longer match the editable profile");
+        if (target.ErrorBars is null)
+        {
+            if (original.ValueType == SpreadsheetChartErrorBarValueType.Custom)
+                throw Topology(errorCode, subject, "custom error-bar removal is outside the editable profile");
+            native[0].Remove();
+            return;
+        }
         if (!Semantics(original).Equals(Semantics(target.ErrorBars), StringComparison.Ordinal)) native[0].ReplaceWith(Element(target.ErrorBars)!);
     }
 

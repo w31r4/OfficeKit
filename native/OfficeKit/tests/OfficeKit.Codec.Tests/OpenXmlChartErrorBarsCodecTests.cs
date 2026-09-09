@@ -48,6 +48,18 @@ public sealed class OpenXmlChartErrorBarsCodecTests
         Assert.True(patched.Series[1].ErrorBars.NoEndCap);
         Assert.Equal("0EA5E9", patched.Series[1].ErrorBars.Line.Color.Rgb);
 
+        // Scalar presence is owned by the shared patcher. XLSX's package
+        // adapter separately retains its existing presence restriction.
+        var scalarSeries = editableDocument.Descendants(ChartNs + "ser").ElementAt(1);
+        var customXml = editableDocument.Descendants(ChartNs + "errBars").First().ToString();
+        imported.Series[1].ErrorBars = null;
+        OpenXmlChartErrorBarsCodec.Patch(scalarSeries, imported.Series[1], "error_bar_topology_changed", "Test chart");
+        Assert.Empty(scalarSeries.Elements(ChartNs + "errBars"));
+        imported.Series[1].ErrorBars = fixedValue;
+        OpenXmlChartErrorBarsCodec.Patch(scalarSeries, imported.Series[1], "error_bar_topology_changed", "Test chart");
+        Assert.Single(scalarSeries.Elements(ChartNs + "errBars"));
+        Assert.Equal(customXml, editableDocument.Descendants(ChartNs + "errBars").First().ToString());
+
         var unsupported = new XDocument(document);
         unsupported.Descendants(ChartNs + "errBars").First().Add(new XElement(ChartNs + "extLst"));
         Assert.True(OpenXmlChartSpaceCodec.TryRead(unsupported.ToString(SaveOptions.DisableFormatting), out var preserved, out _, out var unsupportedEditable));
@@ -59,6 +71,28 @@ public sealed class OpenXmlChartErrorBarsCodecTests
         topologyChanged.Series[0].ErrorBars = null;
         var error = Assert.Throws<CodecException>(() => OpenXmlChartSpaceCodec.Patch(editableDocument, topologyChanged, "error_bar_topology_changed", "Test chart"));
         Assert.Equal("error_bar_topology_changed", error.Code);
+    }
+
+    [Theory]
+    [InlineData("duplicate")]
+    [InlineData("extension")]
+    [InlineData("invalid-value")]
+    [InlineData("custom")]
+    public void ErrorBarDeletionValidatesOriginalOwnerBeforeMutation(string variant)
+    {
+        var chart = Chart();
+        var xml = OpenXmlChartSpaceCodec.Build(chart);
+        var index = variant == "custom" ? 0 : 1;
+        var nativeSeries = xml.Descendants(ChartNs + "ser").ElementAt(index);
+        var owner = nativeSeries.Element(ChartNs + "errBars")!;
+        if (variant == "duplicate") owner.AddAfterSelf(new XElement(owner));
+        if (variant == "extension") owner.Add(new XElement(ChartNs + "extLst"));
+        if (variant == "invalid-value") owner.Element(ChartNs + "val")!.SetAttributeValue("val", "-1");
+        var original = nativeSeries.ToString(SaveOptions.DisableFormatting);
+        chart.Series[index].ErrorBars = null;
+        var error = Assert.Throws<CodecException>(() => OpenXmlChartErrorBarsCodec.Patch(nativeSeries, chart.Series[index], "error_bar_topology_changed", "Test chart"));
+        Assert.Equal("error_bar_topology_changed", error.Code);
+        Assert.Equal(original, nativeSeries.ToString(SaveOptions.DisableFormatting));
     }
 
     [Fact]

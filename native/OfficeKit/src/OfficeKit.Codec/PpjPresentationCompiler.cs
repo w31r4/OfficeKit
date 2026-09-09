@@ -5962,17 +5962,13 @@ internal static class PpjSourceBoundPresentationCompiler
         if (PropertyChanged(before.Raw, after.Raw, "errorBars"))
         {
             RequireCapability(capabilityOwner, "setChartSeriesAnalytics", path + ".errorBars");
-            var oldErrorBars = before.Raw.TryGetProperty("errorBars", out var oldErrorBarValue)
-                ? oldErrorBarValue
-                : (JsonElement?)null;
-            var newErrorBars = after.Raw.TryGetProperty("errorBars", out var newErrorBarValue)
-                ? newErrorBarValue
-                : (JsonElement?)null;
-            if (oldErrorBars is null || newErrorBars is null ||
-                oldErrorBars.Value.ValueKind != JsonValueKind.Object ||
-                newErrorBars.Value.ValueKind != JsonValueKind.Object)
-                throw Unsupported(path + ".errorBars", "source-bound error-bar topology change");
-            target.ErrorBars = SourceBoundChartErrorBars(newErrorBars.Value, path + ".errorBars", grammarRoot);
+            // Custom plus/minus sources are retained natively but not projected
+            // into PPJ. Absence in JSON must not make that owner an empty slot.
+            if (target.ErrorBars is not null && !before.Raw.TryGetProperty("errorBars", out _))
+                throw Unsupported(path + ".errorBars", "replacement of unprojected source error bars");
+            target.ErrorBars = after.Raw.TryGetProperty("errorBars", out var newErrorBars)
+                ? SourceBoundChartErrorBars(newErrorBars, path + ".errorBars", grammarRoot)
+                : null;
         }
     }
 

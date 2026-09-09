@@ -191,6 +191,26 @@ try {
     assert.equal(error.receipt.failures[0].stage, "asset");
   }
 
+  // Presence edits must not silently claim that the local SVG draws error
+  // bars. Codec/projection behavior is covered by PpjErrorBarsLifecycle.
+  for (const chartType of ["column", "bar", "line", "combo"]) {
+    for (const errorBars of [undefined, { valueType: "fixed-value", value: 0 }, undefined]) {
+      const programJson = Buffer.from(JSON.stringify({ pages: [{ id: "chart-page", elements: [{
+        id: "errors", type: "chart", chartType, frame: { x: 0, y: 0, width: 200, height: 150 },
+        data: { categories: ["A", "B"], series: [{ chartType: "line", values: [1, 2], errorBars }] },
+      }] }] }));
+      const preview = await renderPpjToSvg("unused.ppj", {
+        load: async () => ({ ...workspace, program: programJson }),
+        compile: async () => ({ ...compiled, programJson }),
+      });
+      const diagnostic = preview.diagnostics.find((d) => d.id === "errors");
+      if (errorBars) {
+        assert.equal(diagnostic.status, "partial");
+        assert.equal(diagnostic.reason, "chart-error-bars-not-rendered");
+      } else assert.notEqual(diagnostic.reason, "chart-error-bars-not-rendered");
+    }
+  }
+
   // A root import must not resolve a specialist rendering/native dependency.
   const hook = registerHooks({ resolve(specifier, context, nextResolve) {
     assert.doesNotMatch(specifier, /^(sharp|mupdf|@office-kit\/codec-)/);

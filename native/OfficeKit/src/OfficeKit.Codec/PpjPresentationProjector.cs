@@ -2929,8 +2929,8 @@ internal static partial class PpjPresentationProjector
                 // Trendlines and error bars are direct c:series children with
                 // bounded readers/writers of their own.  Keep them separate
                 // from paint. Trendlines own their ordered list, including
-                // insertion/removal; error bars retain their existing scalar
-                // profile and presence restriction.
+                // insertion/removal; scalar error bars own their optional
+                // object. Unprojected custom sources remain protected.
                 output.Add(new("setChartSeriesAnalytics", [
                     "chart.data.series[].trendlines",
                     "chart.data.series[].errorBars",

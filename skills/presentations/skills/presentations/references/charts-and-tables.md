@@ -464,18 +464,29 @@ display-flag and direct-stroke rules; only the target ChartPart changes.
 
 For example, `"trendlines": [{ "type": "linear", "name": "Fit" },
 { "type": "polynomial", "order": 2, "name": "Curve" }]` requests two fits in
-that order. Scalar error-bar parameters can still be edited only when the
-object already exists. Error-bar additions/deletions, custom error-bar data,
-formula/workbook synchronization, trendline labels, extensions and complex
-ChartML remain source-owned and fail closed.
+that order.
+
+The same capability owns the optional scalar `errorBars` object. For example,
+`"errorBars": { "valueType": "fixed-value", "value": 2, "direction": "y", "type": "both" }`
+adds or replaces it. Remove the property to delete it; a later edit can add it
+again. Fixed-value, percentage and standard-deviation require a nonnegative
+value (zero is retained); standard-error omits the value. Cap and direct stroke
+styling keep their existing rules. Each edit preserves trendlines, other series
+and package entries outside the target ChartPart.
+
+Custom error-bar data, formula/workbook synchronization, trendline labels,
+extensions and complex ChartML remain source-owned and fail closed. An absent
+PPJ object does not authorize overwriting unprojected native custom data.
+Local SVG preview reports `chart-error-bars-not-rendered` as partial; verify
+exported error-bar semantics through native inspection and fresh projection.
 
 The scalar marker spelling and `showDataLabels` / `dataLabelPosition` remain
 valid for older PPJ. Do not combine either legacy spelling with its structured
 form. On an imported source-bound chart, a `setChartData` capability owns only
 series names and values; it cannot be used to smuggle axis, marker, label,
 trendline, error-bar or paint changes. Use the separately issued
-`setChartSeriesAnalytics` capability for trendline-list edits and existing
-scalar error-bar replacement.
+`setChartSeriesAnalytics` capability for trendline-list edits and scalar
+error-bar addition, replacement or removal.
 
 Scatter and bubble charts use numeric channels rather than shared category
 labels:

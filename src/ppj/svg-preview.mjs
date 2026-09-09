@@ -102,8 +102,9 @@ function renderElement(e, assets, diagnostics) {
     const scatter = series.filter((s) => s.chartType === "scatter").flatMap((s) => (s.values || []).map((v, i) => { const y = typeof v === "object" ? v.y : v; const x = typeof v === "object" ? v.x : i; return Number.isFinite(y) ? `<circle cx="${f.x + (Number(x) / Math.max(1, categories.length - 1)) * f.width}" cy="${base - Number(y) / max * plotH}" r="3" fill="#0B5D5E"/>` : ""; })).join("");
     const pie = e.chartType === "pie" && values.length ? `<circle cx="${f.x + f.width / 2}" cy="${f.y + f.height / 2}" r="${Math.min(f.width, f.height) * .28}" fill="#D9E2F3" stroke="#667085"/><text x="${f.x + 8}" y="${f.y + 20}" font-size="13" fill="#475467">pie · ${esc(categories.join(" / "))}</text>` : "";
     const kind = pie ? "pie" : scatter ? "scatter" : "bounded-column-line";
-    const status = SVG_PREVIEW_SUPPORTED_CHARTS.has(e.chartType) ? "supported" : "partial";
-    diagnostics.push({ id: e.id, status, reason: SVG_PREVIEW_SUPPORTED_CHARTS.has(e.chartType) ? `${kind}-preview` : `chart-${e.chartType || "unknown"}-fallback` });
+    const hasErrorBars = series.some((s) => s.errorBars != null);
+    const status = !hasErrorBars && SVG_PREVIEW_SUPPORTED_CHARTS.has(e.chartType) ? "supported" : "partial";
+    diagnostics.push({ id: e.id, status, reason: hasErrorBars ? "chart-error-bars-not-rendered" : SVG_PREVIEW_SUPPORTED_CHARTS.has(e.chartType) ? `${kind}-preview` : `chart-${e.chartType || "unknown"}-fallback` });
     return `<g${common}><rect x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="#F8FAFC" stroke="#98A2B3"/><line x1="${f.x + 12}" y1="${base}" x2="${f.x + f.width - 8}" y2="${base}" stroke="#667085"/>${bars}${lines}${scatter}${labels}${pie}</g>`;
   }
   if (e.type === "shape" || e.geometry) {
