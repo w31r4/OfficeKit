@@ -33,15 +33,20 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [InlineData("text", true, "fontFamilyEastAsia")]
     [InlineData("shape", false, "fontFamilyEastAsia")]
     [InlineData("shape", true, "fontFamilyEastAsia")]
+    [InlineData("text", false, "fontFamilyComplexScript")]
+    [InlineData("text", true, "fontFamilyComplexScript")]
+    [InlineData("shape", false, "fontFamilyComplexScript")]
+    [InlineData("shape", true, "fontFamilyComplexScript")]
     public void ParagraphDefaultScalarPresencePreservesOtherState(string kind, bool otherDefaults, string field)
     {
         var program = Program(kind);
-        var isFont = field is "fontFamily" or "fontFamilyEastAsia";
+        var isFont = field is "fontFamily" or "fontFamilyEastAsia" or "fontFamilyComplexScript";
         var initial = field switch
         {
             "size" => JsonValue.Create(18.25),
             "fontFamily" => JsonValue.Create("Arial"),
             "fontFamilyEastAsia" => JsonValue.Create("SimSun"),
+            "fontFamilyComplexScript" => JsonValue.Create("Arial"),
             _ => JsonValue.Create(true),
         };
         var initialJson = initial!.ToJsonString();
@@ -96,6 +101,8 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             foreach (var value in field switch
             {
                 "size" => new[] { "1", "18.25", "18.256", "18.125", "768" },
+                "fontFamilyComplexScript" => new[] { "Amiri", "+mn-cs", new string('F', 255) }
+                    .Select(font => JsonValue.Create(font)!.ToJsonString()).ToArray(),
                 "fontFamilyEastAsia" => new[] { "MS Gothic", "+mn-ea", new string('F', 255) }
                     .Select(font => JsonValue.Create(font)!.ToJsonString()).ToArray(),
                 "fontFamily" => new[] { "Georgia", "+mn-lt", new string('F', 255) }
@@ -125,7 +132,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         fields.Remove(fields.Single(f => f!.GetValue<string>() == "text.paragraphs[].style.defaultText." + field));
         Assert.Empty(Compile(denied, source, success: false).File);
         var unsupported = Project(source);
-        FirstTextParagraph(unsupported)["style"]!["defaultText"]!["fontFamilyComplexScript"] = "Tahoma";
+        FirstTextParagraph(unsupported)["style"]!["defaultText"]!["language"] = "fr-FR";
         Assert.Empty(Compile(unsupported, source, success: false).File);
         if (field == "size")
             foreach (var invalid in new[] { 0d, -1d, 768.01, 0.001, 0.01, 0.99 })
@@ -149,6 +156,8 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [InlineData("fontFamily", true)]
     [InlineData("fontFamilyEastAsia", false)]
     [InlineData("fontFamilyEastAsia", true)]
+    [InlineData("fontFamilyComplexScript", false)]
+    [InlineData("fontFamilyComplexScript", true)]
     public void ParagraphDefaultFontRejectsUnmodeledNode(string field, bool childContent)
     {
         var program = Program("text");
@@ -165,7 +174,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         using (var doc = PresentationDocument.Open(stream, true))
         {
             var defaults = Owner(doc, "text").Descendants<A.DefaultRunProperties>().First();
-            var tag = field == "fontFamily" ? "latin" : "ea";
+            var tag = field switch { "fontFamily" => "latin", "fontFamilyEastAsia" => "ea", _ => "cs" };
             if (childContent)
             {
                 defaults.InnerXml = $"<a:{tag} xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" typeface=\"Arial\"><a:extLst/></a:{tag}>";
@@ -197,6 +206,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             "size" => defaults?.FontSize is { } size ? JsonValue.Create(size.Value / 100d) : null,
             "fontFamily" => defaults?.GetFirstChild<A.LatinFont>()?.Typeface is { } family ? JsonValue.Create(family.Value) : null,
             "fontFamilyEastAsia" => defaults?.GetFirstChild<A.EastAsianFont>()?.Typeface is { } eastAsian ? JsonValue.Create(eastAsian.Value) : null,
+            "fontFamilyComplexScript" => defaults?.GetFirstChild<A.ComplexScriptFont>()?.Typeface is { } complexScript ? JsonValue.Create(complexScript.Value) : null,
             _ => throw new ArgumentOutOfRangeException(nameof(field)),
         };
     }
@@ -1181,7 +1191,8 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                     else if (field == "paragraphDefault.italic") defaults.Italic = null;
                     else if (field == "paragraphDefault.size") defaults.FontSize = null;
                     else if (field == "paragraphDefault.fontFamily") defaults.GetFirstChild<A.LatinFont>()?.Remove();
-                    else defaults.GetFirstChild<A.EastAsianFont>()?.Remove();
+                    else if (field == "paragraphDefault.fontFamilyEastAsia") defaults.GetFirstChild<A.EastAsianFont>()?.Remove();
+                    else defaults.GetFirstChild<A.ComplexScriptFont>()?.Remove();
                     if (defaults.GetAttributes().Count == 0 && defaults.ChildElements.Count == 0) defaults.Remove();
                 }
                 if (paragraphProperties is not null && paragraphProperties.GetAttributes().Count == 0 && paragraphProperties.ChildElements.Count == 0)

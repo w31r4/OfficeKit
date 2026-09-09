@@ -463,6 +463,16 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**段落默认复杂脚本字体增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.defaultText.fontFamilyComplexScript`
+支持独立赋值、删除、恢复和单字体包装删除，仅更新简单直接的 a:cs。
+名字非空白、最多 255 字符，主题字体引用保留原写法；
+额外元数据和隐藏子内容拒绝覆盖。拉丁/东亚字体、效果、直接 run、
+其它段和非目标 XML/ZIP 保留。相关 **177/177 通过，0 跳过**，
+沿用已记录的整组默认样式基线失败排除项。三类直接默认字体的字段生命周期
+已分别接通；资料、生成检查和 OpenSpec 通过，现有协议不变，未重建 NativeAOT。
+
+
 **段落默认东亚字体增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.defaultText.fontFamilyEastAsia`
 支持独立赋值、删除、恢复和单字体包装删除。source-bound 按显式字段决定存在性，

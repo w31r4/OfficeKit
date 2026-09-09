@@ -60,6 +60,12 @@ wrapper deletion and restoration. On source-bound edits, deleting it removes
 a:ea even when fontFamily remains; the authored Latin fallback is not reapplied.
 Latin/complex-script defaults and direct run fonts are retained.
 
+Use defaultText.fontFamilyComplexScript for independent direct a:cs assignment,
+removal and restoration under its exact field authority. It shares the
+nonblank/255-character and simple-node limits. Removing a font-only defaultText
+or paragraph style wrapper clears it; Latin/East Asian defaults, effects and
+direct runs remain unchanged.
+
 
 `textWarpPreset`, `textWarpAdjustments`, `flatTextZ`, `fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.

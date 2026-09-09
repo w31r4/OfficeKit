@@ -2,6 +2,19 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ paragraph default fontFamilyComplexScript (2026-09-10): ordinary
+text/shape paragraphs now expose independent a:cs assignment, deletion,
+font-only defaultText/style wrapper removal and restoration. Latin/East Asian
+fonts, effects, direct runs, other paragraphs, unknown attributes and
+non-target XML/ZIP content remain unchanged. Shared fixtures cover font names
+through 255 characters, theme typeface spelling, invalid names, missing field
+authority and unmodeled metadata/hidden child rejection for all three script
+fonts. Six added cases bring related native tests to 177/177 passing, zero
+skipped (SDK 8.0.128); the documented whole-default-style baseline failure is
+still excluded. Unsupported-field rejection now uses language. Generated
+references/matrix, preview input/capability, portability/reference sync and
+strict OpenSpec pass. No wire change, NativeAOT rebuild or host font acceptance.
+
 PPJ paragraph default fontFamilyEastAsia (2026-09-10): ordinary text/shape
 owners issue independent authority for direct a:ea assignment, deletion,
 font-only wrapper removal and restoration. Source-bound deletion checks raw
@@ -12,7 +25,7 @@ fixtures cover names through 255 characters, theme typeface spelling,
 invalid names, missing authority and unmodeled metadata/hidden leaf children.
 Six added cases bring related native tests to 171/171 passing, zero skipped
 (SDK 8.0.128), with the documented whole-default-style baseline failure excluded.
-Unsupported-field rejection now uses fontFamilyComplexScript. Generated
+That increment used fontFamilyComplexScript for unsupported-field rejection. Generated
 references/matrix, preview input/capability, portability/reference sync and
 strict OpenSpec pass. Existing authored fallback and wire remain unchanged;
 no AOT rebuild or host font-substitution acceptance.
