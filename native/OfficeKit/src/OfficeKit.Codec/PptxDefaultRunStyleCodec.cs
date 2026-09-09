@@ -111,15 +111,20 @@ internal static class PptxDefaultRunStyleCodec
         }
         var imported = new PresentationTextParagraph();
         Read(imported, target);
-        var beforeWithoutBold = imported.DefaultRunProperties?.Clone() ?? new PresentationTextStyle();
-        var afterWithoutBold = source.DefaultRunProperties.Clone();
-        beforeWithoutBold.ClearBold();
-        afterWithoutBold.ClearBold();
-        if (beforeWithoutBold.Equals(afterWithoutBold))
+        var before = imported.DefaultRunProperties ?? new PresentationTextStyle();
+        var after = source.DefaultRunProperties;
+        var beforeWithoutFlags = before.Clone();
+        var afterWithoutFlags = after.Clone();
+        beforeWithoutFlags.ClearBold(); beforeWithoutFlags.ClearItalic();
+        afterWithoutFlags.ClearBold(); afterWithoutFlags.ClearItalic();
+        if (beforeWithoutFlags.Equals(afterWithoutFlags))
         {
-            // A default-bold edit must not rebuild unrelated font/fill/effect
-            // children, including modeled siblings with stricter write profiles.
-            properties.Bold = source.DefaultRunProperties.HasBold ? source.DefaultRunProperties.Bold : null;
+            // Patch changed flags without rebuilding unrelated font/fill/effect
+            // children or canonicalizing the untouched flag's XML spelling.
+            if (before.HasBold != after.HasBold || before.Bold != after.Bold)
+                properties.Bold = after.HasBold ? after.Bold : null;
+            if (before.HasItalic != after.HasItalic || before.Italic != after.Italic)
+                properties.Italic = after.HasItalic ? after.Italic : null;
             RemoveIfEmpty(properties);
             return;
         }

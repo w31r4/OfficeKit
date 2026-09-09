@@ -13,17 +13,21 @@ namespace OfficeKit.Codec.Tests;
 public sealed class PpjTextBodyPropertyLifecycleTests
 {
     [Theory]
-    [InlineData("text", false)]
-    [InlineData("text", true)]
-    [InlineData("shape", false)]
-    [InlineData("shape", true)]
-    public void ParagraphDefaultBoldPresencePreservesOtherState(string kind, bool otherDefaults)
+    [InlineData("text", false, "bold")]
+    [InlineData("text", false, "italic")]
+    [InlineData("text", true, "bold")]
+    [InlineData("text", true, "italic")]
+    [InlineData("shape", false, "bold")]
+    [InlineData("shape", false, "italic")]
+    [InlineData("shape", true, "bold")]
+    [InlineData("shape", true, "italic")]
+    public void ParagraphDefaultBooleanPresencePreservesOtherState(string kind, bool otherDefaults, string field)
     {
         var program = Program(kind);
-        var defaults = new JsonObject { ["bold"] = true };
+        var defaults = new JsonObject { [field] = true };
         if (otherDefaults)
         {
-            defaults["italic"] = true; defaults["size"] = 18; defaults["fontFamily"] = "Arial";
+            defaults[field == "bold" ? "italic" : "bold"] = true; defaults["size"] = 18; defaults["fontFamily"] = "Arial";
             defaults["softEdge"] = new JsonObject { ["radius"] = 2 };
         }
         var paragraphStyle = new JsonObject { ["defaultText"] = defaults };
@@ -40,42 +44,46 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         var authored = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
         using var stream = new MemoryStream(); stream.Write(authored);
         using (var doc = PresentationDocument.Open(stream, true))
-            Owner(doc, kind).Descendants<A.DefaultRunProperties>().First().Dirty = false;
+        {
+            var nativeDefaults = Owner(doc, kind).Descendants<A.DefaultRunProperties>().First();
+            nativeDefaults.Dirty = false;
+            if (otherDefaults) nativeDefaults.SetAttribute(new OpenXmlAttribute(field == "bold" ? "i" : "b", "", "true"));
+        }
         var source = stream.ToArray(); var original = source.ToArray();
         var projected = Project(source);
         Assert.Equal(source, Compile(projected, source).File.ToByteArray());
-        Assert.True(ParagraphDefaultBold(source, kind));
+        Assert.True(ParagraphDefaultBoolean(source, kind, field));
         foreach (var mode in otherDefaults ? new[] { "field" } : new[] { "field", "defaultText", "style" })
         {
             var request = Project(source); var paragraph = FirstTextParagraph(request);
-            if (mode == "field") paragraph["style"]!["defaultText"]!.AsObject().Remove("bold");
+            if (mode == "field") paragraph["style"]!["defaultText"]!.AsObject().Remove(field);
             else if (mode == "defaultText") paragraph["style"]!.AsObject().Remove("defaultText");
             else paragraph.Remove("style");
             var deleted = Compile(request, source).File.ToByteArray();
-            Assert.Null(ParagraphDefaultBold(deleted, kind));
-            Assert.Null(FirstTextParagraph(Project(deleted))["style"]?["defaultText"]?["bold"]);
-            AssertOnlyBodyPropertyChanged(source, deleted, kind, "paragraphDefaultBold");
+            Assert.Null(ParagraphDefaultBoolean(deleted, kind, field));
+            Assert.Null(FirstTextParagraph(Project(deleted))["style"]?["defaultText"]?[field]);
+            AssertOnlyBodyPropertyChanged(source, deleted, kind, "paragraphDefault." + field);
             foreach (var value in new[] { false, true })
             {
                 var restore = Project(deleted); var restoredParagraph = FirstTextParagraph(restore);
                 restoredParagraph["style"] ??= new JsonObject();
                 restoredParagraph["style"]!["defaultText"] ??= new JsonObject();
-                restoredParagraph["style"]!["defaultText"]!["bold"] = value;
+                restoredParagraph["style"]!["defaultText"]![field] = value;
                 var restored = Compile(restore, deleted).File.ToByteArray();
-                Assert.Equal(value, ParagraphDefaultBold(restored, kind));
-                Assert.Equal(value, FirstTextParagraph(Project(restored))["style"]!["defaultText"]!["bold"]!.GetValue<bool>());
-                AssertOnlyBodyPropertyChanged(deleted, restored, kind, "paragraphDefaultBold");
+                Assert.Equal(value, ParagraphDefaultBoolean(restored, kind, field));
+                Assert.Equal(value, FirstTextParagraph(Project(restored))["style"]!["defaultText"]![field]!.GetValue<bool>());
+                AssertOnlyBodyPropertyChanged(deleted, restored, kind, "paragraphDefault." + field);
             }
         }
         var denied = Project(source);
-        FirstTextParagraph(denied)["style"]!["defaultText"]!["bold"] = false;
+        FirstTextParagraph(denied)["style"]!["defaultText"]![field] = false;
         var capability = denied["pages"]![0]!["elements"]![0]!["nativeRef"]!["capabilities"]!.AsArray()
             .Single(c => c!["operation"]!.GetValue<string>() == "setTextParagraphStyle")!;
         var fields = capability["fields"]!.AsArray();
-        fields.Remove(fields.Single(f => f!.GetValue<string>() == "text.paragraphs[].style.defaultText.bold"));
+        fields.Remove(fields.Single(f => f!.GetValue<string>() == "text.paragraphs[].style.defaultText." + field));
         Assert.Empty(Compile(denied, source, success: false).File);
         var unsupported = Project(source);
-        FirstTextParagraph(unsupported)["style"]!["defaultText"]!["italic"] = false;
+        FirstTextParagraph(unsupported)["style"]!["defaultText"]!["size"] = 24;
         Assert.Empty(Compile(unsupported, source, success: false).File);
         Assert.Equal(original, source);
     }
@@ -83,11 +91,12 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     private static JsonObject FirstTextParagraph(JsonObject program) =>
         program["pages"]![0]!["elements"]![0]!["text"]!["paragraphs"]![0]!.AsObject();
 
-    private static bool? ParagraphDefaultBold(byte[] bytes, string kind)
+    private static bool? ParagraphDefaultBoolean(byte[] bytes, string kind, string field)
     {
         using var document = PresentationDocument.Open(new MemoryStream(bytes), false);
         var paragraph = Owner(document, kind).Descendants<A.Paragraph>().First();
-        return paragraph.ParagraphProperties?.GetFirstChild<A.DefaultRunProperties>()?.Bold?.Value;
+        var defaults = paragraph.ParagraphProperties?.GetFirstChild<A.DefaultRunProperties>();
+        return field == "bold" ? defaults?.Bold?.Value : defaults?.Italic?.Value;
     }
 
     [Theory]
@@ -1058,7 +1067,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         using var right = PresentationDocument.Open(new MemoryStream(after), false);
         var oldSlide = Owner(left, kind);
         var newSlide = Owner(right, kind);
-        if (field == "paragraphDefaultBold")
+        if (field.StartsWith("paragraphDefault."))
         {
             foreach (var owner in new[] { oldSlide, newSlide })
             {
@@ -1066,7 +1075,8 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                 var defaults = paragraphProperties?.GetFirstChild<A.DefaultRunProperties>();
                 if (defaults is not null)
                 {
-                    defaults.Bold = null;
+                    if (field == "paragraphDefault.bold") defaults.Bold = null;
+                    else defaults.Italic = null;
                     if (defaults.GetAttributes().Count == 0 && defaults.ChildElements.Count == 0) defaults.Remove();
                 }
                 if (paragraphProperties is not null && paragraphProperties.GetAttributes().Count == 0 && paragraphProperties.ChildElements.Count == 0)

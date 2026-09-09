@@ -2952,6 +2952,7 @@ internal static partial class PpjPresentationProjector
                             "text.paragraphs[].style.alignment",
                             "text.paragraphs[].style.tabStops",
                             "text.paragraphs[].style.defaultText.bold",
+                            "text.paragraphs[].style.defaultText.italic",
                         ]));
                         if (PptxBodyPropertiesCodec.SupportsBoundedDirectLayout(element.Shape.TextBody?.BodyProperties))
                         {

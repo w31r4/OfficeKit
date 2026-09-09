@@ -2,6 +2,18 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ paragraph default italic (2026-09-10): ordinary text/shape owners now
+expose defaultText.italic with independent field authority. The shared boolean
+fixture covers bold and italic true/false/removal/restoration, flag-only
+wrapper removal, other defaults/soft-edge/direct runs, unknown native dirty
+state and non-target XML/ZIP preservation. Untouched boolean XML spelling is
+retained. Four additional cases bring the related native selection to 155/155
+passing, zero skipped (SDK 8.0.128); the previously reproduced native
+default-style baseline failure remains excluded as documented below.
+Unsupported-field rejection now uses size. Generated reference/matrix,
+preview input/capability, portability/reference sync and strict OpenSpec pass.
+Existing wire unchanged; no NativeAOT rebuild or host reflow acceptance.
+
 PPJ paragraph default bold (2026-09-10): ordinary text/shape owners expose
 text.paragraphs[].style.defaultText.bold through the exact setTextParagraphStyle
 field authority. True/false, removal, bold-only wrapper removal and restoration

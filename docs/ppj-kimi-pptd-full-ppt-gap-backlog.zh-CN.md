@@ -463,6 +463,14 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**段落默认斜体增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.defaultText.italic` 支持 true、false、删除和恢复，
+含仅有斜体的包装对象删除；与 bold 分别检查字段权限。共享实验验证其它默认样式、
+soft-edge、直接 run、未知原生属性及非目标 XML/ZIP 保留，未改动布尔属性的 XML
+写法也保持原样。相关 **155/155 通过，0 跳过**；沿用下一段记录的基线失败排除项。
+schema、资料和 OpenSpec 同步通过，现有协议不变；其它默认字段与继承继续逐项补齐。
+
+
 **段落默认粗体增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.defaultText.bold` 支持 true、false、删除和恢复，
 也支持删除仅含 bold 的包装对象；要求对应的 `setTextParagraphStyle` 字段权限。

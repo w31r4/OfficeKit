@@ -33,10 +33,10 @@ Do not put Markdown, HTML, CSS, or invented inline markup into a text string.
 Assign language and font roles explicitly for mixed-script runs.
 
 For an ordinary imported text box or shape,
-`text.paragraphs[].style.defaultText.bold` edits the paragraph default.
-True and false remain explicit; delete the field (or its bold-only
+`text.paragraphs[].style.defaultText.bold` and `.italic` edit independent paragraph defaults.
+True and false remain explicit; delete the field (or its flag-only
 `defaultText` object) to clear the direct default. Restore it by setting the
-boolean again. Use the issued `setTextParagraphStyle` field authority;
+boolean again. Each field needs its own issued `setTextParagraphStyle` authority;
 other defaults, direct run styles and placeholder inheritance are separate.
 
 

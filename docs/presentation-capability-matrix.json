@@ -1029,11 +1029,11 @@
       "visualStatus": "partial-or-opaque"
     },
     {
-      "feature": "source-bound paragraph default bold",
-      "ppjPath": "pages[].elements[].text.paragraphs[].style.defaultText.bold",
+      "feature": "source-bound paragraph default booleans",
+      "ppjPath": "pages[].elements[].text.paragraphs[].style.defaultText.bold and italic",
       "behavior": "partial",
-      "sourceBound": "Ordinary text/shape owners issue the specific setTextParagraphStyle field for direct paragraph default bold. Explicit true/false, omission and restoration retain native presence.",
-      "reason": "Fixed paragraph/run topology is preserved. Removing a bold-only defaultText wrapper clears the modeled default bold while retaining other defaults, direct runs and unknown native state. Missing field authority and unrelated defaultText changes fail closed. PpjTextBodyPropertyLifecycleTests verifies source XML/ZIP preservation; placeholder inheritance, table paragraph defaults and host reflow retain their separate boundaries.",
+      "sourceBound": "Ordinary text/shape owners issue independent setTextParagraphStyle fields for direct paragraph default bold and italic. Explicit true/false, omission and restoration retain native presence.",
+      "reason": "Fixed paragraph/run topology is preserved. Removing a defaultText wrapper containing only these flags clears their direct values while retaining other defaults, direct runs and unknown native state. Missing field authority and unrelated defaultText changes fail closed. PpjTextBodyPropertyLifecycleTests verifies source XML/ZIP preservation; placeholder inheritance, table paragraph defaults and host reflow retain their separate boundaries.",
       "visualStatus": "partial-or-opaque"
     },
     {

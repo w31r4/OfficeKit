@@ -18,7 +18,7 @@ internal static class PpjSemanticValidator
         new Dictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal)
         {
             ["replaceText"] = Set("text", "visibleText"),
-            ["setTextParagraphStyle"] = Set("textStyles", "text.paragraphs[].style.alignment", "text.paragraphs[].style.tabStops", "text.paragraphs[].style.defaultText.bold"),
+            ["setTextParagraphStyle"] = Set("textStyles", "text.paragraphs[].style.alignment", "text.paragraphs[].style.tabStops", "text.paragraphs[].style.defaultText.bold", "text.paragraphs[].style.defaultText.italic"),
             ["setFill"] = Set("fill"),
             ["setStroke"] = Set("stroke"),
             ["setConnectorEndpoints"] = Set("from", "to"),

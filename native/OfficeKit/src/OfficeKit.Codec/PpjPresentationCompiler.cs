@@ -5529,21 +5529,24 @@ internal static partial class PpjSourceBoundPresentationCompiler
     {
         if (JsonEqual(beforeRaw, afterRaw)) return false;
         var tabStopsChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskAlignment: true, maskDefaultBold: true),
-            MaskTextValues(afterRaw, maskAlignment: true, maskDefaultBold: true));
+            MaskTextValues(beforeRaw, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true),
+            MaskTextValues(afterRaw, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true));
         var alignmentChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskDefaultBold: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskDefaultBold: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskDefaultBold: true, maskDefaultItalic: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskDefaultBold: true, maskDefaultItalic: true));
         var defaultBoldChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultItalic: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultItalic: true));
+        var defaultItalicChanged = !JsonEqual(
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true));
         if (!JsonEqual(
-                MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true),
-                MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true)))
+                MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true),
+                MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true)))
             throw Unsupported(path, "rich-text topology or styling change");
         if (target.TextBody is null)
             throw Unsupported(path, "text edit without one imported bounded text body");
-        if (tabStopsChanged || alignmentChanged || defaultBoldChanged)
+        if (tabStopsChanged || alignmentChanged || defaultBoldChanged || defaultItalicChanged)
         {
             if (tabStopsChanged)
                 RequireCapabilityField(
@@ -5560,8 +5563,11 @@ internal static partial class PpjSourceBoundPresentationCompiler
             if (defaultBoldChanged)
                 RequireCapabilityField(nativeRef, "setTextParagraphStyle",
                     "text.paragraphs[].style.defaultText.bold", path + ".paragraphStyle.defaultText.bold");
+            if (defaultItalicChanged)
+                RequireCapabilityField(nativeRef, "setTextParagraphStyle",
+                    "text.paragraphs[].style.defaultText.italic", path + ".paragraphStyle.defaultText.italic");
             ApplyTextParagraphStyleMutation(afterRaw, target, programRoot, path,
-                tabStopsChanged, alignmentChanged, defaultBoldChanged);
+                tabStopsChanged, alignmentChanged, defaultBoldChanged, defaultItalicChanged);
             mutations.SemanticChanges = true;
         }
 
@@ -6728,7 +6734,8 @@ internal static partial class PpjSourceBoundPresentationCompiler
         JsonElement value,
         bool maskTabStops = false,
         bool maskAlignment = false,
-        bool maskDefaultBold = false)
+        bool maskDefaultBold = false,
+        bool maskDefaultItalic = false)
     {
         if (value.ValueKind == JsonValueKind.String)
         {
@@ -6748,7 +6755,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                         if (run["field"] is System.Text.Json.Nodes.JsonObject field)
                             field["text"] = string.Empty;
                     }
-                if ((maskTabStops || maskAlignment || maskDefaultBold) && paragraph["style"] is System.Text.Json.Nodes.JsonObject style)
+                if ((maskTabStops || maskAlignment || maskDefaultBold || maskDefaultItalic) && paragraph["style"] is System.Text.Json.Nodes.JsonObject style)
                 {
                     if (maskTabStops)
                     {
@@ -6756,9 +6763,10 @@ internal static partial class PpjSourceBoundPresentationCompiler
                         style.Remove("noTabStops");
                     }
                     if (maskAlignment) style.Remove("alignment");
-                    if (maskDefaultBold && style["defaultText"] is System.Text.Json.Nodes.JsonObject defaults)
+                    if ((maskDefaultBold || maskDefaultItalic) && style["defaultText"] is System.Text.Json.Nodes.JsonObject defaults)
                     {
-                        defaults.Remove("bold");
+                        if (maskDefaultBold) defaults.Remove("bold");
+                        if (maskDefaultItalic) defaults.Remove("italic");
                         if (defaults.Count == 0) style.Remove("defaultText");
                     }
                     if (style.Count == 0) paragraph.Remove("style");
@@ -6776,7 +6784,8 @@ internal static partial class PpjSourceBoundPresentationCompiler
         string path,
         bool tabStopsChanged,
         bool alignmentChanged,
-        bool defaultBoldChanged)
+        bool defaultBoldChanged,
+        bool defaultItalicChanged)
     {
         PresentationTextBody requested;
         try
@@ -6807,12 +6816,21 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 current.ClearNoTabStops();
                 if (next.HasNoTabStops && next.NoTabStops) current.NoTabStops = true;
             }
-            if (defaultBoldChanged)
+            if (defaultBoldChanged || defaultItalicChanged)
             {
                 var defaults = current.DefaultRunProperties?.Clone() ?? new PresentationTextStyle();
-                defaults.ClearBold();
-                if (next.DefaultRunProperties is { HasBold: true } nextDefaults)
-                    defaults.Bold = nextDefaults.Bold;
+                if (defaultBoldChanged)
+                {
+                    defaults.ClearBold();
+                    if (next.DefaultRunProperties is { HasBold: true } nextBold)
+                        defaults.Bold = nextBold.Bold;
+                }
+                if (defaultItalicChanged)
+                {
+                    defaults.ClearItalic();
+                    if (next.DefaultRunProperties is { HasItalic: true } nextItalic)
+                        defaults.Italic = nextItalic.Italic;
+                }
                 if (PptxDefaultRunStyleCodec.HasFields(defaults))
                     current.DefaultRunProperties = defaults;
                 else if (current.DefaultRunStyleCase != PresentationTextParagraph.DefaultRunStyleOneofCase.None)
