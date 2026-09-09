@@ -1581,6 +1581,7 @@ internal static partial class PpjPresentationProjector
         if (source.HasLanguage) output["language"] = StringNode(source.Language);
         if (source.HasStrike) output["strike"] = StringNode(source.Strike);
         if (source.HasBaselineThousandthPercent) output["baseline"] = JsonValue.Create(source.BaselineThousandthPercent / 1000d);
+        if (source.HasCapitalization) output["capitalization"] = StringNode(source.Capitalization);
         if (source.HasBold) output["bold"] = JsonValue.Create(source.Bold);
         if (source.HasItalic) output["italic"] = JsonValue.Create(source.Italic);
         if (source.Underline.Length > 0)

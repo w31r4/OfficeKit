@@ -3061,11 +3061,7 @@
           "$ref": "#/$defs/textBaseline"
         },
         "capitalization": {
-          "enum": [
-            "none",
-            "small",
-            "all"
-          ]
+          "$ref": "#/$defs/textCapitalization"
         }
       }
     },
@@ -6212,6 +6208,9 @@
         }
       }
     },
+    "textCapitalization": {
+      "enum": ["none", "small", "all"]
+    },
     "textBaseline": {
       "type": "number",
       "minimum": -400,
@@ -6251,6 +6250,10 @@
         "baseline": {
           "$ref": "#/$defs/textBaseline",
           "description": "Signed baseline percentage; native precision is 0.001%, rounded with ties to even. Explicit zero is preserved."
+        },
+        "capitalization": {
+          "$ref": "#/$defs/textCapitalization",
+          "description": "Direct capitalization display state; explicit none and original literal characters are preserved."
         },
         "underline": {
           "enum": [

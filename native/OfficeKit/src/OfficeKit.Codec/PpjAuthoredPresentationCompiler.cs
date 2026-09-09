@@ -3302,6 +3302,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (source.TryGetProperty("language", out var language)) output.Language = catalog.LanguageTagToken(language, "chart text language");
         if (source.TryGetProperty("strike", out var strike)) output.Strike = NativeStrike(strike);
         if (source.TryGetProperty("baseline", out var baseline)) output.BaselineThousandthPercent = XlsxChartTextStyleCodec.BaselineThousandthPercent(baseline.GetDouble());
+        if (source.TryGetProperty("capitalization", out var capitalization)) output.Capitalization = capitalization.GetString()!;
         if (source.TryGetProperty("bold", out var bold)) output.Bold = catalog.BooleanToken(bold, "boolean", "chart text bold");
         if (source.TryGetProperty("italic", out var italic)) output.Italic = catalog.BooleanToken(italic, "boolean", "chart text italic");
         if (source.TryGetProperty("underline", out var underline)) output.Underline = NativeUnderline(underline.GetString()!);
@@ -3345,7 +3346,7 @@ internal static partial class PpjAuthoredPresentationCompiler
     }
 
     private static readonly string[] ChartTextStyleFields =
-    ["fontSize", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "language", "strike", "baseline", "bold", "italic", "underline", "alignment", "fill", "color"];
+    ["fontSize", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "language", "strike", "baseline", "capitalization", "bold", "italic", "underline", "alignment", "fill", "color"];
 
     private static void ApplyChartTextStyleProperty(
         SpreadsheetChartTextStyleArtifact output,
@@ -3375,6 +3376,9 @@ internal static partial class PpjAuthoredPresentationCompiler
                 break;
             case "baseline":
                 output.BaselineThousandthPercent = XlsxChartTextStyleCodec.BaselineThousandthPercent(value.GetDouble());
+                break;
+            case "capitalization":
+                output.Capitalization = value.GetString()!;
                 break;
             case "bold":
                 output.Bold = catalog.BooleanToken(value, "boolean", "chart text bold");

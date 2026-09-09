@@ -2060,6 +2060,7 @@ internal static partial class PpjAuthoredPresentationCompiler
             if (!run.HasLanguage && defaults.HasLanguage) run.Language = defaults.Language;
             if (!run.HasStrike && defaults.HasStrike) run.Strike = defaults.Strike;
             if (!run.HasFontBaselinePercent && defaults.HasBaselineThousandthPercent) run.FontBaselinePercent = defaults.BaselineThousandthPercent / 1000d;
+            if (!run.HasFontCaps && defaults.HasCapitalization) run.FontCaps = defaults.Capitalization;
             if (!run.HasBold && defaults.HasBold) run.Bold = defaults.Bold;
             if (!run.HasItalic && defaults.HasItalic) run.Italic = defaults.Italic;
             if (!run.HasColorRgb && !run.HasColorScheme && run.GradientFill is null && defaults.ColorRgb.Length > 0)
@@ -2092,6 +2093,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (value.TryGetProperty("language", out var language)) run.Language = catalog.LanguageTagToken(language, "vector chart text language");
         if (value.TryGetProperty("strike", out var strike)) run.Strike = NativeStrike(strike);
         if (value.TryGetProperty("baseline", out var baseline)) run.FontBaselinePercent = XlsxChartTextStyleCodec.BaselineThousandthPercent(baseline.GetDouble()) / 1000d;
+        if (value.TryGetProperty("capitalization", out var capitalization)) run.FontCaps = capitalization.GetString()!;
         if (value.TryGetProperty("bold", out var bold)) run.Bold = bold.GetBoolean();
         if (value.TryGetProperty("italic", out var italic)) run.Italic = italic.GetBoolean();
         if (value.TryGetProperty("color", out var color))

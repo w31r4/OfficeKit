@@ -14,10 +14,10 @@ authoredSheet.charts.add("line", {
 });
 const source = wireWorksheetCharts(authoredSheet)[0];
 source.yAxis.logBase = 10;
-source.titleTextStyle = { fontSizePoints: 12, language: "en-US", strike: "noStrike", baselineThousandthPercent: 0 };
+source.titleTextStyle = { fontSizePoints: 12, language: "en-US", strike: "noStrike", baselineThousandthPercent: 0, capitalization: "none" };
 source.series[0].trendlines[0].label = { numberFormatCode: "0.00", numberFormatLink: 1,
   richText: { paragraphs: [{ runs: [
-    { content: { case: "text", value: "Fit " }, style: { bold: true, language: "zh-CN", strike: "dblStrike", baselineThousandthPercent: -25125 } },
+    { content: { case: "text", value: "Fit " }, style: { bold: true, language: "zh-CN", strike: "dblStrike", baselineThousandthPercent: -25125, capitalization: "small" } },
     { content: { case: "lineBreak", value: true } },
     { content: { case: "text", value: "A" }, style: { bold: false } },
   ] }] },
@@ -60,4 +60,10 @@ for (const strike of [undefined, "noStrike", "sngStrike", "dblStrike"]) {
 for (const baselineThousandthPercent of [undefined, 0, -25125, -400000, 400000]) {
   const message = create(SpreadsheetChartTextStyleArtifactSchema, { baselineThousandthPercent });
   assert.equal(fromBinary(SpreadsheetChartTextStyleArtifactSchema, toBinary(SpreadsheetChartTextStyleArtifactSchema, message)).baselineThousandthPercent, baselineThousandthPercent);
+}
+
+assert.equal(edited.titleTextStyle.capitalization, "none", "Unrelated edits retain explicit capitalization cancellation");
+for (const capitalization of [undefined, "none", "small", "all"]) {
+  const message = create(SpreadsheetChartTextStyleArtifactSchema, { capitalization });
+  assert.equal(fromBinary(SpreadsheetChartTextStyleArtifactSchema, toBinary(SpreadsheetChartTextStyleArtifactSchema, message)).capitalization, capitalization);
 }

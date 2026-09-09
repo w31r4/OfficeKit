@@ -381,6 +381,14 @@ chart text use the same field, with explicit title-run strike taking
 precedence over title defaults. Like ordinary text strike, this is a literal
 boolean/token-enum field, not a grammar token reference.
 
+`capitalization` uses the ordinary text literals `none`, `small`, or `all`.
+For example, `{"capitalization":"all"}` stores a display style while preserving
+the original mixed-case text. Explicit `none` cancels capitalization; omission
+removes the direct setting. A capitalization-only style is valid across chart
+and trendline paragraph/run/end styles. Vector labels retain it, and an explicit
+title-run value overrides the chart title default. This field records native
+`cap` state; font-specific small-cap appearance still depends on the host.
+
 `baseline` sets a signed percentage from -400 to 400, for example
 `{"baseline":30}` or `{"baseline":-25.125}`. Native chart text stores
 thousandths of a percent: finer input rounds to the nearest 0.001%, with ties

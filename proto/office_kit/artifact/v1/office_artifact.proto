@@ -4787,6 +4787,8 @@ message SpreadsheetChartTextStyleArtifact {
   optional string strike = 13;
   // Direct character baseline in signed thousandths of a percent, -400000..400000.
   optional sint32 baseline_thousandth_percent = 14;
+  // Direct character cap attribute; explicit none remains distinct from absence.
+  optional string capitalization = 15;
 }
 
 enum SpreadsheetChartLineDashStyle {
