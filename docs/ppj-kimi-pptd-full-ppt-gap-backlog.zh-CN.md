@@ -463,6 +463,13 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+2026-09-10 增量：`fromWordArt` 已区分 true/false/缺失，删除只移除原生
+来源标记；`textArchUp` 文字变形及其它 XML/ZIP 内容保留。新增删除标记 44，
+旧布尔字段 36 编码不变。共享实验新增 7 个生命周期场景和 1 个协议场景，
+相关原生 144/144、0 跳过，C#/JS 编码、proto:check 与资料检查通过。
+新删除需要更新 codec，本轮未重建 NativeAOT，完整 WordArt 渲染仍待补齐。
+
+
 2026-09-10 增量：`compatibleLineSpacing` 已区分 true/false/缺失，
 删除移除 `compatLnSpc`，保留实际行距、段前/段后间距与其它文本状态。
 新增删除标记 43，旧布尔字段 35 编码不变。共享实验新增 7 个生命周期场景
@@ -767,6 +774,10 @@ schema、Help、registry、Skill 与预览限制已同步。完整继承和宿�
 **本轮继续拆出同一图片 owner 的 bottom bevel 枚举：** 已有 `shape3dBevelBottomPreset` 也绑定严格图片 owner 的 `p:pic/p:spPr/a:sp3d/a:bevelB/@prst`；新增 additive `PresentationImage.shape_3d_bevel_bottom_preset` source-bound 载体，`PpjSourceBoundPictureShape3dBevelBottomPresetLeafEditsAndReprojects` 验证 `angle` → `softRound` 的单 `bevelB/@prst` token splice、仅目标 SlidePart、图片关系/crop/mask/effect、bevel 尺寸与其它 3-D 状态保留、Open XML 和二次投影。未知属性、额外子节点、顶面 bevel、scene、颜色和复杂/扩展 3-D graph 仍 source-owned。
 
 ### F-06 Table、Cell Style 和 Table Layout
+
+2026-09-10：`text.style.fromWordArt` 删除/布尔恢复与简单样式删除后的
+紧凑文字恢复已闭合，文字变形和固定段落结构保留；见 F-03 的 144/144。
+
 
 2026-09-10：`text.style.compatibleLineSpacing` 删除/布尔恢复与简单样式
 删除后紧凑文字恢复已闭合，固定段落与实际间距保留；见 F-03 的 136/136。

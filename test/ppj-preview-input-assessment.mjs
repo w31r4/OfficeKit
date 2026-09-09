@@ -60,6 +60,8 @@ const falseParagraphSpacingText = assessPpjPreviewInput(deck([{ ...text, style: 
 assert.ok(falseParagraphSpacingText.diagnostics.some(d => d.path.endsWith(".style.spaceFirstLastParagraph") && d.status !== "supported"));
 const falseCompatibleSpacingText = assessPpjPreviewInput(deck([{ ...text, style: { compatibleLineSpacing: false } }]));
 assert.ok(falseCompatibleSpacingText.diagnostics.some(d => d.path.endsWith(".style.compatibleLineSpacing") && d.status !== "supported"));
+const falseWordArtText = assessPpjPreviewInput(deck([{ ...text, style: { fromWordArt: false } }]));
+assert.ok(falseWordArtText.diagnostics.some(d => d.path.endsWith(".style.fromWordArt") && d.status !== "supported"));
 const singleColumnText = assessPpjPreviewInput(deck([{ ...text, style: { columns: 1 } }]));
 assert.ok(singleColumnText.diagnostics.some(d => d.path.endsWith(".style.columns") && d.status !== "supported"));
 const rotatedText = assessPpjPreviewInput(deck([{ ...text, style: { rotation: 0 } }]));

@@ -17,6 +17,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [InlineData(33, 41)]
     [InlineData(34, 42)]
     [InlineData(35, 43)]
+    [InlineData(36, 44)]
     public void OptionalBooleanDeletionWireIntentIsUnambiguous(int setterNumber, int deleteNumber)
     {
         var setter = PresentationTextBodyProperties.Descriptor.FindFieldByNumber(setterNumber).Accessor;
@@ -536,11 +537,13 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [InlineData("shape", "forceAntiAlias")]
     [InlineData("shape", "spaceFirstLastParagraph")]
     [InlineData("shape", "compatibleLineSpacing")]
+    [InlineData("shape", "fromWordArt")]
     [InlineData("table", "upright")]
     [InlineData("table", "anchorCenter")]
     [InlineData("table", "forceAntiAlias")]
     [InlineData("table", "spaceFirstLastParagraph")]
     [InlineData("table", "compatibleLineSpacing")]
+    [InlineData("table", "fromWordArt")]
     public void BooleanBodyStyleCanBeRemovedWithExistingAuthority(string kind, string field)
     {
         var program = Program(kind);
@@ -575,7 +578,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         Assert.Empty(Compile(denied, source, success: false).File);
 
         var otherProgram = Program(kind);
-        Style(otherProgram, kind)["fromWordArt"] = true;
+        Style(otherProgram, kind)["flatTextZ"] = 0;
         var otherSource = PptxCodecTests.RemoveEmbeddedPpj(Compile(otherProgram).File.ToByteArray());
         var otherEdit = Project(otherSource);
         StyleOwner(otherEdit).Remove(kind == "shape" ? "textStyle" : "style");
@@ -588,30 +591,36 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [InlineData("shape", "forceAntiAlias")]
     [InlineData("shape", "spaceFirstLastParagraph")]
     [InlineData("shape", "compatibleLineSpacing")]
+    [InlineData("shape", "fromWordArt")]
     [InlineData("text", "upright")]
     [InlineData("text", "anchorCenter")]
     [InlineData("text", "forceAntiAlias")]
     [InlineData("text", "spaceFirstLastParagraph")]
     [InlineData("text", "compatibleLineSpacing")]
+    [InlineData("text", "fromWordArt")]
     [InlineData("master", "upright")]
     [InlineData("master", "anchorCenter")]
     [InlineData("master", "forceAntiAlias")]
     [InlineData("master", "spaceFirstLastParagraph")]
     [InlineData("master", "compatibleLineSpacing")]
+    [InlineData("master", "fromWordArt")]
     [InlineData("layout", "upright")]
     [InlineData("layout", "anchorCenter")]
     [InlineData("layout", "forceAntiAlias")]
     [InlineData("layout", "spaceFirstLastParagraph")]
     [InlineData("layout", "compatibleLineSpacing")]
+    [InlineData("layout", "fromWordArt")]
     [InlineData("table", "upright")]
     [InlineData("table", "anchorCenter")]
     [InlineData("table", "forceAntiAlias")]
     [InlineData("table", "spaceFirstLastParagraph")]
     [InlineData("table", "compatibleLineSpacing")]
+    [InlineData("table", "fromWordArt")]
     public void BooleanBodySourceRemovalAndRestorationPreserveOtherState(string kind, string field)
     {
         var program = Program(kind);
         Style(program, kind)[field] = true;
+        if (field == "fromWordArt") Style(program, kind)["textWarpPreset"] = "textArchUp";
         if (field is "forceAntiAlias" or "spaceFirstLastParagraph" or "compatibleLineSpacing") Style(program, kind)["anchorCenter"] = false;
         if (field is "spaceFirstLastParagraph" or "compatibleLineSpacing")
         {
@@ -651,6 +660,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
 
     private static bool? BooleanBodyProperty(byte[] bytes, string kind, string field) =>
         field switch { "anchorCenter" => Body(bytes, kind).AnchorCenter?.Value,
+            "fromWordArt" => Body(bytes, kind).FromWordArt?.Value,
             "compatibleLineSpacing" => Body(bytes, kind).CompatibleLineSpacing?.Value,
             "spaceFirstLastParagraph" => Body(bytes, kind).UseParagraphSpacing?.Value,
             "forceAntiAlias" => Body(bytes, kind).ForceAntiAlias?.Value, _ => Body(bytes, kind).UpRight?.Value };
@@ -838,6 +848,11 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         {
             Assert.Single(oldSlide.Descendants<A.BodyProperties>()).CompatibleLineSpacing = null;
             Assert.Single(newSlide.Descendants<A.BodyProperties>()).CompatibleLineSpacing = null;
+        }
+        else if (field == "fromWordArt")
+        {
+            Assert.Single(oldSlide.Descendants<A.BodyProperties>()).FromWordArt = null;
+            Assert.Single(newSlide.Descendants<A.BodyProperties>()).FromWordArt = null;
         }
         else if (field == "columnGap")
         {

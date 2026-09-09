@@ -2,6 +2,16 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ text-body `fromWordArt` lifecycle (2026-09-10): true/false and source
+absence are distinct. Deletion removes the marker while retaining textArchUp
+warp and other source XML/ZIP state. Seven shared boolean cases and one wire
+case extend the focused native selection to 144/144 passing, zero skipped
+(SDK 8.0.128). Additive deletion field 44 preserves setter 36. C#/JS wire,
+proto:check, scene wire, preview input/capability, generated reference/matrix,
+portability/reference sync and strict OpenSpec pass. Updated codec required;
+no NativeAOT rebuild or complete WordArt rendering acceptance. Other-field
+rejection now uses flatTextZ.
+
 PPJ text-body `compatibleLineSpacing` lifecycle (2026-09-10): true/false and
 absence are distinct; deletion removes compatLnSpc while preserving explicit
 paragraph line/before/after spacing and other XML/ZIP state. Seven shared boolean

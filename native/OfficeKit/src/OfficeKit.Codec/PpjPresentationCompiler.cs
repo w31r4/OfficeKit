@@ -4236,7 +4236,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
     {
         if (after.TryGetProperty(field, out var style)) return style;
         if (PreviousTextBodyStyle(before, field) is { ValueKind: JsonValueKind.Object } previous &&
-            previous.EnumerateObject().Any() && previous.EnumerateObject().All(property => property.Name is "upright" or "rotation" or "columnDirection" or "verticalText" or "wrap" or "horizontalOverflow" or "verticalOverflow" or "verticalAlignment" or "columnGap" or "columns" or "margins" or "autoFit" or "normalAutoFit" or "anchorCenter" or "forceAntiAlias" or "spaceFirstLastParagraph" or "compatibleLineSpacing"))
+            previous.EnumerateObject().Any() && previous.EnumerateObject().All(property => property.Name is "upright" or "rotation" or "columnDirection" or "verticalText" or "wrap" or "horizontalOverflow" or "verticalOverflow" or "verticalAlignment" or "columnGap" or "columns" or "margins" or "autoFit" or "normalAutoFit" or "anchorCenter" or "forceAntiAlias" or "spaceFirstLastParagraph" or "compatibleLineSpacing" or "fromWordArt"))
             return JsonSerializer.SerializeToElement(new Dictionary<string, object>());
         throw Unsupported(path + "." + field, "removing source-bound text body style with other fields is not an explicit bounded operation");
     }
@@ -4360,6 +4360,13 @@ internal static partial class PpjSourceBoundPresentationCompiler
         {
             properties.ClearCompatibleLineSpacing();
             properties.NoCompatibleLineSpacing = true;
+        }
+        if (PreviousTextBodyStyle(previousSource, "style") is { ValueKind: JsonValueKind.Object } previousWordArt &&
+            previousWordArt.TryGetProperty("fromWordArt", out _) &&
+            (PreviousTextBodyStyle(source, "style") is not { ValueKind: JsonValueKind.Object } nextWordArt || !nextWordArt.TryGetProperty("fromWordArt", out _)))
+        {
+            properties.ClearFromWordArt();
+            properties.NoFromWordArt = true;
         }
         PpjAuthoredPresentationCompiler.ApplySourceBoundMarginRemoval(properties,
             PreviousTextBodyStyle(source, "style"), PreviousTextBodyStyle(previousSource, "style"));

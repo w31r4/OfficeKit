@@ -321,6 +321,11 @@ internal static class PptxTextCodec
             properties.ClearCompatibleLineSpacing();
             properties.ClearNoCompatibleLineSpacing();
         }
+        if (properties.HasNoFromWordArt)
+        {
+            properties.ClearFromWordArt();
+            properties.ClearNoFromWordArt();
+        }
         if (properties.LeftInsetCase == PresentationTextBodyProperties.LeftInsetOneofCase.NoLeftInset) properties.ClearLeftInset();
         if (properties.TopInsetCase == PresentationTextBodyProperties.TopInsetOneofCase.NoTopInset) properties.ClearTopInset();
         if (properties.RightInsetCase == PresentationTextBodyProperties.RightInsetOneofCase.NoRightInset) properties.ClearRightInset();

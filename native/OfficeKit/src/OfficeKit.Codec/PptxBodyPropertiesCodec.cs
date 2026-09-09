@@ -86,6 +86,8 @@ internal static class PptxBodyPropertiesCodec
             throw Invalid("Presentation no_space_first_last_paragraph must be true and cannot coexist with space_first_last_paragraph.");
         if (properties.HasNoCompatibleLineSpacing && (!properties.NoCompatibleLineSpacing || properties.HasCompatibleLineSpacing))
             throw Invalid("Presentation no_compatible_line_spacing must be true and cannot coexist with compatible_line_spacing.");
+        if (properties.HasNoFromWordArt && (!properties.NoFromWordArt || properties.HasFromWordArt))
+            throw Invalid("Presentation no_from_word_art must be true and cannot coexist with from_word_art.");
         ValidateInset(properties.LeftInsetCase, properties.LeftInsetEmu, PresentationTextBodyProperties.LeftInsetOneofCase.LeftInsetEmu, PresentationTextBodyProperties.LeftInsetOneofCase.NoLeftInset, properties.NoLeftInset, "left");
         ValidateInset(properties.TopInsetCase, properties.TopInsetEmu, PresentationTextBodyProperties.TopInsetOneofCase.TopInsetEmu, PresentationTextBodyProperties.TopInsetOneofCase.NoTopInset, properties.NoTopInset, "top");
         ValidateInset(properties.RightInsetCase, properties.RightInsetEmu, PresentationTextBodyProperties.RightInsetOneofCase.RightInsetEmu, PresentationTextBodyProperties.RightInsetOneofCase.NoRightInset, properties.NoRightInset, "right");
@@ -142,6 +144,7 @@ internal static class PptxBodyPropertiesCodec
          source.HasCompatibleLineSpacing ||
          source.HasNoCompatibleLineSpacing ||
          source.HasFromWordArt ||
+         source.HasNoFromWordArt ||
          source.HasTextWarpPreset ||
          source.TextWarpAdjustments.Count > 0 ||
          source.HasFlatTextZ);
@@ -157,6 +160,7 @@ internal static class PptxBodyPropertiesCodec
         if (source.HasNoForceAntiAlias && (!source.NoForceAntiAlias || source.HasForceAntiAlias)) return false;
         if (source.HasNoSpaceFirstLastParagraph && (!source.NoSpaceFirstLastParagraph || source.HasSpaceFirstLastParagraph)) return false;
         if (source.HasNoCompatibleLineSpacing && (!source.NoCompatibleLineSpacing || source.HasCompatibleLineSpacing)) return false;
+        if (source.HasNoFromWordArt && (!source.NoFromWordArt || source.HasFromWordArt)) return false;
         return (source.LeftInsetCase is PresentationTextBodyProperties.LeftInsetOneofCase.None or PresentationTextBodyProperties.LeftInsetOneofCase.LeftInsetEmu ||
                 source.LeftInsetCase == PresentationTextBodyProperties.LeftInsetOneofCase.NoLeftInset && source.NoLeftInset) &&
             (source.TopInsetCase is PresentationTextBodyProperties.TopInsetOneofCase.None or PresentationTextBodyProperties.TopInsetOneofCase.TopInsetEmu ||
@@ -288,6 +292,7 @@ internal static class PptxBodyPropertiesCodec
         if (properties.HasCompatibleLineSpacing) native.CompatibleLineSpacing = properties.CompatibleLineSpacing;
         else if (properties.HasNoCompatibleLineSpacing) native.CompatibleLineSpacing = null;
         if (properties.HasFromWordArt) native.FromWordArt = properties.FromWordArt;
+        else if (properties.HasNoFromWordArt) native.FromWordArt = null;
         if (properties.HasTextWarpPreset)
         {
             var choices = native.ChildElements.OfType<A.PresetTextWarp>().ToArray();

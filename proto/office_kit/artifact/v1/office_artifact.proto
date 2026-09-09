@@ -3520,6 +3520,9 @@ message PresentationTextBodyProperties {
   // Source-edit intent only. Must be true when present and cannot coexist
   // with compatible_line_spacing, including an explicit false setter.
   optional bool no_compatible_line_spacing = 43;
+  // Source-edit intent only. Must be true when present and cannot coexist
+  // with from_word_art, including an explicit false setter.
+  optional bool no_from_word_art = 44;
 }
 
 message PresentationTextStyle {
