@@ -13,6 +13,7 @@ const sha = data => createHash("sha256").update(data).digest("hex");
 const emu = value => BigInt(Math.round(value * 12700));
 const frame = (x, y, width, height) => ({ leftEmu: emu(x), topEmu: emu(y), widthEmu: emu(width), heightEmu: emu(height) });
 const child = (id, kind, value, hidden) => create(PresentationElementSchema, { id, hidden, content: { case: kind, value } });
+const content = new Map(PresentationElementSchema.fields.filter(f => f.oneof?.localName === "content").map(f => [f.localName, f.message]));
 const path = data => create(PresentationCustomGeometryPathSchema, data);
 const command = (kind, value) => ({ command: { case: kind, value } });
 const polygon = path({ width: 100n, height: 100n, stroke: false, commands: [
@@ -116,6 +117,58 @@ function fixture(edit = () => {}) {
     assets: [{ id: "public-asset", mimeType: "image/png", sha256: sha(data), data }] };
 }
 const receipt = fixture(), before = toBinary(PresentationPreviewSceneSchema, receipt.previewScene);
+for (const [width, alpha] of [[2, 50000], [0, 0]]) {
+  const result = paintPpjSceneSvg(fixture(scene => {
+    const photo = scene.presentation.slides[0].elements.find(e => e.content.case === "image").content.value;
+    photo.maskPreset = "ellipse";
+    photo.border = create(content.get("image").fields.find(f => f.localName === "border").message,
+      { colorRgb: "FF00FF", widthEmu: emu(width), opacityThousandthPercent: alpha, style: "dashed", cap: "round", join: "bevel" });
+  }));
+  assert.ok(result.pages[0].svg.includes(`data-officekit-image-border="true" fill="none" stroke="#FF00FF" stroke-width="${width}" stroke-opacity="${alpha / 100000}"`));
+  assert.match(result.pages[0].svg, /stroke-linecap="round" stroke-linejoin="bevel"[^>]*><ellipse/);
+}
+const schemeBorder = paintPpjSceneSvg(fixture(scene => {
+  scene.presentation.slides[0].elements.find(e => e.content.case === "image").content.value.border =
+    create(content.get("image").fields.find(f => f.localName === "border").message, { colorScheme: "accent1", widthEmu: emu(2) });
+}));
+assert.equal(schemeBorder.reliability.status, "failed");
+assert.ok(schemeBorder.diagnostics.some(d => d.reason === "preview.scene.paint.image-border"));
+for (const preset of ["ellipse", "diamond", "rect", "triangle"]) {
+  const input = fixture(scene => {
+    scene.presentation.slides[0].elements.find(e => e.content.case === "image").content.value.maskPreset = preset;
+  });
+  const result = paintPpjSceneSvg(input);
+  if (preset === "triangle") {
+    assert.equal(result.reliability.status, "failed");
+    assert.match(result.pages[0].svg, /Image mask unavailable/);
+  } else if (preset !== "rect") {
+    assert.match(result.pages[0].svg, /clipPathUnits="userSpaceOnUse"/);
+    assert.match(result.pages[0].svg, /clip-path="url\(#officekit-image-mask-0\)"/);
+    assert.equal(result.pages[0].svg, paintPpjSceneSvg(input).pages[0].svg);
+  }
+}
+const customMask = paintPpjSceneSvg(fixture(scene => {
+  scene.presentation.slides[0].elements.find(e => e.content.case === "image").content.value.customMaskPaths = [polygon];
+}));
+assert.match(customMask.pages[0].svg, /<clipPath[^>]*><path d="M/);
+const badMask = paintPpjSceneSvg(fixture(scene => {
+  const photo = scene.presentation.slides[0].elements.find(e => e.content.case === "image").content.value;
+  photo.maskPreset = "ellipse"; photo.maskPresetAdjustments = [10000];
+}));
+assert.equal(badMask.reliability.status, "failed");
+assert.ok(badMask.diagnostics.some(d => d.reason === "preview.scene.paint.image-mask"));
+for (const [adjustments, radius] of [[[], 8.3335], [[0], 0], [[25000], 12.5], [[50000], 25], [[75000], 25], [[-100], 0]]) {
+  const input = fixture(scene => {
+    const photo = scene.presentation.slides[0].elements.find(e => e.content.case === "image").content.value;
+    photo.maskPreset = "roundRect"; photo.maskPresetAdjustments = adjustments;
+    const shape = scene.presentation.slides[0].elements[0].content.value;
+    shape.geometry = "roundRect"; shape.presetAdjustments = adjustments;
+  });
+  const result = paintPpjSceneSvg(input);
+  assert.ok(result.pages[0].svg.includes(`width="50" height="100" rx="${radius}" ry="${radius}"`));
+  assert.ok(result.pages[0].svg.includes(`width="200" height="100" rx="${radius * 2}" ry="${radius * 2}"`));
+  assert.ok(!result.diagnostics.some(d => d.scenePath?.endsWith("presetAdjustments") || d.reason === "preview.scene.paint.image-mask"));
+}
 const painted = paintPpjSceneSvg(receipt), svg = painted.pages[0].svg;
 assert.deepEqual(toBinary(PresentationPreviewSceneSchema, receipt.previewScene), before);
 assert.equal(painted.scene, receipt.previewScene);
@@ -129,6 +182,30 @@ assert.match(svg, /data-officekit-path="1" d="M 110 150 A 100 25 0 0 1 20.557280
 assert.match(svg, /translate\(355 90\) rotate\(-90\) scale\(-1 1\) translate\(-355 -90\)/);
 assert.match(svg, /<image x="330" y="40" width="50" height="100"[^>]*preserveAspectRatio="none" opacity="0"/);
 assert.equal(Buffer.from(svg.match(/href="data:image\/png;base64,([^"]+)"/)[1], "base64").compare(receipt.assets[0].data), 0);
+for (const [crop, position] of [
+  [{ leftThousandthPercent: 50000 }, 'x="-50" y="0" width="100" height="100"'],
+  [{ topThousandthPercent: 50000 }, 'x="0" y="-100" width="50" height="200"'],
+  [{ leftThousandthPercent: -50000, rightThousandthPercent: -50000 }, 'x="12.5" y="0" width="25" height="100"'],
+  [{}, 'x="0" y="0" width="50" height="100"'],
+]) {
+  const input = fixture(scene => {
+    const photo = scene.presentation.slides[0].elements.find(e => e.content.case === "image").content.value;
+    photo.crop = create(content.get("image").fields.find(f => f.localName === "crop").message, crop);
+  });
+  const snapshot = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const result = paintPpjSceneSvg(input);
+  assert.ok(result.pages[0].svg.includes(`<svg x="330" y="40" width="50" height="100" viewBox="0 0 50 100" overflow="hidden"><image ${position}`));
+  assert.ok(!result.diagnostics.some(d => d.scenePath?.endsWith("image.crop")));
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), snapshot);
+}
+for (const crop of [{ leftThousandthPercent: 100000 }, { topThousandthPercent: 60000, bottomThousandthPercent: 40000 }, { rightThousandthPercent: -100001 }]) {
+  const result = paintPpjSceneSvg(fixture(scene => {
+    const photo = scene.presentation.slides[0].elements.find(e => e.content.case === "image").content.value;
+    photo.crop = create(content.get("image").fields.find(f => f.localName === "crop").message, crop);
+  }));
+  assert.equal(result.reliability.status, "failed");
+  assert.ok(result.diagnostics.some(d => d.reason === "preview.scene.paint.image-crop"));
+}
 assert.match(svg, /translate\(100 280\) scale\(2 2\) translate\(-10 -20\)/);
 assert.match(svg, /translate\(10 20\) scale\(1 1\) translate\(0 0\)/);
 assert.match(svg, /data-officekit-native-id="leaf"[^>]*data-officekit-id="component-owner"/);
@@ -177,9 +254,21 @@ const adjusted = paintPpjSceneSvg(fixture(scene => {
   const edge = scene.presentation.slides[0].elements[8].content.value;
   edge.connectorType = "elbow"; edge.bendAdjustment = 0;
 }));
-assert.ok(adjusted.diagnostics.some(d => d.reason === "preview.scene.paint.connector-bend" && d.status === "unavailable"));
-assert.doesNotMatch(adjusted.pages[0].svg, /data-officekit-connector="elbow"/);
-assert.match(adjusted.pages[0].svg, /Adjusted connector: route unavailable/);
+assert.match(adjusted.pages[0].svg, /data-officekit-connector="elbow" d="M 500 350 L 500 350 L 500 280 L 350 280"/);
+assert.ok(!adjusted.diagnostics.some(d => d.scenePath?.endsWith("connector.bendAdjustment")));
+for (const [bend, mid] of [[25000, 462.5], [50000, 425], [100000, 350], [-50000, 575], [150000, 275]]) {
+  const result = paintPpjSceneSvg(fixture(scene => {
+    const edge = scene.presentation.slides[0].elements[8].content.value;
+    edge.connectorType = "elbow"; edge.bendAdjustment = bend;
+  }));
+  assert.ok(result.pages[0].svg.includes(`d="M 500 350 L ${mid} 350 L ${mid} 280 L 350 280"`));
+  assert.ok(!result.diagnostics.some(d => d.scenePath?.endsWith("connector.bendAdjustment")));
+}
+const straightBend = paintPpjSceneSvg(fixture(scene => {
+  scene.presentation.slides[0].elements[8].content.value.bendAdjustment = 50000;
+}));
+assert.equal(straightBend.reliability.status, "failed");
+assert.ok(straightBend.diagnostics.some(d => d.reason === "preview.scene.paint.connector-bend" && d.status === "unavailable"));
 
 const curved = paintPpjSceneSvg(fixture(scene => { scene.presentation.slides[0].elements[8].content.value.connectorType = "curved"; }));
 assert.equal(curved.reliability.status, "failed");

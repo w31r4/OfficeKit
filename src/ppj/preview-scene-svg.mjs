@@ -2,6 +2,7 @@
 // only after G-01's assessment/publication and end-to-end gates are complete.
 // No PPJ interpretation, OOXML parsing, filesystem or raster backend here.
 import { isFieldSet } from "@bufbuild/protobuf";
+import presetProfiles from "./preset-geometry-profiles.json" with { type: "json" };
 import { PresentationElementSchema, PresentationSlideSchema, PresentationTextBodySchema,
   PresentationTextParagraphSchema, PresentationTextRunSchema, PresentationTextStyleSchema,
   PresentationBackgroundSchema, PresentationTableRowSchema, PresentationTableCellSchema,
@@ -30,6 +31,15 @@ const arcN = value => {
 };
 const rgb = (value, fallback = "none") => /^[0-9a-f]{6}$/iu.test(value || "") ? `#${value}` : fallback;
 const box = f => `x="${n(f.x)}" y="${n(f.y)}" width="${n(f.width)}" height="${n(f.height)}"`;
+// roundRect: a = pin(0, adj, 50000), radius = min(w,h) * a / 100000.
+// Formula source is the pinned preset definition referenced by presetProfiles.
+function roundedRectangle(f, adjustments = [], paint = "") {
+  if (adjustments.length > 1 || adjustments.some(v => !Number.isInteger(v) ||
+      v < presetProfiles.minimumValue || v > presetProfiles.maximumValue)) throw new TypeError("Invalid roundRect adjustment");
+  const adjustment = adjustments[0] ?? presetProfiles.profiles.roundRect.defaults[0];
+  const radius = Math.min(f.width, f.height) * Math.max(0, Math.min(50000, adjustment)) / 100000;
+  return `<rect ${box(f)} rx="${n(radius)}" ry="${n(radius)}" ${paint}/>`;
+}
 
 /** Literal native paths only. An unresolved command fails the whole path,
  * never drops one segment and rejoins unrelated endpoints. Coordinates are
@@ -157,6 +167,7 @@ function frameTransform(f, transform) {
  * receipt. No support promotion or G-11 rule retirement is implied. */
 export function paintPpjSceneSvg(receipt) {
   const view = createPpjSceneView(receipt), diagnostics = [...view.diagnostics];
+  let imageMaskSequence = 0;
   const limit = (node, field, reason = "preview.scene.paint.unmapped", value, status = "partial") => {
     diagnostics.push(Object.freeze({ ...previewDiagnostic({
       pageId: node.pageId || undefined, id: node.pageId ? node.semanticId : undefined,
@@ -227,7 +238,8 @@ export function paintPpjSceneSvg(receipt) {
   function shape(node) {
     const s = node.native, f = node.frame;
     unused(content.get("shape"), s, [...frameFields, "geometry", "text", "textBody", "fillRgb", "lineRgb", "lineWidthEmu",
-      "fillOpacityThousandthPercent", "lineOpacityThousandthPercent", "lineStyle", "transform", "customPaths"], node, "shape.");
+      "fillOpacityThousandthPercent", "lineOpacityThousandthPercent", "lineStyle", "transform", "customPaths",
+      ...(s.geometry === "roundRect" && !s.customPaths.length ? ["presetAdjustments"] : [])], node, "shape.");
     if (s.lineStyle && !["solid", "none"].includes(s.lineStyle)) limit(node, "shape.lineStyle", "preview.scene.paint.line-style", s.lineStyle);
     const paint = `fill="${rgb(s.fillRgb)}" fill-opacity="${n(sceneOpacity(s.fillOpacityThousandthPercent ?? 100000))}" stroke="${s.lineStyle === "none" ? "none" : rgb(s.lineRgb)}" stroke-opacity="${n(sceneOpacity(s.lineOpacityThousandthPercent ?? 100000))}" stroke-width="${n(scenePoints(s.lineWidthEmu))}"`;
     let geometry;
@@ -246,6 +258,7 @@ export function paintPpjSceneSvg(receipt) {
     }).join("");
     // The codec lowers its "textbox" marker to native rect geometry too.
     else if (["rect", "textbox", "flowChartProcess"].includes(s.geometry)) geometry = `<rect ${box(f)} ${paint}/>`;
+    else if (s.geometry === "roundRect") geometry = roundedRectangle(f, s.presetAdjustments, paint);
     else if (s.geometry === "ellipse") geometry = `<ellipse cx="${n(f.x + f.width / 2)}" cy="${n(f.y + f.height / 2)}" rx="${n(f.width / 2)}" ry="${n(f.height / 2)}" ${paint}/>`;
     else if (["diamond", "flowChartDecision"].includes(s.geometry)) geometry = `<path d="M ${n(f.x + f.width / 2)} ${n(f.y)} L ${n(f.x + f.width)} ${n(f.y + f.height / 2)} L ${n(f.x + f.width / 2)} ${n(f.y + f.height)} L ${n(f.x)} ${n(f.y + f.height / 2)} Z" ${paint}/>`;
     else { limit(node, "shape.geometry", "preview.scene.paint.preset", s.geometry); geometry = placeholder(node, `geometry: ${s.geometry || "unresolved"}`); }
@@ -253,10 +266,63 @@ export function paintPpjSceneSvg(receipt) {
   }
   function image(node) {
     const s = node.native, asset = view.asset(s.svgAssetId || s.assetId);
-    unused(content.get("image"), s, [...frameFields, "assetId", "svgAssetId", "opacityThousandthPercent", "transform", "altText", "accessibilityTitle", "accessibilityDecorative"], node, "image.");
+    unused(content.get("image"), s, [...frameFields, "assetId", "svgAssetId", "opacityThousandthPercent", "transform", "altText", "accessibilityTitle", "accessibilityDecorative", "crop", "maskPreset", "maskPresetAdjustments", "customMaskPaths", "border"], node, "image.");
     if (!asset?.data?.byteLength) { limit(node, "image.assetId", "preview.scene.paint.asset", s.assetId, "unavailable"); return placeholder(node, "image unavailable"); }
     const href = `data:${asset.contentType};base64,${Buffer.from(asset.data).toString("base64")}`;
-    return `<image ${box(node.frame)} href="${esc(href)}" preserveAspectRatio="none" opacity="${n(sceneOpacity(s.opacityThousandthPercent ?? 100000))}"><title>${esc(s.altText || s.accessibilityTitle || "")}</title></image>`;
+    let mask = "";
+    const f = node.frame;
+    try {
+      if (s.maskPresetAdjustments.length && s.maskPreset !== "roundRect") throw new TypeError("Adjusted image preset is not mapped");
+      if (s.customMaskPaths.length) {
+        if (s.maskPreset) throw new TypeError("Conflicting custom and preset masks");
+        mask = s.customMaskPaths.map(p => {
+          if (![0, 1].includes(p.fillMode)) throw new TypeError("Custom mask fill mode is not mapped");
+          return `<path d="${nativePathData(p, f)}"/>`;
+        }).join("");
+      } else if (s.maskPreset === "roundRect") mask = roundedRectangle(f, s.maskPresetAdjustments);
+      else if (s.maskPreset === "ellipse") mask = `<ellipse cx="${n(f.x + f.width / 2)}" cy="${n(f.y + f.height / 2)}" rx="${n(f.width / 2)}" ry="${n(f.height / 2)}"/>`;
+      else if (s.maskPreset === "diamond") mask = `<path d="M ${n(f.x + f.width / 2)} ${n(f.y)} L ${n(f.x + f.width)} ${n(f.y + f.height / 2)} L ${n(f.x + f.width / 2)} ${n(f.y + f.height)} L ${n(f.x)} ${n(f.y + f.height / 2)} Z"/>`;
+      else if (s.maskPreset && s.maskPreset !== "rect") throw new TypeError(`Unmapped image mask: ${s.maskPreset}`);
+    } catch (error) {
+      limit(node, s.customMaskPaths.length ? "image.customMaskPaths" : s.maskPresetAdjustments.length ? "image.maskPresetAdjustments" : "image.maskPreset", "preview.scene.paint.image-mask", error.message, "unavailable");
+      return placeholder(node, "Image mask unavailable");
+    }
+    let border = "";
+    if (s.border) {
+      const b = s.border;
+      try {
+        if (b.colorScheme || !/^[0-9a-f]{6}$/iu.test(b.colorRgb)) throw new TypeError("Image border color needs resolved RGB");
+        const paint = linePaint(node, "image.border", rgb(b.colorRgb), scenePoints(b.widthEmu),
+          sceneOpacity(b.opacityThousandthPercent ?? 100000), b.style || "solid", b.cap, b.join, "style");
+        const outline = s.customMaskPaths.length ? s.customMaskPaths.filter(p => p.stroke !== false)
+          .map(p => `<path d="${nativePathData(p, f)}"/>`).join("") : mask || `<rect ${box(f)}/>`;
+        border = `<g data-officekit-image-border="true" fill="none" ${paint}>${outline}</g>`;
+      } catch (error) {
+        limit(node, "image.border", "preview.scene.paint.image-border", error.message, "unavailable");
+      }
+    }
+    const masked = markup => {
+      if (!mask) return markup + border;
+      const id = `officekit-image-mask-${imageMaskSequence++}`;
+      return `<defs><clipPath id="${id}" clipPathUnits="userSpaceOnUse">${mask}</clipPath></defs><g clip-path="url(#${id})">${markup}</g>${border}`;
+    };
+    if (s.crop) {
+      const edges = ["left", "top", "right", "bottom"].map(side => s.crop[`${side}ThousandthPercent`]);
+      const [left, top, right, bottom] = edges;
+      if (edges.some(v => !Number.isInteger(v) || v < -100000 || v > 100000) || left + right >= 100000 || top + bottom >= 100000) {
+        limit(node, "image.crop", "preview.scene.paint.image-crop", "Invalid native source rectangle", "unavailable");
+        return placeholder(node, "Image crop unavailable");
+      }
+      if (s.tiled) {
+        limit(node, "image.tiled", "preview.scene.paint.image-tile", "Cropped tile placement is not mapped", "unavailable");
+        return placeholder(node, "Tiled image unavailable");
+      }
+      const f = node.frame, width = f.width / (1 - (left + right) / 100000), height = f.height / (1 - (top + bottom) / 100000);
+      // A nested viewport clips to the picture frame without shared clip IDs.
+      // Negative edges leave transparent letterbox space; they do not add pixels.
+      return masked(`<svg ${box(f)} viewBox="0 0 ${n(f.width)} ${n(f.height)}" overflow="hidden"><image x="${n(-left / 100000 * width)}" y="${n(-top / 100000 * height)}" width="${n(width)}" height="${n(height)}" href="${esc(href)}" preserveAspectRatio="none" opacity="${n(sceneOpacity(s.opacityThousandthPercent ?? 100000))}"><title>${esc(s.altText || s.accessibilityTitle || "")}</title></image></svg>`);
+    }
+    return masked(`<image ${box(node.frame)} href="${esc(href)}" preserveAspectRatio="none" opacity="${n(sceneOpacity(s.opacityThousandthPercent ?? 100000))}"><title>${esc(s.altText || s.accessibilityTitle || "")}</title></image>`);
   }
   function linePaint(node, field, color, width, opacity, dash, cap, join, dashField = "dashStyle") {
     if (width < 0) throw new RangeError("Negative native line width");
@@ -270,19 +336,22 @@ export function paintPpjSceneSvg(receipt) {
     const s = node.native, { start, end } = node.endpoints;
     unused(content.get("connector"), s, ["connectorType", "startXEmu", "startYEmu", "endXEmu", "endYEmu", "lineRgb", "lineWidthEmu", "lineStyle", "lineCap", "lineJoin",
       "lineOpacityThousandthPercent", "startArrow", "endArrow", "startArrowWidth", "startArrowLength", "endArrowWidth", "endArrowLength",
-      "startTargetId", "endTargetId", "startConnectionSiteIndex", "endConnectionSiteIndex"], node, "connector.");
+      "startTargetId", "endTargetId", "startConnectionSiteIndex", "endConnectionSiteIndex", "bendAdjustment"], node, "connector.");
     // Consume the actual writer/candidate endpoints. Compiler anchor correctness
     // is a separate factual check; neither frame direction nor nearest objects
     // participate in this routing.
     const points = [start];
-    if (s.bendAdjustment !== undefined && s.bendAdjustment !== 50000) {
-      limit(node, "connector.bendAdjustment", "preview.scene.paint.connector-bend", "Nondefault native bend is retained but its route is not painted.", "unavailable");
-      return placeholder(node, "Adjusted connector: route unavailable");
+    if (s.bendAdjustment !== undefined && (!Number.isInteger(s.bendAdjustment) ||
+        s.bendAdjustment < -2147483648 || s.bendAdjustment > 2147483647 || s.connectorType === "straight")) {
+      limit(node, "connector.bendAdjustment", "preview.scene.paint.connector-bend", "Bend requires a non-straight connector and a native signed 32-bit integer.", "unavailable");
+      return placeholder(node, "Invalid connector bend");
     }
     if (s.connectorType === "elbow") {
-      const mid = (start.x + end.x) / 2;
+      // bentConnector3 adj1 is a fraction of the directed horizontal extent.
+      // Signed and >100% adjustments intentionally place the bend outside it.
+      const mid = start.x + (end.x - start.x) * ((s.bendAdjustment ?? 50000) / 100000);
       points.push({ x: mid, y: start.y }, { x: mid, y: end.y });
-      if (view.scene.origin === 2) limit(node, "connector.connectorType", "preview.scene.paint.imported-route", "Canonical midpoint elbow; imported preset rotation/adjustment provenance is not carried separately.");
+      if (view.scene.origin === 2) limit(node, "connector.connectorType", "preview.scene.paint.imported-route", "Native directed elbow and literal adjustment mapped; imported preset transform provenance is not carried separately.");
     } else if (s.connectorType !== "straight") {
       limit(node, "connector.connectorType", "preview.scene.paint.connector-route", s.connectorType, "unavailable");
       return placeholder(node, `${s.connectorType}: route unavailable`);

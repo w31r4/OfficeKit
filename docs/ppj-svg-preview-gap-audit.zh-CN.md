@@ -1,6 +1,18 @@
 # OfficeKit 本地 PPT 预览渲染器差距审计
 
-审计起始日期：2026-09-09；最新文档核对日期：2026-09-10。验证基线：复核时 `main`/`origin/main` 均为 HEAD `ec8189ef`，包含对象锚点、连接线编辑、箭头宽度/长度、可编辑 bend 调整、非负百分比堆叠、literal `arcTo`、custom-geometry text rectangle 和 ordered custom-geometry guides 提交；复核时工作区另有未提交的 `openspec/changes/ppj-custom-geometry-adjustments/` 调整方案，以及本文与 OpenSpec tasks 的文档修改。最新构建包和集成报告已按 `ec8189ef` 的干净源树重新核对；该调整现已随字段实现提交为 `c54047b6`，但未计入本次包身份或覆盖结论；旧二进制结果仍单独保留，不能混用。
+最新实施补记（2026-09-10，G-05 图片边框）：内部图片边框已消费 direct RGB、width、opacity、style、cap/join；使用已绘制遮罩轮廓，边框位于图片 clip 外层，保留外半边线。无 mask 时沿 frame；custom mask 遵守各路径 stroke=false。合成验证椭圆边框、半透明及显式零宽/零 alpha；未解析主题色保留失败诊断，虚线精确长度继续标注近似。真实创建和源编辑的 magenta 边框像素、内部绿色图片、fresh projection width=4、原源及非目标 ZIP 保留通过，整套报告 `tmp/officekit-native-scene-paint-Hyrhgw/integration.json` 为 passed。使用既有 495daafc 包及当前 JS，presentation 4/4 通过。主题颜色解析、效果、tile 及生产入口仍开放。
+
+最新实施补记（2026-09-10，G-02/G-05 roundRect）：普通形状和图片遮罩共用圆角矩形绘制，默认 adjustment 从仓库 preset-geometry-profiles.json 读取。半径遵循该文件引用的 pinned docx4j preset 定义：短边乘以 pin(0, adjustment, 50000)/100000。合成测试验证非正方形、默认/0/25000/50000、负值和超上限的几何；真实 mask 创建、源编辑为 50000、再次编辑为 0、角落像素和 fresh projection 均通过。最终完整集成报告 `tmp/officekit-native-scene-paint-M9UI1y/integration.json` 为 passed，仍使用 495daafc 包和当前 JS。presentation 4/4、gate-policy、差异检查通过。默认 /tmp 因 ENOSPC 导致首轮发布和 codec 失败，改用仓库 TMPDIR 后重跑成功；未删除旧产物。其他预设、文字布局、效果和正式入口仍开放。
+
+最新实施补记（2026-09-10，G-05 图片遮罩）：内部 painter 已消费 rect/ellipse/diamond 及 literal customMaskPaths，使用 frame 坐标的 SVG clipPath，和 source crop、alpha、外层变换组合。每个遮罩使用独立且可重复生成的 ID；未知 preset、未支持的 adjustments、冲突几何及无法解析的路径保留失败级诊断。椭圆、菱形、自定义菱形三种真实创建和源编辑的中心/角落像素、fresh projection、原文件及非目标 ZIP 保留均通过，裁切后的绿色内容留在遮罩内，角落透出蓝色底图。最终集成报告 `/tmp/officekit-native-scene-paint-QMZO1r/integration.json` 为 passed，使用既有 495daafc 包及本次 JS；合成、presentation 4/4、差异空白检查通过。其余 preset/adjustments、图片 tile/effects 和正式 CLI 接入仍开放，G-01 保持 7/15。
+
+最新实施补记（2026-09-10，G-05 / G-01 3.3）：内部图片绘制已消费 native crop 的四边有符号千分之一百分比，正值裁切、负值透明留白，嵌套 SVG viewport 限制图片在 frame 内；原有外层旋转/镜像和 alpha 保留。非法边值或空 source rectangle 明确失败，crop+tile 仍显示未实现。合成覆盖左/上裁切、负值、零值、非法值及输入不变。真实 `495daafc` NativeAOT 包配合本次 JS 完成创建、原源 no-op、正裁切改负留白、fresh projection、像素与 ZIP 保留检查：蓝色底图从留白处可见，红绿内容映射正确，仅 slide1.xml 改变。最终报告 `/tmp/officekit-native-scene-paint-Pxd6KU/integration.json` 为 passed；presentation 4/4、gate-policy 通过。中间透明测试因底图误用弧形而失败，改为矩形后重跑通过。此进展取代下文“内部按 frame stretch、尚未消费 crop”的旧描述；mask、tile、效果和生产 CLI 接入仍开放。
+
+最新实施补记（2026-09-10，G-06 / G-01 3.4）：内部 SVG 已消费 elbow 的 literal `bendAdjustment`，按有向水平跨度计算折点，保留 0、负值及超过 100000 的值。真实 NativeAOT 创建 25000、source no-op、源编辑至 75000 的 SVG 路径、折点 PNG 像素和 fresh projection 均通过；源字节及非目标 ZIP 成员不变，仅 `ppt/slides/slide1.xml` 改变。报告为 `/tmp/officekit-native-scene-paint-90ZBTJ/integration.json`，整套集成 `passed`。运行使用既有 `495daafc` 包（PPJ SHA-256 `d43dcf4ce8000aa50165277aabfa0ed906680184aa2797a16e9f6c6e13b37c17`）和本次 JS，未重建后续 C# 变更。下文“非默认 bend 未绘制”作为此前状态被本条限定进展取代；curved、完整导入变换、自动避障、生产入口仍待完成，任务勾选保持 7/15。
+
+审计起始日期：2026-09-09；最新文档核对日期：2026-09-10。当前分支：`main`/`origin/main` 均为 HEAD `231467d8`，已包含对象锚点、连接线编辑、箭头宽度/长度、可编辑 bend 调整、非负百分比堆叠、literal `arcTo`、custom-geometry text rectangle、ordered guides、adjustment formulas、custom-path extrusion eligibility、connection sites 和 adjustment handles。工作区另有 `ppj-custom-path-references` 的未提交源码/schema/OpenSpec 变更。最后一个可复现验证快照为 `495daafc`（构建包及集成报告见第 1.3 节）；其后的 `190dcfec`、`01c1b28d`、`231467d8` 代码和该工作区变更均未计入该包或覆盖结论，旧二进制结果仍单独保留，不能混用。
+
+注：上文的 `495daafc` 只代表从干净源树构建并实际加载过的单次验证包；并发变更使后续双构建 reproducibility 比较失效，因此不把它记作 reproducibility 通过。
 
 **结论：本地预览可以运行，当前 NativeAOT → native scene view → 内部 SVG/PNG 的限定集成已通过（对象锚点 2/2、literal `arcTo`、表格、连接线、line、pie/doughnut、column/bar 及 source-bound 回归均通过）；但全面静态功能覆盖和正式 CLI 场景接入仍未完成。生产入口仍走旧 `programJson` painter，G-01 任务仍为 7/15，因此不能宣布整体渲染器完成。**
 
@@ -24,7 +36,7 @@
 | 内部 pie / doughnut | 单系列比例、角度、孔径、逐点颜色、径向分离及源编辑/删除有真实证据；全缺失正例已修正 | 多环、负值、完整标签/图例/继承仍缺；分离只提供显式 radial-review 几何，不承诺 Office 精确间距 |
 | 内部 column / bar | 普通分组、普通堆叠及非负百分比堆叠有局部证据；新增两种百分比方向的创建/no-op/源数值修改、比例像素与重新投影通过 | 负值百分比、对数基线、混合/副轴、完整标签/继承尚缺；缺失或零总量不伪造百分比；仍未接入正式 CLI |
 | G-11 / G-12 | 已完成各自限定的诊断与发布契约，任务分别 9/9、8/8 | 不意味着图形已正确；新场景的完整对接仍待 G-01 4.x |
-| 验证状态 | `ec8189ef` 干净源树包构建成功（7 files，105,957,056 bytes；PPJ SHA-256 `23e5879aecaca1da4cd582dcc25632bdd2cad3be26db221095ac33a4518f89d8`）；NativeAOT 场景集成 `passed`，`relationFailures=[]`、`customArcPath=true`、锚点 2/2；两次 reproducibility、presentation 4/4、全量 smoke 4 rendered/38 compilerRejected/0 rendererFailed | 未提交 custom-geometry-adjustments 仅为调整方案，未进入包；smoke 中 38 个输入仍在编译阶段拒绝；生产场景路由、第三方 PPTX/workbook、宿主、人类校准及性能未完成 |
+| 验证状态 | `495daafc` 可复现快照包构建成功（7 files，105,957,056 bytes；PPJ SHA-256 `d43dcf4ce8000aa50165277aabfa0ed906680184aa2797a16e9f6c6e13b37c17`）；NativeAOT 场景集成 `passed`，`relationFailures=[]`、`customArcPath=true`、锚点 2/2；该系列复核的场景/分段检查与仓库 `tmp/` smoke 为 4 rendered/38 compilerRejected/0 rendererFailed | `190dcfec`、`01c1b28d`、`231467d8` 未进入该包/未重验；smoke 中 38 个输入仍在编译阶段拒绝；生产场景路由、第三方 PPTX/workbook、宿主、人类校准及性能未完成 |
 
 G-12 使用方法与清单字段见 [预览输出说明](ppj-preview-output.md)，实施清单见 [ppj-preview-output-evidence](../openspec/changes/ppj-preview-output-evidence/tasks.md)。以上不是全部 gap 的完成声明。
 
@@ -89,15 +101,20 @@ G-11 后续实施记录（2026-09-09，9/9 任务完成）：[支持诊断变更
 
 本节先记录本次文档核对，再保留各轮实施结果。后面的折叠区和[历史验证记录](ppj-svg-preview-gap-audit-history.zh-CN.md) 保留更早轮次。历史通过或失败不自动延续到新代码，各表的执行范围不可混用。
 
-#### 最新复核：`ec8189ef`（2026-09-10）
+#### 当前分支核对：`231467d8`（2026-09-10，未重建）
 
-- `main` 与 `origin/main` 当前同为 `ec8189ef`。生产 `svg-preview.mjs` 仍消费 `compiled.programJson`；内部 `preview-scene-svg.mjs` 则消费 native `PresentationPreviewScene`，两条路线的支持范围不能合并。
-- 按 checked-in build workflow 使用 SDK 8.0.128、仓库 `tmp/` 临时目录生成了 `ec8189ef` 干净源树包 `/home/zenfun/mywork/OfficeKit/tmp/officekit-preview-runtime-ec8189`；构建退出 0，7 个文件共 105,957,056 bytes，PPJ 可执行文件 SHA-256 为 `23e5879aecaca1da4cd582dcc25632bdd2cad3be26db221095ac33a4518f89d8`，Office 可执行文件 SHA-256 为 `0aa33cf44077679c3e5a0912f5b2395a8c1b98269ccc4f7f0dc8c25b98e96e70`，manifest SHA-256 为 `d37450eb22a3e19f06a009c5010319335d591339ba5d0d4f9c197ece781076ad`。`npm run verify:office-kit-build` 在同一 SDK、仓库临时目录下通过了两次构建的 reproducibility 检查；系统 SDK 10.0.401 的失败是环境版本不匹配，不计作代码失败。
-- 对该包执行 `node test/ppj-preview-scene-native.mjs /home/zenfun/mywork/OfficeKit/tmp/officekit-preview-runtime-ec8189` 退出 0。报告 `/tmp/officekit-native-scene-paint-cvTsMm/integration.json` 为 `status: passed`、`relationFailures: []`；`internalPainting` 显示 `customArcPath: true`、`generatedBezierPaths: 6`、`directedAnchorCases: 2/2`、显式坐标连接线箭头、合并表格像素及 source-bound 表格重新投影均通过。column/bar（普通、堆叠、非负百分比堆叠）、line、pie/doughnut 的 native/SVG/像素/源编辑回归也在该报告中通过。`ec8189ef` 的 custom-geometry text rectangle / ordered-guide 字段已有 codec/schema/registry 变化，但本次集成只计入现有 scene painter 断言，不能由此宣称生产 CLI 已消费这些新字段。
-- 当前通过的是“传输 → scene view → 内部 SVG/PNG”边界，不是生产 CLI 的场景切换；报告 scope 明确排除 production scene routing 和 complete paint coverage。它也没有覆盖 PowerPoint 宿主、第三方 workbook/PPTX、人类视觉校准或性能目标。
+- `main` 与 `origin/main` 当前同为 `231467d8`。该提交新增 custom-geometry adjustment handles（此前的 connection sites 已在 `01c1b28d`）；工作区另有 `ppj-custom-path-references` 的未提交源码/schema/OpenSpec 变更。生产 `svg-preview.mjs` 仍消费 `compiled.programJson`；内部 `preview-scene-svg.mjs` 则消费 native `PresentationPreviewScene`，两条路线的支持范围不能合并。
+- `190dcfec`、`01c1b28d`、`231467d8` 以及该工作区变更没有进入任何已验证的 NativeAOT 包或集成报告；必须在分支稳定后重新构建并重跑场景、smoke 和受影响的字段回归。
 - 当前 registry 仍是保守等级：16 类元素中 9 类 `partial`、7 类 `opaque`；16 类 `chartType` 全部为 `partial`，没有任何类型因内部 painter 的局部回归而提升为 `supported`。这组数字是声明分布，不是渲染覆盖率。
-- 本轮 focused checks：scene SVG、scene view、capability coverage、gate-policy、两个 capability generator `--check`、`slow/presentation` 4/4、`proto:check`、strict OpenSpec 均退出 0。全量 smoke 在仓库 `tmp/` 临时目录复跑，共 42 个 `.ppj`：4 个进入渲染（均 `partial`，diagnostics 44/686/3674/1032），38 个在编译阶段拒绝，`rendererFailed` 为 0；这些拒绝仍是待治理的输入/fixture 差距，不能记作渲染成功。使用默认系统 `/tmp` 的一次复跑曾因 `ENOSPC` 产生 1 个 renderer failure，已按环境资源错误处理，未混入上述代码结果。
-- 本次仍没有完成生产 route、完整字段绘制、任务 3.3/3.4/4.x/5.x 的勾选、第三方 fixture、人类校准或 G-16 基准；G-01 仍保持 7/15，不换算总体完成率。
+- OpenSpec 任务总计 24/32 勾选：G-01 为 7/15，G-11 为 9/9，G-12 为 8/8；G-01 的 3.3、3.4、4.1、4.2、5.1～5.4 仍未满足完整验收条件。
+
+#### 最后一次已实际加载的验证快照：`495daafc`（2026-09-10）
+
+- 按 checked-in build workflow 使用 SDK 8.0.128、仓库 `tmp/` 临时目录从干净 `495daafc` 源树生成 `/home/zenfun/mywork/OfficeKit/tmp/officekit-preview-runtime-495daafc`；构建退出 0，7 个文件共 105,957,056 bytes，PPJ 可执行文件 SHA-256 为 `d43dcf4ce8000aa50165277aabfa0ed906680184aa2797a16e9f6c6e13b37c17`，Office 可执行文件 SHA-256 为 `22a1c33c67e3ed15fbf2f3224013c0f0005a053404ba1819b3e9d67b7c8f2703`，manifest SHA-256 为 `55611aac24a355df9f520cc957cfeabf950051d23846c747f203420c7493dec4`。随后尝试 `npm run verify:office-kit-build` 时分支在两次构建之间继续变化，差异来自并发源变更，不能据此宣称 `495daafc` 的 reproducibility 已通过。
+- 对该精确包执行 `node test/ppj-preview-scene-native.mjs /home/zenfun/mywork/OfficeKit/tmp/officekit-preview-runtime-495daafc` 退出 0。报告 `/tmp/officekit-native-scene-paint-MTxwlx/integration.json` 为 `status: passed`、`relationFailures: []`；`internalPainting` 显示 `customArcPath: true`、`generatedBezierPaths: 6`、`directedAnchorCases: 2/2`、显式坐标连接线箭头、合并表格像素及 source-bound 表格重新投影均通过。column/bar（普通、堆叠、非负百分比堆叠）、line、pie/doughnut 的 native/SVG/像素/源编辑回归也在该报告中通过。
+- 该通过只覆盖“传输 → scene view → 内部 SVG/PNG”边界，不是生产 CLI 的场景切换；报告 scope 明确排除 production scene routing 和 complete paint coverage，也没有覆盖 PowerPoint 宿主、第三方 workbook/PPTX、人类视觉校准或性能目标。`495daafc` 之后的 `190dcfec`、`01c1b28d`、`231467d8` 代码未由该包验证。
+- 与该系列复核关联的 focused checks（scene SVG、scene view、capability coverage、gate-policy、两个 capability generator `--check`、`slow/presentation` 4/4、`proto:check`、strict OpenSpec）在更早的干净快照已退出 0；仓库 `tmp/` 临时目录的全量 smoke 为 42 个 `.ppj`：4 个进入渲染（均 `partial`，diagnostics 44/686/3674/1032），38 个在编译阶段拒绝，`rendererFailed` 为 0。默认系统 `/tmp` 的一次复跑曾因 `ENOSPC` 产生 1 个 renderer failure，按环境资源错误处理，未混入上述代码结果。
+- 这组证据仍不能完成生产 route、完整字段绘制、任务 3.3/3.4/4.x/5.x、第三方 fixture、人类校准或 G-16 基准；G-01 仍保持 7/15，不换算总体完成率。
 
 源码入口：[锚点求解器](../native/OfficeKit/src/OfficeKit.Codec/PpjConnectorEndpointResolver.cs)、[源绑定编辑](../native/OfficeKit/src/OfficeKit.Codec/PpjConnectorSourceBoundCompiler.cs)、[专项测试](../native/OfficeKit/tests/OfficeKit.Codec.Tests/PpjConnectorObjectAnchorTests.cs)、[独立变更及测试记录](../openspec/changes/ppj-connector-object-anchors/tasks.md)。
 
@@ -369,12 +386,12 @@ G-01 即使完成，也只解决共用输入边界；文本排版、preset、效
 
 | 内容 | 已有映射及直接证据 | 仍缺的功能或验收 |
 | --- | --- | --- |
-| 形状与路径 | rect/textbox/process、ellipse、decision；形状和文字同时保留；literal M/L/C/Q/Z/`arcTo` 路径按 native viewport 转换，实际 Sunburst/Sankey 生成路径有运行断言，当前 NativeAOT 还验证了不等半径弧线 | 其他 preset、adjustments、路径引用/arc 引用、复杂填充和效果；不能把少数路径成功算成整个图表类型完成 |
+| 形状与路径 | rect/textbox/process、ellipse、decision；形状和文字同时保留；literal M/L/C/Q/Z/`arcTo` 路径按 native viewport 转换，实际 Sunburst/Sankey 生成路径有运行断言，当前 NativeAOT 还验证了不等半径弧线；native 已继续暴露部分 preset/adjustment 字段 | preset/adjustment 的生产绘制、路径引用/arc 引用、复杂填充和效果仍缺；不能把少数路径成功算成整个图表类型完成 |
 | 富文本 | 保留段落与内联 run，字号、字体、RGB、粗斜体、显式换行及透明度有 SVG 断言 | 字体度量、自动换行、AutoFit、溢出、完整段落/列表/继承；语言、baseline、strike、字距、kerning、highlight、shadow/glow 等新增字段未完成显示验证 |
 | 图片 | 使用已验证资产字节，native frame、alpha、旋转/镜像进入 SVG；不再自行按 PPJ 路径重载资产 | 当前按 frame stretch 显示；裁切、mask、边缘和效果仍不完整；保留资产不等于保留实际主体范围 |
 | 组与可见性 | childFrame 到父 frame 的缩放/平移、嵌套变换、元素 hidden 有断言；非法零子范围明确失败 | 未证明全部嵌套/连接组合的视觉边界；页 hidden 只是保留状态，缺页选择策略和 CLI 集成 |
 | 表格 | native 列宽/行高按实际比例映射到 frame；横/纵合并、直接 RGB/no-fill/alpha、单元格文字、显式 0/false 有合成断言；四边线型映射中已直接核对右边框。真实 authored/no-op/移动候选的网格、文字、右边框、像素及重新投影通过；畸形/重叠 merge 与被覆盖的可见文字明确失败 | 继承样式、banding、渐变/图片填充、完整排版和合并外围边框仍缺；真实正例是简单本项目源输入，不能代表任意第三方表格 |
-| 连接线 | native 有向坐标生成 straight；elbow 使用中点折线；目标/site 字段保留为证据；有限箭头方向/类型/尺寸及线样式有合成断言；当前 NativeAOT authored 对象锚点、目标移动、source-bound 箭头/类型编辑均通过 | curved 明确 unavailable；导入 elbow 的原始旋转/adjustment 信息不足，dash 与箭头精确轮廓只做近似；自动避障、任意 connection-site 和宿主行为不是已解决范围 |
+| 连接线 | native 有向坐标生成 straight；elbow 使用中点折线；目标/site 字段保留为证据；有限箭头方向/类型/尺寸及线样式有合成断言；当前 NativeAOT authored 对象锚点、目标移动、source-bound 箭头/类型编辑均通过；native 已暴露部分 connection-site 字段 | curved 明确 unavailable；导入 elbow 的原始旋转/adjustment 信息不足，dash 与箭头精确轮廓只做近似；任意 connection-site 的通用场景绘制/编辑、自动避障和宿主行为不是已解决范围 |
 | 原生 chart | 普通分类 line；单系列 pie/doughnut；普通分组、普通堆叠及非负百分比 column/bar 有局部回归，见第 2.5～2.9 节 | 其他 native 枚举仍占位；负值百分比、折线/面积堆叠、平滑、混合/副轴、多环尚缺；explosion 仅径向 review 布局；轴、标签、图例、主题和完整显示策略未完成 |
 | diagram、媒体、opaque/OLE 等剩余内容 | 适配层保留 native 内容、归属和可用的缓存绘制树；内部 painter 对未接入分支显示限制/占位 | 尚未完整消费缓存树、海报或源预览；不能把占位当成现有静态内容的完整绘制，更不能生成新的编辑授权 |
 | 诊断与发布 | descriptor 驱动未消费字段检查；保留 scenePath、输入不可变性及页面警示 | 仍缺 G-11 的完整事实规则按 renderer profile 适配、G-12 scene 身份清单和故障集成；旧规则不能一次性撤掉 |
@@ -614,7 +631,7 @@ connector 直接画 frame 中线，没有读取 `from/to.element`、anchor、con
 
 当前 `066a6924` 已增加独立求解器：显式 frame anchor 按目标及祖先组变换求坐标；auto 在 top/right/bottom/left 候选中按页面距离选取，平局保留固定候选顺序。结果回到连接线父坐标系，再量化为 EMU。目标缺失、不支持的目标类型、不可逆 frame 或超出非负本地坐标范围会明确拒绝，不再退回连接线自身 frame。后续 `94e3006f`、`ddc4213f`、`474e9c54` 又补齐了有符号端点、箭头和 source-bound 类型编辑。
 
-绑定通过有界 frame-anchor 元数据保留，不冒充几何 connection-site 索引。源编辑包括端点更改、重定向、解除/建立绑定及目标移动依赖重算；畸形元数据保守处理。源码专项记录见第 1.3 节及独立变更任务清单。它没有解决自动避障、曲线/肘线精确路径、原生任意连接站点的通用编辑或宿主行为验收；这些不能从 frame-anchor 修复推导出来。
+绑定通过有界 frame-anchor 元数据保留，不冒充几何 connection-site 索引；native 已另行保留部分 connection-site 信息。源编辑包括端点更改、重定向、解除/建立绑定及目标移动依赖重算；畸形元数据保守处理。源码专项记录见第 1.3 节及独立变更任务清单。它没有解决自动避障、曲线/肘线精确路径、原生任意连接站点的通用场景绘制/编辑或宿主行为验收；这些不能从 frame-anchor 修复推导出来。
 
 **下文调用路径和数值反例记录的是修复前源码与旧临时运行时，保留用于新构建回归，不再代表当前 HEAD 实现。**
 
@@ -637,13 +654,13 @@ connector 直接画 frame 中线，没有读取 `from/to.element`、anchor、con
 | 实际 scene | `(0,0.5) → (1,0.5)`，与连接线 frame 回退逻辑完全一致 |
 | 目标移动用例 | 将终点框 y 增加 40，预期终点 `(510,160)`；旧包实际为 `(1,0.5)`，第二例同样失败；当前包重新编译后两例均按预期通过 |
 
-这条合法输入已进入旧运行时实际编译；失败是作者关系与编译场景不一致的历史功能反例。当前 C# 源码已不再采用上述回退逻辑；当前 HEAD 包 `/home/zenfun/mywork/OfficeKit/tmp/officekit-preview-runtime-current` 的真实集成报告已记录两例端点、箭头和 bend 字段通过，但这仍不是 PowerPoint 宿主行为验收。
+这条合法输入已进入旧运行时实际编译；失败是作者关系与编译场景不一致的历史功能反例。当前 C# 源码已不再采用上述回退逻辑；最后一次已验证的 `495daafc` 快照包 `/home/zenfun/mywork/OfficeKit/tmp/officekit-preview-runtime-495daafc` 的真实集成报告已记录两例端点、箭头和 bend 字段通过，但这仍不是 PowerPoint 宿主行为验收；之后的 HEAD 尚未用新包重验。
 
 收口要求分两层：先在负责布局和对象关系的编译层修正解析，或对尚不能安全求解的拓扑明确拒绝；再验证同一端点、方向、箭头进入 SVG。明确锚点、auto 策略、目标移动、嵌套组、组件展开和非法目标各自需要适用案例，不能由 JS 自建第二套 PPJ 布局求解绕过它。显式 x/y 和 source-bound 原生连接线也要保留回归，防止修正普通 authored 路径时破坏已有行为。
 
-范围决策已经落实为独立的 [connector 编译修复变更](../openspec/changes/ppj-connector-object-anchors/proposal.md)，并由箭头/类型编辑提交继续扩展。[G-01 设计](../openspec/changes/ppj-preview-compiler-scene/design.md) 的只读场景采集约束继续保留：修复前后输出发生的必要变化属于 connector 修复；同一版本开启/关闭场景采集仍须保持输出不变。当前包已复跑 native → SVG/PNG；剩余是生产 painter 接入、自动避障/任意 connection-site、复杂路线及宿主行为边界。
+范围决策已经落实为独立的 [connector 编译修复变更](../openspec/changes/ppj-connector-object-anchors/proposal.md)，并由箭头/类型编辑提交继续扩展；connection-site 字段也已进入 native 合同，但尚未由当前包验证。[G-01 设计](../openspec/changes/ppj-preview-compiler-scene/design.md) 的只读场景采集约束继续保留：修复前后输出发生的必要变化属于 connector 修复；同一版本开启/关闭场景采集仍须保持输出不变。当前包已复跑 native → SVG/PNG；剩余是生产 painter 接入、任意 connection-site 的通用绘制/编辑、自动避障、复杂路线及宿主行为边界。
 
-内部表格/连接线的有限映射见第 2.4 节。旧包脚本曾在收集两个关系失败后继续执行独立表格/source-bound 断言；当前 HEAD 包 `/tmp/officekit-native-scene-paint-TqiC7s/integration.json` 的 `relationFailures` 为空，独立表格、source-bound、line、图表和弧线路径均执行通过。该结果仍仅覆盖内部 scene painter，不代表生产 CLI 已切换。
+内部表格/连接线的有限映射见第 2.4 节。旧包脚本曾在收集两个关系失败后继续执行独立表格/source-bound 断言；最后一次已验证的 `495daafc` 快照报告 `/tmp/officekit-native-scene-paint-MTxwlx/integration.json` 的 `relationFailures` 为空，独立表格、source-bound、line、图表和弧线路径均执行通过。该结果仍仅覆盖内部 scene painter，不代表生产 CLI 已切换，且不覆盖之后 HEAD 的新字段。
 
 完成条件：表格几何来自真实尺寸与 span；连接线随实际端点和锚点变化，不能用固定方向代替关系；独立 `line` 和 `connector` 应分清职责。
 
@@ -778,7 +795,7 @@ G-11 实施轮次记录本变更 9/9 项已完成，presentation 四步、gate-p
 
 ### 6.1 G-11 实施测试与历史 smoke 结果
 
-下表以 G-11 实施轮次为主，最新复核重新执行的检查见第 1.3 节，G-01 基础实施证据见第 2.3 节。当前复核也重新运行了全量 smoke；因此 42/4/38/0 与下方四个诊断数可作为本机当前生产路线快照，但仍不是视觉正确性证明。
+下表以 G-11 实施轮次为主，最后一次已验证快照的检查见第 1.3 节，G-01 基础实施证据见第 2.3 节。42/4/38/0 与下方四个诊断数是该快照的本机旧生产路线结果；当前 HEAD 尚未用新包重跑，因此不能当作当前代码结果，更不是视觉正确性证明。
 
 | 检查 | 实际结果 | 证明范围及限制 |
 | --- | --- | --- |
@@ -791,7 +808,7 @@ G-11 实施轮次记录本变更 9/9 项已完成，presentation 四步、gate-p
 | 矩阵生成器 `--check` | 通过 | registry 派生内容与当前生成矩阵一致，未重写矩阵 |
 | Skill/文档检查 | portability 255 文件、reference-sync 333 文件、strict OpenSpec 通过 | portability 原来误要求 typed PowerPoint Live 使用 REPL，已按实际 typed CLI 纠正并保留安全断言 |
 | JS 预检 | 292 文件通过 | 语法/import 检查，不是全部功能回归 |
-| 全量 preview smoke | 退出码 0；42 输入，4 rendered、38 compilerRejected、0 rendererFailed | 当前复核在仓库 `tmp/` 指定临时目录运行；真正进入绘制的四项均为 partial，诊断数见下文；不代表视觉通过 |
+| 全量 preview smoke（最后一次已验证快照） | 退出码 0；42 输入，4 rendered、38 compilerRejected、0 rendererFailed | 在仓库 `tmp/` 指定临时目录运行；真正进入绘制的四项均为 partial，诊断数见下文；当前 HEAD 尚未重跑，不代表视觉通过 |
 
 当前全量 smoke 中，minimum/canonical/aqua-impact-story/simple-dark-mode 的诊断数分别为 44/686/3674/1032，四项支持状态均为 partial。这表明检查已经进入实际绘制，也提示继承诊断量需要在 G-16 测量和优化；数量多不等于语义覆盖完整。以下初次运行表仍保留为历史记录，不能与当前快照混用。
 
@@ -937,13 +954,13 @@ G-11 的共享检查、绘制与发布已接通；G-01 的共用场景边界、�
 
 | 工作包与编号 | 需要补什么 | 最小风险案例与判定 | 主要修改边界 |
 | --- | --- | --- | --- |
-| 对象关系，G-06 | 源码已处理对象锚点、移动后的端点及坐标作用域；当前包已通过第 3.5 节两个反例 | 继续补嵌套/组件/auto、任意 connection-site、自动避障和复杂路线；显式坐标连接线不得退化 | 编译器、编译回归、场景/SVG 断言；生产 route 和宿主行为仍独立验收 |
+| 对象关系，G-06 | 源码已处理对象锚点、移动后的端点及坐标作用域；当前包已通过第 3.5 节两个反例；native 已暴露部分 connection-site 字段 | 继续补嵌套/组件/auto、任意 connection-site 的通用绘制/编辑、自动避障和复杂路线；显式坐标连接线不得退化 | 编译器、编译回归、场景/SVG 断言；生产 route 和宿主行为仍独立验收 |
 | 普通堆叠，G-08～G-10 | 柱/条已补有限正负累计与风险回归，见第 2.8 节；线/面积、完整缺失策略和源生命周期仍缺 | 保留同向累计、异号不抵消、真实零与反向轴断言；新增系列/删除/复杂源和其余类型 | 消费已编译 native 字段的绘制与测试，不在 JS 重算 PPJ 数据集 |
 | 百分比堆叠，G-08～G-10 | 已补非负完整分母、原值/比例对应、缺失与零总量提示；负值、完整显示策略及其他图表类型仍缺 | 保留 25%/75%、大数、缺失/全零和源编辑回归；继续加入有符号反例与复杂源 | 先确认现有 codec 的有符号语义；不自行取绝对值或补零 |
 | 数值坐标与组合，G-08/G-09 | scatter 使用实际 X/Y，bubble 使用 X/Y/size；combo 保留系列类型、主副轴和单位；补对数柱基线与平滑曲线 | 非等距 X 必须改变位置；不同 size 必须改变气泡；双轴量纲不得共用一条范围；缺失分别检查通道 | 原生 chart 分支、轴与 mark 映射、真实创建/源编辑回归 |
 | 层级、流向和金融图，G-09 | 核对编译生成路径及 native 分支，逐项补 radar、heatmap、treemap、sunburst、waterfall、candlestick、sankey、symbol/stream | 两层父子、汇流后分流、中间 total、OHLC 四通道、固定 symbol 单位各有直接语义断言 | 优先复用 compiler 生成结果；已有少量路径成功只作回归基线 |
 | 圆形图剩余项，G-08/G-09 | 多系列/多环适用范围、负值策略、标签/图例与分离随动、源主题及 workbook | 不同环保持各自点归属；缺失不冒充总体；分离后标签不指向其他切片 | circular painter、共有文字/布局及第三方源编辑测试 |
-| 文字和形状，G-02～G-04 | 字体度量、换行、段落/列表、AutoFit、溢出、剩余 preset/adjustments、路径 arc 与效果 | 同段多 run 不拆段；长中文、字号变化、旋转文字与非矩形各验证实际边界 | 场景文字/几何/变换；明确字体环境与允许的栅格差异 |
+| 文字和形状，G-02～G-04 | 字体度量、换行、段落/列表、AutoFit、溢出、剩余 preset/adjustment 的生产绘制、路径 arc 与效果 | 同段多 run 不拆段；长中文、字号变化、旋转文字与非矩形各验证实际边界 | 场景文字/几何/变换；明确字体环境与允许的栅格差异 |
 | 图片与合成效果，G-04/G-05 | 按已知裁切/fit/mask/透明度处理，补边框、阴影、反射与主题颜色 | 透明边缘图、非居中裁切、半透明覆盖、阴影扩边；未知主体范围不能擅自裁切 | 已验证资产到 SVG 的映射与实际 PNG；不增加第二次路径读取 |
 | 表格和剩余内容，G-06/G-07 | 合并外围边框、继承/banding、文字排版；diagram 缓存树、媒体海报、OLE/opaque 预览 | 跨行列合并与冲突样式、含可见文字的覆盖格、修改后的源预览；未知内容应可辨识 | native 表格/内容分支；source-bound 原包和非目标 part 保留 |
 | 正式接入，G-01/G-11～G-13 | 将生产入口切到实际场景，同时接入 profile 对应事实规则、场景身份清单、警示及输出保护 | 同一 PPJ 的 CLI SVG 真正改变；返回/落盘证据一致；缺场景、栅格失败、写失败仍保留正确状态 | 生产路由、检查与发布；不能只换 painter 后删除全部旧错误规则 |
@@ -1020,7 +1037,7 @@ node test/ppj-preview-smoke.mjs
 
 单项定位时，可分别运行 `node test/ppj-preview-diagnostics.mjs`、`node test/ppj-svg-preview.mjs`、`node test/ppj-preview-capability-coverage.mjs` 或 `node test/ppj-preview-output-evidence.mjs`；这四项已包含在 presentation 分段中。此处列的是可复跑命令，本次文档复核的执行范围见第 1.3 节，历史结果见第 6.1 节；不要把列出全量 smoke 命令当作已重跑。
 
-真实运行时集成必须显式指向仓库构建命令生成的包；脚本现包含传输/适配、内部 SVG 基础绘制、表格/对象关系、有限 line、单系列 pie/doughnut、column/bar（普通/堆叠/非负百分比）及 literal `arcTo` 的断言。当前 HEAD 包 `/home/zenfun/mywork/OfficeKit/tmp/officekit-preview-runtime-current` 的运行退出 0，报告 `/tmp/officekit-native-scene-paint-TqiC7s/integration.json` 为 `passed`，对象锚点 2/2、`relationFailures=[]`；旧临时包的锚点失败仅保留为历史反例。**这个通过只覆盖内部 scene painter，不代表生产 route 或完整字段覆盖。** 普通 presentation 分段不自动重建运行时，也不会自动执行这个集成脚本。准备好 `global.json` 固定的 SDK 后可单独运行：
+真实运行时集成必须显式指向仓库构建命令生成的包；脚本现包含传输/适配、内部 SVG 基础绘制、表格/对象关系、有限 line、单系列 pie/doughnut、column/bar（普通/堆叠/非负百分比）及 literal `arcTo` 的断言。最后一次已验证的 `495daafc` 快照包 `/home/zenfun/mywork/OfficeKit/tmp/officekit-preview-runtime-495daafc` 运行退出 0，报告 `/tmp/officekit-native-scene-paint-MTxwlx/integration.json` 为 `passed`，对象锚点 2/2、`relationFailures=[]`；旧临时包的锚点失败仅保留为历史反例。**这个通过只覆盖内部 scene painter，不代表生产 route 或完整字段覆盖。** 当前 HEAD 的新提交尚未重建，普通 presentation 分段不自动重建运行时，也不会自动执行这个集成脚本。准备好 `global.json` 固定的 SDK 后可单独运行：
 
 ```sh
 preview_package="$(mktemp -d)"
@@ -1053,7 +1070,7 @@ dotnet test native/OfficeKit/tests/OfficeKit.Codec.Tests/OfficeKit.Codec.Tests.c
   /p:SkipGetTargetFrameworkProperties=true /clp:ErrorsOnly
 ```
 
-测试数量可能随代码推进增加，以本次命令实际输出为准。NuGet 恢复或 SDK 失败应记为环境/构建失败，不能写成目标断言失败或通过。当前包已经按 G-01 任务 5.2 的 checked-in workflow 重建并由 JavaScript 集成脚本实际加载；剩余是生产入口接入、完整绘制/等价证据和性能/宿主验收，不得把这条内部通过写成整体完成。
+测试数量可能随代码推进增加，以本次命令实际输出为准。NuGet 恢复或 SDK 失败应记为环境/构建失败，不能写成目标断言失败或通过。`495daafc` 快照包已按 G-01 任务 5.2 的 checked-in workflow 重建并由 JavaScript 集成脚本实际加载；当前 HEAD 的新增提交和未提交修改尚未重建。剩余是生产入口接入、完整绘制/等价证据和性能/宿主验收，不得把这条内部通过写成整体完成。
 
 ### 9.2 主要代码与文档
 

@@ -541,9 +541,125 @@ try {
     assert.ok(painted.pages[0].svg.includes('data-officekit-arrow="end" data-officekit-arrow-kind="triangle" transform="translate(510 120) rotate(-'));
   }
   const literalProgram = structuredClone(pairBase);
+  const cropProgram = structuredClone(pairBase);
+  const cropData = await sharp({ create: { width: 40, height: 20, channels: 4, background: "#FF0000" } })
+    .composite([{ input: await sharp({ create: { width: 20, height: 20, channels: 4, background: "#00FF00" } }).png().toBuffer(), left: 20, top: 0 }]).png().toBuffer();
+  const cropAsset = { ...JSON.parse(Buffer.from(authoredAssets.program).toString("utf8")).assets[0], id: "crop-image", mimeType: "image/png", sha256: sha256(cropData) };
+  cropProgram.assets = [cropAsset];
+  cropProgram.pages[0].elements = [{ id: "crop-picture", type: "image", asset: cropAsset.id, frame: { x: 100, y: 100, width: 100, height: 100 }, fit: "stretch", crop: { left: 0.5 } }];
+  cropProgram.pages[0].elements.unshift({ ...structuredClone(primitive), id: "crop-background", geometry: { kind: "preset", preset: "rect" }, frame: { x: 100, y: 100, width: 100, height: 100 }, text: undefined, style: { fill: { type: "solid", color: "#0000FF" } } });
+  const cropAuthored = await compilePpjWorkspace({ ...sourceWorkspace, program: Buffer.from(JSON.stringify(cropProgram)), assets: [{ ...cropAsset, data: cropData }] }, { includePreviewScene: true });
+  async function cropPixels(receipt, name, samples) {
+    const painted = await savePaint(name, receipt);
+    for (const [x, rgb, y = 150] of samples) {
+      const pixel = await sharp(Buffer.from(painted.pages[0].svg)).extract({ left: x, top: y, width: 1, height: 1 }).removeAlpha().raw().toBuffer();
+      assert.deepEqual([...pixel], rgb);
+    }
+    assert.ok(!painted.diagnostics.some(d => d.reason === "preview.scene.paint.image-crop"));
+  }
+  await cropPixels(cropAuthored, "crop-authored", [[120, [0, 255, 0]], [180, [0, 255, 0]], [210, [255, 255, 255]]]);
+  const cropSource = await withoutAuthoredSnapshot(cropAuthored.file), cropOriginal = cropSource.slice();
+  const cropProjected = await projectPptxToPpj(cropSource, { sourceUri: "crop.pptx", assetRootUri: "assets" });
+  const cropInput = { source: cropSource, assets: cropProjected.assets, program: cropProjected.programJson };
+  const cropNoop = await compilePpjWorkspace(cropInput, { includePreviewScene: true });
+  assert.deepEqual(cropNoop.file, cropSource);
+  await cropPixels(cropNoop, "crop-noop", [[120, [0, 255, 0]]]);
+  const cropEdit = JSON.parse(Buffer.from(cropProjected.programJson).toString("utf8"));
+  cropEdit.pages[0].elements.find(e => e.type === "image").crop = { left: -0.5, right: -0.5 };
+  const cropCandidate = await compilePpjWorkspace({ ...cropInput, program: Buffer.from(JSON.stringify(cropEdit)) }, { includePreviewScene: true });
+  await cropPixels(cropCandidate, "crop-letterbox", [[110, [0, 0, 255]], [135, [255, 0, 0]], [165, [0, 255, 0]], [190, [0, 0, 255]]]);
+  const cropFresh = await projectPptxToPpj(cropCandidate.file, { sourceUri: "crop-edited.pptx", assetRootUri: "assets" });
+  assert.equal(JSON.parse(Buffer.from(cropFresh.programJson).toString("utf8")).pages[0].elements.find(e => e.type === "image").crop.left, -0.5);
+  assert.deepEqual(cropSource, cropOriginal);
+  const cropOldZip = await JSZip.loadAsync(cropSource), cropNewZip = await JSZip.loadAsync(cropCandidate.file);
+  assert.deepEqual(Object.keys(cropNewZip.files).sort(), Object.keys(cropOldZip.files).sort());
+  const cropChangedParts = [];
+  for (const name of Object.keys(cropOldZip.files)) if (!cropOldZip.files[name].dir &&
+    !Buffer.from(await cropOldZip.file(name).async("uint8array")).equals(Buffer.from(await cropNewZip.file(name).async("uint8array")))) cropChangedParts.push(name);
+  assert.deepEqual(cropChangedParts, ["ppt/slides/slide1.xml"]);
+  const borderedProgram = structuredClone(cropProgram);
+  borderedProgram.pages[0].elements.find(e => e.type === "image").border = { color: "#FF00FF", width: 4 };
+  const borderedAuthored = await compilePpjWorkspace({ ...sourceWorkspace, program: Buffer.from(JSON.stringify(borderedProgram)), assets: [{ ...cropAsset, data: cropData }] }, { includePreviewScene: true });
+  await cropPixels(borderedAuthored, "image-border-authored", [[150, [255, 0, 255], 100], [150, [0, 255, 0], 110]]);
+  const borderedEdit = JSON.parse(Buffer.from(cropProjected.programJson).toString("utf8"));
+  borderedEdit.pages[0].elements.find(e => e.type === "image").border = { color: "#FF00FF", width: 4 };
+  const borderedCandidate = await compilePpjWorkspace({ ...cropInput, program: Buffer.from(JSON.stringify(borderedEdit)) }, { includePreviewScene: true });
+  await cropPixels(borderedCandidate, "image-border-edited", [[150, [255, 0, 255], 100], [150, [0, 255, 0], 110]]);
+  const borderedFresh = await projectPptxToPpj(borderedCandidate.file, { sourceUri: "border.pptx", assetRootUri: "assets" });
+  assert.equal(JSON.parse(Buffer.from(borderedFresh.programJson).toString("utf8")).pages[0].elements.find(e => e.type === "image").border.width, 4);
+  const borderZip = await JSZip.loadAsync(borderedCandidate.file);
+  assert.deepEqual(Object.keys(borderZip.files).sort(), Object.keys(cropOldZip.files).sort());
+  for (const name of Object.keys(cropOldZip.files)) if (!cropOldZip.files[name].dir && name !== "ppt/slides/slide1.xml")
+    assert.deepEqual(await borderZip.file(name).async("uint8array"), await cropOldZip.file(name).async("uint8array"));
+  assert.deepEqual(cropSource, cropOriginal);
+  for (const preset of ["ellipse", "diamond", "custom", "roundRect"]) {
+    const maskGeometry = preset === "custom" ? { kind: "custom", viewBox: { x: 0, y: 0, width: 100, height: 100 }, paths: [{ fill: true, stroke: false, commands: [
+      { op: "moveTo", x: 50, y: 0 }, { op: "lineTo", x: 100, y: 50 }, { op: "lineTo", x: 50, y: 100 }, { op: "lineTo", x: 0, y: 50 }, { op: "close" },
+    ] }] } : { kind: "preset", preset, ...(preset === "roundRect" ? { adjustments: [50000] } : {}) };
+    const maskProgram = structuredClone(cropProgram);
+    maskProgram.pages[0].elements.find(e => e.type === "image").mask = maskGeometry;
+    const maskAuthored = await compilePpjWorkspace({ ...sourceWorkspace, program: Buffer.from(JSON.stringify(maskProgram)), assets: [{ ...cropAsset, data: cropData }] }, { includePreviewScene: true });
+    await cropPixels(maskAuthored, `mask-${preset}-authored`, [[150, [0, 255, 0]], [110, [0, 0, 255], 110]]);
+    const maskEdit = JSON.parse(Buffer.from(cropProjected.programJson).toString("utf8"));
+    maskEdit.pages[0].elements.find(e => e.type === "image").mask = maskGeometry;
+    const maskCandidate = await compilePpjWorkspace({ ...cropInput, program: Buffer.from(JSON.stringify(maskEdit)) }, { includePreviewScene: true });
+    await cropPixels(maskCandidate, `mask-${preset}-edited`, [[150, [0, 255, 0]], [110, [0, 0, 255], 110]]);
+    const maskFresh = await projectPptxToPpj(maskCandidate.file, { sourceUri: `${preset}.pptx`, assetRootUri: "assets" });
+    const freshMask = JSON.parse(Buffer.from(maskFresh.programJson).toString("utf8")).pages[0].elements.find(e => e.type === "image").mask;
+    if (preset === "custom") {
+      assert.equal(freshMask.kind, "custom");
+      assert.deepEqual(freshMask.paths[0].commands, maskGeometry.paths[0].commands);
+    } else assert.equal(freshMask.preset, preset);
+    if (preset === "roundRect") {
+      assert.deepEqual(freshMask.adjustments, [50000]);
+      const squareEdit = JSON.parse(Buffer.from(maskFresh.programJson).toString("utf8"));
+      squareEdit.pages[0].elements.find(e => e.type === "image").mask.adjustments = [0];
+      const squareCandidate = await compilePpjWorkspace({ source: maskCandidate.file, assets: maskFresh.assets, program: Buffer.from(JSON.stringify(squareEdit)) }, { includePreviewScene: true });
+      await cropPixels(squareCandidate, "mask-roundRect-zero", [[110, [0, 255, 0], 110], [150, [0, 255, 0]]]);
+      const squareFresh = await projectPptxToPpj(squareCandidate.file, { sourceUri: "square.pptx", assetRootUri: "assets" });
+      assert.deepEqual(JSON.parse(Buffer.from(squareFresh.programJson).toString("utf8")).pages[0].elements.find(e => e.type === "image").mask.adjustments, [0]);
+    }
+    assert.deepEqual(cropSource, cropOriginal);
+    const maskZip = await JSZip.loadAsync(maskCandidate.file);
+    assert.deepEqual(Object.keys(maskZip.files).sort(), Object.keys(cropOldZip.files).sort());
+    for (const name of Object.keys(cropOldZip.files)) if (!cropOldZip.files[name].dir && name !== "ppt/slides/slide1.xml")
+      assert.deepEqual(await maskZip.file(name).async("uint8array"), await cropOldZip.file(name).async("uint8array"));
+  }
   literalProgram.pages[0].elements = [structuredClone(literalEdge)];
   const literalResult = await compilePpjWorkspace({ ...sourceWorkspace, program: Buffer.from(JSON.stringify(literalProgram)) }, { includePreviewScene: true });
   assertLiteralEdge(literalResult, await savePaint("literal-connector", literalResult));
+  const bendProgram = structuredClone(literalProgram);
+  Object.assign(bendProgram.pages[0].elements[0], { connectorType: "elbow", bendAdjustment: 25000 });
+  const bendAuthored = await compilePpjWorkspace({ ...sourceWorkspace, program: Buffer.from(JSON.stringify(bendProgram)) }, { includePreviewScene: true });
+  async function assertBend(receipt, value, name) {
+    const edge = createPpjSceneView(receipt).pages[0].nodes.find(n => n.kind === "connector");
+    assert.equal(edge.native.bendAdjustment, value);
+    const painted = await savePaint(name, receipt), mid = 750 - 240 * value / 100000;
+    assert.ok(painted.pages[0].svg.includes(`d="M 750 320 L ${mid} 320 L ${mid} 120 L 510 120"`));
+    assert.ok(!painted.diagnostics.some(d => d.reason === "preview.scene.paint.connector-bend"));
+    const pixel = await sharp(Buffer.from(painted.pages[0].svg)).extract({ left: mid, top: 220, width: 1, height: 1 }).removeAlpha().raw().toBuffer();
+    assert.deepEqual([...pixel], [17, 68, 119]);
+  }
+  await assertBend(bendAuthored, 25000, "bend-authored");
+  const bendSource = await withoutAuthoredSnapshot(bendAuthored.file), bendOriginal = bendSource.slice();
+  const bendProjected = await projectPptxToPpj(bendSource, { sourceUri: "bend.pptx", assetRootUri: "assets" });
+  const bendInput = { source: bendSource, assets: bendProjected.assets, program: bendProjected.programJson };
+  const bendNoop = await compilePpjWorkspace(bendInput, { includePreviewScene: true });
+  assert.deepEqual(bendNoop.file, bendSource);
+  await assertBend(bendNoop, 25000, "bend-noop");
+  const bendEdit = JSON.parse(Buffer.from(bendProjected.programJson).toString("utf8"));
+  bendEdit.pages[0].elements.find(e => e.type === "connector").bendAdjustment = 75000;
+  const bendCandidate = await compilePpjWorkspace({ ...bendInput, program: Buffer.from(JSON.stringify(bendEdit)) }, { includePreviewScene: true });
+  await assertBend(bendCandidate, 75000, "bend-edited");
+  const bendFresh = await projectPptxToPpj(bendCandidate.file, { sourceUri: "bend-edited.pptx", assetRootUri: "assets" });
+  assert.equal(JSON.parse(Buffer.from(bendFresh.programJson).toString("utf8")).pages[0].elements.find(e => e.type === "connector").bendAdjustment, 75000);
+  assert.deepEqual(bendSource, bendOriginal);
+  const bendOldZip = await JSZip.loadAsync(bendSource), bendNewZip = await JSZip.loadAsync(bendCandidate.file);
+  assert.deepEqual(Object.keys(bendNewZip.files).sort(), Object.keys(bendOldZip.files).sort());
+  const bendChangedParts = [];
+  for (const name of Object.keys(bendOldZip.files)) if (!bendOldZip.files[name].dir &&
+    !Buffer.from(await bendOldZip.file(name).async("uint8array")).equals(Buffer.from(await bendNewZip.file(name).async("uint8array")))) bendChangedParts.push(name);
+  assert.deepEqual(bendChangedParts, ["ppt/slides/slide1.xml"]);
   async function assertMergedGrid(painted, x) {
     const svg = painted.pages[0].svg;
     assert.ok(svg.includes(`data-officekit-table-cell="0:0" data-officekit-row-span="1" data-officekit-column-span="2"><rect x="${x}" y="100" width="360" height="40"`));
@@ -666,7 +782,11 @@ try {
     nativeBars, nativeStacks, nativeCircular,
     relationFailures: relationFailures.map(({ shift, actual, error }) => ({ shift, actual, message: error.message })),
     internalPainting: { artifacts, pairedComponent: 1, customArcPath, generatedBezierPaths: paths, sourceTextEdit: true, directedAnchorCases, requiredDirectedAnchorCases: 2,
-      explicitCoordinateConnector: true, sourceConnectorPreserved: true, mergedTablePixels: true, sourceTableMoveReprojection: true },
+      imageCrop: { positiveCrop: true, negativeLetterbox: true, sourceNoop: true, sourceEditReprojection: true, pixels: true },
+      imageBorder: { authoredAndSourceEdit: true, rgbPixels: true, reprojection: true, nonTargetPreserved: true },
+      imageMasks: { presets: ["ellipse", "diamond", "roundRect"], roundRectZeroEdit: true, customPath: true, authoredAndSourceEdit: true, cropCombinedPixels: true, reprojection: true },
+      explicitCoordinateConnector: true, elbowBend: { authored: 25000, edited: 75000, sourceNoop: true, pixels: true, reprojection: true, changedParts: bendChangedParts },
+      sourceConnectorPreserved: true, mergedTablePixels: true, sourceTableMoveReprojection: true },
     nativeLine: { authored: true, sourceNoop: true, preservedAcrossTableEdit: true, sourceValueEditReprojection: true,
       multiSeriesMissing: true, markerAndGapPixels: true, unclippedMarkerOutlinePixels: true, changedParts: chartChangedParts,
       sourceSha256: sha256(source), candidateSha256: sha256(chartCandidate.file), workbook: "not present in this literal-data fixture" },
