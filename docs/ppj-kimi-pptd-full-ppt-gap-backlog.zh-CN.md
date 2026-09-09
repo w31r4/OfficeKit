@@ -463,6 +463,17 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+
+**段落默认语言增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.defaultText.language`
+支持独立赋值、删除、恢复，以及仅包含语言的 defaultText/style 包装删除。
+沿用 2–63 字符的标签语法，保留大小写；run 语言、altLang、字体/效果、
+其它段和非目标 XML/ZIP 保留。来源中的未建模 lang 保留，拒绝覆盖，
+修改其它默认标量仍可进行。修复了删除时误写 lang="" 的问题。
+相关 **182/182 通过，0 跳过**，沿用已记录的整组默认样式基线失败排除项。
+字段资料、生成检查和 OpenSpec 已同步；主机校对和复杂继承仍是独立缺口。
+
+
 **段落默认复杂脚本字体增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.defaultText.fontFamilyComplexScript`
 支持独立赋值、删除、恢复和单字体包装删除，仅更新简单直接的 a:cs。

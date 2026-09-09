@@ -2,6 +2,21 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ paragraph default language (2026-09-10): ordinary text/shape owners
+support independent assignment, deletion, language-only wrapper removal and
+restoration. Bounded tags preserve spelling/case; 63 characters pass and 64
+reject. Direct run languages, altLang, fonts/effects, other paragraphs and
+non-target XML/ZIP state remain unchanged. Unmodeled source lang survives
+no-op/unrelated scalar edits and rejects replacement. The two publication
+checkpoint failures came from converting a null string to an empty native
+StringValue (lang=""); direct null assignment now removes the attribute.
+Related native tests pass 182/182, zero skipped (SDK 8.0.128), with the
+documented whole-default-style baseline failure still excluded. Unsupported
+default-field rejection now uses kerning. Schema/Help/registry/references,
+generated metadata, preview input/capability, portability/reference sync and
+strict OpenSpec checks pass. No wire change, NativeAOT rebuild or host proofing
+acceptance.
+
 PPJ paragraph default fontFamilyComplexScript (2026-09-10): ordinary
 text/shape paragraphs now expose independent a:cs assignment, deletion,
 font-only defaultText/style wrapper removal and restoration. Latin/East Asian
@@ -11,7 +26,7 @@ through 255 characters, theme typeface spelling, invalid names, missing field
 authority and unmodeled metadata/hidden child rejection for all three script
 fonts. Six added cases bring related native tests to 177/177 passing, zero
 skipped (SDK 8.0.128); the documented whole-default-style baseline failure is
-still excluded. Unsupported-field rejection now uses language. Generated
+still excluded. That increment used language for unsupported-field rejection. Generated
 references/matrix, preview input/capability, portability/reference sync and
 strict OpenSpec pass. No wire change, NativeAOT rebuild or host font acceptance.
 

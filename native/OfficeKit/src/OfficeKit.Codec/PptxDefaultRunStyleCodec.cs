@@ -137,7 +137,10 @@ internal static class PptxDefaultRunStyleCodec
             {
                 if (properties.Language is { } nativeLanguage && !PptxLanguageTag.IsValid(nativeLanguage.Value))
                     throw Unsupported("Source-preserving PPTX export cannot replace unmodeled default-run language.");
-                properties.Language = after.HasLanguage ? PptxLanguageTag.Validate(after.Language) : null;
+                if (after.HasLanguage) properties.Language = PptxLanguageTag.Validate(after.Language);
+                // A null string converts to an empty StringValue (lang="").
+                // Assign null directly to remove the native attribute.
+                else properties.Language = null;
             }
             RemoveIfEmpty(properties);
             return;

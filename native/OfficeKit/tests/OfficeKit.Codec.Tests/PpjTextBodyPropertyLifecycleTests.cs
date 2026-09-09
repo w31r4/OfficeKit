@@ -107,7 +107,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             foreach (var value in field switch
             {
                 "size" => new[] { "1", "18.25", "18.256", "18.125", "768" },
-                "language" => new[] { "fr-FR", "zh-Hant-TW", "EN-us" }
+                "language" => new[] { "fr-FR", "zh-Hant-TW", "EN-us", "en-" + string.Join("-", Enumerable.Repeat("abcdefgh", 6)) + "-abcdef" }
                     .Select(language => JsonValue.Create(language)!.ToJsonString()).ToArray(),
                 "fontFamilyComplexScript" => new[] { "Amiri", "+mn-cs", new string('F', 255) }
                     .Select(font => JsonValue.Create(font)!.ToJsonString()).ToArray(),
@@ -151,7 +151,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                 Assert.Empty(Compile(request, source, success: false).File);
             }
         if (field == "language")
-            foreach (var invalid in new[] { "", "en_US", " en-US", "en-US ", "a", new string('a', 64) })
+            foreach (var invalid in new[] { "", "en_US", " en-US", "en-US ", "a", "en-" + string.Join("-", Enumerable.Repeat("abcdefgh", 6)) + "-abcdefg" })
             {
                 var request = Project(source);
                 FirstTextParagraph(request)["style"]!["defaultText"]![field] = invalid;
@@ -204,6 +204,36 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         Assert.Equal(source, Compile(projected, source).File.ToByteArray());
         FirstTextParagraph(projected)["style"]!["defaultText"]![field] = "Georgia";
         Assert.Empty(Compile(projected, source, success: false).File);
+        Assert.Equal(original, source);
+    }
+
+    [Fact]
+    public void ParagraphDefaultLanguagePreservesUnmodeledNativeValue()
+    {
+        var program = Program("text");
+        program["pages"]![0]!["elements"]![0]!["text"] = new JsonObject
+        {
+            ["paragraphs"] = new JsonArray(new JsonObject
+            {
+                ["style"] = new JsonObject { ["defaultText"] = new JsonObject { ["language"] = "en-US", ["bold"] = true } },
+                ["runs"] = new JsonArray(new JsonObject { ["text"] = "Retain native language" }),
+            }),
+        };
+        var authored = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
+        using var stream = new MemoryStream(); stream.Write(authored);
+        using (var doc = PresentationDocument.Open(stream, true))
+            Owner(doc, "text").Descendants<A.DefaultRunProperties>().First().Language = "en_US";
+        var source = stream.ToArray(); var original = source.ToArray();
+        var projected = Project(source);
+        Assert.Null(FirstTextParagraph(projected)["style"]?["defaultText"]?["language"]);
+        Assert.Equal(source, Compile(projected, source).File.ToByteArray());
+        FirstTextParagraph(projected)["style"]!["defaultText"]!["language"] = "fr-FR";
+        Assert.Empty(Compile(projected, source, success: false).File);
+        var unrelated = Project(source);
+        FirstTextParagraph(unrelated)["style"]!["defaultText"]!["bold"] = false;
+        var candidate = Compile(unrelated, source).File.ToByteArray();
+        Assert.Equal("en_US", ParagraphDefaultScalar(candidate, "text", "language")!.GetValue<string>());
+        AssertOnlyBodyPropertyChanged(source, candidate, "text", "paragraphDefault.bold");
         Assert.Equal(original, source);
     }
 

@@ -66,6 +66,16 @@ nonblank/255-character and simple-node limits. Removing a font-only defaultText
 or paragraph style wrapper clears it; Latin/East Asian defaults, effects and
 direct runs remain unchanged.
 
+Use defaultText.language for independent paragraph-default language assignment,
+removal and restoration, including language-only defaultText/style wrappers.
+Tags contain 2..63 characters: an initial 2..8 letters, then optional
+hyphen-separated 1..8-character alphanumeric subtags (for example en-US or
+zh-Hant-TW). Spelling and case are preserved. This is bounded syntax checking,
+not a language-registry lookup or proofing-engine validation. Direct run
+languages and native altLang remain unchanged. A source lang outside this
+grammar stays source-owned: replacing it rejects, while unrelated scalar
+edits preserve it.
+
 
 `textWarpPreset`, `textWarpAdjustments`, `flatTextZ`, `fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.
