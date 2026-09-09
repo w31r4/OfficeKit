@@ -331,6 +331,12 @@ internal static class PptxTextCodec
             properties.ClearFlatTextZ();
             properties.ClearNoFlatTextZ();
         }
+        if (properties.HasNoTextWarpPreset)
+        {
+            properties.ClearTextWarpPreset();
+            properties.TextWarpAdjustments.Clear();
+            properties.ClearNoTextWarpPreset();
+        }
         if (properties.LeftInsetCase == PresentationTextBodyProperties.LeftInsetOneofCase.NoLeftInset) properties.ClearLeftInset();
         if (properties.TopInsetCase == PresentationTextBodyProperties.TopInsetOneofCase.NoTopInset) properties.ClearTopInset();
         if (properties.RightInsetCase == PresentationTextBodyProperties.RightInsetOneofCase.NoRightInset) properties.ClearRightInset();

@@ -100,6 +100,8 @@ internal static class PptxBodyPropertiesCodec
         else if (properties.WrappingCase == PresentationTextBodyProperties.WrappingOneofCase.NoWrap && !properties.NoWrap) throw Invalid("Presentation no_wrap must be true when selected.");
         if (properties.AutoFitCase == PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode) _ = ParseAutoFit(properties.AutoFitMode);
         else if (properties.AutoFitCase == PresentationTextBodyProperties.AutoFitOneofCase.NoAutoFitMode && !properties.NoAutoFitMode) throw Invalid("Presentation no_auto_fit_mode must be true when selected.");
+        if (properties.HasNoTextWarpPreset && (!properties.NoTextWarpPreset || properties.HasTextWarpPreset || properties.TextWarpAdjustments.Count != 0))
+            throw Invalid("Presentation no_text_warp_preset must be true and cannot coexist with a preset or adjustments.");
         if (properties.HasTextWarpPreset) _ = ParseTextWarpPreset(properties.TextWarpPreset);
         ValidateTextWarpAdjustments(properties);
         if (properties.HasFlatTextZ && (properties.FlatTextZ < MinFlatTextZ || properties.FlatTextZ > MaxFlatTextZ))
@@ -147,7 +149,7 @@ internal static class PptxBodyPropertiesCodec
          source.HasNoCompatibleLineSpacing ||
          source.HasFromWordArt ||
          source.HasNoFromWordArt ||
-         source.HasTextWarpPreset ||
+         source.HasTextWarpPreset || source.HasNoTextWarpPreset ||
          source.TextWarpAdjustments.Count > 0 ||
          source.HasFlatTextZ || source.HasNoFlatTextZ);
 
@@ -164,6 +166,7 @@ internal static class PptxBodyPropertiesCodec
         if (source.HasNoCompatibleLineSpacing && (!source.NoCompatibleLineSpacing || source.HasCompatibleLineSpacing)) return false;
         if (source.HasNoFromWordArt && (!source.NoFromWordArt || source.HasFromWordArt)) return false;
         if (source.HasNoFlatTextZ && (!source.NoFlatTextZ || source.HasFlatTextZ)) return false;
+        if (source.HasNoTextWarpPreset && (!source.NoTextWarpPreset || source.HasTextWarpPreset || source.TextWarpAdjustments.Count != 0)) return false;
         return (source.LeftInsetCase is PresentationTextBodyProperties.LeftInsetOneofCase.None or PresentationTextBodyProperties.LeftInsetOneofCase.LeftInsetEmu ||
                 source.LeftInsetCase == PresentationTextBodyProperties.LeftInsetOneofCase.NoLeftInset && source.NoLeftInset) &&
             (source.TopInsetCase is PresentationTextBodyProperties.TopInsetOneofCase.None or PresentationTextBodyProperties.TopInsetOneofCase.TopInsetEmu ||
@@ -296,7 +299,7 @@ internal static class PptxBodyPropertiesCodec
         else if (properties.HasNoCompatibleLineSpacing) native.CompatibleLineSpacing = null;
         if (properties.HasFromWordArt) native.FromWordArt = properties.FromWordArt;
         else if (properties.HasNoFromWordArt) native.FromWordArt = null;
-        if (properties.HasTextWarpPreset)
+        if (properties.HasTextWarpPreset || properties.HasNoTextWarpPreset)
         {
             var choices = native.ChildElements.OfType<A.PresetTextWarp>().ToArray();
             if (choices.Length > 1)
@@ -305,10 +308,14 @@ internal static class PptxBodyPropertiesCodec
             {
                 if (!TryReadTextWarp(choices[0], out _, out _))
                     throw Unsupported("Source-preserving PPTX export cannot replace noncanonical text-warp preset markup.");
-                choices[0].Preset = new A.TextShapeValues(ParseTextWarpPreset(properties.TextWarpPreset));
-                ApplyTextWarpAdjustments(choices[0], properties.TextWarpAdjustments);
+                if (properties.HasNoTextWarpPreset) choices[0].Remove();
+                else
+                {
+                    choices[0].Preset = new A.TextShapeValues(ParseTextWarpPreset(properties.TextWarpPreset));
+                    ApplyTextWarpAdjustments(choices[0], properties.TextWarpAdjustments);
+                }
             }
-            else
+            else if (!properties.HasNoTextWarpPreset)
             {
                 var textWarp = new A.PresetTextWarp
                 {
@@ -416,6 +423,13 @@ internal static class PptxBodyPropertiesCodec
         var modeled = new List<PresentationTextWarpAdjustment>(nativeGuides.Length);
         foreach (var native in nativeGuides)
         {
+            // ShapeGuide is an SDK leaf; inspect preserved markup before parsing attributes.
+            if (System.Xml.Linq.XElement.Parse(native.OuterXml).Nodes().Any())
+            {
+                preset = string.Empty;
+                adjustments = [];
+                return false;
+            }
             var guideAttributes = native.GetAttributes();
             if (native.ChildElements.Count != 0 || guideAttributes.Count != 2 ||
                 guideAttributes.Any(attribute => attribute.NamespaceUri.Length != 0 || attribute.LocalName is not ("name" or "fmla")) ||

@@ -230,12 +230,23 @@ internal static partial class PpjAuthoredPresentationCompiler
             current.NoFromWordArt = true;
         }
         if (style.TryGetProperty("textWarpPreset", out _))
+        {
+            current.ClearNoTextWarpPreset();
             current.TextWarpPreset = requested.TextWarpPreset;
+        }
+        else if (previousStyle is { ValueKind: JsonValueKind.Object } previousWarp && previousWarp.TryGetProperty("textWarpPreset", out _))
+        {
+            current.ClearTextWarpPreset();
+            current.TextWarpAdjustments.Clear();
+            current.NoTextWarpPreset = true;
+        }
         if (style.TryGetProperty("textWarpAdjustments", out _))
         {
             current.TextWarpAdjustments.Clear();
             current.TextWarpAdjustments.Add(requested.TextWarpAdjustments);
         }
+        else if (previousStyle is { ValueKind: JsonValueKind.Object } previousGuides && previousGuides.TryGetProperty("textWarpAdjustments", out _))
+            current.TextWarpAdjustments.Clear();
         if (style.TryGetProperty("flatTextZ", out _))
         {
             current.ClearNoFlatTextZ();

@@ -12,6 +12,140 @@ namespace OfficeKit.Codec.Tests;
 
 public sealed class PpjTextBodyPropertyLifecycleTests
 {
+    [Theory]
+    [InlineData("text")]
+    [InlineData("shape")]
+    [InlineData("master")]
+    [InlineData("layout")]
+    [InlineData("table")]
+    public void TextWarpPresetAndGuidesCanBeRemovedAndRestored(string kind)
+    {
+        var program = Program(kind);
+        Style(program, kind)["textWarpPreset"] = "textArchUp";
+        Style(program, kind)["textWarpAdjustments"] = WarpGuides();
+        Style(program, kind)["fromWordArt"] = false;
+        Style(program, kind)["flatTextZ"] = 0;
+        var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
+        var original = source.ToArray();
+        Assert.Equal(source, Compile(Project(source), source).File.ToByteArray());
+        var invalid = Project(source); Style(invalid, kind).Remove("textWarpPreset");
+        Assert.Empty(Compile(invalid, source, success: false).File);
+        foreach (var empty in new[] { false, true })
+        {
+            var request = Project(source);
+            if (empty) Style(request, kind)["textWarpAdjustments"] = new JsonArray();
+            else Style(request, kind).Remove("textWarpAdjustments");
+            var cleared = Compile(request, source).File.ToByteArray();
+            var warp = Assert.Single(Body(cleared, kind).Elements<A.PresetTextWarp>());
+            Assert.Equal("textArchUp", warp.Preset!.InnerText);
+            Assert.Empty(warp.ChildElements);
+            Assert.False(Style(Project(cleared), kind).ContainsKey("textWarpAdjustments"));
+            AssertOnlyBodyPropertyChanged(source, cleared, kind, "textWarpAdjustments");
+            var restore = Project(cleared); Style(restore, kind)["textWarpAdjustments"] = WarpGuides();
+            var restored = Compile(restore, cleared).File.ToByteArray();
+            AssertWarpGuides(restored, kind);
+            AssertOnlyBodyPropertyChanged(cleared, restored, kind, "textWarpAdjustments");
+        }
+        var remove = Project(source);
+        Style(remove, kind).Remove("textWarpPreset"); Style(remove, kind).Remove("textWarpAdjustments");
+        var absent = Compile(remove, source).File.ToByteArray();
+        Assert.Empty(Body(absent, kind).Elements<A.PresetTextWarp>());
+        Assert.False(Style(Project(absent), kind).ContainsKey("textWarpPreset"));
+        AssertOnlyBodyPropertyChanged(source, absent, kind, "textWarpPreset");
+        foreach (var preset in new[] { "textNoShape", "textArchUp", "textWave1" })
+        {
+            var restore = Project(absent); Style(restore, kind)["textWarpPreset"] = preset;
+            Style(restore, kind)["textWarpAdjustments"] = WarpGuides();
+            var restored = Compile(restore, absent).File.ToByteArray();
+            Assert.Equal(preset, Style(Project(restored), kind)["textWarpPreset"]!.GetValue<string>());
+            AssertWarpGuides(restored, kind);
+            AssertOnlyBodyPropertyChanged(absent, restored, kind, "textWarpPreset");
+            var again = Project(restored);
+            Style(again, kind).Remove("textWarpPreset"); Style(again, kind).Remove("textWarpAdjustments");
+            Assert.Empty(Body(Compile(again, restored).File.ToByteArray(), kind).Elements<A.PresetTextWarp>());
+        }
+        Assert.Equal(original, source);
+    }
+
+    [Theory]
+    [InlineData("shape")]
+    [InlineData("table")]
+    public void TextWarpOnlyAndCombinedBodyStylesCanBeRemoved(string kind)
+    {
+        foreach (var combined in new[] { false, true })
+        {
+            var program = Program(kind);
+            if (!combined) Style(program, kind).Clear();
+            Style(program, kind)["textWarpPreset"] = "textArchUp";
+            Style(program, kind)["textWarpAdjustments"] = WarpGuides();
+            var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
+            var request = Project(source);
+            Style(request, kind).Parent!.AsObject().Remove(kind == "shape" ? "textStyle" : "style");
+            var deleted = Compile(request, source).File.ToByteArray();
+            Assert.Empty(Body(deleted, kind).Elements<A.PresetTextWarp>());
+            Assert.Null(Body(deleted, kind).UpRight); Assert.Null(Body(deleted, kind).Rotation);
+            Assert.Null(Body(deleted, kind).Wrap); Assert.Null(Body(deleted, kind).LeftInset);
+            if (!combined) AssertOnlyBodyPropertyChanged(source, deleted, kind, "textWarpPreset");
+            var restore = Project(deleted); var element = restore["pages"]![0]!["elements"]![0]!;
+            var style = new JsonObject { ["textWarpPreset"] = "textNoShape", ["textWarpAdjustments"] = WarpGuides() };
+            if (kind == "shape") element["textStyle"] = style;
+            else element["rows"]![0]!["cells"]![0]!["text"] = new JsonObject
+            {
+                ["style"] = style,
+                ["paragraphs"] = new JsonArray(new JsonObject { ["runs"] = new JsonArray(new JsonObject { ["text"] = "Retain this text" }) }),
+            };
+            var restored = Compile(restore, deleted).File.ToByteArray();
+            Assert.Equal("textNoShape", Style(Project(restored), kind)["textWarpPreset"]!.GetValue<string>());
+            AssertWarpGuides(restored, kind);
+            AssertOnlyBodyPropertyChanged(deleted, restored, kind, "textWarpPreset");
+        }
+    }
+
+    private static JsonArray WarpGuides() => new(
+        new JsonObject { ["name"] = "adj", ["value"] = 0 },
+        new JsonObject { ["name"] = "adj2", ["value"] = int.MinValue },
+        new JsonObject { ["name"] = "adj3", ["value"] = int.MaxValue });
+
+    private static void AssertWarpGuides(byte[] source, string kind)
+    {
+        var warp = Assert.Single(Body(source, kind).Elements<A.PresetTextWarp>());
+        Assert.Equal(new[] { "adj", "adj2", "adj3" }, warp.Descendants<A.ShapeGuide>().Select(g => g.Name!.Value));
+        Assert.Equal(new[] { "val 0", "val -2147483648", "val 2147483647" }, warp.Descendants<A.ShapeGuide>().Select(g => g.Formula!.Value));
+        Assert.True(JsonNode.DeepEquals(WarpGuides(), Style(Project(source), kind)["textWarpAdjustments"]));
+    }
+
+    [Fact]
+    public void TextWarpDeletionWireAndNativeGuards()
+    {
+        var command = new PresentationTextBodyProperties { NoTextWarpPreset = true };
+        Assert.Equal(new byte[] { 240, 2, 1 }, command.ToByteArray());
+        var remove = PresentationTextBodyProperties.Parser.ParseFrom(command.ToByteArray());
+        Assert.True(remove.NoTextWarpPreset); Assert.False(remove.HasTextWarpPreset);
+        var body = new PresentationTextBody { BodyProperties = remove };
+        PptxBodyPropertiesCodec.Validate(body);
+        foreach (var invalid in new[] {
+            new PresentationTextBodyProperties { NoTextWarpPreset = false },
+            new PresentationTextBodyProperties { NoTextWarpPreset = true, TextWarpPreset = "textNoShape" },
+            new PresentationTextBodyProperties { NoTextWarpPreset = true, TextWarpAdjustments = { new PresentationTextWarpAdjustment { Name = "adj", Value = 0 } } } })
+        {
+            Assert.Throws<CodecException>(() => PptxBodyPropertiesCodec.Validate(new PresentationTextBody { BodyProperties = invalid }));
+            Assert.False(PptxBodyPropertiesCodec.SupportsBoundedDirectLayout(invalid));
+        }
+        foreach (var xml in new[] {
+            """<a:prstTxWarp prst="textArchUp"/><a:prstTxWarp prst="textArchUp"/>""",
+            """<a:prstTxWarp prst="unknown"/>""",
+            """<a:prstTxWarp prst="textArchUp" unknown="1"/>""",
+            """<a:prstTxWarp prst="textArchUp"><a:avLst/><a:avLst/></a:prstTxWarp>""",
+            """<a:prstTxWarp prst="textArchUp"><a:avLst><a:gd name="adj" fmla="sum 1 2 3"/></a:avLst></a:prstTxWarp>""",
+            """<a:prstTxWarp prst="textArchUp"><a:avLst><a:gd name="adj" fmla="val 0"><a:extLst/></a:gd></a:avLst></a:prstTxWarp>""" })
+        {
+            var properties = new A.BodyProperties("""<a:bodyPr xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">""" + xml + "</a:bodyPr>");
+            var native = new DocumentFormat.OpenXml.Presentation.TextBody(properties);
+            Assert.True(Record.Exception(() => PptxBodyPropertiesCodec.Apply(native, body)) is CodecException, xml);
+            Assert.NotEmpty(native.Descendants<A.PresetTextWarp>());
+        }
+    }
+
     [Fact]
     public void FlatTextDepthDeletionWireAndNativeGuards()
     {
@@ -622,12 +756,6 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         capabilities.Remove(capabilities.Single(c => c!["operation"]!.GetValue<string>() == (kind == "shape" ? "setTextBodyStyle" : "setTableCellStyle")));
         Assert.Empty(Compile(denied, source, success: false).File);
 
-        var otherProgram = Program(kind);
-        Style(otherProgram, kind)["textWarpPreset"] = "textArchUp";
-        var otherSource = PptxCodecTests.RemoveEmbeddedPpj(Compile(otherProgram).File.ToByteArray());
-        var otherEdit = Project(otherSource);
-        StyleOwner(otherEdit).Remove(kind == "shape" ? "textStyle" : "style");
-        Assert.Empty(Compile(otherEdit, otherSource, success: false).File);
     }
 
     [Theory]
@@ -852,7 +980,17 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         using var right = PresentationDocument.Open(new MemoryStream(after), false);
         var oldSlide = Owner(left, kind);
         var newSlide = Owner(right, kind);
-        if (field == "autoFit")
+        if (field == "textWarpPreset")
+        {
+            foreach (var child in oldSlide.Descendants<A.PresetTextWarp>().ToArray()) child.Remove();
+            foreach (var child in newSlide.Descendants<A.PresetTextWarp>().ToArray()) child.Remove();
+        }
+        else if (field == "textWarpAdjustments")
+        {
+            foreach (var child in oldSlide.Descendants<A.PresetTextWarp>().SelectMany(w => w.Elements<A.AdjustValueList>()).ToArray()) child.Remove();
+            foreach (var child in newSlide.Descendants<A.PresetTextWarp>().SelectMany(w => w.Elements<A.AdjustValueList>()).ToArray()) child.Remove();
+        }
+        else if (field == "autoFit")
         {
             foreach (var child in AutoFitChildren(Assert.Single(oldSlide.Descendants<A.BodyProperties>())).ToArray()) child.Remove();
             foreach (var child in AutoFitChildren(Assert.Single(newSlide.Descendants<A.BodyProperties>())).ToArray()) child.Remove();

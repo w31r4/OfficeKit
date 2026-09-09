@@ -2,6 +2,22 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ text-warp lifecycle (2026-09-10): textWarpPreset and its literal
+textWarpAdjustments now support source-bound deletion/restoration for text,
+shape, master/layout placeholders and table cells. Removing or emptying guides
+retains the preset; deleting the preset requires clearing dependent guides.
+Explicit textNoShape, guide order, zero and signed 32-bit limits remain values.
+Seven lifecycle cases and one wire/source guard extend the focused selection
+to 160/160 passing, zero skipped (SDK 8.0.128). Deletion field 46 preserves
+setter 37 and guides 38. NativeLeaf schema now admits the guide bounds already
+declared by the field, while other leaf limits remain unchanged. Malformed
+nested SDK ShapeGuide content is rejected before typed access. Simple style
+removal/restoration and unchanged non-target XML/ZIP state are covered;
+obsolete warp whole-style rejection was retired while authority checks remain.
+C#/JS wire, proto:check, schema bounds, preview diagnostics/scene wire, generated
+reference/matrix, portability/reference sync and strict OpenSpec passed.
+Updated codec required; no NativeAOT rebuild or full WordArt rendering acceptance.
+
 PPJ text-body `flatTextZ` lifecycle (2026-09-10): explicit zero, signed
 32-bit bounds and absence survive authored/source-bound export and fresh
 projection for text, shape, master/layout placeholders and table cells.

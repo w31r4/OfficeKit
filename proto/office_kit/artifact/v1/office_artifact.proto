@@ -3525,6 +3525,8 @@ message PresentationTextBodyProperties {
   optional bool no_from_word_art = 44;
   // True removes canonical flatTx; cannot coexist with flat_text_z.
   optional bool no_flat_text_z = 45;
+  // True removes canonical preset text warp and its guides; no setter/guides may coexist.
+  optional bool no_text_warp_preset = 46;
 }
 
 message PresentationTextStyle {
