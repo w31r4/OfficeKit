@@ -43,6 +43,10 @@ const middleText = assessPpjPreviewInput(deck([{ ...text, style: { verticalAlign
 assert.ok(middleText.diagnostics.some(d => d.path.endsWith(".style.verticalAlignment") && d.status !== "supported"));
 const zeroGapText = assessPpjPreviewInput(deck([{ ...text, style: { columnGap: 0 } }]));
 assert.ok(zeroGapText.diagnostics.some(d => d.path.endsWith(".style.columnGap") && d.status !== "supported"));
+for (const edge of ["left", "top", "right", "bottom"]) {
+  const zeroMarginText = assessPpjPreviewInput(deck([{ ...text, style: { margins: { [edge]: 0 } } }]));
+  assert.ok(zeroMarginText.diagnostics.some(d => d.path.includes(".style.margins") && d.status !== "supported"));
+}
 const singleColumnText = assessPpjPreviewInput(deck([{ ...text, style: { columns: 1 } }]));
 assert.ok(singleColumnText.diagnostics.some(d => d.path.endsWith(".style.columns") && d.status !== "supported"));
 const rotatedText = assessPpjPreviewInput(deck([{ ...text, style: { rotation: 0 } }]));

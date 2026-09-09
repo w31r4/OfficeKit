@@ -141,10 +141,14 @@ internal static class PptxBodyPropertiesCodec
     internal static bool SupportsBoundedDirectLayout(PresentationTextBodyProperties? source)
     {
         if (source is null) return true;
-        return (source.LeftInsetCase is PresentationTextBodyProperties.LeftInsetOneofCase.None or PresentationTextBodyProperties.LeftInsetOneofCase.LeftInsetEmu) &&
-            (source.TopInsetCase is PresentationTextBodyProperties.TopInsetOneofCase.None or PresentationTextBodyProperties.TopInsetOneofCase.TopInsetEmu) &&
-            (source.RightInsetCase is PresentationTextBodyProperties.RightInsetOneofCase.None or PresentationTextBodyProperties.RightInsetOneofCase.RightInsetEmu) &&
-            (source.BottomInsetCase is PresentationTextBodyProperties.BottomInsetOneofCase.None or PresentationTextBodyProperties.BottomInsetOneofCase.BottomInsetEmu) &&
+        return (source.LeftInsetCase is PresentationTextBodyProperties.LeftInsetOneofCase.None or PresentationTextBodyProperties.LeftInsetOneofCase.LeftInsetEmu ||
+                source.LeftInsetCase == PresentationTextBodyProperties.LeftInsetOneofCase.NoLeftInset && source.NoLeftInset) &&
+            (source.TopInsetCase is PresentationTextBodyProperties.TopInsetOneofCase.None or PresentationTextBodyProperties.TopInsetOneofCase.TopInsetEmu ||
+                source.TopInsetCase == PresentationTextBodyProperties.TopInsetOneofCase.NoTopInset && source.NoTopInset) &&
+            (source.RightInsetCase is PresentationTextBodyProperties.RightInsetOneofCase.None or PresentationTextBodyProperties.RightInsetOneofCase.RightInsetEmu ||
+                source.RightInsetCase == PresentationTextBodyProperties.RightInsetOneofCase.NoRightInset && source.NoRightInset) &&
+            (source.BottomInsetCase is PresentationTextBodyProperties.BottomInsetOneofCase.None or PresentationTextBodyProperties.BottomInsetOneofCase.BottomInsetEmu ||
+                source.BottomInsetCase == PresentationTextBodyProperties.BottomInsetOneofCase.NoBottomInset && source.NoBottomInset) &&
             (source.AnchorCase is PresentationTextBodyProperties.AnchorOneofCase.None or PresentationTextBodyProperties.AnchorOneofCase.VerticalAnchor ||
                 source.AnchorCase == PresentationTextBodyProperties.AnchorOneofCase.NoVerticalAnchor && source.NoVerticalAnchor) &&
             (source.WrappingCase is PresentationTextBodyProperties.WrappingOneofCase.None or PresentationTextBodyProperties.WrappingOneofCase.Wrap ||

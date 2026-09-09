@@ -2,6 +2,17 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ text-body `margins` lifecycle (2026-09-10): independent left/top/right/bottom
+deletion, empty/removed margins and guarded simple-style removal now remove
+native inset overrides. Seven shared cases cover all five text owner kinds,
+0/12.5/10000 point restoration, unchanged sibling edges, exact source no-op and
+non-target XML/ZIP preservation, plus compact table restoration. Related native
+body/placeholder/table-text tests pass 96/96, zero skipped (SDK 8.0.128).
+Preview input/capability, generated reference/matrix, Skill portability/reference
+sync and strict OpenSpec checks pass. Other-property rejection now uses
+anchorCenter; inherited reflow and host layout remain open. No wire change or
+NativeAOT rebuild.
+
 PPJ text-body `columns` lifecycle (2026-09-10): explicit counts 1..16 and
 absence now retain distinct native numCol states. The shared numeric regression
 adds seven cases across text/shape/master/layout/table, restoring 1/3/16,

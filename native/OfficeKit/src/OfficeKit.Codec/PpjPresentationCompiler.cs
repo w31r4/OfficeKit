@@ -4236,7 +4236,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
     {
         if (after.TryGetProperty(field, out var style)) return style;
         if (PreviousTextBodyStyle(before, field) is { ValueKind: JsonValueKind.Object } previous &&
-            previous.EnumerateObject().Any() && previous.EnumerateObject().All(property => property.Name is "upright" or "rotation" or "columnDirection" or "verticalText" or "wrap" or "horizontalOverflow" or "verticalOverflow" or "verticalAlignment" or "columnGap" or "columns"))
+            previous.EnumerateObject().Any() && previous.EnumerateObject().All(property => property.Name is "upright" or "rotation" or "columnDirection" or "verticalText" or "wrap" or "horizontalOverflow" or "verticalOverflow" or "verticalAlignment" or "columnGap" or "columns" or "margins"))
             return JsonSerializer.SerializeToElement(new Dictionary<string, object>());
         throw Unsupported(path + "." + field, "removing source-bound text body style with other fields is not an explicit bounded operation");
     }
@@ -4332,6 +4332,10 @@ internal static partial class PpjSourceBoundPresentationCompiler
             body.BodyProperties ??= new PresentationTextBodyProperties();
             body.BodyProperties.NoColumns = true;
         }
+        var properties = body.BodyProperties ?? new PresentationTextBodyProperties();
+        PpjAuthoredPresentationCompiler.ApplySourceBoundMarginRemoval(properties,
+            PreviousTextBodyStyle(source, "style"), PreviousTextBodyStyle(previousSource, "style"));
+        body.BodyProperties = PptxBodyPropertiesCodec.HasModeledProperties(properties) ? properties : null;
         return body;
     }
 

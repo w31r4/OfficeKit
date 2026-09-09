@@ -324,7 +324,23 @@ internal static partial class PpjAuthoredPresentationCompiler
         }
         else if (previousStyle is { ValueKind: JsonValueKind.Object } previous && previous.TryGetProperty("upright", out _))
             current.NoUpright = true;
+        ApplySourceBoundMarginRemoval(current, style, previousStyle);
         target.BodyProperties = PptxBodyPropertiesCodec.HasModeledProperties(current) ? current : null;
+    }
+
+    internal static void ApplySourceBoundMarginRemoval(
+        PresentationTextBodyProperties target, JsonElement? style, JsonElement? previousStyle)
+    {
+        if (previousStyle is not { ValueKind: JsonValueKind.Object } previous ||
+            !previous.TryGetProperty("margins", out var previousMargins)) return;
+        var nextMargins = style is { ValueKind: JsonValueKind.Object } next && next.TryGetProperty("margins", out var margins)
+            ? margins : default;
+        bool Removed(string edge) => previousMargins.TryGetProperty(edge, out _) &&
+            (nextMargins.ValueKind != JsonValueKind.Object || !nextMargins.TryGetProperty(edge, out _));
+        if (Removed("left")) target.NoLeftInset = true;
+        if (Removed("top")) target.NoTopInset = true;
+        if (Removed("right")) target.NoRightInset = true;
+        if (Removed("bottom")) target.NoBottomInset = true;
     }
 
     private sealed class AuthoredSourceFreeBuildPlan : IPptxSourceFreeBuildPlan

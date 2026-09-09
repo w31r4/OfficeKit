@@ -222,6 +222,102 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         }
     }
 
+    [Theory]
+    [InlineData("shape")]
+    [InlineData("text")]
+    [InlineData("master")]
+    [InlineData("layout")]
+    [InlineData("table")]
+    public void MarginEdgesAndObjectRemovalPreserveOtherState(string kind)
+    {
+        var program = Program(kind);
+        Style(program, kind)["margins"] = new JsonObject { ["left"] = 7, ["top"] = 8, ["right"] = 9, ["bottom"] = 10 };
+        var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
+        var original = source.ToArray();
+        Assert.Equal(source, Compile(Project(source), source).File.ToByteArray());
+        foreach (var edge in new[] { "left", "top", "right", "bottom" })
+        {
+            var request = Project(source);
+            Style(request, kind)["margins"]!.AsObject().Remove(edge);
+            var deleted = Compile(request, source).File.ToByteArray();
+            Assert.Null(Margin(deleted, kind, edge));
+            Assert.False(Style(Project(deleted), kind)["margins"]!.AsObject().ContainsKey(edge));
+            AssertOnlyBodyPropertyChanged(source, deleted, kind, "margins." + edge);
+            foreach (var value in new[] { 0d, 12.5d, 10000d })
+            {
+                var restore = Project(deleted);
+                Style(restore, kind)["margins"]![edge] = value;
+                var restored = Compile(restore, deleted).File.ToByteArray();
+                Assert.Equal(checked((int)(value * 12700)), Margin(restored, kind, edge));
+                Assert.Equal(value, Style(Project(restored), kind)["margins"]![edge]!.GetValue<double>());
+                AssertOnlyBodyPropertyChanged(deleted, restored, kind, "margins." + edge);
+                var again = Project(restored);
+                Style(again, kind)["margins"]!.AsObject().Remove(edge);
+                Assert.Null(Margin(Compile(again, restored).File.ToByteArray(), kind, edge));
+            }
+        }
+        foreach (var empty in new[] { false, true })
+        {
+            var request = Project(source);
+            if (empty) Style(request, kind)["margins"] = new JsonObject();
+            else Style(request, kind).Remove("margins");
+            var deleted = Compile(request, source).File.ToByteArray();
+            Assert.False(Style(Project(deleted), kind).ContainsKey("margins"));
+            foreach (var edge in new[] { "left", "top", "right", "bottom" }) Assert.Null(Margin(deleted, kind, edge));
+            AssertOnlyBodyPropertyChanged(source, deleted, kind, "margins");
+            var restore = Project(deleted);
+            Style(restore, kind)["margins"] = new JsonObject { ["left"] = 0 };
+            var restored = Compile(restore, deleted).File.ToByteArray();
+            Assert.Equal(0, Margin(restored, kind, "left"));
+            AssertOnlyBodyPropertyChanged(deleted, restored, kind, "margins.left");
+        }
+        Assert.Equal(original, source);
+    }
+
+    [Theory]
+    [InlineData("shape")]
+    [InlineData("table")]
+    public void MarginStyleRemovalAndCompactRestoration(string kind)
+    {
+        foreach (var combined in new[] { false, true })
+        {
+            var program = Program(kind);
+            if (!combined) Style(program, kind).Clear();
+            Style(program, kind)["margins"] = new JsonObject { ["left"] = 0, ["top"] = 12.5, ["right"] = 9, ["bottom"] = 10 };
+            var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
+            var request = Project(source);
+            var owner = (kind == "shape" ? request["pages"]![0]!["elements"]![0] :
+                request["pages"]![0]!["elements"]![0]!["rows"]![0]!["cells"]![0]!["text"])!.AsObject();
+            owner.Remove(kind == "shape" ? "textStyle" : "style");
+            var deleted = Compile(request, source).File.ToByteArray();
+            foreach (var edge in new[] { "left", "top", "right", "bottom" }) Assert.Null(Margin(deleted, kind, edge));
+            Assert.Null(Body(deleted, kind).UpRight);
+            Assert.Null(Body(deleted, kind).Rotation);
+            Assert.Null(Body(deleted, kind).Wrap);
+            if (!combined) AssertOnlyBodyPropertyChanged(source, deleted, kind, "margins");
+            var restore = Project(deleted);
+            var element = restore["pages"]![0]!["elements"]![0]!;
+            var style = new JsonObject { ["margins"] = new JsonObject { ["bottom"] = 0 } };
+            if (kind == "shape") element["textStyle"] = style;
+            else element["rows"]![0]!["cells"]![0]!["text"] = new JsonObject
+            {
+                ["style"] = style,
+                ["paragraphs"] = new JsonArray(new JsonObject { ["runs"] = new JsonArray(new JsonObject { ["text"] = "Retain this text" }) }),
+            };
+            var restored = Compile(restore, deleted).File.ToByteArray();
+            Assert.Equal(0, Margin(restored, kind, "bottom"));
+            Assert.Equal(0, Style(Project(restored), kind)["margins"]!["bottom"]!.GetValue<double>());
+            AssertOnlyBodyPropertyChanged(deleted, restored, kind, "margins.bottom");
+        }
+    }
+
+    private static int? Margin(byte[] bytes, string kind, string edge)
+    {
+        var body = Body(bytes, kind);
+        return edge switch { "left" => body.LeftInset?.Value, "top" => body.TopInset?.Value,
+            "right" => body.RightInset?.Value, "bottom" => body.BottomInset?.Value, _ => throw new ArgumentException(edge) };
+    }
+
     private static int? NumericColumnProperty(byte[] bytes, string kind, string field) =>
         field == "columns" ? Body(bytes, kind).ColumnCount?.Value : Body(bytes, kind).ColumnSpacing?.Value;
 
@@ -329,7 +425,9 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         capabilities.Remove(capabilities.Single(c => c!["operation"]!.GetValue<string>() == (kind == "shape" ? "setTextBodyStyle" : "setTableCellStyle")));
         Assert.Empty(Compile(denied, source, success: false).File);
 
-        var otherSource = PptxCodecTests.RemoveEmbeddedPpj(Compile(Program(kind)).File.ToByteArray());
+        var otherProgram = Program(kind);
+        Style(otherProgram, kind)["anchorCenter"] = true;
+        var otherSource = PptxCodecTests.RemoveEmbeddedPpj(Compile(otherProgram).File.ToByteArray());
         var otherEdit = Project(otherSource);
         StyleOwner(otherEdit).Remove(kind == "shape" ? "textStyle" : "style");
         Assert.Empty(Compile(otherEdit, otherSource, success: false).File);
@@ -515,7 +613,16 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         using var right = PresentationDocument.Open(new MemoryStream(after), false);
         var oldSlide = Owner(left, kind);
         var newSlide = Owner(right, kind);
-        if (field == "columnGap")
+        if (field == "margins" || field.StartsWith("margins."))
+        {
+            foreach (var edge in new[] { "left", "top", "right", "bottom" }.Where(edge => field == "margins" || field == "margins." + edge))
+            {
+                var attribute = edge[0] + "Ins";
+                Assert.Single(oldSlide.Descendants<A.BodyProperties>()).RemoveAttribute(attribute, "");
+                Assert.Single(newSlide.Descendants<A.BodyProperties>()).RemoveAttribute(attribute, "");
+            }
+        }
+        else if (field == "columnGap")
         {
             Assert.Single(oldSlide.Descendants<A.BodyProperties>()).ColumnSpacing = null;
             Assert.Single(newSlide.Descendants<A.BodyProperties>()).ColumnSpacing = null;

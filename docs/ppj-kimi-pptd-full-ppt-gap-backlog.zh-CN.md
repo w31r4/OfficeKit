@@ -463,6 +463,13 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+2026-09-10 增量：`margins.left/top/right/bottom`（0..10000 points）已补齐
+单边删除、空对象、整组删除和恢复。显式 0 保留，删除只移除对应原生 inset；
+其它边距与正文保留。共享实验新增 7 例覆盖五类文字 owner、0/12.5/10000、
+简单样式整组删除及表格紧凑文字恢复；相关原生 96/96、0 跳过，no-op 与非目标
+XML/ZIP 保留通过。字段说明及预览限制已同步；完整继承与宿主重排仍待补齐。
+
+
 2026-09-10 增量：`columns`（整数 1..16）补齐 source-bound 删除与恢复；
 显式单栏 `1` 与缺失分开保留。删除映射为移除原生 `numCol`，保留
 `columnGap` 和 `columnDirection`。现有数值属性实验增加 7 个场景，覆盖
@@ -719,6 +726,10 @@ schema、Help、registry、Skill 与预览限制已同步。完整继承和宿�
 **本轮继续拆出同一图片 owner 的 bottom bevel 枚举：** 已有 `shape3dBevelBottomPreset` 也绑定严格图片 owner 的 `p:pic/p:spPr/a:sp3d/a:bevelB/@prst`；新增 additive `PresentationImage.shape_3d_bevel_bottom_preset` source-bound 载体，`PpjSourceBoundPictureShape3dBevelBottomPresetLeafEditsAndReprojects` 验证 `angle` → `softRound` 的单 `bevelB/@prst` token splice、仅目标 SlidePart、图片关系/crop/mask/effect、bevel 尺寸与其它 3-D 状态保留、Open XML 和二次投影。未知属性、额外子节点、顶面 bevel、scene、颜色和复杂/扩展 3-D graph 仍 source-owned。
 
 ### F-06 Table、Cell Style 和 Table Layout
+
+2026-09-10：表格 `text.style.margins` 四边删除、空对象/整组删除和零值恢复
+已闭合，包含简单样式删除后的紧凑文字恢复；详见 F-03 的 96/96 相关回归。
+
 
 2026-09-10：表格 `text.style.columns` 的删除、显式 1/3/16 恢复及简单样式
 删除后的紧凑文字恢复已进入共享回归，见 F-03；保持固定段落/run 拓扑与编辑权限边界。
