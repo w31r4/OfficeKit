@@ -3629,6 +3629,12 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (!geometry.TryGetProperty("viewBox", out var viewBox) ||
             !geometry.TryGetProperty("paths", out var paths))
             throw Unsupported(elementId, "custom geometry has no compiler-owned path graph");
+        if (geometry.TryGetProperty("adjustmentHandles", out var handles))
+        {
+            if (!allowShapeGraph) throw Unsupported(elementId, "adjustment handles belong to custom shapes, not masks or clips");
+            foreach (var handle in handles.EnumerateArray())
+                target.CustomAdjustmentHandles.Add(PpjCustomGeometryHandleCodec.Read(handle));
+        }
         if (geometry.TryGetProperty("connectionSites", out var sites))
         {
             if (!allowShapeGraph) throw Unsupported(elementId, "connection sites belong to custom shapes, not masks or clips");

@@ -50,7 +50,7 @@ edges and omission. Recognized literal custom shapes issue `setGeometry` for
 independent rectangle add/change/removal. The focused custom-geometry/preview
 suite passes 64/64, zero skipped; the fixture verifies source no-op, retained
 path XML/text/frame, only the target SlidePart changing, and invalid rectangles
-or non-shape owners rejecting. Custom handle graphs and reference-backed paths remain source-owned;
+or non-shape owners rejecting. Reference-backed paths remain source-owned;
 preview retains explicit text-layout diagnostics, without host appearance proof.
 
 PPJ `geometry.guides` (2026-09-10) carries ordered native name/formula pairs
@@ -60,7 +60,7 @@ empty lists project as omission. The custom-geometry/preview suite passes 65/65,
 zero skipped. One source fixture proves actual formula evaluation changes,
 list addition/coordinated removal, unchanged path XML/text/frame and non-target
 ZIP members, plus duplicate/forward/dangling reference rejection. Formula
-operators retain native units; unmodeled handle and referenced
+operators retain native units; reference-backed
 path graphs remain source-owned, with explicit preview limitations.
 
 PPJ custom `geometry.adjustments` (2026-09-10) carries up to 256 ordered
@@ -70,7 +70,7 @@ passes 68/68, zero skipped. The dependency-chain fixture verifies actual
 10-to-20-point evaluation, source no-op, list addition/coordinated removal,
 unchanged paths/text/frame and non-target ZIP bytes, cross-list duplicate and
 forward/dangling reference rejection, empty omission and preset compatibility.
-Handle and reference-backed path profiles remain source-owned. Preview
+Reference-backed path profiles remain source-owned. Preview
 reports formula limitations; this increment does not claim host appearance.
 
 PPJ custom path `extrusionOk` (2026-09-10) preserves optional native extrusion
@@ -89,8 +89,19 @@ indexes while native list-length protection preserves connector identity. The
 custom-geometry/connector/authored-preview suite passes 125/125, zero skipped.
 The new fixture proves concrete units, reference projection, source no-op and
 per-field edits, path/text/frame/non-target ZIP retention and invalid bounds,
-references, topology and authority rejection. Handles/referenced paths and host
+references, topology and authority rejection. Referenced paths and host
 interaction remain open; preview reports site limitations explicitly.
+
+PPJ `geometry.adjustmentHandles` (2026-09-10) exposes ordered XY and polar
+controls for custom shapes with literal paths. Controlled adjustment names,
+paired optional ranges, positions, local-point/degree values and native
+references survive authored export and fresh projection. Source setGeometry
+permits paired-bound addition/change/removal and position edits, retaining
+handle order/kind/controlled names. The custom-geometry/connector/authored-preview
+suite passes 126/126, zero skipped. One fixture verifies both kinds, native
+units, absence/zero, source no-op and identity/range/reference/position rejection,
+with unchanged paths/text/frame and non-target ZIP members. Masks/clips reject
+handles. Preview diagnoses handle fields; host dragging remains unverified.
 
 Latest PPTX evidence: candidate product commit `e1bb8699671c3599b44b999ca308ff8d0d9581d7` and packed `office-kit@0.6.0` tarball SHA-256 `0152742d17a07a7b53e53f83f75c08c829804ab8f73ad65841a5e49946e7e8a9` passed the frozen three-sample programmable-import acceptance. All `90/90` clean-source matrix runs passed, all `30/30` declared intents produced deterministic bytes and oracle results across three repetitions, and rendering used LibreOffice for 60 runs plus Keynote for 30 text changes that LibreOffice did not display. Every run preserved the source, reimported successfully, kept the declared non-target parts and relationships byte-identical, recovered target XML/SVG after masking only the issued mutation, and kept non-target pages pixel-identical.
 

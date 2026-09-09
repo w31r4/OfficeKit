@@ -76,10 +76,9 @@ projection. Existing path-edit authority supports adding, changing or removing
 it, and coordinate edits retain it. This native eligibility flag supplies no
 3-D depth/material; preview reports the unrendered field explicitly.
 
-An imported literal custom geometry (paths with literal coordinates, without
-handles) may issue `setGeometry`
+An imported custom geometry with literal path coordinates may issue `setGeometry`
 for `geometry.paths`, `geometry.textRectangle`, `geometry.guides` and
-`geometry.adjustments` and `geometry.connectionSites`. These fields can be edited
+`geometry.adjustments`, `geometry.connectionSites` and `geometry.adjustmentHandles`. These fields can be edited
 independently in the existing SlidePart; unsupported or extension-bearing custom
 geometry remains source-owned.
 
@@ -111,8 +110,8 @@ to 1024 guides; native validation rejects invalid arithmetic or unresolved
 references. Source `setGeometry` can edit the list, add entries or remove it;
 remove dependent rectangle references in the same request. Empty/omitted lists
 project as absence; formula whitespace may normalize. Native private numeric
-rectangle scaling guides are not user guides. Reference-backed paths and
-custom handle graphs remain source-owned. These shape guides
+rectangle scaling guides are not user guides. Reference-backed paths remain
+source-owned. These shape guides
 are rejected on masks/clips, and preview retains explicit limitations.
 
 For `kind: "custom"`, `geometry.adjustments` uses the same `{name, formula}`
@@ -135,6 +134,28 @@ lists project as omission. Source `setGeometry` can change values at existing
 indexes; adding/removing sites rejects because native connectors use indexes as
 identity. Masks/clips reject this shape graph. Preview reports unrendered site
 semantics explicitly; host snapping/dragging is unverified.
+
+Custom `geometry.adjustmentHandles` contains up to 1024 ordered controls:
+
+- `kind: "xy"`: `xAdjustment` with optional paired `minX/maxX`, and/or
+  `yAdjustment` with optional paired `minY/maxY`.
+- `kind: "polar"`: `radialAdjustment` with optional paired `minRadius/maxRadius`,
+  and/or `angleAdjustment` with optional paired `minAngle/maxAngle`.
+
+Both require `position: {x, y}` and at least one declared adjustment name.
+Numbers use shape-local points for coordinates/radii and degrees for angles;
+strings retain built-in/adjustment/guide references. Current adjustments must
+lie inside their bounds, radii must be nonnegative and positions inside the
+shape. Omitted bounds stay absent. For example:
+
+```json
+{"kind":"xy","xAdjustment":"inset","minX":0,"maxX":"w","position":{"x":"inset","y":"vc"}}
+```
+
+Source `setGeometry` can add/change/remove paired bounds and change positions;
+handle order, kind and controlled names stay fixed. Empty authored lists project
+as omission. Masks/clips reject controls and preview reports handle limitations;
+PowerPoint dragging behavior remains unverified.
 
 The same preset profile can clip an image. `image.mask.adjustments` uses the
 identical parameter order and defaults; see [Media and layers](media-and-layers.md#image-masks).

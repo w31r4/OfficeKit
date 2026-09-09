@@ -510,6 +510,8 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 **优先级：P0；状态：部分完成。**
 
+**自定义形状 adjustment handle 增量（2026-09-10）：** `geometry.adjustmentHandles[]` 以 `kind: xy/polar` 表达两类手柄。XY 包含 X/Y 受控调整项及范围，polar 包含半径/角度受控调整项及范围，两类均有 `position: {x,y}`；数值为局部 points/角度，字符串保留原生引用。已支持 authored、去嵌入投影、源文件中成对范围的增改删和位置修改；源顺序、类型及受控名称保持固定。最小实验核对实际单位、零/省略、两类引用、原源 no-op、非法范围/身份/位置拒绝和 path XML/文字/frame/非目标 ZIP 保留，相关专项 126/126 通过。预览保留手柄诊断；引用型路径和宿主拖拽仍开放。
+
 **自定义形状 connection site 增量（2026-09-10）：** `geometry.connectionSites` 用最多 1024 项有序 `{angle, x, y}` 表达连接点；数值是角度和形状局部 points，字符串保留内建/adjustment/guide 引用。literal-path custom shape 已支持 authored、去嵌入投影和 source-bound 逐槽值修改；空 authored 列表投影为省略。源列表数量保持固定，避免改变连接线使用的下标身份。最小实验覆盖实际单位、引用互换、原源 no-op、path XML/文字/frame/非目标 ZIP 保留，以及越界、悬空引用、列表数量变更和缺权限拒绝；相关 custom geometry/connector/preview 专项 125/125 通过。handle、引用型 path、连接点绑定的高层 authored 语法和宿主拖拽仍开放；预览给出明确限制。
 
 **自定义路径 extrusionOk 增量（2026-09-10）：** `geometry.paths[].extrusionOk` 保留原生路径“允许拉伸”的可选布尔值；true、false 和省略分别往返。现有 paths 编辑权限支持增改删，修改坐标时保留该标志，修复 PPJ 投影及重写路径时的属性丢失。最小实验核对原源 no-op、非目标 ZIP 和其余 geometry/文字/frame 保留、非法类型拒绝；custom geometry/authored-preview 专项 67/67 通过。预览明确报告字段限制，3-D 深度/材质与宿主外观仍开放。

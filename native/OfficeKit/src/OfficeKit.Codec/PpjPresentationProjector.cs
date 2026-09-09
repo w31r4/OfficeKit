@@ -828,8 +828,7 @@ internal static partial class PpjPresentationProjector
 
     private static bool CanProjectCustomGeometry(PresentationShape shape)
     {
-        if (shape.Geometry != "custom" || shape.CustomPaths.Count == 0 ||
-            shape.CustomAdjustmentHandles.Count > 0)
+        if (shape.Geometry != "custom" || shape.CustomPaths.Count == 0)
             return false;
         var width = shape.CustomPaths[0].Width;
         var height = shape.CustomPaths[0].Height;
@@ -884,6 +883,9 @@ internal static partial class PpjPresentationProjector
             },
             ["paths"] = paths,
         };
+        if (shape.CustomAdjustmentHandles.Count > 0)
+            output["adjustmentHandles"] = new JsonArray(shape.CustomAdjustmentHandles.Select(handle =>
+                (JsonNode)PpjCustomGeometryHandleCodec.Project(handle)).ToArray());
         if (shape.CustomConnectionSites.Count > 0)
             output["connectionSites"] = new JsonArray(shape.CustomConnectionSites.Select(site => (JsonNode)new JsonObject
             {
@@ -2973,7 +2975,7 @@ internal static partial class PpjPresentationProjector
                     else if (element.Shape.Placeholder is null &&
                              element.Shape.Geometry == "custom" &&
                              CanProjectCustomGeometry(element.Shape))
-                        output.Add(new("setGeometry", ["geometry.paths", "geometry.textRectangle", "geometry.guides", "geometry.adjustments", "geometry.connectionSites"]));
+                        output.Add(new("setGeometry", ["geometry.paths", "geometry.textRectangle", "geometry.guides", "geometry.adjustments", "geometry.connectionSites", "geometry.adjustmentHandles"]));
                 }
                 break;
             case PresentationElement.ContentOneofCase.Image when source.Editable:

@@ -289,6 +289,74 @@ public sealed class PpjCustomGeometryTextRectangleTests
         Assert.Equal(original, source);
     }
 
+    [Fact]
+    public void CustomGeometryAdjustmentHandlesRetainKindsRangesAndSourceIdentity()
+    {
+        var program = Program();
+        var geometry = Element(program)["geometry"]!.AsObject();
+        geometry["adjustments"] = JsonNode.Parse("""[{"name":"ax","formula":"val 127000"},{"name":"ay","formula":"val 254000"},{"name":"radius","formula":"val 127000"},{"name":"angle","formula":"val 5400000"}]""");
+        geometry["adjustmentHandles"] = JsonNode.Parse("""
+            [{"kind":"xy","xAdjustment":"ax","minX":0,"maxX":"w","yAdjustment":"ay","position":{"x":"ax","y":20}},
+             {"kind":"polar","radialAdjustment":"radius","angleAdjustment":"angle","minAngle":0,"maxAngle":"cd2","position":{"x":10,"y":"ay"}}]
+            """);
+        var authored = Compile(program);
+        var handles = authored.PresentationProgram.PreviewScene.Presentation.Slides[0].Elements[0].Shape.CustomAdjustmentHandles;
+        Assert.Equal(2, handles.Count);
+        Assert.Equal("ax", handles[0].Xy.XAdjustment);
+        Assert.True(handles[0].Xy.HasMinX);
+        Assert.Equal(0, handles[0].Xy.MinX);
+        Assert.False(handles[0].Xy.HasMinY);
+        Assert.Equal(254_000, handles[0].Xy.Position.Y);
+        Assert.Equal("cd2", handles[1].Polar.MaxAngleReference);
+        Assert.Equal(127_000, handles[1].Polar.Position.X);
+        var source = PptxCodecTests.RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var original = source.ToArray();
+        var projected = Project(source);
+        Assert.True(JsonNode.DeepEquals(geometry, Element(projected)["geometry"]));
+        Assert.Equal(source, Compile(projected, source).File.ToByteArray());
+        foreach (var mode in new[] { "add", "edit", "remove", "position" })
+        {
+            var request = Project(source);
+            var requested = Element(request)["geometry"]!["adjustmentHandles"]!.AsArray();
+            var xy = requested[0]!.AsObject(); var polar = requested[1]!.AsObject();
+            if (mode == "add") { xy["minY"] = 0; xy["maxY"] = "h"; polar["minRadius"] = 0; polar["maxRadius"] = 100; }
+            else if (mode == "edit") { xy["maxX"] = 150; polar["maxAngle"] = 180; }
+            else if (mode == "remove") { xy.Remove("minX"); xy.Remove("maxX"); polar.Remove("minAngle"); polar.Remove("maxAngle"); }
+            else { xy["position"]!["x"] = 30; xy["position"]!["y"] = "ay"; polar["position"]!["x"] = "ax"; polar["position"]!["y"] = 30; }
+            var response = Compile(request, source);
+            if (mode == "edit")
+            {
+                var changed = response.PresentationProgram.PreviewScene.Presentation.Slides[0].Elements[0].Shape.CustomAdjustmentHandles;
+                Assert.Equal(150 * 12700, changed[0].Xy.MaxX);
+                Assert.Equal(180 * 60000, changed[1].Polar.MaxAngle60000);
+            }
+            var candidate = response.File.ToByteArray();
+            var fresh = Element(Project(candidate));
+            Assert.True(JsonNode.DeepEquals(Element(request)["geometry"], fresh["geometry"]));
+            foreach (var field in new[] { "text", "frame" }) Assert.True(JsonNode.DeepEquals(Element(request)[field], fresh[field]));
+            Assert.Equal(PathXml(source), PathXml(candidate));
+            AssertSlideOnly(source, candidate);
+        }
+        foreach (var mode in new[] { "remove", "reorder", "identity", "pair", "range", "reference", "position" })
+        {
+            var request = Project(source);
+            var requested = Element(request)["geometry"]!["adjustmentHandles"]!.AsArray();
+            if (mode == "remove") requested.RemoveAt(1);
+            else if (mode == "reorder") { var first = requested[0]!.DeepClone(); var second = requested[1]!.DeepClone(); requested[0] = second; requested[1] = first; }
+            else if (mode == "identity") requested[0]!["xAdjustment"] = "ay";
+            else if (mode == "pair") requested[0]!.AsObject().Remove("maxX");
+            else if (mode == "range") requested[1]!["maxAngle"] = 45;
+            else if (mode == "reference") requested[0]!["position"]!["x"] = "missing";
+            else requested[1]!["position"]!["y"] = 101;
+            Assert.Empty(Compile(request, source, false).File);
+        }
+        Assert.Throws<CodecException>(() => PpjAuthoredPresentationCompiler.ApplyCustomGeometry(new PresentationShape(),
+            JsonSerializer.SerializeToElement(geometry), "mask"));
+        geometry["adjustmentHandles"] = new JsonArray();
+        Assert.Null(Element(Project(PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray())))["geometry"]!["adjustmentHandles"]);
+        Assert.Equal(original, source);
+    }
+
     private static JsonObject Program()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

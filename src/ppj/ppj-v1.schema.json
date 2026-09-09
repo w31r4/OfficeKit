@@ -1970,6 +1970,7 @@
               "geometry.textRectangle",
               "geometry.guides",
               "geometry.connectionSites",
+              "geometry.adjustmentHandles",
               "canvas.width",
               "canvas.height",
               "pageOrder",
@@ -4226,6 +4227,249 @@
             },
             "viewBox": {
               "$ref": "#/$defs/frame"
+            },
+            "adjustmentHandles": {
+              "type": "array",
+              "maxItems": 1024,
+              "description": "Ordered XY/polar custom-shape controls. Numeric coordinates/radii use local points and angles degrees; references retain native units. Source edits preserve kind, order and controlled adjustment names.",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "position"
+                    ],
+                    "anyOf": [
+                      {
+                        "required": [
+                          "xAdjustment"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "yAdjustment"
+                        ]
+                      }
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "xy"
+                      },
+                      "position": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "x",
+                          "y"
+                        ],
+                        "properties": {
+                          "x": {
+                            "oneOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 128
+                              }
+                            ]
+                          },
+                          "y": {
+                            "oneOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 128
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "xAdjustment": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "yAdjustment": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "minX": {
+                        "oneOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          }
+                        ]
+                      },
+                      "maxX": {
+                        "oneOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          }
+                        ]
+                      },
+                      "minY": {
+                        "oneOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          }
+                        ]
+                      },
+                      "maxY": {
+                        "oneOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "position"
+                    ],
+                    "anyOf": [
+                      {
+                        "required": [
+                          "radialAdjustment"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "angleAdjustment"
+                        ]
+                      }
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "polar"
+                      },
+                      "position": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "x",
+                          "y"
+                        ],
+                        "properties": {
+                          "x": {
+                            "oneOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 128
+                              }
+                            ]
+                          },
+                          "y": {
+                            "oneOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 128
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "radialAdjustment": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "angleAdjustment": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "minRadius": {
+                        "oneOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          }
+                        ]
+                      },
+                      "maxRadius": {
+                        "oneOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          }
+                        ]
+                      },
+                      "minAngle": {
+                        "oneOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          }
+                        ]
+                      },
+                      "maxAngle": {
+                        "oneOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
             },
             "connectionSites": {
               "type": "array",
