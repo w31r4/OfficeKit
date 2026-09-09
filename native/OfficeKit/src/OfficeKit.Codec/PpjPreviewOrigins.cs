@@ -29,7 +29,9 @@ internal sealed class PpjPreviewOrigins
             if (element is PpjGroupElementModel group) Index(group.Elements, owner + ".elements");
             if (element is PpjComponentElementModel component)
                 foreach (var slot in component.Slots)
-                    Index(slot.Value, owner + ".slots[" + JsonSerializer.Serialize(slot.Key) + "]");
+                    // JSON string escaping without reflection-based serializer
+                    // metadata: this path also executes in the NativeAOT host.
+                    Index(slot.Value, owner + ".slots[\"" + JsonEncodedText.Encode(slot.Key).ToString() + "\"]");
         }
     }
 

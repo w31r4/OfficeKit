@@ -1888,7 +1888,9 @@ internal static partial class PpjPresentationProjector
             foreach (var child in children)
             {
                 if (child is JsonObject childObject && childObject["id"] is JsonValue childId)
-                    readingOrder.Add(childId.GetValue<string>());
+                    // JsonArray.Add<T> requests runtime serialization metadata;
+                    // use the same AOT-safe primitive as page reading order.
+                    readingOrder.Add(StringNode(childId.GetValue<string>()));
             }
             if (readingOrder.Count == children.Count)
                 output["readingOrder"] = readingOrder;

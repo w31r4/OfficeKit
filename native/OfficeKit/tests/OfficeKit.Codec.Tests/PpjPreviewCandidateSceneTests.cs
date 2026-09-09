@@ -156,6 +156,8 @@ public sealed partial class PptxCodecTests
         var children = group["elements"]!.AsArray();
         var first = children[0]!["id"]!.GetValue<string>();
         var second = children[1]!["id"]!.GetValue<string>();
+        Assert.Equal(new[] { first, second }, group["readingOrder"]!.AsArray()
+            .Select(node => node!.GetValue<string>()).ToArray());
         group["readingOrder"] = new JsonArray(second, first);
         var compiled = PpjPresentationCompiler.Compile(new PresentationProgramRequest
         {
