@@ -1934,6 +1934,7 @@
               "text",
             "text.paragraphs[].style.alignment",
             "text.paragraphs[].style.tabStops",
+            "text.paragraphs[].style.defaultText.bold",
               "text.style",
               "textStyle",
               "textStyles",
@@ -3110,7 +3111,8 @@
       "additionalProperties": false,
       "properties": {
         "defaultText": {
-          "$ref": "#/$defs/textStyle"
+          "$ref": "#/$defs/textStyle",
+          "description": "Direct paragraph default run style. On ordinary source-bound text/shape owners, defaultText.bold supports true, false, removal and restoration under its specific setTextParagraphStyle field authority. Removing a bold-only defaultText wrapper clears that direct bold value. Other defaults and direct run styles remain unchanged; other field edits and placeholder inheritance retain their own boundaries."
         },
         "alignment": {
           "enum": [

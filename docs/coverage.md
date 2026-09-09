@@ -2,6 +2,21 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ paragraph default bold (2026-09-10): ordinary text/shape owners expose
+text.paragraphs[].style.defaultText.bold through the exact setTextParagraphStyle
+field authority. True/false, removal, bold-only wrapper removal and restoration
+preserve unrelated defaults, soft-edge effects, direct run styles, a native
+dirty attribute, paragraph topology and other ZIP entries. The writer patches
+only defRPr/@b when bold is the sole difference. Four owner/default combinations
+plus the neighboring tab-stop test passed 5/5; the related selection passed
+151/151, zero skipped (SDK 8.0.128). The tab-stop fixture now reuses exact source
+bytes instead of repacking twice. ParagraphDefaultRunPropertiesAuthorImportEditAndDeleteWhilePreservingUnknownStyle
+still fails postwrite semantic comparison on clean baseline bbc1065b and is
+excluded from that 151-test selection; this is not a claim that all native
+default-style tests pass. Generated references/matrix, preview diagnostics,
+portability/reference sync and strict OpenSpec pass. Existing wire fields
+suffice; no NativeAOT rebuild or host reflow acceptance.
+
 PPJ text-warp lifecycle (2026-09-10): textWarpPreset and its literal
 textWarpAdjustments now support source-bound deletion/restoration for text,
 shape, master/layout placeholders and table cells. Removing or emptying guides

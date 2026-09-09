@@ -965,6 +965,13 @@
       "reason": "PPJ compiles one bounded, non-executable LaTeX subset to canonical editable Office Math and restores the exact source only from an embedded PPJ snapshot. Arbitrary TeX, raw OMML, environments, macros and unsupported formula styling fail closed."
     },
     {
+      "feature": "source-bound paragraph default bold",
+      "ppjPath": "pages[].elements[].text.paragraphs[].style.defaultText.bold",
+      "behavior": "partial",
+      "sourceBound": "Ordinary text/shape owners issue the specific setTextParagraphStyle field for direct paragraph default bold. Explicit true/false, omission and restoration retain native presence.",
+      "reason": "Fixed paragraph/run topology is preserved. Removing a bold-only defaultText wrapper clears the modeled default bold while retaining other defaults, direct runs and unknown native state. Missing field authority and unrelated defaultText changes fail closed. PpjTextBodyPropertyLifecycleTests verifies source XML/ZIP preservation; placeholder inheritance, table paragraph defaults and host reflow retain their separate boundaries."
+    },
+    {
       "feature": "source-bound paragraph tab stops",
       "ppjPath": "pages[].elements[].text.paragraphs[].style.tabStops and noTabStops",
       "behavior": "partial",

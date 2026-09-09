@@ -109,6 +109,20 @@ internal static class PptxDefaultRunStyleCodec
             properties = new A.DefaultRunProperties();
             target.AddChild(properties, true);
         }
+        var imported = new PresentationTextParagraph();
+        Read(imported, target);
+        var beforeWithoutBold = imported.DefaultRunProperties?.Clone() ?? new PresentationTextStyle();
+        var afterWithoutBold = source.DefaultRunProperties.Clone();
+        beforeWithoutBold.ClearBold();
+        afterWithoutBold.ClearBold();
+        if (beforeWithoutBold.Equals(afterWithoutBold))
+        {
+            // A default-bold edit must not rebuild unrelated font/fill/effect
+            // children, including modeled siblings with stricter write profiles.
+            properties.Bold = source.DefaultRunProperties.HasBold ? source.DefaultRunProperties.Bold : null;
+            RemoveIfEmpty(properties);
+            return;
+        }
         ApplyStyle(properties, source.DefaultRunProperties);
     }
 
@@ -181,7 +195,7 @@ internal static class PptxDefaultRunStyleCodec
             throw Invalid("Presentation default-run color opacity must be at most 100000 thousandths of a percent.");
     }
 
-    private static bool HasFields(PresentationTextStyle style) =>
+    internal static bool HasFields(PresentationTextStyle style) =>
         style.HasBold || style.HasItalic || style.HasFontSizePoints || style.HasFontFamily || style.HasFontFamilyEastAsia || style.HasFontFamilyComplexScript ||
         style.HasFontKerningPoints || style.HasFontBaselinePercent || style.HasFontSpacingPoints || style.HasFontCaps || style.HasLanguage || style.HighlightCase != PresentationTextStyle.HighlightOneofCase.None || style.ColorCase != PresentationTextStyle.ColorOneofCase.None || style.GradientFill is not null || style.Shadow is not null || style.Glow is not null || style.InnerShadow is not null || style.Reflection is not null || style.SoftEdge is not null || style.HasColorOpacityThousandthPercent || style.HasUnderline || style.HasStrike;
 

@@ -60,6 +60,8 @@ const falseParagraphSpacingText = assessPpjPreviewInput(deck([{ ...text, style: 
 assert.ok(falseParagraphSpacingText.diagnostics.some(d => d.path.endsWith(".style.spaceFirstLastParagraph") && d.status !== "supported"));
 const falseCompatibleSpacingText = assessPpjPreviewInput(deck([{ ...text, style: { compatibleLineSpacing: false } }]));
 assert.ok(falseCompatibleSpacingText.diagnostics.some(d => d.path.endsWith(".style.compatibleLineSpacing") && d.status !== "supported"));
+const paragraphDefaultBold = assessPpjPreviewInput(deck([{ ...text, text: { paragraphs: [{ style: { defaultText: { bold: false } }, runs: [{ text: "Default bold" }] }] } }]));
+assert.ok(paragraphDefaultBold.diagnostics.some(d => d.path.endsWith(".style.defaultText.bold") && d.status !== "supported"));
 const explicitNoWarp = assessPpjPreviewInput(deck([{ ...text, style: { textWarpPreset: "textNoShape", textWarpAdjustments: [] } }]));
 assert.ok(explicitNoWarp.diagnostics.some(d => d.path.endsWith(".style.textWarpPreset") && d.status !== "supported"));
 const zeroFlatText = assessPpjPreviewInput(deck([{ ...text, style: { flatTextZ: 0 } }]));

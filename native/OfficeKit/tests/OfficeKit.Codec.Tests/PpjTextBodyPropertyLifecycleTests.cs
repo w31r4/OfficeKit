@@ -13,6 +13,84 @@ namespace OfficeKit.Codec.Tests;
 public sealed class PpjTextBodyPropertyLifecycleTests
 {
     [Theory]
+    [InlineData("text", false)]
+    [InlineData("text", true)]
+    [InlineData("shape", false)]
+    [InlineData("shape", true)]
+    public void ParagraphDefaultBoldPresencePreservesOtherState(string kind, bool otherDefaults)
+    {
+        var program = Program(kind);
+        var defaults = new JsonObject { ["bold"] = true };
+        if (otherDefaults)
+        {
+            defaults["italic"] = true; defaults["size"] = 18; defaults["fontFamily"] = "Arial";
+            defaults["softEdge"] = new JsonObject { ["radius"] = 2 };
+        }
+        var paragraphStyle = new JsonObject { ["defaultText"] = defaults };
+        if (otherDefaults) { paragraphStyle["alignment"] = "center"; paragraphStyle["spaceBefore"] = 7; }
+        program["pages"]![0]!["elements"]![0]!["text"] = new JsonObject
+        {
+            ["paragraphs"] = new JsonArray(
+                new JsonObject { ["style"] = paragraphStyle, ["runs"] = new JsonArray(
+                    new JsonObject { ["text"] = "Retain ", ["style"] = new JsonObject { ["bold"] = false } },
+                    new JsonObject { ["text"] = "these runs", ["style"] = new JsonObject { ["italic"] = false } }) },
+                new JsonObject { ["style"] = new JsonObject { ["defaultText"] = new JsonObject { ["bold"] = false } },
+                    ["runs"] = new JsonArray(new JsonObject { ["text"] = "Second paragraph" }) })
+        };
+        var authored = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
+        using var stream = new MemoryStream(); stream.Write(authored);
+        using (var doc = PresentationDocument.Open(stream, true))
+            Owner(doc, kind).Descendants<A.DefaultRunProperties>().First().Dirty = false;
+        var source = stream.ToArray(); var original = source.ToArray();
+        var projected = Project(source);
+        Assert.Equal(source, Compile(projected, source).File.ToByteArray());
+        Assert.True(ParagraphDefaultBold(source, kind));
+        foreach (var mode in otherDefaults ? new[] { "field" } : new[] { "field", "defaultText", "style" })
+        {
+            var request = Project(source); var paragraph = FirstTextParagraph(request);
+            if (mode == "field") paragraph["style"]!["defaultText"]!.AsObject().Remove("bold");
+            else if (mode == "defaultText") paragraph["style"]!.AsObject().Remove("defaultText");
+            else paragraph.Remove("style");
+            var deleted = Compile(request, source).File.ToByteArray();
+            Assert.Null(ParagraphDefaultBold(deleted, kind));
+            Assert.Null(FirstTextParagraph(Project(deleted))["style"]?["defaultText"]?["bold"]);
+            AssertOnlyBodyPropertyChanged(source, deleted, kind, "paragraphDefaultBold");
+            foreach (var value in new[] { false, true })
+            {
+                var restore = Project(deleted); var restoredParagraph = FirstTextParagraph(restore);
+                restoredParagraph["style"] ??= new JsonObject();
+                restoredParagraph["style"]!["defaultText"] ??= new JsonObject();
+                restoredParagraph["style"]!["defaultText"]!["bold"] = value;
+                var restored = Compile(restore, deleted).File.ToByteArray();
+                Assert.Equal(value, ParagraphDefaultBold(restored, kind));
+                Assert.Equal(value, FirstTextParagraph(Project(restored))["style"]!["defaultText"]!["bold"]!.GetValue<bool>());
+                AssertOnlyBodyPropertyChanged(deleted, restored, kind, "paragraphDefaultBold");
+            }
+        }
+        var denied = Project(source);
+        FirstTextParagraph(denied)["style"]!["defaultText"]!["bold"] = false;
+        var capability = denied["pages"]![0]!["elements"]![0]!["nativeRef"]!["capabilities"]!.AsArray()
+            .Single(c => c!["operation"]!.GetValue<string>() == "setTextParagraphStyle")!;
+        var fields = capability["fields"]!.AsArray();
+        fields.Remove(fields.Single(f => f!.GetValue<string>() == "text.paragraphs[].style.defaultText.bold"));
+        Assert.Empty(Compile(denied, source, success: false).File);
+        var unsupported = Project(source);
+        FirstTextParagraph(unsupported)["style"]!["defaultText"]!["italic"] = false;
+        Assert.Empty(Compile(unsupported, source, success: false).File);
+        Assert.Equal(original, source);
+    }
+
+    private static JsonObject FirstTextParagraph(JsonObject program) =>
+        program["pages"]![0]!["elements"]![0]!["text"]!["paragraphs"]![0]!.AsObject();
+
+    private static bool? ParagraphDefaultBold(byte[] bytes, string kind)
+    {
+        using var document = PresentationDocument.Open(new MemoryStream(bytes), false);
+        var paragraph = Owner(document, kind).Descendants<A.Paragraph>().First();
+        return paragraph.ParagraphProperties?.GetFirstChild<A.DefaultRunProperties>()?.Bold?.Value;
+    }
+
+    [Theory]
     [InlineData("text")]
     [InlineData("shape")]
     [InlineData("master")]
@@ -980,7 +1058,22 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         using var right = PresentationDocument.Open(new MemoryStream(after), false);
         var oldSlide = Owner(left, kind);
         var newSlide = Owner(right, kind);
-        if (field == "textWarpPreset")
+        if (field == "paragraphDefaultBold")
+        {
+            foreach (var owner in new[] { oldSlide, newSlide })
+            {
+                var paragraphProperties = owner.Descendants<A.Paragraph>().First().ParagraphProperties;
+                var defaults = paragraphProperties?.GetFirstChild<A.DefaultRunProperties>();
+                if (defaults is not null)
+                {
+                    defaults.Bold = null;
+                    if (defaults.GetAttributes().Count == 0 && defaults.ChildElements.Count == 0) defaults.Remove();
+                }
+                if (paragraphProperties is not null && paragraphProperties.GetAttributes().Count == 0 && paragraphProperties.ChildElements.Count == 0)
+                    paragraphProperties.Remove();
+            }
+        }
+        else if (field == "textWarpPreset")
         {
             foreach (var child in oldSlide.Descendants<A.PresetTextWarp>().ToArray()) child.Remove();
             foreach (var child in newSlide.Descendants<A.PresetTextWarp>().ToArray()) child.Remove();

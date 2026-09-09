@@ -5529,18 +5529,21 @@ internal static partial class PpjSourceBoundPresentationCompiler
     {
         if (JsonEqual(beforeRaw, afterRaw)) return false;
         var tabStopsChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskAlignment: true),
-            MaskTextValues(afterRaw, maskAlignment: true));
+            MaskTextValues(beforeRaw, maskAlignment: true, maskDefaultBold: true),
+            MaskTextValues(afterRaw, maskAlignment: true, maskDefaultBold: true));
         var alignmentChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true),
-            MaskTextValues(afterRaw, maskTabStops: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskDefaultBold: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskDefaultBold: true));
+        var defaultBoldChanged = !JsonEqual(
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true));
         if (!JsonEqual(
-                MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true),
-                MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true)))
+                MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true),
+                MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true)))
             throw Unsupported(path, "rich-text topology or styling change");
         if (target.TextBody is null)
             throw Unsupported(path, "text edit without one imported bounded text body");
-        if (tabStopsChanged || alignmentChanged)
+        if (tabStopsChanged || alignmentChanged || defaultBoldChanged)
         {
             if (tabStopsChanged)
                 RequireCapabilityField(
@@ -5554,7 +5557,11 @@ internal static partial class PpjSourceBoundPresentationCompiler
                     "setTextParagraphStyle",
                     "text.paragraphs[].style.alignment",
                     path + ".paragraphStyle.alignment");
-            ApplyTextParagraphStyleMutation(afterRaw, target, programRoot, path);
+            if (defaultBoldChanged)
+                RequireCapabilityField(nativeRef, "setTextParagraphStyle",
+                    "text.paragraphs[].style.defaultText.bold", path + ".paragraphStyle.defaultText.bold");
+            ApplyTextParagraphStyleMutation(afterRaw, target, programRoot, path,
+                tabStopsChanged, alignmentChanged, defaultBoldChanged);
             mutations.SemanticChanges = true;
         }
 
@@ -6720,7 +6727,8 @@ internal static partial class PpjSourceBoundPresentationCompiler
     private static JsonElement MaskTextValues(
         JsonElement value,
         bool maskTabStops = false,
-        bool maskAlignment = false)
+        bool maskAlignment = false,
+        bool maskDefaultBold = false)
     {
         if (value.ValueKind == JsonValueKind.String)
         {
@@ -6740,7 +6748,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                         if (run["field"] is System.Text.Json.Nodes.JsonObject field)
                             field["text"] = string.Empty;
                     }
-                if ((maskTabStops || maskAlignment) && paragraph["style"] is System.Text.Json.Nodes.JsonObject style)
+                if ((maskTabStops || maskAlignment || maskDefaultBold) && paragraph["style"] is System.Text.Json.Nodes.JsonObject style)
                 {
                     if (maskTabStops)
                     {
@@ -6748,6 +6756,11 @@ internal static partial class PpjSourceBoundPresentationCompiler
                         style.Remove("noTabStops");
                     }
                     if (maskAlignment) style.Remove("alignment");
+                    if (maskDefaultBold && style["defaultText"] is System.Text.Json.Nodes.JsonObject defaults)
+                    {
+                        defaults.Remove("bold");
+                        if (defaults.Count == 0) style.Remove("defaultText");
+                    }
                     if (style.Count == 0) paragraph.Remove("style");
                 }
             }
@@ -6760,7 +6773,10 @@ internal static partial class PpjSourceBoundPresentationCompiler
         JsonElement afterRaw,
         PresentationShape target,
         JsonElement programRoot,
-        string path)
+        string path,
+        bool tabStopsChanged,
+        bool alignmentChanged,
+        bool defaultBoldChanged)
     {
         PresentationTextBody requested;
         try
@@ -6769,7 +6785,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
         }
         catch (CodecException error)
         {
-            throw Unsupported(path, $"paragraph tab stops contain unsupported properties ({error.Message})");
+            throw Unsupported(path, $"paragraph style contains unsupported properties ({error.Message})");
         }
         if (requested.Paragraphs.Count != target.TextBody!.Paragraphs.Count)
             throw Unsupported(path, "paragraph topology change");
@@ -6777,14 +6793,31 @@ internal static partial class PpjSourceBoundPresentationCompiler
         {
             var next = requested.Paragraphs[index];
             var current = target.TextBody.Paragraphs[index];
-            if (next.TabStops.Count == 0 && !next.HasNoTabStops && current.TabStops.Count > 0)
-                throw Unsupported(path, "removing source tab stops requires explicit noTabStops: true");
-            current.ClearAlignment();
-            if (next.HasAlignment) current.Alignment = next.Alignment;
-            current.TabStops.Clear();
-            current.TabStops.Add(next.TabStops);
-            current.ClearNoTabStops();
-            if (next.HasNoTabStops && next.NoTabStops) current.NoTabStops = true;
+            if (alignmentChanged)
+            {
+                current.ClearAlignment();
+                if (next.HasAlignment) current.Alignment = next.Alignment;
+            }
+            if (tabStopsChanged)
+            {
+                if (next.TabStops.Count == 0 && !next.HasNoTabStops && current.TabStops.Count > 0)
+                    throw Unsupported(path, "removing source tab stops requires explicit noTabStops: true");
+                current.TabStops.Clear();
+                current.TabStops.Add(next.TabStops);
+                current.ClearNoTabStops();
+                if (next.HasNoTabStops && next.NoTabStops) current.NoTabStops = true;
+            }
+            if (defaultBoldChanged)
+            {
+                var defaults = current.DefaultRunProperties?.Clone() ?? new PresentationTextStyle();
+                defaults.ClearBold();
+                if (next.DefaultRunProperties is { HasBold: true } nextDefaults)
+                    defaults.Bold = nextDefaults.Bold;
+                if (PptxDefaultRunStyleCodec.HasFields(defaults))
+                    current.DefaultRunProperties = defaults;
+                else if (current.DefaultRunStyleCase != PresentationTextParagraph.DefaultRunStyleOneofCase.None)
+                    current.NoDefaultRunProperties = true;
+            }
         }
     }
 

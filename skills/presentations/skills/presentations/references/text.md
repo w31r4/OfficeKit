@@ -32,6 +32,14 @@ Simple PPJ text is a string. Mixed formatting uses `paragraphs[]` and `runs[]`.
 Do not put Markdown, HTML, CSS, or invented inline markup into a text string.
 Assign language and font roles explicitly for mixed-script runs.
 
+For an ordinary imported text box or shape,
+`text.paragraphs[].style.defaultText.bold` edits the paragraph default.
+True and false remain explicit; delete the field (or its bold-only
+`defaultText` object) to clear the direct default. Restore it by setting the
+boolean again. Use the issued `setTextParagraphStyle` field authority;
+other defaults, direct run styles and placeholder inheritance are separate.
+
+
 `textWarpPreset`, `textWarpAdjustments`, `flatTextZ`, `fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.
 Explicit `true`/`false` for upright and signed degrees/zero for rotation retain

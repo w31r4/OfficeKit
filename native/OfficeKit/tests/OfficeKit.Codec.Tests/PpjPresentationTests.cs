@@ -971,12 +971,13 @@ public sealed partial class PptxCodecTests
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
         }
 
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
         var projected = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
             Operation = CodecOperation.ProjectPptxToPpj,
             Family = ArtifactFamily.Presentation,
-            File = ByteString.CopyFrom(RemoveEmbeddedPpj(authored.File.ToByteArray())),
+            File = ByteString.CopyFrom(source),
             PresentationProgram = new PresentationProgramRequest
             {
                 SourceUri = "deck.assets/source/tab-stops.pptx",
@@ -1002,7 +1003,7 @@ public sealed partial class PptxCodecTests
             ProtocolVersion = CodecProtocol.ProtocolVersion,
             Operation = CodecOperation.CompilePpjToPptx,
             Family = ArtifactFamily.Presentation,
-            File = ByteString.CopyFrom(RemoveEmbeddedPpj(authored.File.ToByteArray())),
+            File = ByteString.CopyFrom(source),
             PresentationProgram = new PresentationProgramRequest
             {
                 ProgramJson = ByteString.CopyFromUtf8(state.ToJsonString()),

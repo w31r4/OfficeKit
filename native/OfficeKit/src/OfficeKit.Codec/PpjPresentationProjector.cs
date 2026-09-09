@@ -2951,6 +2951,7 @@ internal static partial class PpjPresentationProjector
                         output.Add(new("setTextParagraphStyle", [
                             "text.paragraphs[].style.alignment",
                             "text.paragraphs[].style.tabStops",
+                            "text.paragraphs[].style.defaultText.bold",
                         ]));
                         if (PptxBodyPropertiesCodec.SupportsBoundedDirectLayout(element.Shape.TextBody?.BodyProperties))
                         {

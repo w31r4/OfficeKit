@@ -463,6 +463,17 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**段落默认粗体增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.defaultText.bold` 支持 true、false、删除和恢复，
+也支持删除仅含 bold 的包装对象；要求对应的 `setTextParagraphStyle` 字段权限。
+仅粗体变化时只更新直接 `a:defRPr/@b`，保留其它默认样式、soft-edge、run 直接样式、
+原生 dirty 属性和非目标 XML/ZIP。专项 5/5，相关 151/151，0 跳过。
+旧的 `ParagraphDefaultRunPropertiesAuthorImportEditAndDeleteWhilePreservingUnknownStyle`
+在干净基线 `bbc1065b` 仍有写后语义不匹配，已单独记录并排除在 151 项之外。
+tab-stop 测试改为复用同一份来源字节，避免重复打包的哈希漂移。资料与 OpenSpec
+检查通过；复用现有协议，未重建 NativeAOT，其它默认样式字段及继承仍待逐项处理。
+
+
 **文字变形删除增量（2026-09-10）：** `textWarpPreset` 与
 `textWarpAdjustments` 支持删除和恢复。保留 preset 时，删除或清空参数数组
 只清除直接参数；删除 preset 时须同时清除依赖参数。`textNoShape` 保持显式值，
