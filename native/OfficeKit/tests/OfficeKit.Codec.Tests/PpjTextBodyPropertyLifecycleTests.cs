@@ -18,6 +18,76 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [InlineData("master")]
     [InlineData("layout")]
     [InlineData("table")]
+    public void ColumnDirectionSourceRemovalAndRestorationPreserveOtherState(string kind)
+    {
+        var program = Program(kind); Style(program, kind)["columnDirection"] = "right-to-left";
+        var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
+        var original = source.ToArray();
+        var request = Project(source);
+        Assert.Equal("right-to-left", Style(request, kind)["columnDirection"]!.GetValue<string>());
+        Assert.Equal(source, Compile(request, source).File.ToByteArray());
+        Assert.True(Body(source, kind).RightToLeftColumns!.Value);
+        Style(request, kind).Remove("columnDirection");
+        var deleted = Compile(request, source).File.ToByteArray();
+        Assert.Null(Body(deleted, kind).RightToLeftColumns);
+        Assert.False(Style(Project(deleted), kind).ContainsKey("columnDirection"));
+        AssertOnlyBodyPropertyChanged(source, deleted, kind, "columnDirection");
+        foreach (var value in new[] { "left-to-right", "right-to-left" })
+        {
+            var restore = Project(deleted);
+            Style(restore, kind)["columnDirection"] = value;
+            var restored = Compile(restore, deleted).File.ToByteArray();
+            Assert.Equal(value == "right-to-left", Body(restored, kind).RightToLeftColumns!.Value);
+            Assert.Equal(value, Style(Project(restored), kind)["columnDirection"]!.GetValue<string>());
+            AssertOnlyBodyPropertyChanged(deleted, restored, kind, "columnDirection");
+            var removeAgain = Project(restored);
+            Style(removeAgain, kind).Remove("columnDirection");
+            Assert.Null(Body(Compile(removeAgain, restored).File.ToByteArray(), kind).RightToLeftColumns);
+        }
+        Assert.Equal(original, source);
+    }
+
+    [Theory]
+    [InlineData("shape")]
+    [InlineData("table")]
+    public void ColumnDirectionOnlyAndCombinedRemovableStylesPreservePresence(string kind)
+    {
+        foreach (var withUpright in new[] { false, true })
+        {
+            var program = Program(kind); var style = Style(program, kind);
+            style.Clear(); style["columnDirection"] = "right-to-left";
+            if (withUpright) { style["upright"] = false; style["rotation"] = 12; }
+            var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
+            var request = Project(source);
+            var owner = (kind == "shape" ? request["pages"]![0]!["elements"]![0] :
+                request["pages"]![0]!["elements"]![0]!["rows"]![0]!["cells"]![0]!["text"])!.AsObject();
+            owner.Remove(kind == "shape" ? "textStyle" : "style");
+            var deleted = Compile(request, source).File.ToByteArray();
+            Assert.Null(Body(deleted, kind).RightToLeftColumns);
+            Assert.Null(Body(deleted, kind).UpRight);
+            Assert.Null(Body(deleted, kind).Rotation);
+            if (!withUpright) AssertOnlyBodyPropertyChanged(source, deleted, kind, "columnDirection");
+            var restore = Project(deleted);
+            var element = restore["pages"]![0]!["elements"]![0]!;
+            if (kind == "shape") element["textStyle"] = new JsonObject { ["columnDirection"] = "left-to-right" };
+            else element["rows"]![0]!["cells"]![0]!["text"] = new JsonObject
+            {
+                ["style"] = new JsonObject { ["columnDirection"] = "left-to-right" },
+                ["paragraphs"] = new JsonArray(new JsonObject { ["runs"] = new JsonArray(new JsonObject { ["text"] = "Retain this text" }) }),
+            };
+            var restored = Compile(restore, deleted).File.ToByteArray();
+            Assert.False(Body(restored, kind).RightToLeftColumns!.Value);
+            Assert.Equal("left-to-right", Style(Project(restored), kind)["columnDirection"]!.GetValue<string>());
+            AssertOnlyBodyPropertyChanged(deleted, restored, kind, "columnDirection");
+        }
+    }
+
+    [Theory]
+    [InlineData("shape")]
+    [InlineData("text")]
+    [InlineData("master")]
+    [InlineData("layout")]
+    [InlineData("table")]
     public void RotationSourceRemovalAndRestorationPreserveOtherState(string kind)
     {
         var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(Program(kind)).File.ToByteArray());
@@ -238,7 +308,12 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         using var right = PresentationDocument.Open(new MemoryStream(after), false);
         var oldSlide = Owner(left, kind);
         var newSlide = Owner(right, kind);
-        if (field == "rotation")
+        if (field == "columnDirection")
+        {
+            Assert.Single(oldSlide.Descendants<A.BodyProperties>()).RightToLeftColumns = null;
+            Assert.Single(newSlide.Descendants<A.BodyProperties>()).RightToLeftColumns = null;
+        }
+        else if (field == "rotation")
         {
             Assert.Single(oldSlide.Descendants<A.BodyProperties>()).Rotation = null;
             Assert.Single(newSlide.Descendants<A.BodyProperties>()).Rotation = null;

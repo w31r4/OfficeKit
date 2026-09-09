@@ -274,6 +274,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             if (requested.ColumnDirectionCase == PresentationTextBodyProperties.ColumnDirectionOneofCase.RightToLeftColumns)
                 current.RightToLeftColumns = requested.RightToLeftColumns;
         }
+        else if (previousStyle is { ValueKind: JsonValueKind.Object } previousDirection && previousDirection.TryGetProperty("columnDirection", out _))
+            current.NoColumnDirection = true;
         if (style.TryGetProperty("verticalText", out _))
         {
             current.ClearVerticalText();
