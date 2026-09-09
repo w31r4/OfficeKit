@@ -41,6 +41,10 @@ const extrusionShape = assessPpjPreviewInput(deck([{ type: "shape", id: "extrusi
   geometry: { kind: "custom", viewBox: frame, paths: [{ extrusionOk: false, commands: [{ op: "moveTo", x: 0, y: 0 }] }] } }]));
 assert.ok(extrusionShape.diagnostics.some(d => d.path.endsWith(".geometry.paths[0].extrusionOk") && d.status !== "supported"));
 
+const siteShape = assessPpjPreviewInput(deck([{ type: "shape", id: "site", frame,
+  geometry: { kind: "custom", viewBox: frame, paths: [], connectionSites: [{ angle: 90, x: "hc", y: 10 }] } }]));
+assert.ok(siteShape.diagnostics.some(d => d.path.includes(".geometry.connectionSites[0]") && d.status !== "supported"));
+
 const repeated = { pages: [{ id: "p1", elements: [text] }, { id: "p2", elements: [text] }] };
 const diagnostics = assessPpjPreviewInput(repeated).diagnostics.filter((d) => d.path.endsWith(".text") && d.reason === "preview.text.unassessed");
 assert.deepEqual(diagnostics.map((d) => d.pageId).sort(), ["p1", "p2"]);

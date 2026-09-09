@@ -3629,6 +3629,24 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (!geometry.TryGetProperty("viewBox", out var viewBox) ||
             !geometry.TryGetProperty("paths", out var paths))
             throw Unsupported(elementId, "custom geometry has no compiler-owned path graph");
+        if (geometry.TryGetProperty("connectionSites", out var sites))
+        {
+            if (!allowShapeGraph) throw Unsupported(elementId, "connection sites belong to custom shapes, not masks or clips");
+            foreach (var source in sites.EnumerateArray())
+            {
+                var site = new PresentationCustomGeometryConnectionSite();
+                var angle = source.GetProperty("angle");
+                var x = source.GetProperty("x");
+                var y = source.GetProperty("y");
+                if (angle.ValueKind == JsonValueKind.String) site.AngleReference = angle.GetString()!;
+                else site.Angle60000 = Angle(angle.GetDouble());
+                if (x.ValueKind == JsonValueKind.String) site.XReference = x.GetString()!;
+                else site.XEmu = Emu(x.GetDouble());
+                if (y.ValueKind == JsonValueKind.String) site.YReference = y.GetString()!;
+                else site.YEmu = Emu(y.GetDouble());
+                target.CustomConnectionSites.Add(site);
+            }
+        }
         if (geometry.TryGetProperty("adjustments", out var adjustments))
         {
             if (!allowShapeGraph) throw Unsupported(elementId, "custom adjustment formulas belong to shapes, not masks or clips");

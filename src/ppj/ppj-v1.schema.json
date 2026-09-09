@@ -1969,6 +1969,7 @@
               "geometry.paths",
               "geometry.textRectangle",
               "geometry.guides",
+              "geometry.connectionSites",
               "canvas.width",
               "canvas.height",
               "pageOrder",
@@ -4225,6 +4226,58 @@
             },
             "viewBox": {
               "$ref": "#/$defs/frame"
+            },
+            "connectionSites": {
+              "type": "array",
+              "maxItems": 1024,
+              "description": "Ordered custom-shape sites. Numbers use local points (x/y) and degrees (angle); strings reference native built-ins or declared adjustments/guides. Source edits retain list length and index identity.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "angle",
+                  "x",
+                  "y"
+                ],
+                "properties": {
+                  "angle": {
+                    "oneOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      }
+                    ]
+                  },
+                  "x": {
+                    "oneOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      }
+                    ]
+                  },
+                  "y": {
+                    "oneOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      }
+                    ]
+                  }
+                }
+              }
             },
             "adjustments": {
               "type": "array",

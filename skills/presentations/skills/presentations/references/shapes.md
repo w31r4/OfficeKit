@@ -77,9 +77,9 @@ it, and coordinate edits retain it. This native eligibility flag supplies no
 3-D depth/material; preview reports the unrendered field explicitly.
 
 An imported literal custom geometry (paths with literal coordinates, without
-handles or connection sites) may issue `setGeometry`
+handles) may issue `setGeometry`
 for `geometry.paths`, `geometry.textRectangle`, `geometry.guides` and
-`geometry.adjustments`. These fields can be edited
+`geometry.adjustments` and `geometry.connectionSites`. These fields can be edited
 independently in the existing SlidePart; unsupported or extension-bearing custom
 geometry remains source-owned.
 
@@ -112,7 +112,7 @@ references. Source `setGeometry` can edit the list, add entries or remove it;
 remove dependent rectangle references in the same request. Empty/omitted lists
 project as absence; formula whitespace may normalize. Native private numeric
 rectangle scaling guides are not user guides. Reference-backed paths and
-custom handle/site graphs remain source-owned. These shape guides
+custom handle graphs remain source-owned. These shape guides
 are rejected on masks/clips, and preview retains explicit limitations.
 
 For `kind: "custom"`, `geometry.adjustments` uses the same `{name, formula}`
@@ -124,6 +124,17 @@ coordinate value (10pt) that a later guide may reference. Names share one
 namespace across both lists. Source `setGeometry` supports addition, changes
 and coordinated removal; retained references must still resolve. Empty lists
 project as omission. `kind: "preset"` keeps its integer adjustment array.
+
+Custom shapes also accept `geometry.connectionSites`, an ordered list of up to
+1024 `{angle, x, y}` records. Numbers are degrees and shape-local points (not
+path viewBox coordinates); strings retain built-in/adjustment/guide references.
+For example, `{ "angle": "cd4", "x": "hc", "y": 10 }` uses the native quarter
+turn and horizontal center with a literal vertical position. Resolved positions
+must lie inside the shape and angles within one signed turn. Empty authored
+lists project as omission. Source `setGeometry` can change values at existing
+indexes; adding/removing sites rejects because native connectors use indexes as
+identity. Masks/clips reject this shape graph. Preview reports unrendered site
+semantics explicitly; host snapping/dragging is unverified.
 
 The same preset profile can clip an image. `image.mask.adjustments` uses the
 identical parameter order and defaults; see [Media and layers](media-and-layers.md#image-masks).

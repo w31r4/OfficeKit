@@ -230,6 +230,65 @@ public sealed class PpjCustomGeometryTextRectangleTests
         Assert.Empty(Compile(invalid, null, false).File);
     }
 
+    [Fact]
+    public void CustomGeometryConnectionSitesPreserveReferencesAndSourceIdentity()
+    {
+        var program = Program();
+        var geometry = Element(program)["geometry"]!.AsObject();
+        geometry["adjustments"] = JsonNode.Parse("""[{"name":"inset","formula":"val 127000"}]""");
+        geometry["guides"] = JsonNode.Parse("""[{"name":"siteX","formula":"val inset"}]""");
+        geometry["connectionSites"] = JsonNode.Parse("""[{"angle":90,"x":10,"y":"vc"},{"angle":"cd2","x":"siteX","y":20}]""");
+        var authored = Compile(program);
+        var sites = authored.PresentationProgram.PreviewScene.Presentation.Slides[0].Elements[0].Shape.CustomConnectionSites;
+        Assert.Equal(2, sites.Count);
+        Assert.Equal(5_400_000, sites[0].Angle60000);
+        Assert.Equal(127_000, sites[0].XEmu);
+        Assert.Equal("vc", sites[0].YReference);
+        Assert.Equal("siteX", sites[1].XReference);
+        var source = PptxCodecTests.RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var original = source.ToArray();
+        var projected = Project(source);
+        Assert.True(JsonNode.DeepEquals(geometry, Element(projected)["geometry"]));
+        Assert.Equal(source, Compile(projected, source).File.ToByteArray());
+        foreach (var field in new[] { "angle", "x", "y" })
+        {
+            var request = Project(source);
+            request["pages"]![0]!["elements"]![0]!["geometry"]!["connectionSites"]![0]![field] = field == "angle" ? JsonValue.Create("cd4") : JsonValue.Create(30);
+            var candidate = Compile(request, source).File.ToByteArray();
+            var fresh = Element(Project(candidate));
+            Assert.True(JsonNode.DeepEquals(Element(request)["geometry"], fresh["geometry"]));
+            foreach (var retained in new[] { "text", "frame" }) Assert.True(JsonNode.DeepEquals(Element(request)[retained], fresh[retained]));
+            Assert.Equal(PathXml(source), PathXml(candidate));
+            AssertSlideOnly(source, candidate);
+        }
+        foreach (var mode in new[] { "remove", "add", "reference", "bounds", "angle", "denied" })
+        {
+            var request = Project(source);
+            var requested = Element(request)["geometry"]!.AsObject();
+            if (mode == "remove") requested.Remove("connectionSites");
+            else if (mode == "add") requested["connectionSites"]!.AsArray().Add(requested["connectionSites"]![0]!.DeepClone());
+            else if (mode == "reference") requested["connectionSites"]![0]!["x"] = "missing";
+            else if (mode == "bounds") requested["connectionSites"]![0]!["x"] = 201;
+            else if (mode == "angle") requested["connectionSites"]![0]!["angle"] = 361;
+            else
+            {
+                requested["connectionSites"]![0]!["x"] = 30;
+                foreach (var capability in Element(request)["nativeRef"]!["capabilities"]!.AsArray())
+                    if (capability!["operation"]?.GetValue<string>() == "setGeometry")
+                    {
+                        var fields = capability["fields"]!.AsArray();
+                        fields.Remove(fields.Single(f => f!.GetValue<string>() == "geometry.connectionSites"));
+                    }
+            }
+            Assert.Empty(Compile(request, source, false).File);
+        }
+        Assert.Throws<CodecException>(() => PpjAuthoredPresentationCompiler.ApplyCustomGeometry(new PresentationShape(),
+            JsonSerializer.SerializeToElement(geometry), "mask"));
+        geometry["connectionSites"] = new JsonArray();
+        Assert.Null(Element(Project(PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray())))["geometry"]!["connectionSites"]);
+        Assert.Equal(original, source);
+    }
+
     private static JsonObject Program()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

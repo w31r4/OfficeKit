@@ -829,7 +829,7 @@ internal static partial class PpjPresentationProjector
     private static bool CanProjectCustomGeometry(PresentationShape shape)
     {
         if (shape.Geometry != "custom" || shape.CustomPaths.Count == 0 ||
-            shape.CustomConnectionSites.Count > 0 || shape.CustomAdjustmentHandles.Count > 0)
+            shape.CustomAdjustmentHandles.Count > 0)
             return false;
         var width = shape.CustomPaths[0].Width;
         var height = shape.CustomPaths[0].Height;
@@ -884,6 +884,13 @@ internal static partial class PpjPresentationProjector
             },
             ["paths"] = paths,
         };
+        if (shape.CustomConnectionSites.Count > 0)
+            output["connectionSites"] = new JsonArray(shape.CustomConnectionSites.Select(site => (JsonNode)new JsonObject
+            {
+                ["angle"] = site.HasAngleReference ? JsonValue.Create(site.AngleReference) : JsonValue.Create(site.Angle60000 / 60_000d),
+                ["x"] = site.HasXReference ? JsonValue.Create(site.XReference) : JsonValue.Create(site.XEmu / 12_700d),
+                ["y"] = site.HasYReference ? JsonValue.Create(site.YReference) : JsonValue.Create(site.YEmu / 12_700d),
+            }).ToArray());
         if (shape.CustomAdjustments.Count > 0)
             output["adjustments"] = new JsonArray(shape.CustomAdjustments.Select(adjustment => (JsonNode)new JsonObject
             {
@@ -2966,7 +2973,7 @@ internal static partial class PpjPresentationProjector
                     else if (element.Shape.Placeholder is null &&
                              element.Shape.Geometry == "custom" &&
                              CanProjectCustomGeometry(element.Shape))
-                        output.Add(new("setGeometry", ["geometry.paths", "geometry.textRectangle", "geometry.guides", "geometry.adjustments"]));
+                        output.Add(new("setGeometry", ["geometry.paths", "geometry.textRectangle", "geometry.guides", "geometry.adjustments", "geometry.connectionSites"]));
                 }
                 break;
             case PresentationElement.ContentOneofCase.Image when source.Editable:
