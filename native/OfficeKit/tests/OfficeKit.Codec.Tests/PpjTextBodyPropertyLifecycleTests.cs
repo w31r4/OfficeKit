@@ -12,6 +12,42 @@ namespace OfficeKit.Codec.Tests;
 
 public sealed class PpjTextBodyPropertyLifecycleTests
 {
+    [Fact]
+    public void FlatTextDepthDeletionWireAndNativeGuards()
+    {
+        var remove = new PresentationTextBodyProperties { NoFlatTextZ = true };
+        Assert.Equal(new byte[] { 232, 2, 1 }, remove.ToByteArray());
+        remove = PresentationTextBodyProperties.Parser.ParseFrom(remove.ToByteArray());
+        Assert.True(remove.HasNoFlatTextZ); Assert.True(remove.NoFlatTextZ); Assert.False(remove.HasFlatTextZ);
+        Assert.Equal(new byte[] { 184, 2, 0 }, new PresentationTextBodyProperties { FlatTextZ = 0 }.ToByteArray());
+        var body = new PresentationTextBody { BodyProperties = remove };
+        PptxBodyPropertiesCodec.Validate(body);
+        foreach (var invalid in new[] {
+            new PresentationTextBodyProperties { NoFlatTextZ = false },
+            new PresentationTextBodyProperties { NoFlatTextZ = true, FlatTextZ = 0 },
+            new PresentationTextBodyProperties { NoFlatTextZ = true, FlatTextZ = -1 } })
+        {
+            Assert.Throws<CodecException>(() => PptxBodyPropertiesCodec.Validate(new PresentationTextBody { BodyProperties = invalid }));
+            Assert.False(PptxBodyPropertiesCodec.SupportsBoundedDirectLayout(invalid));
+        }
+        var canonical = new DocumentFormat.OpenXml.Presentation.TextBody(new A.BodyProperties(new A.FlatText { Z = 0 }));
+        PptxBodyPropertiesCodec.Apply(canonical, body);
+        Assert.Empty(canonical.GetFirstChild<A.BodyProperties>()!.ChildElements);
+        foreach (var xml in new[] {
+            """<a:flatTx z="0"/><a:flatTx z="1"/>""",
+            """<a:flatTx/>""",
+            """<a:flatTx z="01"/>""",
+            """<a:flatTx z="2147483648"/>""",
+            """<a:flatTx z="0" unknown="1"/>""",
+            """<a:flatTx z="0"><a:extLst/></a:flatTx>""" })
+        {
+            var properties = new A.BodyProperties("""<a:bodyPr xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">""" + xml + "</a:bodyPr>");
+            var native = new DocumentFormat.OpenXml.Presentation.TextBody(properties);
+            Assert.True(Record.Exception(() => PptxBodyPropertiesCodec.Apply(native, body)) is CodecException, xml);
+            Assert.NotEmpty(native.Descendants<A.FlatText>());
+        }
+    }
+
     [Theory]
     [InlineData(32, 40)]
     [InlineData(33, 41)]
@@ -166,40 +202,46 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [Theory]
     [InlineData("shape", "columnGap")]
     [InlineData("shape", "columns")]
+    [InlineData("shape", "flatTextZ")]
     [InlineData("text", "columnGap")]
     [InlineData("text", "columns")]
+    [InlineData("text", "flatTextZ")]
     [InlineData("master", "columnGap")]
     [InlineData("master", "columns")]
+    [InlineData("master", "flatTextZ")]
     [InlineData("layout", "columnGap")]
     [InlineData("layout", "columns")]
+    [InlineData("layout", "flatTextZ")]
     [InlineData("table", "columnGap")]
     [InlineData("table", "columns")]
-    public void NumericColumnPropertySourceRemovalAndRestorationPreserveOtherState(string kind, string field)
+    [InlineData("table", "flatTextZ")]
+    public void NumericBodyPropertySourceRemovalAndRestorationPreserveOtherState(string kind, string field)
     {
         var program = Program(kind); var style = Style(program, kind);
         style["columnGap"] = 12.5; style["columns"] = 3; style["columnDirection"] = "right-to-left";
+        if (field == "flatTextZ") { style[field] = -42; style["textWarpPreset"] = "textArchUp"; }
         var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
         var original = source.ToArray();
         var request = Project(source);
-        Assert.Equal(field == "columns" ? 3 : 12.5, Style(request, kind)[field]!.GetValue<double>());
+        Assert.Equal(field == "flatTextZ" ? -42 : field == "columns" ? 3 : 12.5, Style(request, kind)[field]!.GetValue<double>());
         Assert.Equal(source, Compile(request, source).File.ToByteArray());
-        Assert.Equal(field == "columns" ? 3 : 158750, NumericColumnProperty(source, kind, field));
+        Assert.Equal(field == "flatTextZ" ? -42 : field == "columns" ? 3 : 158750, NumericBodyProperty(source, kind, field));
         Style(request, kind).Remove(field);
         var deleted = Compile(request, source).File.ToByteArray();
-        Assert.Null(NumericColumnProperty(deleted, kind, field));
+        Assert.Null(NumericBodyProperty(deleted, kind, field));
         Assert.False(Style(Project(deleted), kind).ContainsKey(field));
         AssertOnlyBodyPropertyChanged(source, deleted, kind, field);
-        foreach (var value in field == "columns" ? new[] { 1d, 3d, 16d } : new[] { 0d, 12.5d, 10000d })
+        foreach (var value in field == "flatTextZ" ? new[] { (double)int.MinValue, -42d, 0d, (double)int.MaxValue } : field == "columns" ? new[] { 1d, 3d, 16d } : new[] { 0d, 12.5d, 10000d })
         {
             var restore = Project(deleted);
             Style(restore, kind)[field] = value;
             var restored = Compile(restore, deleted).File.ToByteArray();
-            Assert.Equal(checked((int)(value * (field == "columns" ? 1 : 12700))), NumericColumnProperty(restored, kind, field));
+            Assert.Equal(checked((int)(value * (field == "columnGap" ? 12700 : 1))), NumericBodyProperty(restored, kind, field));
             Assert.Equal(value, Style(Project(restored), kind)[field]!.GetValue<double>());
             AssertOnlyBodyPropertyChanged(deleted, restored, kind, field);
             var removeAgain = Project(restored);
             Style(removeAgain, kind).Remove(field);
-            Assert.Null(NumericColumnProperty(Compile(removeAgain, restored).File.ToByteArray(), kind, field));
+            Assert.Null(NumericBodyProperty(Compile(removeAgain, restored).File.ToByteArray(), kind, field));
         }
         Assert.Equal(original, source);
     }
@@ -207,14 +249,16 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [Theory]
     [InlineData("shape", "columnGap")]
     [InlineData("shape", "columns")]
+    [InlineData("shape", "flatTextZ")]
     [InlineData("table", "columnGap")]
     [InlineData("table", "columns")]
-    public void NumericColumnPropertyOnlyAndCombinedRemovableStylesPreservePresence(string kind, string field)
+    [InlineData("table", "flatTextZ")]
+    public void NumericBodyPropertyOnlyAndCombinedRemovableStylesPreservePresence(string kind, string field)
     {
         foreach (var withOtherProperties in new[] { false, true })
         {
             var program = Program(kind); var style = Style(program, kind);
-            style.Clear(); style[field] = field == "columns" ? 3 : 12.5;
+            style.Clear(); style[field] = field == "flatTextZ" ? -42 : field == "columns" ? 3 : 12.5;
             if (withOtherProperties)
             {
                 style["upright"] = false; style["rotation"] = 12;
@@ -228,7 +272,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                 request["pages"]![0]!["elements"]![0]!["rows"]![0]!["cells"]![0]!["text"])!.AsObject();
             owner.Remove(kind == "shape" ? "textStyle" : "style");
             var deleted = Compile(request, source).File.ToByteArray();
-            Assert.Null(NumericColumnProperty(deleted, kind, field));
+            Assert.Null(NumericBodyProperty(deleted, kind, field));
             Assert.Null(Body(deleted, kind).UpRight);
             if (withOtherProperties)
             {
@@ -248,7 +292,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                 ["paragraphs"] = new JsonArray(new JsonObject { ["runs"] = new JsonArray(new JsonObject { ["text"] = "Retain this text" }) }),
             };
             var restored = Compile(restore, deleted).File.ToByteArray();
-            Assert.Equal(field == "columns" ? 1 : 0, NumericColumnProperty(restored, kind, field));
+            Assert.Equal(field == "columns" ? 1 : 0, NumericBodyProperty(restored, kind, field));
             Assert.Equal(field == "columns" ? 1 : 0, Style(Project(restored), kind)[field]!.GetValue<double>());
             AssertOnlyBodyPropertyChanged(deleted, restored, kind, field);
         }
@@ -460,7 +504,8 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             "right" => body.RightInset?.Value, "bottom" => body.BottomInset?.Value, _ => throw new ArgumentException(edge) };
     }
 
-    private static int? NumericColumnProperty(byte[] bytes, string kind, string field) =>
+    private static long? NumericBodyProperty(byte[] bytes, string kind, string field) =>
+        field == "flatTextZ" ? Body(bytes, kind).GetFirstChild<A.FlatText>()?.Z?.Value :
         field == "columns" ? Body(bytes, kind).ColumnCount?.Value : Body(bytes, kind).ColumnSpacing?.Value;
 
     [Theory]
@@ -578,7 +623,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         Assert.Empty(Compile(denied, source, success: false).File);
 
         var otherProgram = Program(kind);
-        Style(otherProgram, kind)["flatTextZ"] = 0;
+        Style(otherProgram, kind)["textWarpPreset"] = "textArchUp";
         var otherSource = PptxCodecTests.RemoveEmbeddedPpj(Compile(otherProgram).File.ToByteArray());
         var otherEdit = Project(otherSource);
         StyleOwner(otherEdit).Remove(kind == "shape" ? "textStyle" : "style");
@@ -848,6 +893,11 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         {
             Assert.Single(oldSlide.Descendants<A.BodyProperties>()).CompatibleLineSpacing = null;
             Assert.Single(newSlide.Descendants<A.BodyProperties>()).CompatibleLineSpacing = null;
+        }
+        else if (field == "flatTextZ")
+        {
+            foreach (var child in oldSlide.Descendants<A.FlatText>().ToArray()) child.Remove();
+            foreach (var child in newSlide.Descendants<A.FlatText>().ToArray()) child.Remove();
         }
         else if (field == "fromWordArt")
         {

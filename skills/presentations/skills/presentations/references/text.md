@@ -32,7 +32,7 @@ Simple PPJ text is a string. Mixed formatting uses `paragraphs[]` and `runs[]`.
 Do not put Markdown, HTML, CSS, or invented inline markup into a text string.
 Assign language and font roles explicitly for mixed-script runs.
 
-`fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
+`flatTextZ`, `fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.
 Explicit `true`/`false` for upright and signed degrees/zero for rotation retain
 direct native values. Column direction uses `left-to-right` (explicit native false)
@@ -72,12 +72,18 @@ actual paragraph spacing. Preview retains paragraph-layout limitations.
 The compatibility hint `compatibleLineSpacing` retains explicit true/false.
 Delete it to remove `compatLnSpc` with the updated codec while preserving
 actual paragraph line spacing. Preview retains line-layout limitations.
+Flat-text depth `flatTextZ` preserves signed 32-bit integers, including zero.
+Deleting the projected field removes canonical `a:flatTx`; restore it by setting
+a bounded integer. This needs the updated codec and preserves other source
+state. Duplicate or noncanonical children fail closed; preview does not render
+full 3D text.
+
 The source marker `fromWordArt` retains explicit true/false. Delete it to remove
 the native marker with the updated codec while preserving independent text warp.
 The marker does not establish full WordArt geometry or rendering.
 On a fresh source PPJ, delete any of these properties to remove that native attribute and
 restore inherited/default behavior. You may remove a style object containing only
-`fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and/or `verticalOverflow`. If a table cell then projects as plain text, add the
+`flatTextZ`, `fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and/or `verticalOverflow`. If a table cell then projects as plain text, add the
 body style through structured text while retaining its native paragraph/run topology.
 Keep other body properties and use the issued `setTextBodyStyle` or table-cell
 text-style capability; unsupported placeholder owners retain their source boundary.

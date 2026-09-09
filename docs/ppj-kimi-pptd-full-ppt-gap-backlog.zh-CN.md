@@ -463,6 +463,17 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**平面文字深度删除增量（2026-09-10）：** `flatTextZ` 支持显式 0、
+signed 32-bit 正负边界、删除和恢复；删除只移除 canonical `a:flatTx`，
+保留文字变形及其它 XML/ZIP 状态。普通文本、形状、母版/布局占位符和表格单元格
+共用最小回归，包含简单样式删除和表格紧凑文字恢复。
+相关原生回归 **152/152 通过，0 跳过**（SDK 8.0.128）。
+wire 保留 setter 39，新增删除字段 45；边界实验同时修正该 native leaf 的
+schema 数值范围，并补上 SDK 叶节点非法嵌套内容的拒绝检查。
+协议、资料同步、预览限制提示及 OpenSpec 检查通过；需要更新后的 codec，
+未重建 NativeAOT，未进行完整 3D 文字渲染验收。
+
+
 2026-09-10 增量：`fromWordArt` 已区分 true/false/缺失，删除只移除原生
 来源标记；`textArchUp` 文字变形及其它 XML/ZIP 内容保留。新增删除标记 44，
 旧布尔字段 36 编码不变。共享实验新增 7 个生命周期场景和 1 个协议场景，
@@ -774,6 +785,9 @@ schema、Help、registry、Skill 与预览限制已同步。完整继承和宿�
 **本轮继续拆出同一图片 owner 的 bottom bevel 枚举：** 已有 `shape3dBevelBottomPreset` 也绑定严格图片 owner 的 `p:pic/p:spPr/a:sp3d/a:bevelB/@prst`；新增 additive `PresentationImage.shape_3d_bevel_bottom_preset` source-bound 载体，`PpjSourceBoundPictureShape3dBevelBottomPresetLeafEditsAndReprojects` 验证 `angle` → `softRound` 的单 `bevelB/@prst` token splice、仅目标 SlidePart、图片关系/crop/mask/effect、bevel 尺寸与其它 3-D 状态保留、Open XML 和二次投影。未知属性、额外子节点、顶面 bevel、scene、颜色和复杂/扩展 3-D graph 仍 source-owned。
 
 ### F-06 Table、Cell Style 和 Table Layout
+
+**平面文字深度删除增量（2026-09-10）：** 表格 `text.style.flatTextZ` 的零值、正负边界、删除和恢复闭合，简单样式删除后可恢复结构化文字；见 F-03 的 152/152 证据。
+
 
 2026-09-10：`text.style.fromWordArt` 删除/布尔恢复与简单样式删除后的
 紧凑文字恢复已闭合，文字变形和固定段落结构保留；见 F-03 的 144/144。

@@ -237,7 +237,15 @@ internal static partial class PpjAuthoredPresentationCompiler
             current.TextWarpAdjustments.Add(requested.TextWarpAdjustments);
         }
         if (style.TryGetProperty("flatTextZ", out _))
+        {
+            current.ClearNoFlatTextZ();
             current.FlatTextZ = requested.FlatTextZ;
+        }
+        else if (previousStyle is { ValueKind: JsonValueKind.Object } previousFlatText && previousFlatText.TryGetProperty("flatTextZ", out _))
+        {
+            current.ClearFlatTextZ();
+            current.NoFlatTextZ = true;
+        }
         if (style.TryGetProperty("wrap", out _))
         {
             current.ClearWrapping();

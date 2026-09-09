@@ -88,6 +88,8 @@ internal static class PptxBodyPropertiesCodec
             throw Invalid("Presentation no_compatible_line_spacing must be true and cannot coexist with compatible_line_spacing.");
         if (properties.HasNoFromWordArt && (!properties.NoFromWordArt || properties.HasFromWordArt))
             throw Invalid("Presentation no_from_word_art must be true and cannot coexist with from_word_art.");
+        if (properties.HasNoFlatTextZ && (!properties.NoFlatTextZ || properties.HasFlatTextZ))
+            throw Invalid("Presentation no_flat_text_z must be true and cannot coexist with flat_text_z.");
         ValidateInset(properties.LeftInsetCase, properties.LeftInsetEmu, PresentationTextBodyProperties.LeftInsetOneofCase.LeftInsetEmu, PresentationTextBodyProperties.LeftInsetOneofCase.NoLeftInset, properties.NoLeftInset, "left");
         ValidateInset(properties.TopInsetCase, properties.TopInsetEmu, PresentationTextBodyProperties.TopInsetOneofCase.TopInsetEmu, PresentationTextBodyProperties.TopInsetOneofCase.NoTopInset, properties.NoTopInset, "top");
         ValidateInset(properties.RightInsetCase, properties.RightInsetEmu, PresentationTextBodyProperties.RightInsetOneofCase.RightInsetEmu, PresentationTextBodyProperties.RightInsetOneofCase.NoRightInset, properties.NoRightInset, "right");
@@ -147,7 +149,7 @@ internal static class PptxBodyPropertiesCodec
          source.HasNoFromWordArt ||
          source.HasTextWarpPreset ||
          source.TextWarpAdjustments.Count > 0 ||
-         source.HasFlatTextZ);
+         source.HasFlatTextZ || source.HasNoFlatTextZ);
 
     // A source-bound text-body style may expose only direct bodyPr leaves with
     // a stable PPJ textBoxStyle spelling.  The bounded profile includes the
@@ -161,6 +163,7 @@ internal static class PptxBodyPropertiesCodec
         if (source.HasNoSpaceFirstLastParagraph && (!source.NoSpaceFirstLastParagraph || source.HasSpaceFirstLastParagraph)) return false;
         if (source.HasNoCompatibleLineSpacing && (!source.NoCompatibleLineSpacing || source.HasCompatibleLineSpacing)) return false;
         if (source.HasNoFromWordArt && (!source.NoFromWordArt || source.HasFromWordArt)) return false;
+        if (source.HasNoFlatTextZ && (!source.NoFlatTextZ || source.HasFlatTextZ)) return false;
         return (source.LeftInsetCase is PresentationTextBodyProperties.LeftInsetOneofCase.None or PresentationTextBodyProperties.LeftInsetOneofCase.LeftInsetEmu ||
                 source.LeftInsetCase == PresentationTextBodyProperties.LeftInsetOneofCase.NoLeftInset && source.NoLeftInset) &&
             (source.TopInsetCase is PresentationTextBodyProperties.TopInsetOneofCase.None or PresentationTextBodyProperties.TopInsetOneofCase.TopInsetEmu ||
@@ -315,7 +318,7 @@ internal static class PptxBodyPropertiesCodec
                 native.AddChild(textWarp, true);
             }
         }
-        if (properties.HasFlatTextZ)
+        if (properties.HasFlatTextZ || properties.HasNoFlatTextZ)
         {
             var flatTexts = native.ChildElements.OfType<A.FlatText>().ToArray();
             if (flatTexts.Length > 1)
@@ -324,9 +327,10 @@ internal static class PptxBodyPropertiesCodec
             {
                 if (!TryReadFlatTextZ(flatTexts[0], out _))
                     throw Unsupported("Source-preserving PPTX export cannot replace noncanonical flat-text markup.");
-                flatTexts[0].Z = properties.FlatTextZ;
+                if (properties.HasNoFlatTextZ) flatTexts[0].Remove();
+                else flatTexts[0].Z = properties.FlatTextZ;
             }
-            else
+            else if (!properties.HasNoFlatTextZ)
             {
                 native.AddChild(new A.FlatText { Z = properties.FlatTextZ }, true);
             }
@@ -457,6 +461,9 @@ internal static class PptxBodyPropertiesCodec
     internal static bool TryReadFlatTextZ(A.FlatText source, out long value)
     {
         value = 0;
+        // FlatText is an SDK leaf: ChildElements cannot expose malformed nested
+        // markup. Inspect its preserved XML before typed attribute access parses it.
+        if (System.Xml.Linq.XElement.Parse(source.OuterXml).Nodes().Any()) return false;
         var attributes = source.GetAttributes();
         if (source.ChildElements.Count != 0 || attributes.Count != 1 ||
             attributes[0].NamespaceUri.Length != 0 || attributes[0].LocalName != "z" ||

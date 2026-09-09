@@ -2,6 +2,21 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ text-body `flatTextZ` lifecycle (2026-09-10): explicit zero, signed
+32-bit bounds and absence survive authored/source-bound export and fresh
+projection for text, shape, master/layout placeholders and table cells.
+Deleting the field removes canonical flatTx; simple body-style removal and
+compact table text restoration work. Seven shared numeric cases plus a wire
+and malformed-child guard bring the focused native selection to 152/152,
+zero skipped (SDK 8.0.128). Setter 39 is unchanged; deletion uses field 45.
+The boundary fixture exposed and fixed nativeLeaf's narrower range specifically
+for textBodyFlatTextZ. FlatText SDK leaves require a preserved-XML check to
+reject nested markup. C#/JS wire, proto:check, schema bounds, scene wire,
+preview diagnostics, generated references/matrix, portability/reference sync
+and strict OpenSpec pass. Updated codec required; no NativeAOT rebuild or
+full 3D rendering acceptance. The remaining whole-style rejection fixture
+now uses textWarpPreset.
+
 PPJ text-body `fromWordArt` lifecycle (2026-09-10): true/false and source
 absence are distinct. Deletion removes the marker while retaining textArchUp
 warp and other source XML/ZIP state. Seven shared boolean cases and one wire
