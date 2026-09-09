@@ -429,8 +429,8 @@ export function paintPpjSceneSvg(receipt) {
     if (!["column", "bar"].includes(direction)) fail("chart.barDirection", "Unknown native bar direction.");
     if (s.comboSeries.length || s.secondaryXAxis || s.secondaryYAxis || s.lineOptions)
       fail("chart", "A category bar plot cannot replace mixed/secondary-axis or line topology.");
-    const grouping = s.grouping || "none", stacked = grouping === "stacked";
-    if (!["none", "stacked"].includes(grouping)) fail("chart.grouping", "This bar grouping requires a separately verified cumulative/percentage mapping.");
+    const grouping = s.grouping || "none", percent = grouping === "percent-stacked", stacked = grouping === "stacked" || percent;
+    if (!["none", "stacked", "percent-stacked"].includes(grouping)) fail("chart.grouping", "Unknown native bar grouping.");
     const gap = s.gapWidth ?? 150, overlap = s.overlap ?? 0;
     if (!Number.isSafeInteger(gap) || gap < 0 || gap > 500) fail("chart.gapWidth", "Bar gap must be an integer in 0..500 percent.");
     if (!Number.isSafeInteger(overlap) || overlap < -100 || overlap > 100) fail("chart.overlap", "Bar overlap must be an integer in -100..100 percent.");
@@ -449,22 +449,41 @@ export function paintPpjSceneSvg(receipt) {
     // Unknown terms cannot silently become zero in a cumulative sum. Keep the
     // whole incomplete category unpositioned, with original observations below.
     const incomplete = new Set(stacked ? s.categories.flatMap((_, i) => series.some(v => v.missing.has(i)) ? [i] : []) : []);
+    const zeroTotal = new Set(), denominators = new Map();
+    if (percent) {
+      for (const { entry, missing, prefix } of series) for (const [i, value] of entry.values.entries())
+        if (!missing.has(i) && value < 0) fail(`${prefix}.values[${i}]`, "Negative percentage stacks need a verified signed-denominator policy; absolute values cannot silently replace signed observations.");
+      for (let i = 0; i < s.categories.length; i++) {
+        if (incomplete.has(i)) continue;
+        let scale = 0;
+        for (const { entry } of series) scale = Math.max(scale, entry.values[i]);
+        if (scale === 0) { zeroTotal.add(i); continue; }
+        // Scaling before addition avoids overflowing a finite set's total.
+        let total = 0;
+        for (const { entry } of series) total += entry.values[i] / scale;
+        denominators.set(i, { scale, total });
+      }
+    }
     const positive = s.categories.map(() => 0), negative = s.categories.map(() => 0);
     const segments = series.map(({ entry, missing, prefix }) => entry.values.map((value, i) => {
-      if (missing.has(i) || incomplete.has(i)) return null;
-      const totals = value < 0 ? negative : positive, start = stacked ? totals[i] : 0, end = start + value;
+      if (missing.has(i) || incomplete.has(i) || zeroTotal.has(i)) return null;
+      const denominator = denominators.get(i), display = percent ? (value / denominator.scale) / denominator.total : value;
+      const totals = value < 0 ? negative : positive, start = stacked ? totals[i] : 0, end = start + display;
       if (!Number.isFinite(end) || (value !== 0 && end === start))
         fail(`${prefix}.values[${i}]`, "Cumulative bar endpoint is not representable without losing an observation.");
       if (stacked) totals[i] = end;
-      return { start, end };
+      return { start, end, display };
     }));
     for (const i of incomplete) limit(node, "chart.series", "preview.scene.paint.chart-stack-incomplete",
       `Category ${i} (${s.categories[i]}): missing terms make the full stack unknown; values are retained but no cumulative positions are invented.`);
+    for (const i of zeroTotal) limit(node, "chart.series", "preview.scene.paint.chart-percent-zero-total",
+      `Category ${i} (${s.categories[i]}): the total is zero; observations are retained but percentages are undefined.`);
     // Both clustered and stacked domains include zero, unless explicitly bounded.
     let low = 0, high = 0;
     for (const row of segments) for (const segment of row) if (segment) {
       low = Math.min(low, segment.start, segment.end); high = Math.max(high, segment.start, segment.end);
     }
+    if (percent) { low = 0; high = 1; }
     const explicitLow = ya?.minimum !== undefined, explicitHigh = ya?.maximum !== undefined;
     if (explicitLow) low = numeric(ya.minimum);
     if (explicitHigh) high = numeric(ya.maximum);
@@ -505,7 +524,7 @@ export function paintPpjSceneSvg(receipt) {
       }
       const marks = entry.values.map((value, i) => {
         if (missing.has(i)) return `<g data-officekit-missing-point="${i}"><title>${esc(s.categories[i])}: missing observation</title></g>`;
-        if (incomplete.has(i)) return `<g data-officekit-point="${i}" data-officekit-value="${n(value)}" data-officekit-stack-position="unknown"><title>${esc(entry.name)} / ${esc(s.categories[i])}: ${n(value)}; incomplete stack, position not inferred</title></g>`;
+        if (incomplete.has(i) || zeroTotal.has(i)) return `<g data-officekit-point="${i}" data-officekit-value="${n(value)}" data-officekit-stack-position="${zeroTotal.has(i) ? "zero-total" : "unknown"}"><title>${esc(entry.name)} / ${esc(s.categories[i])}: ${n(value)}; ${zeroTotal.has(i) ? "zero total, undefined percentage" : "incomplete stack, position not inferred"}</title></g>`;
         const selected = styles.get(i), fallback = palette[(s.varyColors ? i : si) % palette.length];
         const fill = selected?.style.fill ? chartFill(node, selected.style.fill, null, fallback, `${selected.field}.fill`)
           : chartFill(node, entry.seriesFill, entry.fill, fallback, `${prefix}.${entry.fill ? "fill" : "seriesFill"}`);
@@ -523,14 +542,14 @@ export function paintPpjSceneSvg(receipt) {
           const x1 = horizontal ? baseline : catStart, y1 = horizontal ? catStart : baseline;
           geometry = `<path data-officekit-review-point="zero" d="M ${n(x1)} ${n(y1)} L ${n(horizontal ? x1 : x1 + thickness)} ${n(horizontal ? y1 + thickness : y1)}" fill="none" stroke="#64748B" stroke-dasharray="2 2"/>`;
         }
-        return `<g data-officekit-point="${i}" data-officekit-value="${n(value)}" data-officekit-baseline="${n(segment.start)}"${Math.min(segment.start, segment.end) < low || Math.max(segment.start, segment.end) > high ? ' data-officekit-point-outside-plot="true"' : ""}${stacked ? ` data-officekit-stack-end="${n(segment.end)}"` : ""}><title>${esc(entry.name)} / ${esc(s.categories[i])}: ${n(value)}</title>${geometry}</g>`;
+        return `<g data-officekit-point="${i}" data-officekit-value="${n(value)}" data-officekit-baseline="${n(segment.start)}"${Math.min(segment.start, segment.end) < low || Math.max(segment.start, segment.end) > high ? ' data-officekit-point-outside-plot="true"' : ""}${stacked ? ` data-officekit-stack-end="${n(segment.end)}"` : ""}${percent ? ` data-officekit-fraction="${n(segment.display)}"` : ""}><title>${esc(entry.name)} / ${esc(s.categories[i])}: ${n(value)}${percent ? ` (${n(segment.display * 100)}% of complete category)` : ""}</title>${geometry}</g>`;
       }).join("");
       return `<g data-officekit-series="${si}" data-officekit-series-name="${esc(entry.name)}">${marks}</g>`;
     }).join("");
     let axes = "";
-    for (const i of incomplete) {
+    for (const i of new Set([...incomplete, ...zeroTotal])) {
       const values = series.map(({ entry, missing }) => `${entry.name}: ${missing.has(i) ? "?" : n(entry.values[i])}`).join("; ");
-      axes += `<text data-officekit-incomplete-stack="${i}" x="${n(horizontal ? plot.x + 4 : categoryAt((i + .5) * band))}" y="${n(horizontal ? categoryAt((i + .5) * band) : plot.y + 12)}" text-anchor="${horizontal ? "start" : "middle"}" font-size="10" fill="#92400E"><title>${esc(values)}</title>Incomplete</text>`;
+      axes += `<text data-officekit-${zeroTotal.has(i) ? "zero-total" : "incomplete"}-stack="${i}" x="${n(horizontal ? plot.x + 4 : categoryAt((i + .5) * band))}" y="${n(horizontal ? categoryAt((i + .5) * band) : plot.y + 12)}" text-anchor="${horizontal ? "start" : "middle"}" font-size="10" fill="#92400E"><title>${esc(values)}</title>${zeroTotal.has(i) ? "Zero total" : "Incomplete"}</text>`;
     }
     const bottom = plot.y + plot.height, right = plot.x + plot.width;
     if ((xa?.visible ?? s.showCategoryAxis ?? true) === true) {
@@ -553,12 +572,14 @@ export function paintPpjSceneSvg(receipt) {
         ? `<line data-officekit-bar-zero-baseline="review" x1="${n(valueAt(0))}" y1="${n(plot.y)}" x2="${n(valueAt(0))}" y2="${n(bottom)}" stroke="#CBD5E1" stroke-dasharray="2 2"/>`
         : `<line data-officekit-bar-zero-baseline="review" x1="${n(plot.x)}" y1="${n(valueAt(0))}" x2="${n(right)}" y2="${n(valueAt(0))}" stroke="#CBD5E1" stroke-dasharray="2 2"/>`;
       if (ya?.tickLabelsVisible !== false && ya?.tickLabelPosition !== "none") axes += [low, low < 0 && high > 0 ? 0 : low + (high - low) / 2, high].map(value => {
-        return `<text data-officekit-value-tick="${n(value)}" x="${n(horizontal ? valueAt(value) : plot.x - 4)}" y="${n(horizontal ? bottom + 12 : valueAt(value) + 3)}" text-anchor="${horizontal ? "middle" : "end"}" font-size="10" fill="#334155">${n(value)}</text>`;
+        return `<text data-officekit-value-tick="${n(value)}" x="${n(horizontal ? valueAt(value) : plot.x - 4)}" y="${n(horizontal ? bottom + 12 : valueAt(value) + 3)}" text-anchor="${horizontal ? "middle" : "end"}" font-size="10" fill="#334155">${percent ? `${n(value * 100)}%` : n(value)}</text>`;
       }).join("");
     }
     const heading = text({ ...node, frame: { x: f.x, y: f.y, width: f.width, height: f.height * .15 } }, { text: s.title, textBody: s.titleBody }, "chart");
     const zeroCount = observed.filter(v => v === 0).length;
-    const note = `${observed.length ? "Observed values" : "No observed data"}; ${missingCount} missing; ${zeroCount} zero${incomplete.size ? `; ${incomplete.size} incomplete stacks (not positioned)` : " (dashed review ticks)"}`;
+    const note = percent
+      ? `Complete-category shares; ${missingCount} missing; ${incomplete.size} incomplete; ${zeroTotal.size} zero totals (percentages undefined)`
+      : `${observed.length ? "Observed values" : "No observed data"}; ${missingCount} missing; ${zeroCount} zero${incomplete.size ? `; ${incomplete.size} incomplete stacks (not positioned)` : " (dashed review ticks)"}`;
     return `<g data-officekit-chart="${direction}" data-officekit-blank-policy="${blank}" data-officekit-scale-min="${n(low)}" data-officekit-scale-max="${n(high)}" data-officekit-grouping="${grouping}" data-officekit-gap-width="${gap}" data-officekit-overlap="${overlap}" data-officekit-bar-thickness="${n(thickness)}">${heading}${axes}<svg data-officekit-bar-clip="plot" ${box(plot)} viewBox="${n(plot.x)} ${n(plot.y)} ${n(plot.width)} ${n(plot.height)}" overflow="hidden">${output}</svg><text x="${n(f.x + 4)}" y="${n(f.y + f.height - 6)}" font-size="10">${esc(note)}</text></g>`;
   }
   function chart(node) {

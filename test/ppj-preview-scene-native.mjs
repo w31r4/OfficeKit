@@ -297,60 +297,72 @@ try {
     nativeBars.push({ type, authored: true, reversedAxes: true, sourceNoop: true, negativeZeroMissing: true, seriesSlotsAndPointPaint: true, edits, workbook: "not present in literal-data fixture" });
   }
   const nativeStacks = [];
-  for (const type of ["column", "bar"]) {
+  for (const type of ["column", "bar"]) for (const grouping of ["stacked", "percent-stacked"]) {
+    const percent = grouping === "percent-stacked", suffix = percent ? "percent" : "stack";
+    const lastFirst = percent ? 4 : -4, lastSecond = percent ? 2 : -2;
     const program = structuredClone(pairBase);
-    program.pages[0].elements = [{ id: "stack", type: "chart", chartType: type, title: "Signed stacks with unknown data",
-      frame: { x: 60, y: 80, width: 450, height: 300 }, style: { stacking: "stacked", gapWidth: 100, overlap: 100 },
-      data: { categories: ["Positive", "Unknown", "Zero", "Negative"], series: [
-        { id: "first", name: "First", values: [4, null, 0, -4], fill: { type: "solid", color: "#CC2200" } },
-        { id: "second", name: "Second", values: [8, 2, 0, -2], fill: { type: "solid", color: "#0044CC" } },
+    program.pages[0].elements = [{ id: "stack", type: "chart", chartType: type, title: percent ? "Complete-category shares" : "Signed stacks with unknown data",
+      frame: { x: 60, y: 80, width: 450, height: 300 }, style: { stacking: grouping, gapWidth: 100, overlap: 100 },
+      data: { categories: ["Positive", "Unknown", "Zero", percent ? "Other" : "Negative"], series: [
+        { id: "first", name: "First", values: [4, null, 0, lastFirst], fill: { type: "solid", color: "#CC2200" } },
+        { id: "second", name: "Second", values: [8, 2, 0, lastSecond], fill: { type: "solid", color: "#0044CC" } },
       ] } }];
     async function checkStack(receipt, name, first = 4) {
       const native = createPpjSceneView(receipt).pages[0].nodes.find(n => n.kind === "chart").native;
-      assert.equal(native.grouping, "stacked"); assert.equal(native.barDirection, type); assert.equal(native.overlap, 100);
-      assert.deepEqual(native.series[0].values, [first, 0, 0, -4]); assert.deepEqual(native.series[0].missingValueIndexes, [1]);
-      assert.deepEqual(native.series[1].values, [8, 2, 0, -2]); assert.deepEqual(native.series[1].missingValueIndexes, []);
+      assert.equal(native.grouping, grouping); assert.equal(native.barDirection, type); assert.equal(native.overlap, 100);
+      assert.deepEqual(native.series[0].values, [first, 0, 0, lastFirst]); assert.deepEqual(native.series[0].missingValueIndexes, [1]);
+      assert.deepEqual(native.series[1].values, [8, 2, 0, lastSecond]); assert.deepEqual(native.series[1].missingValueIndexes, []);
       const painted = await savePaint(name, receipt), svg = painted.pages[0].svg;
       assert.equal(painted.reliability.status, "requires-review");
       assert.match(svg, /data-officekit-incomplete-stack="1"/);
       assert.match(svg, /data-officekit-point="1" data-officekit-value="2" data-officekit-stack-position="unknown"/);
-      assert.equal((svg.match(/data-officekit-review-point="zero"/g) || []).length, 2);
-      assert.match(svg, new RegExp(`data-officekit-value="8" data-officekit-baseline="${first}" data-officekit-stack-end="${first + 8}"`));
-      assert.match(svg, /data-officekit-value="-2" data-officekit-baseline="-4" data-officekit-stack-end="-6"/);
+      assert.equal((svg.match(/data-officekit-review-point="zero"/g) || []).length, percent ? 0 : 2);
+      if (percent) {
+        assert.match(svg, /data-officekit-zero-total-stack="2"/);
+        assert.match(svg, /data-officekit-value-tick="1"[^>]*>100%<\/text>/);
+        const fractions = [...svg.matchAll(/data-officekit-fraction="([^"]+)"/g)].map(m => Number(m[1]));
+        [first / (first + 8), 4 / 6, 8 / (first + 8), 2 / 6].forEach((v, i) => assert.ok(Math.abs(fractions[i] - v) < 1e-12));
+        assert.equal(fractions.length, 4);
+      } else {
+        assert.match(svg, new RegExp(`data-officekit-value="8" data-officekit-baseline="${first}" data-officekit-stack-end="${first + 8}"`));
+        assert.match(svg, /data-officekit-value="-2" data-officekit-baseline="-4" data-officekit-stack-end="-6"/);
+      }
       const actual = [...svg.matchAll(/<rect data-officekit-bar="(\d+)" x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)"/g)].map(m => m.slice(1).map(Number));
-      const expected = [[0, 0, first, "CC2200"], [3, 0, -4, "CC2200"], [0, first, first + 8, "0044CC"], [3, -4, -6, "0044CC"]];
+      const expected = percent
+        ? [[0, 0, first / (first + 8), "CC2200"], [3, 0, 4 / 6, "CC2200"], [0, first / (first + 8), 1, "0044CC"], [3, 4 / 6, 1, "0044CC"]]
+        : [[0, 0, first, "CC2200"], [3, 0, -4, "CC2200"], [0, first, first + 8, "0044CC"], [3, -4, -6, "0044CC"]];
       assert.equal(actual.length, expected.length);
       for (const [j, [i, start, end, color]] of expected.entries()) {
-        const scale = (type === "column" ? 210 : 360) / (first + 14), width = type === "column" ? 45 : 26.25;
+        const scale = (type === "column" ? 210 : 360) / (percent ? 1 : first + 14), width = type === "column" ? 45 : 26.25, offset = percent ? 0 : 6;
         const rect = type === "column"
-          ? [127.5 + i * 90, 335 - (Math.max(start, end) + 6) * scale, width, Math.abs(end - start) * scale]
-          : [105 + (Math.min(start, end) + 6) * scale, 295.625 - i * 52.5, Math.abs(end - start) * scale, width];
+          ? [127.5 + i * 90, 335 - (Math.max(start, end) + offset) * scale, width, Math.abs(end - start) * scale]
+          : [105 + (Math.min(start, end) + offset) * scale, 295.625 - i * 52.5, Math.abs(end - start) * scale, width];
         actual[j].forEach((v, k) => assert.ok(Math.abs(v - [i, ...rect][k]) < 1e-9, `${name} cumulative geometry ${j}:${k}`));
         const pixel = await sharp(Buffer.from(svg)).extract({ left: Math.floor(rect[0] + rect[2] / 2), top: Math.floor(rect[1] + rect[3] / 2), width: 1, height: 1 }).removeAlpha().raw().toBuffer();
         assert.deepEqual([...pixel], color.match(/../g).map(v => parseInt(v, 16)));
       }
     }
     const authored = await compilePpjWorkspace({ ...sourceWorkspace, program: Buffer.from(JSON.stringify(program)) }, { includePreviewScene: true });
-    await checkStack(authored, `${type}-stack-authored`);
+    await checkStack(authored, `${type}-${suffix}-authored`);
     const source = await withoutAuthoredSnapshot(authored.file), original = source.slice();
-    const projected = await projectPptxToPpj(source, { sourceUri: `${type}-stack.pptx`, assetRootUri: "assets" });
+    const projected = await projectPptxToPpj(source, { sourceUri: `${type}-${suffix}.pptx`, assetRootUri: "assets" });
     const input = { program: projected.programJson, source, assets: projected.assets };
     const noop = await compilePpjWorkspace(input, { includePreviewScene: true });
-    assert.deepEqual(noop.file, source); await checkStack(noop, `${type}-stack-noop`);
+    assert.deepEqual(noop.file, source); await checkStack(noop, `${type}-${suffix}-noop`);
     const changed = JSON.parse(new TextDecoder().decode(projected.programJson));
     changed.pages[0].elements.find(e => e.type === "chart").data.series[0].values[0] = 6;
     const candidate = await compilePpjWorkspace({ ...input, program: Buffer.from(JSON.stringify(changed)) }, { includePreviewScene: true });
-    await checkStack(candidate, `${type}-stack-edited`, 6);
-    const fresh = await projectPptxToPpj(candidate.file, { sourceUri: `${type}-stack-edited.pptx`, assetRootUri: "assets" });
+    await checkStack(candidate, `${type}-${suffix}-edited`, 6);
+    const fresh = await projectPptxToPpj(candidate.file, { sourceUri: `${type}-${suffix}-edited.pptx`, assetRootUri: "assets" });
     const chart = JSON.parse(new TextDecoder().decode(fresh.programJson)).pages[0].elements.find(e => e.type === "chart");
-    assert.equal(chart.style.stacking, "stacked");
-    assert.deepEqual(chart.data.series[0].values, [6, null, 0, -4]); assert.deepEqual(chart.data.series[1].values, [8, 2, 0, -2]);
+    assert.equal(chart.style.stacking, grouping);
+    assert.deepEqual(chart.data.series[0].values, [6, null, 0, lastFirst]); assert.deepEqual(chart.data.series[1].values, [8, 2, 0, lastSecond]);
     const oldZip = await JSZip.loadAsync(source), newZip = await JSZip.loadAsync(candidate.file), changedParts = [];
     assert.deepEqual(Object.keys(newZip.files).sort(), Object.keys(oldZip.files).sort());
     for (const part of Object.keys(oldZip.files)) if (!oldZip.files[part].dir &&
       !Buffer.from(await oldZip.file(part).async("uint8array")).equals(Buffer.from(await newZip.file(part).async("uint8array")))) changedParts.push(part);
     assert.deepEqual(changedParts, ["ppt/slides/charts/chart1.xml"]); assert.deepEqual(source, original);
-    nativeStacks.push({ type, authored: true, sourceNoop: true, sourceValueEdit: true, cumulativePixels: true, incompleteCategory: true,
+    nativeStacks.push({ type, grouping, authored: true, sourceNoop: true, sourceValueEdit: true, cumulativePixels: true, incompleteCategory: true, ...(percent ? { zeroTotalUndefined: true } : {}),
       reprojection: true, changedParts, sourceSha256: sha256(source), candidateSha256: sha256(candidate.file) });
   }
   const nativeCircular = [];

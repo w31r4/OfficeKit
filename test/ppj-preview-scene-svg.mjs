@@ -437,6 +437,46 @@ for (const direction of ["column", "bar"]) {
     assert.doesNotMatch(bad.pages[0].svg, /data-officekit-bar=/);
   }
 }
+for (const direction of ["column", "bar"]) {
+  const percentFixture = (edit = () => {}) => barFixture(c => {
+    c.grouping = "percent-stacked"; c.overlap = 100; c.yAxis = undefined;
+    c.categories[3] = "Other";
+    c.series[0].values = [1, 0, 0, 3];
+    c.series[1].values = [3, 2, 0, 1]; c.series[1].missingValueIndexes = [];
+    edit(c);
+  }, direction);
+  const input = percentFixture(), before = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const result = paintPpjSceneSvg(input), svg = result.pages[0].svg;
+  assert.equal(result.reliability.status, "requires-review");
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), before);
+  assert.match(svg, /data-officekit-scale-min="0" data-officekit-scale-max="1" data-officekit-grouping="percent-stacked"/);
+  assert.match(svg, /data-officekit-value="1" data-officekit-baseline="0" data-officekit-stack-end="0.25" data-officekit-fraction="0.25"/);
+  assert.match(svg, /data-officekit-value="3" data-officekit-baseline="0.25" data-officekit-stack-end="1" data-officekit-fraction="0.75"/);
+  assert.match(svg, /data-officekit-value-tick="0.5"[^>]*>50%<\/text>/);
+  assert.match(svg, /data-officekit-incomplete-stack="1"/);
+  assert.match(svg, /data-officekit-zero-total-stack="2"/);
+  assert.equal((svg.match(/data-officekit-stack-position="zero-total"/g) || []).length, 2);
+  assert.doesNotMatch(svg, /data-officekit-bar="[12]"|data-officekit-review-point="zero"/);
+  const expected = direction === "column"
+    ? [[0, 127.5, 282.5, 45, 52.5], [3, 397.5, 177.5, 45, 157.5], [0, 127.5, 125, 45, 157.5], [3, 397.5, 125, 45, 52.5]]
+    : [[0, 105, 295.625, 90, 26.25], [3, 105, 138.125, 270, 26.25], [0, 195, 295.625, 270, 26.25], [3, 375, 138.125, 90, 26.25]];
+  assert.deepEqual(barGeometry(svg), expected);
+  const reversed = paintPpjSceneSvg(percentFixture(c => { c.xAxis = create(SpreadsheetChartAxisArtifactSchema, { reverse: true }); c.yAxis = create(SpreadsheetChartAxisArtifactSchema, { reverse: true }); }));
+  assert.deepEqual(barGeometry(reversed.pages[0].svg), expected.map(([i, x, y, w, h]) => [i, 570 - x - w, 460 - y - h, w, h]));
+  const big = paintPpjSceneSvg(percentFixture(c => { c.series[0].values[0] = 1e308; c.series[1].values[0] = 1e308; }));
+  assert.equal(big.reliability.status, "requires-review");
+  assert.match(big.pages[0].svg, /data-officekit-fraction="0.5"/);
+  const zero = paintPpjSceneSvg(percentFixture(c => { c.series[0].values[0] = 0; }));
+  assert.match(zero.pages[0].svg, /data-officekit-value="0" data-officekit-baseline="0" data-officekit-stack-end="0" data-officekit-fraction="0"/);
+  assert.match(zero.pages[0].svg, /data-officekit-review-point="zero"/);
+  const bounded = paintPpjSceneSvg(percentFixture(c => { c.yAxis = create(SpreadsheetChartAxisArtifactSchema, { minimum: 0, maximum: .5 }); }));
+  assert.match(bounded.pages[0].svg, /data-officekit-point-outside-plot="true" data-officekit-stack-end="1" data-officekit-fraction="0.75"/);
+  for (const invalid of [c => { c.series[0].values[0] = -1; }, c => { c.series[0].values[0] = 1e-308; c.series[1].values[0] = 1e308; },
+    c => { c.series[0].values[0] = 1e20; c.series[1].values[0] = 1; }, c => { c.displayBlanksAs = "zero"; }]) {
+    const failure = paintPpjSceneSvg(percentFixture(invalid));
+    assert.equal(failure.reliability.status, "failed"); assert.doesNotMatch(failure.pages[0].svg, /data-officekit-bar=/);
+  }
+}
 function circularFixture(edit = () => {}, type = 3) {
   return lineFixture(c => {
     c.type = type; c.yAxis = undefined; c.lineOptions = undefined;
