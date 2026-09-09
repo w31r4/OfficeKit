@@ -5,10 +5,6 @@
   "presetGeometryProfiles": "src/ppj/preset-geometry-profiles.json",
   "generatedReference": "skills/presentations/skills/presentations/references/ppj.md",
   "previewScene": {
-    "factualMappings": {
-      "visibility": { "handler": "all-owner-nodes-hidden", "test": "test/ppj-preview-scene-native.mjs" },
-      "transform": { "handler": "all-owner-native-transforms-painted", "test": "test/ppj-preview-scene-native.mjs" }
-    },
     "adapter": "src/ppj/preview-scene-view.mjs",
     "adapterTest": "test/ppj-preview-scene-view.mjs",
     "painter": "src/ppj/preview-scene-svg.mjs",
