@@ -23,6 +23,7 @@ internal static class PpjSemanticValidator
             ["setStroke"] = Set("stroke"),
             ["setConnectorEndpoints"] = Set("from", "to"),
             ["setConnectorArrows"] = Set("startArrow", "endArrow"),
+            ["setConnectorType"] = Set("connectorType"),
             ["setLinePath"] = Set("line.path"),
             ["setTextBodyStyle"] = Set("text.style", "textStyle"),
             ["setShapeEffects"] = Set("shape.shadow", "shape.glow", "shape.innerShadow", "shape.reflection", "shape.softEdge"),

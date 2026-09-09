@@ -157,6 +157,12 @@ projection also requires its existing frame limits. Missing IDs, opaque or
 connector targets, unresolved component instance ports and unrepresentable
 coordinates fail with a diagnostic.
 
+On a fresh source projection, `setConnectorType` permits changing the required
+`connectorType` among `straight`, `elbow` and `curved`. The codec replaces its
+recognized native geometry family while retaining endpoints, bindings, arrows
+and line style. This does not calculate obstacle avoidance or expose custom
+bend guides; unsupported imported geometry remains source-owned.
+
 `startArrow` and `endArrow` use `none`, `triangle`, `stealth`, `diamond`,
 `oval` or `open`. `open` maps to the native arrow shape and returns as `open`
 on fresh projection. Editable source connectors issue `setConnectorArrows`:

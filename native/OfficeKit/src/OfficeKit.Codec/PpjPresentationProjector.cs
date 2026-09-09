@@ -3041,6 +3041,7 @@ internal static partial class PpjPresentationProjector
             case PresentationElement.ContentOneofCase.Connector when source.Editable:
                 output.Add(new("setStroke", ["stroke"]));
                 output.Add(new("setConnectorArrows", ["startArrow", "endArrow"]));
+                output.Add(new("setConnectorType", ["connectorType"]));
                 if (element.Connector.StartTargetId.Length == 0 && element.Connector.EndTargetId.Length == 0)
                     output.Add(new("setConnectorEndpoints", ["from", "to"]));
                 if (element.Connector.StartFrameAnchor is null && element.Connector.EndFrameAnchor is null)

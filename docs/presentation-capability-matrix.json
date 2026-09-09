@@ -14,7 +14,7 @@
     "schemaDefinitions": 197,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 48,
+    "authoredCompilerBoundaries": 49,
     "nativeLeafKinds": 278,
     "helpApis": 151,
     "hostOnlyApis": 13
@@ -1146,6 +1146,14 @@
       "behavior": "partial",
       "sourceBound": "Editable connectors issue setConnectorArrows. Add/change/delete either end through the PPJ field; omission or none removes that arrow and its own dimensions. Retained arrows preserve native width/length, endpoint coordinates and frame-anchor/native-site binding state. Non-target ZIP members remain unchanged.",
       "reason": "PpjConnectorObjectAnchorTests covers original-source no-op, separate add/change/none/omission and open-arrow edits, native size/binding preservation, fresh reprojection and denied capability. PPJ open maps to native arrow in both authored and source lowering and back to open in projection. Unsupported source topology remains opaque; new arrow-size syntax, full routing and host rendering are outside this increment.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound connector type",
+      "ppjPath": "pages[].elements[].connectorType where type is connector",
+      "behavior": "partial",
+      "sourceBound": "Editable modeled connectors issue setConnectorType for straight/elbow/curved changes. Existing canonical native geometry replacement preserves endpoint coordinates, frame-anchor/native-site state, arrows and line style, with target SlidePart-only changes and fresh reprojection. The field remains required.",
+      "reason": "PpjConnectorObjectAnchorTests verifies straight-to-elbow-to-curved-to-straight native prstGeom, per-source no-op, preserved endpoint/style/arrow values, changed-part proof and invalid/tampered-authority rejection. Unsupported imported guide graphs remain opaque. This exposes existing codec geometry replacement; obstacle avoidance, arbitrary bends and complete host routing remain outside the profile.",
       "visualStatus": "partial-or-opaque"
     },
     {

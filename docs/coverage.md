@@ -21,6 +21,9 @@ Editable PPJ connectors additionally issue `setConnectorArrows` for
 native sizes and bindings; deletion removes the matching dimensions. The
 PPJ `open` value maps to native `arrow` and survives fresh projection. The
 related connector/preview/line suite passes 67/67, zero skipped.
+`setConnectorType` additionally permits straight/elbow/curved changes on an
+editable PPJ connector. Canonical native geometry replacement retains endpoints,
+bindings, arrow and line state; unknown imported guide graphs remain opaque.
 
 Latest PPTX evidence: candidate product commit `e1bb8699671c3599b44b999ca308ff8d0d9581d7` and packed `office-kit@0.6.0` tarball SHA-256 `0152742d17a07a7b53e53f83f75c08c829804ab8f73ad65841a5e49946e7e8a9` passed the frozen three-sample programmable-import acceptance. All `90/90` clean-source matrix runs passed, all `30/30` declared intents produced deterministic bytes and oracle results across three repetitions, and rendering used LibreOffice for 60 runs plus Keynote for 30 text changes that LibreOffice did not display. Every run preserved the source, reimported successfully, kept the declared non-target parts and relationships byte-identical, recovered target XML/SVG after masking only the issued mutation, and kept non-target pages pixel-identical.
 

@@ -538,6 +538,50 @@ public sealed class PpjConnectorObjectAnchorTests
         Assert.Contains(rejected.Diagnostics, d => d.Code == "ppj.nativeRef.stale");
     }
 
+    [Fact]
+    public void SourceConnectorTypeChangesCanonicalGeometryAndPreservesBindings()
+    {
+        var program = Program(Box("target", 100, 100, 80, 40), Edge("edge", Anchor("target", "right"), Literal(400, 300)));
+        var authored = Compile(program);
+        var source = PptxCodecTests.RemoveEmbeddedPpj(authored.File.ToByteArray());
+        foreach (var type in new[] { "elbow", "curved", "straight" })
+        {
+            var request = Projected(source);
+            Assert.Equal(source, Compile(request, source: source).File.ToByteArray());
+            var edge = ByName(request, "edge");
+            var oldFrom = edge["from"]!.DeepClone();
+            var oldTo = edge["to"]!.DeepClone();
+            edge["connectorType"] = type;
+            var result = Compile(request, source: source);
+            var fresh = ByName(Projected(result.File.ToByteArray()), "edge");
+            Assert.Equal(type, fresh["connectorType"]!.GetValue<string>());
+            Assert.True(JsonNode.DeepEquals(oldFrom, fresh["from"]));
+            Assert.True(JsonNode.DeepEquals(oldTo, fresh["to"]));
+            Assert.Equal("triangle", fresh["endArrow"]!.GetValue<string>());
+            Assert.True(JsonNode.DeepEquals(edge["stroke"], fresh["stroke"]));
+            using var document = PresentationDocument.Open(new MemoryStream(result.File.ToByteArray()), false);
+            var geometry = document.PresentationPart!.SlideParts.Single().Slide.Descendants<P.ConnectionShape>().Single()
+                .ShapeProperties!.GetFirstChild<A.PresetGeometry>()!;
+            Assert.Equal(type == "elbow" ? A.ShapeTypeValues.BentConnector3 : type == "curved" ? A.ShapeTypeValues.CurvedConnector3 : A.ShapeTypeValues.StraightConnector1,
+                geometry.Preset!.Value);
+            AssertSlideOnly(source, result.File.ToByteArray());
+            source = result.File.ToByteArray();
+        }
+        var invalid = Projected(source);
+        ByName(invalid, "edge")["connectorType"] = "free-routing";
+        var rejected = Compile(invalid, source: source, success: false);
+        Assert.Empty(rejected.File);
+        Assert.Contains(rejected.Diagnostics, d => d.Code == "ppj.schema.enum");
+        var denied = Projected(source);
+        var deniedEdge = ByName(denied, "edge");
+        deniedEdge["connectorType"] = "curved";
+        var caps = deniedEdge["nativeRef"]!["capabilities"]!.AsArray();
+        caps.Remove(caps.Single(c => c!["operation"]!.GetValue<string>() == "setConnectorType"));
+        rejected = Compile(denied, source: source, success: false);
+        Assert.Empty(rejected.File);
+        Assert.Contains(rejected.Diagnostics, d => d.Code == "ppj.nativeRef.stale");
+    }
+
     private static JsonObject Projected(byte[] source) => JsonNode.Parse(Project(source).PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
     private static JsonObject ByName(JsonObject program, string name)
     {
