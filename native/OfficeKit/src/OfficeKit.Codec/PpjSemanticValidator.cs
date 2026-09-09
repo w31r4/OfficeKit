@@ -3233,7 +3233,7 @@ internal static class PpjSemanticValidator
     {
         var kind = geometry.GetProperty("kind").GetString()!;
         var preset = geometry.TryGetProperty("preset", out var presetValue) ? presetValue.GetString() : null;
-        var adjustments = geometry.TryGetProperty("adjustments", out var values)
+        var adjustments = kind == "preset" && geometry.TryGetProperty("adjustments", out var values)
             ? values.EnumerateArray().Select(value => value.GetInt32()).ToArray()
             : [];
         ValidatePresetAdjustments(kind, preset, adjustments, path, diagnostics);

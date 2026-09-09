@@ -4226,10 +4226,35 @@
             "viewBox": {
               "$ref": "#/$defs/frame"
             },
+            "adjustments": {
+              "type": "array",
+              "maxItems": 256,
+              "description": "Ordered native custom-shape adjustment formulas, evaluated before geometry.guides. Empty/omitted lists project as absence. Source edits require setGeometry geometry.adjustments. For kind preset this property retains its separate integer-array contract.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "formula"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "formula": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  }
+                }
+              }
+            },
             "guides": {
               "type": "array",
               "maxItems": 1024,
-              "description": "Ordered native custom-shape guides. Each formula uses native DrawingML units and may reference built-ins or earlier guides. Empty/omitted means no guides; source add/change/removal requires setGeometry geometry.guides.",
+              "description": "Ordered native custom-shape guides. Each formula uses native DrawingML units and may reference built-ins, declared adjustments or earlier guides. Empty/omitted means no guides; source add/change/removal requires setGeometry geometry.guides.",
               "items": {
                 "type": "object",
                 "additionalProperties": false,

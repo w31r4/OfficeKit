@@ -2027,10 +2027,10 @@ internal static partial class PpjSourceBoundPresentationCompiler
             var newGeometry = after.Raw.GetProperty("geometry");
             if (before.GeometryKind == "custom" && after.GeometryKind == "custom")
             {
-                foreach (var field in new[] { "paths", "textRectangle", "guides" })
+                foreach (var field in new[] { "paths", "textRectangle", "guides", "adjustments" })
                     if (PropertyChanged(oldGeometry, newGeometry, field))
                         RequireCapabilityField(after.NativeRef, "setGeometry", "geometry." + field, path + ".geometry." + field);
-                RequireEqualExcept(oldGeometry, newGeometry, path + ".geometry", "paths", "textRectangle", "guides");
+                RequireEqualExcept(oldGeometry, newGeometry, path + ".geometry", "paths", "textRectangle", "guides", "adjustments");
                 if (!IsLiteralCustomGeometry(target))
                     throw Unsupported(path + ".geometry", "source custom geometry is outside the literal path edit profile");
                 target.CustomPaths.Clear();
@@ -2092,7 +2092,6 @@ internal static partial class PpjSourceBoundPresentationCompiler
     private static bool IsLiteralCustomGeometry(PresentationShape shape)
     {
         if (shape.Geometry != "custom" || shape.CustomPaths.Count == 0 ||
-            shape.CustomAdjustments.Count > 0 ||
             shape.CustomConnectionSites.Count > 0 || shape.CustomAdjustmentHandles.Count > 0)
             return false;
         var width = shape.CustomPaths[0].Width;

@@ -71,8 +71,9 @@ issues `setGeometry` for `geometry.adjustments`. Formula-valued or irregular
 native guides remain source-owned.
 
 An imported literal custom geometry (paths with literal coordinates, without
-custom adjustment lists, handles or connection sites) may issue `setGeometry`
-for `geometry.paths`, `geometry.textRectangle` and `geometry.guides`. These fields can be edited
+handles or connection sites) may issue `setGeometry`
+for `geometry.paths`, `geometry.textRectangle`, `geometry.guides` and
+`geometry.adjustments`. These fields can be edited
 independently in the existing SlidePart; unsupported or extension-bearing custom
 geometry remains source-owned.
 
@@ -99,14 +100,24 @@ retains explicit text-layout limitations, so this is not host layout proof.
 
 Formulas use DrawingML operators and units; `w`/`h` resolve to the shape's
 native extents. Names must be unique, cannot shadow built-ins or the reserved
-`officeKit` prefix, and can reference earlier guides only. The list is bounded
+`officeKit` prefix, and can reference declared adjustments or earlier guides. The list is bounded
 to 1024 guides; native validation rejects invalid arithmetic or unresolved
 references. Source `setGeometry` can edit the list, add entries or remove it;
 remove dependent rectangle references in the same request. Empty/omitted lists
 project as absence; formula whitespace may normalize. Native private numeric
 rectangle scaling guides are not user guides. Reference-backed paths and
-custom adjustment/handle/site graphs remain source-owned. These shape guides
+custom handle/site graphs remain source-owned. These shape guides
 are rejected on masks/clips, and preview retains explicit limitations.
+
+For `kind: "custom"`, `geometry.adjustments` uses the same `{name, formula}`
+objects as `guides`, with at most 256 entries. Adjustments are evaluated first;
+each can reference built-ins or earlier adjustments, and ordinary guides can
+reference all declared adjustments. For example, an adjustment
+`{ "name": "padding", "formula": "val 127000" }` supplies one native EMU
+coordinate value (10pt) that a later guide may reference. Names share one
+namespace across both lists. Source `setGeometry` supports addition, changes
+and coordinated removal; retained references must still resolve. Empty lists
+project as omission. `kind: "preset"` keeps its integer adjustment array.
 
 The same preset profile can clip an image. `image.mask.adjustments` uses the
 identical parameter order and defaults; see [Media and layers](media-and-layers.md#image-masks).

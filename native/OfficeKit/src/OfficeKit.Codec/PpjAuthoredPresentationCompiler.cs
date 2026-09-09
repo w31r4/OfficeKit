@@ -3629,6 +3629,16 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (!geometry.TryGetProperty("viewBox", out var viewBox) ||
             !geometry.TryGetProperty("paths", out var paths))
             throw Unsupported(elementId, "custom geometry has no compiler-owned path graph");
+        if (geometry.TryGetProperty("adjustments", out var adjustments))
+        {
+            if (!allowShapeGraph) throw Unsupported(elementId, "custom adjustment formulas belong to shapes, not masks or clips");
+            foreach (var adjustment in adjustments.EnumerateArray())
+                target.CustomAdjustments.Add(new PresentationCustomGeometryGuide
+                {
+                    Name = adjustment.GetProperty("name").GetString()!,
+                    Formula = adjustment.GetProperty("formula").GetString()!,
+                });
+        }
         if (geometry.TryGetProperty("guides", out var guides))
         {
             if (!allowShapeGraph) throw Unsupported(elementId, "geometry guides belong to custom shapes, not masks or clips");

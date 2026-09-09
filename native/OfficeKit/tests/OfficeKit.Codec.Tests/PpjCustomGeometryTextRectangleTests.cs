@@ -128,6 +128,67 @@ public sealed class PpjCustomGeometryTextRectangleTests
         Assert.Equal(original, source);
     }
 
+    [Fact]
+    public void CustomGeometryAdjustmentsFeedGuidesAndRetainSourceLifecycle()
+    {
+        var program = Program();
+        var geometry = Element(program)["geometry"]!.AsObject();
+        geometry["adjustments"] = JsonNode.Parse("""
+            [{"name":"padding","formula":"val 127000"},{"name":"inset","formula":"val padding"}]
+            """);
+        geometry["guides"] = JsonNode.Parse("""[{"name":"rightBound","formula":"+- w 0 inset"}]""");
+        geometry["textRectangle"]!["left"] = "inset";
+        geometry["textRectangle"]!["right"] = "rightBound";
+        var authored = Compile(program);
+        var native = authored.PresentationProgram.PreviewScene.Presentation.Slides[0].Elements[0].Shape;
+        Assert.Equal(2, native.CustomAdjustments.Count);
+        Assert.True(PptxCustomGeometryFormulaCodec.Validate(native, "custom").TryResolveReference("inset", out var inset));
+        Assert.Equal(10 * 12700d, inset);
+        var source = PptxCodecTests.RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Project(source);
+        Assert.True(JsonNode.DeepEquals(geometry["adjustments"], Element(projected)["geometry"]!["adjustments"]));
+        Assert.Equal(source, Compile(projected, source).File.ToByteArray());
+        foreach (var mode in new[] { "edit", "add", "remove" })
+        {
+            var request = Project(source);
+            var requested = Element(request)["geometry"]!.AsObject();
+            if (mode == "edit") requested["adjustments"]![0]!["formula"] = "val 254000";
+            else if (mode == "add") requested["adjustments"]!.AsArray().Add(new JsonObject { ["name"] = "unused", ["formula"] = "val 0" });
+            else { requested.Remove("adjustments"); requested.Remove("guides"); requested.Remove("textRectangle"); }
+            var candidate = Compile(request, source);
+            var fresh = Element(Project(candidate.File.ToByteArray()));
+            foreach (var field in new[] { "adjustments", "guides", "textRectangle" })
+                Assert.True(JsonNode.DeepEquals(requested[field], fresh["geometry"]![field]), field);
+            foreach (var field in new[] { "text", "frame" }) Assert.True(JsonNode.DeepEquals(Element(request)[field], fresh[field]));
+            Assert.Equal(PathXml(source), PathXml(candidate.File.ToByteArray()));
+            AssertSlideOnly(source, candidate.File.ToByteArray());
+            if (mode == "edit")
+            {
+                var changed = candidate.PresentationProgram.PreviewScene.Presentation.Slides[0].Elements[0].Shape;
+                Assert.True(PptxCustomGeometryFormulaCodec.Validate(changed, "custom").TryResolveReference("inset", out var result));
+                Assert.Equal(20 * 12700d, result);
+            }
+        }
+        foreach (var invalid in new[] { "forward", "duplicate", "dangling" })
+        {
+            var request = Project(source);
+            var requested = Element(request)["geometry"]!.AsObject();
+            if (invalid == "forward") requested["adjustments"]![0]!["formula"] = "val rightBound";
+            else if (invalid == "duplicate") requested["guides"]![0]!["name"] = "inset";
+            else requested.Remove("adjustments");
+            Assert.Empty(Compile(request, source, false).File);
+        }
+        Assert.Throws<CodecException>(() => PpjAuthoredPresentationCompiler.ApplyCustomGeometry(new PresentationShape(),
+            JsonSerializer.SerializeToElement(geometry), "mask"));
+        geometry.Remove("guides"); geometry.Remove("textRectangle"); geometry["adjustments"] = new JsonArray();
+        var empty = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
+        Assert.Null(Element(Project(empty))["geometry"]!["adjustments"]);
+        Element(program)["geometry"] = new JsonObject { ["kind"] = "preset", ["preset"] = "roundRect", ["adjustments"] = new JsonArray(10000) };
+        var preset = Compile(program);
+        Assert.Equal(10000, Assert.Single(preset.PresentationProgram.PreviewScene.Presentation.Slides[0].Elements[0].Shape.PresetAdjustments));
+        Assert.Equal(10000, Element(Project(PptxCodecTests.RemoveEmbeddedPpj(preset.File.ToByteArray())))["geometry"]!["adjustments"]![0]!.GetValue<int>());
+    }
+
     private static JsonObject Program()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
