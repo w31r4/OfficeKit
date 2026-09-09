@@ -103,3 +103,4 @@ await import("./ppj-preview-render-assessment.mjs");
 await import("./ppj-preview-scene-wire.mjs");
 await import("./ppj-preview-scene-transport.mjs");
 await import("./ppj-preview-scene-view.mjs");
+await import("./ppj-preview-scene-svg.mjs");
