@@ -148,8 +148,7 @@ internal static class PpjSourceBoundPresentationCompiler
             },
             limits,
             retainSourceAssetData,
-            sourceSha256,
-            includeNativeBindings: request.IncludePreviewScene);
+            sourceSha256);
         projectionStage.Dispose();
         using var reparsedBaselineValidation = projected.Validation is null
             ? PpjProgramValidator.Validate(projected.Program.ProgramJson.Memory)
@@ -306,8 +305,7 @@ internal static class PpjSourceBoundPresentationCompiler
             // to obtain preview evidence. Other branches import exact output.
             using var candidate = outputUsesSource ? null : new PptxPackageSource(output);
             diagnostics = diagnostics.Concat(PpjPreviewCandidateScene.Attach(
-                candidate ?? sourcePackage, receipt, limits,
-                new PpjPreviewCandidateBindings(projected.NativeBindings, validation.Expansion!))).ToArray();
+                candidate ?? sourcePackage, receipt, limits)).ToArray();
         }
         return new(output, receipt, diagnostics, reuseSourceFile);
     }

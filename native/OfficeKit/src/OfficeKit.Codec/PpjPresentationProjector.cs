@@ -18,7 +18,6 @@ internal sealed record PpjProjectionResult(
     PpjValidationResult? Validation) : IDisposable
 {
     public void Dispose() => Validation?.Dispose();
-    internal IReadOnlyList<PptxNativeBinding> NativeBindings { get; init; } = [];
 }
 
 /// <summary>
@@ -37,22 +36,19 @@ internal static partial class PpjPresentationProjector
         PresentationProgramRequest request,
         EffectiveCodecLimits limits,
         bool retainSourceAssetData = true,
-        string? verifiedSourceSha256 = null,
-        bool includeNativeBindings = false) => Project(
+        string? verifiedSourceSha256 = null) => Project(
             new PptxPackageSource(sourceBytes),
             request,
             limits,
             retainSourceAssetData,
-            verifiedSourceSha256,
-            includeNativeBindings);
+            verifiedSourceSha256);
 
     internal static PpjProjectionResult Project(
         PptxPackageSource source,
         PresentationProgramRequest request,
         EffectiveCodecLimits limits,
         bool retainSourceAssetData = true,
-        string? verifiedSourceSha256 = null,
-        bool includeNativeBindings = false)
+        string? verifiedSourceSha256 = null)
     {
         if (PpjEmbeddedProgramCodec.TryRecover(source, request, limits) is { } recovered)
             return new(
@@ -66,8 +62,7 @@ internal static partial class PpjPresentationProjector
             source,
             limits,
             retainSourceAssetData,
-            verifiedSourceSha256,
-            includeNativeBindings);
+            verifiedSourceSha256);
         var envelope = imported.Artifact;
         var presentation = envelope.Presentation ??
             throw new CodecException("ppj.projection.presentation", "The imported package did not produce a Presentation artifact.", "$");
@@ -175,16 +170,7 @@ internal static partial class PpjPresentationProjector
             ExpandedElementCount = checked((uint)validation.Expansion!.ExpandedElementCount),
         };
         result.Assets.Add(context.ResultAssets);
-        return new(result, imported.Diagnostics, envelope, context.NativeLeafBindings, validation)
-        {
-            NativeBindings = includeNativeBindings ? imported.NativeBindings
-                .Where(binding => context.TryElementId(context.PageId(binding.PageId), binding.ElementId, out _))
-                .Select(binding => binding with
-                {
-                    PageId = context.PageId(binding.PageId),
-                    ElementId = context.ElementId(context.PageId(binding.PageId), binding.ElementId),
-                }).ToArray() : [],
-        };
+        return new(result, imported.Diagnostics, envelope, context.NativeLeafBindings, validation);
     }
 
     private static JsonObject ImportedIntent() => new()
