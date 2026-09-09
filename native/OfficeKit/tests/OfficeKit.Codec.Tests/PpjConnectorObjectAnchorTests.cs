@@ -13,6 +13,95 @@ namespace OfficeKit.Codec.Tests;
 
 public sealed class PpjConnectorObjectAnchorTests
 {
+    private static JsonObject Site(string id, int index) => new() { ["element"] = id, ["connectionSite"] = index };
+    private static JsonObject SiteBox(string id, double x = 100)
+    {
+        var shape = Box(id, x, 100, 80, 40);
+        shape["geometry"] = JsonNode.Parse("""
+            {"kind":"custom","viewBox":{"x":0,"y":0,"width":100,"height":100},
+             "adjustments":[{"name":"inset","formula":"val 127000"}],
+             "connectionSites":[{"angle":0,"x":"inset","y":"vc"},{"angle":90,"x":"r","y":0}],
+             "paths":[{"commands":[{"op":"moveTo","x":0,"y":0},{"op":"lineTo","x":100,"y":0},
+               {"op":"lineTo","x":100,"y":100},{"op":"close"}]}]}
+            """);
+        return shape;
+    }
+
+    [Fact]
+    public void CustomSiteBindingsRetainIdentityAndFollowSourceDependencies()
+    {
+        var authored = Compile(Program(Edge("edge", Site("target", 0), Site("other", 1)), SiteBox("target"), SiteBox("other", 300)));
+        var native = Find(authored, "edge").Connector;
+        Coordinates(native, 110, 120, 380, 100);
+        Assert.Equal("target", native.StartTargetId);
+        Assert.Equal(0u, native.StartConnectionSiteIndex);
+        Assert.Null(native.StartFrameAnchor);
+        var source = PptxCodecTests.RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var original = source.ToArray();
+        var projected = Projected(source);
+        Assert.Equal(0, ByName(projected, "edge")["from"]!["connectionSite"]!.GetValue<int>());
+        Assert.Contains(ByName(projected, "edge")["nativeRef"]!["capabilities"]!.AsArray(), c => c!["operation"]!.GetValue<string>() == "setConnectorEndpoints");
+        Assert.Equal(source, Compile(projected, source: source).File.ToByteArray());
+        foreach (var mode in new[] { "index", "target", "literal", "anchor", "geometry", "adjustment", "frame", "frame-leaf" })
+        {
+            var edit = Projected(source);
+            var edge = ByName(edit, "edge"); var target = ByName(edit, "target");
+            var targetId = target["id"]!.GetValue<string>();
+            var x = 110d; var y = 120d;
+            switch (mode)
+            {
+                case "index": edge["from"] = Site(targetId, 1); x = 180; y = 100; break;
+                case "target": edge["from"] = Site(ByName(edit, "other")["id"]!.GetValue<string>(), 0); x = 310; break;
+                case "literal": edge["from"] = Literal(20, 30); x = 20; y = 30; break;
+                case "anchor": edge["from"] = Anchor(targetId, "right"); x = 180; break;
+                case "geometry": target["geometry"]!["connectionSites"]![0]!["x"] = 20; x = 120; break;
+                case "adjustment": target["geometry"]!["adjustments"]![0]!["formula"] = "val 254000"; x = 120; break;
+                case "frame": target["frame"]!["x"] = 200; x = 210; break;
+                case "frame-leaf": Leaf(target, "leftEmu")["value"] = 200 * 12_700L; x = 210; break;
+            }
+            var candidate = Compile(edit, source: source);
+            var actual = Assert.Single(Walk(candidate.PresentationProgram.PreviewScene.Presentation.Slides[0].Elements), e => e.Connector is not null).Connector;
+            Coordinates(actual, x, y, 380, 100);
+            Assert.Equal(1u, actual.EndConnectionSiteIndex);
+            Assert.Equal("triangle", actual.EndArrow);
+            Assert.Equal("114477", actual.LineRgb);
+            var fresh = Projected(candidate.File.ToByteArray());
+            var freshEdge = ByName(fresh, "edge");
+            Assert.True(JsonNode.DeepEquals(edge["from"], freshEdge["from"]));
+            Assert.True(JsonNode.DeepEquals(edge["to"], freshEdge["to"]));
+            using var document = PresentationDocument.Open(new MemoryStream(candidate.File.ToByteArray()), false);
+            var connection = Assert.Single(document.PresentationPart!.SlideParts.Single().Slide.Descendants<P.ConnectionShape>());
+            if (mode is "literal" or "anchor") Assert.Empty(connection.Descendants<A.StartConnection>());
+            else Assert.Equal(mode == "index" ? 1u : 0u, Assert.Single(connection.Descendants<A.StartConnection>()).Index!.Value);
+            Assert.Equal(1u, Assert.Single(connection.Descendants<A.EndConnection>()).Index!.Value);
+            AssertSlideOnly(source, candidate.File.ToByteArray());
+        }
+        var invalid = Projected(source);
+        ByName(invalid, "edge")["from"]!["connectionSite"] = 2;
+        Assert.Empty(Compile(invalid, source: source, success: false).File);
+        invalid = Projected(source);
+        var leaves = ByName(invalid, "target")["nativeRef"]!["leaves"]!.AsArray().OfType<JsonObject>();
+        var leaf = leaves.First(l => l["kind"]!.GetValue<string>() == "customGeometryAdjustment");
+        leaf["value"] = 254000;
+        var rejected = Compile(invalid, source: source, success: false);
+        Assert.Contains(rejected.Diagnostics, d => d.Message.Contains("geometry native leaves"));
+        Assert.Equal(original, source);
+        Assert.Empty(Compile(Program(Box("preset", 100, 100, 80, 40), Edge("edge", Site("preset", 0), Literal(500, 300))), success: false).File);
+        Assert.Empty(Compile(Program(Edge("edge", Site("missing", 0), Literal(500, 300))), success: false).File);
+    }
+
+    [Fact]
+    public void CustomSiteBindingsUseRotatedFlippedGroupCoordinates()
+    {
+        var target = SiteBox("target");
+        target["frame"]!["rotation"] = 90;
+        target["frame"]!["flipH"] = true;
+        var authored = Compile(Program(Group("group", Frame(10, 20, 400, 200), Frame(0, 0, 200, 100), target),
+            Edge("edge", Site("target", 0), Literal(700, 300))));
+        // Local site (110,120), horizontal flip -> (170,120), rotation -> (140,150).
+        Coordinates(Find(authored, "edge").Connector, 290, 320, 700, 300);
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(40)]

@@ -234,7 +234,8 @@ internal sealed record PpjConnectorEndpointModel(
     string? ElementId,
     string? Anchor,
     double? X,
-    double? Y);
+    double? Y,
+    uint? ConnectionSite = null);
 
 internal sealed class PpjGroupElementModel : PpjElementModel
 {
@@ -1482,7 +1483,8 @@ internal static class PpjProgramParser
         OptionalString(endpoint, "element"),
         OptionalString(endpoint, "anchor"),
         endpoint.TryGetProperty("x", out var x) ? x.GetDouble() : null,
-        endpoint.TryGetProperty("y", out var y) ? y.GetDouble() : null);
+        endpoint.TryGetProperty("y", out var y) ? y.GetDouble() : null,
+        endpoint.TryGetProperty("connectionSite", out var site) ? site.GetUInt32() : null);
 
     private static PpjSmartArtNodeModel ParseSmartArtNode(JsonElement node) => new(
         node.GetProperty("id").GetString()!,

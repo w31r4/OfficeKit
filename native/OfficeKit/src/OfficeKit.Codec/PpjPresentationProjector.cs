@@ -639,7 +639,11 @@ internal static partial class PpjPresentationProjector
     {
         var id = context.ElementId(pageId, element.Id);
         var hash = HashOrFallback(element.Source?.ElementSha256, element);
-        var capabilities = Capabilities(element, effectivePlaceholderFrame is not null);
+        var customSites = element.Connector is { } connector &&
+            (connector.StartTargetId.Length != 0 || connector.EndTargetId.Length != 0) &&
+            (connector.StartTargetId.Length == 0 || ProjectableCustomSite(slide, connector.StartTargetId, connector.StartConnectionSiteIndex)) &&
+            (connector.EndTargetId.Length == 0 || ProjectableCustomSite(slide, connector.EndTargetId, connector.EndConnectionSiteIndex));
+        var capabilities = Capabilities(element, effectivePlaceholderFrame is not null, customSites);
         var leaves = PpjNativeLeafProjection.Describe(
             context.SourceSha256,
             pageId,
@@ -653,7 +657,7 @@ internal static partial class PpjPresentationProjector
             PresentationElement.ContentOneofCase.Shape => ProjectShape(element, id, nativeRef, context, effectivePlaceholderFrame),
             PresentationElement.ContentOneofCase.Image => ProjectImage(element, id, nativeRef, context),
             PresentationElement.ContentOneofCase.Table => ProjectTable(element, id, nativeRef, context),
-            PresentationElement.ContentOneofCase.Connector => ProjectConnector(element, id, nativeRef, pageId, context),
+            PresentationElement.ContentOneofCase.Connector => ProjectConnector(element, id, nativeRef, pageId, context, slide),
             PresentationElement.ContentOneofCase.Chart => ProjectChart(element, id, nativeRef, context),
             PresentationElement.ContentOneofCase.Diagram => ProjectNativeSmartArt(element, id, nativeRef, context),
             PresentationElement.ContentOneofCase.Group => ProjectGroup(element, id, nativeRef, slide, pageId, context, shapeTreePath),
@@ -1792,19 +1796,39 @@ internal static partial class PpjPresentationProjector
         return output;
     }
 
+    private static bool ProjectableCustomSite(PresentationSlide slide, string targetId, uint index)
+    {
+        bool Find(IEnumerable<PresentationElement> elements)
+        {
+            foreach (var element in elements)
+            {
+                if (element.Id == targetId)
+                    return element.Source?.Editable == true && element.Shape is { Placeholder: null } shape &&
+                        !PpjLinePathCodec.IsLineLike(shape) && CanProjectCustomGeometry(shape, allowShapeGraph: true) &&
+                        index < shape.CustomConnectionSites.Count;
+                if (element.Group is { } group && Find(group.Children)) return true;
+            }
+            return false;
+        }
+        return targetId.Length != 0 && Find(slide.Elements);
+    }
+
     private static JsonObject ProjectConnector(
         PresentationElement element,
         string id,
         JsonObject nativeRef,
         string pageId,
-        ProjectionContext context)
+        ProjectionContext context,
+        PresentationSlide slide)
     {
         var connector = element.Connector;
         var output = ElementBase(id, element.Name, ConnectorFrame(connector), Accessibility(connector.Accessibility), nativeRef);
         output["type"] = StringNode("connector");
         output["connectorType"] = StringNode(connector.ConnectorType is "elbow" or "curved" ? connector.ConnectorType : "straight");
-        output["from"] = ConnectorEndpoint(connector.StartTargetId, connector.StartXEmu, connector.StartYEmu, pageId, context, connector.StartFrameAnchor);
-        output["to"] = ConnectorEndpoint(connector.EndTargetId, connector.EndXEmu, connector.EndYEmu, pageId, context, connector.EndFrameAnchor);
+        output["from"] = ConnectorEndpoint(connector.StartTargetId, connector.StartXEmu, connector.StartYEmu, pageId, context, connector.StartFrameAnchor,
+            ProjectableCustomSite(slide, connector.StartTargetId, connector.StartConnectionSiteIndex) ? connector.StartConnectionSiteIndex : null);
+        output["to"] = ConnectorEndpoint(connector.EndTargetId, connector.EndXEmu, connector.EndYEmu, pageId, context, connector.EndFrameAnchor,
+            ProjectableCustomSite(slide, connector.EndTargetId, connector.EndConnectionSiteIndex) ? connector.EndConnectionSiteIndex : null);
         // A connector has one native line-alpha owner. Authored
         // compositing.opacity is therefore projected as the effective stroke
         // opacity rather than as a second, unrecoverable field.
@@ -2899,7 +2923,8 @@ internal static partial class PpjPresentationProjector
 
     private static IReadOnlyList<CapabilitySpec> Capabilities(
         PresentationElement element,
-        bool hasEffectivePlaceholderFrame = false)
+        bool hasEffectivePlaceholderFrame = false,
+        bool customSiteEndpoints = false)
     {
         var output = new List<CapabilitySpec>();
         var source = element.Source;
@@ -3085,9 +3110,9 @@ internal static partial class PpjPresentationProjector
                 output.Add(new("setStroke", ["stroke"]));
                 output.Add(new("setConnectorArrows", ["startArrow", "endArrow", "startArrowWidth", "startArrowLength", "endArrowWidth", "endArrowLength"]));
                 output.Add(new("setConnectorType", ["connectorType", "bendAdjustment"]));
-                if (element.Connector.StartTargetId.Length == 0 && element.Connector.EndTargetId.Length == 0)
+                if (customSiteEndpoints || element.Connector.StartTargetId.Length == 0 && element.Connector.EndTargetId.Length == 0)
                     output.Add(new("setConnectorEndpoints", ["from", "to"]));
-                if (element.Connector.StartFrameAnchor is null && element.Connector.EndFrameAnchor is null)
+                if (!customSiteEndpoints && element.Connector.StartFrameAnchor is null && element.Connector.EndFrameAnchor is null)
                     output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
                 break;
             case PresentationElement.ContentOneofCase.Group when source.Editable:
@@ -3284,7 +3309,8 @@ internal static partial class PpjPresentationProjector
         long y,
         string pageId,
         ProjectionContext context,
-        PresentationConnectorFrameAnchor? frameAnchor = null)
+        PresentationConnectorFrameAnchor? frameAnchor = null,
+        uint? connectionSite = null)
     {
         if (frameAnchor is not null)
         {
@@ -3293,7 +3319,9 @@ internal static partial class PpjPresentationProjector
             return new JsonObject { ["element"] = StringNode(anchorTarget), ["anchor"] = StringNode(frameAnchor.Anchor) };
         }
         if (!string.IsNullOrEmpty(targetId) && context.TryElementId(pageId, targetId, out var projected))
-            return new JsonObject { ["element"] = StringNode(projected), ["anchor"] = StringNode("auto") };
+            return connectionSite is { } index
+                ? new JsonObject { ["element"] = StringNode(projected), ["connectionSite"] = JsonValue.Create(index) }
+                : new JsonObject { ["element"] = StringNode(projected), ["anchor"] = StringNode("auto") };
         return new JsonObject { ["x"] = JsonValue.Create(Points(x)), ["y"] = JsonValue.Create(Points(y)) };
     }
 

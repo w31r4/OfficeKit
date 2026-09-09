@@ -2,6 +2,20 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ custom-site connector endpoints (2026-09-10): `from/to: {element, connectionSite}`
+binds index 0..1023 of a supported custom shape's ordered connectionSites.
+`CustomSiteBindingsRetainIdentityAndFollowSourceDependencies` proves native target/index,
+actual coordinates, fresh projection, byte-exact original-source no-op, index/target
+switches, detachment/frame-anchor conversion, semantic geometry/adjustment/frame and
+frame-leaf dependency updates, unchanged opposite endpoint/arrows/stroke and non-target
+ZIP members. `CustomSiteBindingsUseRotatedFlippedGroupCoordinates` checks rotation,
+flip and group normalization. Missing/preset/out-of-range targets and dependent
+geometry native-leaf edits reject. The existing preset-site authority test still passes.
+Focused custom geometry/connector/authored-preview tests: 130/130, zero skipped,
+SDK 8.0.128 with repository TMPDIR and single-process build after an initial MSBuild
+child exit on the full system /tmp. Preview input assessment explicitly diagnoses
+connectionSite; no new NativeAOT package, host dragging or complete routing claim.
+
 PPJ connector frame anchors (2026-09-10): `from/to` preserve explicit side/center
 or deterministic auto target identity through authored export, fresh projection
 without embedded PPJ, and supported source-bound endpoint/target-frame edits.

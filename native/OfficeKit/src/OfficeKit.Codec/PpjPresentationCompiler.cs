@@ -4460,7 +4460,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
         RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "stroke", "accessibility", "from", "to", "startArrow", "endArrow", "startArrowWidth", "startArrowLength", "endArrowWidth", "endArrowLength", "connectorType", "bendAdjustment");
         var endpointsChanged = ConnectorEndpointsChanged(before, after);
         if (endpointsChanged) RequireCapability(after, "setConnectorEndpoints", path);
-        if (FrameChanged(before, after) && (endpointsChanged || target.StartFrameAnchor is not null || target.EndFrameAnchor is not null))
+        if (FrameChanged(before, after) && (endpointsChanged || before.From.ConnectionSite is not null || before.To.ConnectionSite is not null || target.StartFrameAnchor is not null || target.EndFrameAnchor is not null))
             throw Unsupported(path + ".frame", "an attached connector derives its frame from endpoints; edit from/to or the target frame");
         var oldFrame = before.Frame;
         var changed = ApplyConnectorFrame(before, after, target, path) || endpointsChanged;

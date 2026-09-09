@@ -1144,9 +1144,13 @@ internal static partial class PpjAuthoredPresentationCompiler
             StartYEmu = resolved.StartY,
             EndXEmu = resolved.EndX,
             EndYEmu = resolved.EndY,
-            StartFrameAnchor = element.From.ElementId is { } startTarget
+            StartTargetId = element.From.ConnectionSite is not null ? element.From.ElementId! : string.Empty,
+            StartConnectionSiteIndex = element.From.ConnectionSite ?? 0,
+            EndTargetId = element.To.ConnectionSite is not null ? element.To.ElementId! : string.Empty,
+            EndConnectionSiteIndex = element.To.ConnectionSite ?? 0,
+            StartFrameAnchor = element.From.ConnectionSite is null && element.From.ElementId is { } startTarget
                 ? new PresentationConnectorFrameAnchor { TargetId = startTarget, Anchor = element.From.Anchor! } : null,
-            EndFrameAnchor = element.To.ElementId is { } endTarget
+            EndFrameAnchor = element.To.ConnectionSite is null && element.To.ElementId is { } endTarget
                 ? new PresentationConnectorFrameAnchor { TargetId = endTarget, Anchor = element.To.Anchor! } : null,
         };
         ApplyLine(connector, raw.GetProperty("stroke"), catalog);

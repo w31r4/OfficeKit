@@ -508,6 +508,8 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-04 Shape、Custom Geometry、Connector 和 Group Transform
 
+**连接线 custom site 绑定增量（2026-09-10）：** `from/to: {element, connectionSite}` 用 0..1023 的索引绑定可完整表达的 custom shape `geometry.connectionSites`。编译按原生公式、frame 旋转/镜像和 group 子坐标求解端点，并写入原生 target/index；去嵌入投影保留索引。源 `setConnectorEndpoints` 支持换索引、换目标、解除绑定和转为 frame anchor；语义 geometry/frame 及已支持的 frame leaf 修改会重算依赖端点。绑定目标的 geometry native-leaf 修改明确拒绝，改用语义 geometry；preset/不透明原生绑定保持既有权限边界。最小回归覆盖实际坐标、原生绑定、源 no-op、独立修改、二次投影及非目标 ZIP 保留；custom geometry/connector/preview 专项 130/130 通过，零跳过。预览明确报告限制；未重建 NativeAOT 或验收宿主拖拽，完整 F-04 仍开放。
+
 **优先级：P0；状态：部分完成。**
 
 **自定义路径 viewport 增量（2026-09-10）：** `geometry.paths[].viewport: {width,height}` 保留每条路径独立的坐标宽高；省略继承 geometry.viewBox，任一轴为 0 则使用原生形状坐标默认值。已接通 authored、去嵌入投影和源 paths 覆盖值增改删；投影可重新归并公共 viewBox 与覆盖值，实际原生宽高保持等价。最小实验覆盖不同宽高、单轴/双轴默认、原生上限、原源 no-op 和命令/标志/文字/frame/非目标 ZIP 保留；负数/越界与 mask/clip override 拒绝。路径宽高 native leaf 的数值上限已与原生 int32 最大值对齐，其它 leaf 上限不变；相关 geometry/connector/preview 专项 128/128 通过。预览保留字段诊断，宿主几何外观仍开放。

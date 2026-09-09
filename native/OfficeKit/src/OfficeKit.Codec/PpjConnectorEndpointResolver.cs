@@ -1,3 +1,5 @@
+using OfficeKit.Artifact.Wire.V1;
+
 namespace OfficeKit.Codec;
 
 // PPJ frame anchors are layout references, not geometry connection-site indexes.
@@ -80,6 +82,25 @@ internal sealed class PpjConnectorEndpointResolver
         if (target.Element is PpjConnectorElementModel or PpjComponentElementModel or PpjSlotElementModel or PpjOpaqueElementModel)
             throw Invalid(id, $"{field}.element target {endpoint.ElementId} has unsupported type {target.Element.Type}");
         var transform = target.Parent.Then(Frame(_frames.GetValueOrDefault(target.Element.Id, target.Element.Frame), target.Element.Id));
+        if (endpoint.ConnectionSite is { } index)
+        {
+            if (target.Element is not PpjShapeElementModel ||
+                !target.Element.Raw.TryGetProperty("geometry", out var geometry) ||
+                geometry.GetProperty("kind").GetString() != "custom")
+                throw Invalid(id, $"{field}.connectionSite requires a supported custom shape");
+            var frame = _frames.GetValueOrDefault(target.Element.Id, target.Element.Frame);
+            var shape = new PresentationShape { Geometry = "custom", WidthEmu = Emu(frame.Width, id), HeightEmu = Emu(frame.Height, id) };
+            PpjAuthoredPresentationCompiler.ApplyCustomGeometry(shape, geometry, target.Element.Id, allowShapeGraph: true);
+            PptxCustomGeometryCodec.Validate(shape, target.Element.Id);
+            if (index >= shape.CustomConnectionSites.Count)
+                throw Invalid(id, $"{field}.connectionSite is outside the target site list");
+            var site = shape.CustomConnectionSites[(int)index];
+            var formulas = PptxCustomGeometryFormulaCodec.Validate(shape, target.Element.Id);
+            if (!formulas.TryResolve(site.HasXReference ? site.XReference : null, site.XEmu, out var x) ||
+                !formulas.TryResolve(site.HasYReference ? site.YReference : null, site.YEmu, out var y))
+                throw Invalid(id, $"{field}.connectionSite cannot be resolved");
+            return [transform.Apply(new(x / shape.WidthEmu, y / shape.HeightEmu))];
+        }
         Point[] points = endpoint.Anchor switch
         {
             "auto" => Sides,

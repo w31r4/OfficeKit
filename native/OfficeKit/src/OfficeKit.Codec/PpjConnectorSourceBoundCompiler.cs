@@ -48,6 +48,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
         var connectors = models.Values.OfType<PpjConnectorElementModel>().Where(model =>
             bindings.TryGetValue(model.Id, out var source) && source.Program is PpjConnectorElementModel old &&
             (source.Wire.Connector?.StartFrameAnchor is not null || source.Wire.Connector?.EndFrameAnchor is not null ||
+                model.From.ConnectionSite is not null || model.To.ConnectionSite is not null ||
                 ConnectorEndpointsChanged(old, model))).ToArray();
         if (connectors.Length == 0) return false;
 
@@ -65,12 +66,16 @@ internal static partial class PpjSourceBoundPresentationCompiler
             dependencies.Add(connector.Id, ids);
         }
         var affectedIds = dependencies.Values.SelectMany(ids => ids).ToHashSet(StringComparer.Ordinal);
+        var siteTargets = connectors.SelectMany(c => new[] { c.From, c.To })
+            .Where(e => e.ConnectionSite is not null).Select(e => e.ElementId!).ToHashSet(StringComparer.Ordinal);
         var frames = new Dictionary<string, PpjFrameModel>(StringComparer.Ordinal);
         var childFrames = new Dictionary<string, PpjFrameModel>(StringComparer.Ordinal);
         var leafChangedIds = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < mutations.NativeLeaves.Count; index++)
         {
             var mutation = mutations.NativeLeaves[index];
+            if (siteTargets.Contains(mutation.ProgramElementId) && mutation.LeafKind.StartsWith("customGeometry", StringComparison.Ordinal))
+                throw Unsupported(path, "bound custom-site geometry native leaves cannot participate in endpoint recomputation; edit semantic geometry instead");
             if (mutation.FrameFastPath || !affectedIds.Contains(mutation.ProgramElementId) ||
                 !IsConnectorFrameLeaf(mutation.LeafKind)) continue;
             var model = models[mutation.ProgramElementId];
@@ -100,12 +105,13 @@ internal static partial class PpjSourceBoundPresentationCompiler
             var endpointEdit = ConnectorEndpointsChanged(old, connector);
             var dependencyEdit = dependencies[connector.Id].Any(id => leafChangedIds.Contains(id) ||
                 models.TryGetValue(id, out var model) && bindings.TryGetValue(id, out var original) &&
-                (FrameChanged(original.Program, model) || original.Program is PpjGroupElementModel oldGroup &&
+                (FrameChanged(original.Program, model) || siteTargets.Contains(id) && PropertyChanged(original.Program.Raw, model.Raw, "geometry") || original.Program is PpjGroupElementModel oldGroup &&
                     model is PpjGroupElementModel group && ChildFrameChanged(oldGroup, group)));
             if (!endpointEdit && !dependencyEdit) continue; // Byte-exact no-op, including native rounding.
             RequireCapability(connector, "setConnectorEndpoints", path + "." + connector.Id);
             var target = source.Wire.Connector;
-            if (target.StartTargetId.Length != 0 || target.EndTargetId.Length != 0)
+            if (target.StartTargetId.Length != 0 && old.From.ConnectionSite is null ||
+                target.EndTargetId.Length != 0 && old.To.ConnectionSite is null)
                 throw Unsupported(path, "native geometry connection sites remain source-owned");
             resolver ??= new PpjConnectorEndpointResolver(after.Elements, frames, childFrames);
             var resolved = resolver.Resolve(connector);
@@ -116,13 +122,24 @@ internal static partial class PpjSourceBoundPresentationCompiler
             candidate.EndYEmu = resolved.EndY;
             PresentationConnectorFrameAnchor? Anchor(PpjConnectorEndpointModel endpoint)
             {
-                if (endpoint.ElementId is not { } id) return null;
+                if (endpoint.ConnectionSite is not null || endpoint.ElementId is not { } id) return null;
                 if (!models.ContainsKey(id) || !bindings.TryGetValue(id, out var bound))
                     throw Unsupported(path, $"connector target {id} has no retained native identity");
                 return new() { TargetId = bound.Wire.Id, Anchor = endpoint.Anchor! };
             }
             candidate.StartFrameAnchor = Anchor(connector.From);
             candidate.EndFrameAnchor = Anchor(connector.To);
+            string SiteTarget(PpjConnectorEndpointModel endpoint)
+            {
+                if (endpoint.ConnectionSite is null) return string.Empty;
+                if (endpoint.ElementId is not { } id || !models.ContainsKey(id) || !bindings.TryGetValue(id, out var bound))
+                    throw Unsupported(path, "custom-site target has no retained native identity");
+                return bound.Wire.Id;
+            }
+            candidate.StartTargetId = SiteTarget(connector.From);
+            candidate.StartConnectionSiteIndex = connector.From.ConnectionSite ?? 0;
+            candidate.EndTargetId = SiteTarget(connector.To);
+            candidate.EndConnectionSiteIndex = connector.To.ConnectionSite ?? 0;
             if (candidate.Equals(target)) continue;
             source.Wire.Connector = candidate;
             mutations.SemanticChanges = true;

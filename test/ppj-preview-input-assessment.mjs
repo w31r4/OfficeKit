@@ -22,6 +22,11 @@ assert.notEqual(sizedConnector.status, "supported");
 for (const field of ["startArrowWidth", "startArrowLength", "endArrowWidth", "endArrowLength"])
   assert.ok(sizedConnector.diagnostics.some(d => d.path.endsWith(`.${field}`) && d.status !== "supported"));
 
+const siteConnector = assessPpjPreviewInput(deck([{ type: "connector", id: "site-edge", frame,
+  connectorType: "straight", from: { element: "target", connectionSite: 0 }, to: { x: 101, y: 62 },
+  stroke: { color: "#112233", width: 2 } }]));
+assert.ok(siteConnector.diagnostics.some(d => d.path.endsWith(".from.connectionSite") && d.status !== "supported"));
+
 const rectangleShape = assessPpjPreviewInput(deck([{ type: "shape", id: "custom", frame, text: "Text",
   geometry: { kind: "custom", viewBox: frame, paths: [],
     textRectangle: { left: 10, top: 5, right: "r", bottom: "b" } } }]));

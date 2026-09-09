@@ -8373,7 +8373,7 @@
       "unevaluatedProperties": false
     },
     "connectorEndpoint": {
-      "description": "A signed literal point in connector-parent coordinates, or an expanded same-page object frame anchor. Negative positions are retained without clamping; native coordinate and extent bounds are validated after EMU rounding. Sides and center follow target rotation/flips and ancestor child frames. Auto minimizes squared slide-space distance among top/right/bottom/left midpoint pairs in that tie order. Native metadata preserves frame-anchor identity; source-bound from/to edits require issued setConnectorEndpoints. Native geometry sites retain separate authority.",
+      "description": "A signed literal point in connector-parent coordinates, or an expanded same-page object frame anchor. Negative positions are retained without clamping; native coordinate and extent bounds are validated after EMU rounding. Sides and center follow target rotation/flips and ancestor child frames. Auto minimizes squared slide-space distance among top/right/bottom/left midpoint pairs in that tie order. Native metadata preserves frame-anchor identity; source-bound from/to edits require issued setConnectorEndpoints. Explicit {element, connectionSite} binds a zero-based index (0..1023) of a supported custom shape; native target/index identity and semantic geometry/frame dependencies are retained. Preset and opaque site bindings retain separate source authority.",
       "oneOf": [
         {
           "type": "object",
@@ -8411,6 +8411,24 @@
                 "left",
                 "center"
               ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "element",
+            "connectionSite"
+          ],
+          "properties": {
+            "element": {
+              "$ref": "#/$defs/id"
+            },
+            "connectionSite": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1023
             }
           }
         }

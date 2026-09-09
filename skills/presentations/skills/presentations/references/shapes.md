@@ -314,11 +314,22 @@ or target placement rather than an attached connector's derived frame.
 
 OfficeKit preserves the exact frame anchor in native metadata even when the
 embedded PPJ snapshot is absent. This supports OfficeKit recompile/edit cycles;
-PowerPoint drag attachment has not been verified. Existing native connection-site
-bindings keep their separate source-owned authority and do not receive this
-endpoint-edit capability. Production preview remains partial; the internal
+PowerPoint drag attachment has not been verified. Native preset/opaque connection-site
+bindings keep their separate source-owned authority. Production preview remains partial; the internal
 compiler scene carries the resolved coordinates. These source-library tests do
 not certify an installed NativeAOT package or host rendering.
+
+For a supported custom shape, use `from: {element: "shape-id", connectionSite: 0}`
+or the same object in `to`. The index is zero-based (0..1023) into the target's
+`geometry.connectionSites`; it is exclusive with `anchor` and literal coordinates.
+The compiler resolves local site coordinates/formulas through rotation, flips and
+group child spaces and writes the native target/index binding. Fresh projection
+retains this index and issues `setConnectorEndpoints` for supported bindings.
+Change the index/target, replace the endpoint with `{x,y}` to detach, or use
+`{element,anchor}` to switch to a frame anchor. Semantic target geometry/frame and
+supported frame-leaf edits recompute coordinates. Geometry native-leaf edits on
+a bound target reject; edit its semantic geometry instead. Missing/unsupported
+targets and out-of-range indexes reject. Preview reports site-binding limitations.
 
 ```json
 {
