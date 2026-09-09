@@ -6,6 +6,7 @@ import { registerHooks } from "node:module";
 import { publishPpjPreview, previewInputEvidence, previewPageStems, PreviewOutputError } from "../src/ppj/preview-output.mjs";
 import { renderPpjToSvg } from "../src/ppj/svg-preview.mjs";
 import { sha256, writeExclusiveFile } from "../src/ppj/workspace.mjs";
+import { previewAssessment } from "../src/ppj/preview-diagnostics.mjs";
 
 const root = await mkdtemp(path.join(os.tmpdir(), "officekit-preview-evidence-"));
 const page = (id) => ({ id, svg: `<svg xmlns="http://www.w3.org/2000/svg"><text>${id}</text></svg>`, diagnostics: [] });
@@ -126,6 +127,58 @@ try {
   }
   const emptyRaster = await rejected(publish("empty-raster", { loadRaster: async () => ({ render: async () => Buffer.alloc(0) }) }), "preview.output.incomplete");
   assert.ok(emptyRaster.receipt.failures.every((f) => f.stage === "raster-render"));
+
+  // Lowered pages share the semantic root but have distinct native addresses.
+  // A failed page must not replace its siblings in the document assessment.
+  const scenePages = result.pages.map((p, index) => {
+    const assessment = previewAssessment({ path: "$", pageId: p.id,
+      scenePath: `$.presentation.slides[${index}]`, assessed: true });
+    return { ...p, assessment, diagnostics: assessment.diagnostics };
+  });
+  const sceneResult = { ...result, pages: scenePages,
+    assessment: previewAssessment({ path: "$", scenePath: "$.presentation", assessed: true,
+      children: scenePages.map(p => p.assessment) }) };
+  for (const failedIndex of [0, 1]) {
+    let index = 0;
+    const name = `scene-page-failure-${failedIndex}`;
+    const error = await rejected(publish(name, { loadRaster: async () => ({ render: async () => {
+      if (index++ === failedIndex) throw new Error("page-specific raster failure");
+      return Buffer.from("test PNG");
+    } }) }, sceneResult), "preview.output.incomplete");
+    const receipt = error.receipt;
+    assert.deepEqual(receipt.assessment.children, receipt.pages.map(p => p.assessment));
+    assert.deepEqual(receipt.assessment.children.map(p => p.pageId), ["first", "second"]);
+    for (const [i, p] of receipt.pages.entries()) {
+      assert.equal(p.reliability.status, i === failedIndex ? "failed" : "passed");
+      for (const d of p.diagnostics) {
+        assert.equal(d.pageId, p.id);
+        assert.equal(d.scenePath, p.assessment.scenePath);
+      }
+    }
+    assert.deepEqual(receipt, await json(name));
+    await verifyArtifacts(receipt);
+  }
+  assert.ok(sceneResult.assessment.children.every(p => p.reliability.status === "passed"),
+    "publication failure must not mutate the input assessment");
+  for (const mode of ["global", "both-pages", "write"]) {
+    const name = `scene-failure-${mode}`;
+    const options = mode === "write" ? { writeArtifact: async (file, bytes) => {
+      if (file.endsWith("first.png")) throw Object.assign(new Error("disk full"), { code: "ENOSPC" });
+      return writeExclusiveFile(file, bytes);
+    } } : { loadRaster: async () => {
+      if (mode === "global") throw new Error("raster backend missing");
+      return { render: async () => { throw new Error("raster execution failed"); } };
+    } };
+    const { receipt } = await rejected(publish(name, options, sceneResult), "preview.output.incomplete");
+    assert.deepEqual(receipt.assessment.children, receipt.pages.map(p => p.assessment));
+    assert.deepEqual(receipt, await json(name));
+    assert.deepEqual(receipt.pages.map(p => p.reliability.status),
+      mode === "write" ? ["failed", "passed"] : ["failed", "failed"]);
+    const failures = receipt.diagnostics.filter(d => d.reason.startsWith("preview.output.") || d.reason === "raster-dependency-unavailable");
+    assert.deepEqual(failures.map(d => d.scenePath).sort(), mode === "global" ? ["$.presentation"]
+      : mode === "write" ? ["$.presentation.slides[0]"] : ["$.presentation.slides[0]", "$.presentation.slides[1]"]);
+    await verifyArtifacts(receipt);
+  }
 
   // Exclusive write collision during publication must preserve the other file.
   const collision = await rejected(publish("collision", { writeArtifact: async (file, bytes) => {

@@ -118,6 +118,27 @@ function fixture(edit = () => {}) {
     assets: [{ id: "public-asset", mimeType: "image/png", sha256: sha(data), data }] };
 }
 const receipt = fixture(), before = toBinary(PresentationPreviewSceneSchema, receipt.previewScene);
+const attributed = fixture(scene => {
+  scene.presentation.futureReviewField = "unmodeled global state";
+  scene.presentation.slides[0].elements = ["generated-a", "generated-b"].map(id => child(id, "shape", {
+    ...frame(10, 10, 40, 40), geometry: "rect", fillRgb: "CC5500", shapeDepthEmu: 12700n, shapeExtrusionHeightEmu: 25400n,
+  }));
+});
+for (const binding of attributed.previewScene.bindings) {
+  binding.semanticId = "component-owner"; binding.programPath = "$.pages[0].elements[0]"; binding.attribution = 2;
+}
+attributed.previewScene.sha256 = sha(toBinary(PresentationPreviewSceneSchema, { ...attributed.previewScene, sha256: "" }));
+const attributedPaint = paintPpjSceneSvg(attributed);
+const remainingGeometry = attributedPaint.diagnostics.filter(d => /shape(?:DepthEmu|ExtrusionHeightEmu)$/.test(d.scenePath));
+assert.equal(remainingGeometry.length, 4, "Two unpainted fields on two generated children retain four distinct addresses");
+assert.equal(new Set(remainingGeometry.map(d => d.path)).size, 1);
+assert.equal(new Set(remainingGeometry.map(d => d.scenePath)).size, 4);
+assert.equal(attributedPaint.pages[0].id, "page");
+assert.equal(attributedPaint.pages[0].assessment.scenePath, "$.presentation.slides[0]");
+assert.ok(attributedPaint.pages[0].diagnostics.some(d => d.scenePath === "$.presentation.futureReviewField"));
+assert.deepEqual(attributedPaint.assessment.diagnostics, attributedPaint.diagnostics);
+assert.deepEqual(attributedPaint.pages[0].assessment.diagnostics, attributedPaint.pages[0].diagnostics);
+assert.equal(JSON.parse(JSON.stringify(attributedPaint.assessment)).diagnostics.length, attributedPaint.diagnostics.length);
 for (const verified of [true, false]) {
   const input = fixture(scene => scene.presentation.slides[0].elements.push(child("diagram", "diagram", {
     ...frame(100, 100, 200, 100), drawingCacheVerified: verified, layout: "process",
@@ -427,6 +448,69 @@ const vertical = paintPpjSceneSvg(fixture(scene => {
 assert.match(vertical.pages[0].svg, /data-officekit-table-cell="0:0" data-officekit-row-span="2" data-officekit-column-span="1"><rect x="20" y="40" width="100" height="120"/);
 assert.doesNotMatch(vertical.pages[0].svg, /data-officekit-table-cell="1:0"/);
 assert.ok(vertical.diagnostics.some(d => d.reason === "preview.scene.paint.merged-cell-style"));
+
+function scatterFixture(edit = () => {}) {
+  return fixture(scene => {
+    const c = child("scatter", "chart", { ...frame(100, 100, 500, 300), type: 6,
+      scatterStyle: "lineWithMarkers", xAxis: { minimum: 0, maximum: 100 }, yAxis: { minimum: 0, maximum: 10 },
+      series: [{ name: "XY", xValues: [0, 10, 50, 100], values: [0, 2, 0, 10], missingValueIndexes: [2],
+        line: { color: { source: { case: "rgb", value: "114477" } }, widthPoints: 2 },
+        marker: { symbol: 3, size: 8, fill: { source: { case: "rgb", value: "FF0000" } } } }],
+    });
+    edit(c.content.value); scene.presentation.slides[0].elements = [c];
+  });
+}
+const scatterInput = scatterFixture(), scatterBytes = toBinary(PresentationPreviewSceneSchema, scatterInput.previewScene);
+const scatter = paintPpjSceneSvg(scatterInput), scatterSvg = scatter.pages[0].svg;
+assert.equal(scatter.reliability.status, "requires-review");
+assert.deepEqual(toBinary(PresentationPreviewSceneSchema, scatterInput.previewScene), scatterBytes);
+assert.match(scatterSvg, /data-officekit-chart="scatter"/);
+assert.match(scatterSvg, /data-officekit-line-segment="0:1" d="M 150 355 L 190 313"/);
+assert.match(scatterSvg, /data-officekit-point="0" data-officekit-x-value="0" data-officekit-value="0"/);
+assert.match(scatterSvg, /data-officekit-missing-point="2" data-officekit-x-value="50"/);
+assert.doesNotMatch(scatterSvg, /data-officekit-point="2"|data-officekit-line-segment="0:3"/);
+assert.match(scatterSvg, /circle cx="550" cy="145" r="4"/);
+const scatterMarker = paintPpjSceneSvg(scatterFixture(c => { c.scatterStyle = "marker"; })).pages[0].svg;
+assert.doesNotMatch(scatterMarker, /data-officekit-line-segment=/);
+assert.equal((scatterMarker.match(/<circle /g) || []).length, 3);
+const scatterReverse = paintPpjSceneSvg(scatterFixture(c => { c.xAxis.reverse = c.yAxis.reverse = true; })).pages[0].svg;
+assert.match(scatterReverse, /d="M 550 145 L 510 187"/);
+const scatterLog = paintPpjSceneSvg(scatterFixture(c => {
+  c.xAxis = create(SpreadsheetChartAxisArtifactSchema, { minimum: 1, maximum: 100, logBase: 10 });
+  c.series[0].xValues = [1, 10, -500, 100]; // Missing pair never enters log domain.
+}));
+assert.equal(scatterLog.reliability.status, "requires-review");
+assert.match(scatterLog.pages[0].svg, /d="M 150 355 L 350 313"/);
+const scatterIndependent = paintPpjSceneSvg(scatterFixture(c => {
+  c.series.push(create(SpreadsheetChartSeriesArtifactSchema, { name: "Other", xValues: [80, 20], values: [1, 9],
+    line: { color: { source: { case: "rgb", value: "00FF00" } }, widthPoints: 2 },
+    marker: { symbol: 3, size: 8, fill: { source: { case: "rgb", value: "00FF00" } } } }));
+}));
+assert.match(scatterIndependent.pages[0].svg, /data-officekit-series="1"[\s\S]*d="M 470 334 L 230 166"/);
+const scatterAuto = paintPpjSceneSvg(scatterFixture(c => {
+  c.xAxis = undefined; c.series[0].xValues[2] = 1e200;
+}));
+assert.match(scatterAuto.pages[0].svg, /data-officekit-x-min="0" data-officekit-x-max="100"/);
+const scatterOutside = paintPpjSceneSvg(scatterFixture(c => { c.series[0].xValues[0] = -10; }));
+assert.match(scatterOutside.pages[0].svg, /data-officekit-x-value="-10" data-officekit-value="0" data-officekit-point-outside-plot="true"/);
+assert.doesNotMatch(scatterOutside.pages[0].svg, /circle cx="110"/);
+const scatterNone = paintPpjSceneSvg(scatterFixture(c => {
+  c.series[0].values.fill(0); c.series[0].missingValueIndexes = [0, 1, 2, 3];
+}));
+assert.match(scatterNone.pages[0].svg, /No observed data/);
+assert.doesNotMatch(scatterNone.pages[0].svg, /data-officekit-point=|data-officekit-line-segment=/);
+for (const edit of [
+  c => { c.series[0].xValues.pop(); }, c => { c.series[0].bubbleSizes = [1, 2, 3, 4]; },
+  c => { c.series[0].missingValueIndexes = [2, 2]; }, c => { c.series[0].values[2] = 9; },
+  c => { c.series[0].xValues[0] = NaN; }, c => { c.displayBlanksAs = "span"; },
+  c => { c.scatterStyle = "smoothWithMarkers"; }, c => { c.xAxis.minimum = 101; },
+  c => { c.xAxis.logBase = 10; }, c => { c.yAxis.logBase = 1; },
+  c => { c.series[0].marker.symbol = 9; }, c => { c.scatterStyle = "line"; },
+  c => { c.series[0].line = undefined; },
+]) {
+  const result = paintPpjSceneSvg(scatterFixture(edit));
+  assert.equal(result.reliability.status, "failed", JSON.stringify(result.diagnostics));
+}
 
 function lineFixture(edit = () => {}) {
   return fixture(scene => {

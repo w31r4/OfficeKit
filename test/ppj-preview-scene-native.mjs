@@ -13,8 +13,15 @@ import { createPpjSceneView } from "../src/ppj/preview-scene-view.mjs";
 import { paintPpjSceneSvg, nativePathData } from "../src/ppj/preview-scene-svg.mjs";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
+import { createHash } from "node:crypto";
 
 assert.ok(process.argv[2], "Pass the directory produced by npm run build:office-kit -- --output <new-directory>.");
+const evidenceFiles = ["../src/ppj/preview-scene-svg.mjs", "./ppj-preview-scene-native.mjs",
+  "../src/ppj/preview-scene.mjs", "../src/ppj/preview-scene-view.mjs", "../src/ppj/preview-diagnostics.mjs", "../src/ppj/preview-output.mjs",
+  "../src/generated/office_kit/artifact/v1/office_artifact_pb.js"];
+const javascriptIdentity = async () => Object.fromEntries(await Promise.all(evidenceFiles.map(async file =>
+  [file, createHash("sha256").update(await readFile(new URL(file, import.meta.url))).digest("hex")])));
+const javascriptAtStart = await javascriptIdentity();
 const packageJsonPath = path.resolve(process.argv[2], "package.json");
 const descriptors = await Promise.all(["office", "ppj"].map(profile => loadOfficeKitNativeDescriptor({ packageJsonPath, profile })));
 const started = [];
@@ -53,6 +60,7 @@ try {
     return painted;
   }
   const { loadPpjWorkspace, compilePpjWorkspace, validatePpjWorkspace, sha256 } = await import("../src/ppj/workspace.mjs");
+  const { publishPpjPreview, previewInputEvidence } = await import("../src/ppj/preview-output.mjs");
   const { projectPptxToPpj } = await import("../src/ppj/native.mjs");
   const { invokeOfficeKitLazy } = await import("../src/codecs/office-kit-runtime.mjs");
   async function withoutAuthoredSnapshot(file) {
@@ -103,6 +111,17 @@ try {
     if (fixture.includes("minimum")) assert.equal(view.pages[0].nodes[0].frame.x, 48);
     const painted = await savePaint(fixture.includes("minimum") ? "minimum" : "canonical", ppj);
     assert.match(painted.pages[0].svg, /data-officekit-native-id=/);
+    const publicationDir = path.join(artifacts, fixture.includes("minimum") ? "published-minimum" : "published-canonical");
+    const publication = await publishPpjPreview(painted, previewInputEvidence(workspace, ppj), { outputDir: publicationDir });
+    const persisted = JSON.parse(await readFile(path.join(publicationDir, "render.json"), "utf8"));
+    assert.deepEqual(persisted, JSON.parse(JSON.stringify(publication.receipt)));
+    assert.deepEqual(persisted.diagnostics, JSON.parse(JSON.stringify(painted.diagnostics)));
+    assert.deepEqual(persisted.assessment, JSON.parse(JSON.stringify(painted.assessment)));
+    assert.deepEqual(persisted.pages.map(p => p.id), painted.pages.map(p => p.id));
+    assert.ok(persisted.implementation.sources.some(s => s.file === "preview-scene-svg.mjs"));
+    for (const artifact of persisted.artifacts) assert.equal(sha256(await readFile(path.join(publicationDir, artifact.file))), artifact.sha256);
+    await assert.rejects(publishPpjPreview(painted, previewInputEvidence(workspace, ppj), { outputDir: publicationDir }),
+      error => error.code === "preview.output.exists");
     const full = await fullWireCompile(workspace);
     const fullOrdinary = await fullWireCompile(workspace, { includePreviewScene: false });
     const fullChecked = await fullWireCompile(workspace, { includePreviewScene: false, validationOnly: true });
@@ -462,6 +481,68 @@ try {
     pair.push(leaves.map(n => ({ frame: n.frame, fill: n.native.fillRgb, text: n.native.text })));
   }
   assert.deepEqual(pair[0], pair[1]);
+  const scatterProgram = structuredClone(pairBase);
+  scatterProgram.pages[0].elements = [{ id: "numeric", type: "chart", chartType: "scatter",
+    frame: { x: 100, y: 100, width: 500, height: 300 }, style: { scatterStyle: "marker", legend: "none" },
+    xAxis: { min: 0, max: 100 }, yAxis: { min: 0, max: 10 },
+    data: { categories: [], series: [{ id: "xy", name: "XY", xValues: [0, 10, 50, 100], values: [0, 2, null, 10],
+      marker: { symbol: "circle", size: 8, fill: "#FF0000" } }] } }];
+  async function scatterPixels(name, receipt, middleX = 10, middleY = 2) {
+    const native = createPpjSceneView(receipt).pages[0].nodes.find(n => n.kind === "chart").native;
+    assert.equal(native.type, 6); assert.equal(native.scatterStyle, "marker");
+    assert.deepEqual(native.series[0].xValues, [0, middleX, 50, 100]);
+    assert.deepEqual(native.series[0].values, [0, middleY, 0, 10]);
+    assert.deepEqual(native.series[0].missingValueIndexes, [2]);
+    const painted = await savePaint(name, receipt), svg = painted.pages[0].svg;
+    assert.equal(painted.reliability.status, "requires-review", JSON.stringify(painted.diagnostics));
+    assert.match(svg, new RegExp(`circle cx="${150 + middleX * 4}" cy="${355 - middleY * 21}" r="4"`));
+    assert.doesNotMatch(svg, /data-officekit-line-segment=/);
+    assert.doesNotMatch(svg, /data-officekit-point="2"|data-officekit-line-segment="0:3"/);
+    const raster = await sharp(Buffer.from(svg)).flatten({ background: "#FFFFFF" }).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const pixel = (x, y) => [...raster.data.subarray((y * raster.info.width + x) * raster.info.channels, (y * raster.info.width + x) * raster.info.channels + 3)];
+    assert.deepEqual(pixel(150 + middleX * 4, 355 - middleY * 21), [255, 0, 0]);
+    assert.deepEqual(pixel(350, 353), [255, 255, 255], "Missing Y must not create a zero marker above the axis");
+    assert.deepEqual(pixel(550, 145), [255, 0, 0], "Isolated last observation remains a marker");
+  }
+  const scatterAuthored = await compileFormat(scatterProgram);
+  await scatterPixels("scatter-authored", scatterAuthored);
+  const scatterAuthoredX = structuredClone(scatterProgram);
+  scatterAuthoredX.pages[0].elements[0].data.series[0].xValues[1] = 25;
+  await scatterPixels("scatter-authored-x", await compileFormat(scatterAuthoredX), 25);
+  const scatterConnectedProgram = structuredClone(scatterProgram);
+  scatterConnectedProgram.pages[0].elements[0].style.scatterStyle = "lineWithMarkers";
+  const scatterConnected = await compileFormat(scatterConnectedProgram);
+  const scatterConnectedPaint = await savePaint("scatter-connected-unavailable", scatterConnected);
+  assert.equal(scatterConnectedPaint.reliability.status, "failed");
+  assert.ok(scatterConnectedPaint.diagnostics.some(d => d.reason === "preview.scene.paint.scatter-line-unresolved"));
+  assert.doesNotMatch(scatterConnectedPaint.pages[0].svg, /data-officekit-line-segment=/);
+  const scatterConnectedZip = await JSZip.loadAsync(scatterConnected.file);
+  const scatterConnectedXml = await scatterConnectedZip.file("ppt/slides/charts/chart1.xml").async("string");
+  assert.match(scatterConnectedXml, /scatterStyle[^>]*val="lineMarker"/);
+  assert.match(scatterConnectedXml, /<a:ln><a:noFill\s*\/><\/a:ln>/);
+  const scatterSource = await withoutAuthoredSnapshot(scatterAuthored.file), scatterBefore = scatterSource.slice();
+  const scatterProjection = await projectPptxToPpj(scatterSource, { sourceUri: "scatter.pptx", assetRootUri: "assets" });
+  const scatterInput = { program: scatterProjection.programJson, source: scatterSource, assets: scatterProjection.assets };
+  const scatterNoop = await compilePpjWorkspace(scatterInput, { includePreviewScene: true });
+  assert.deepEqual(scatterNoop.file, scatterSource); await scatterPixels("scatter-noop", scatterNoop);
+  const scatterEdit = JSON.parse(new TextDecoder().decode(scatterProjection.programJson));
+  scatterEdit.pages[0].elements[0].data.series[0].xValues[1] = 25;
+  await assert.rejects(compilePpjWorkspace({ ...scatterInput, program: Buffer.from(JSON.stringify(scatterEdit)) }, { includePreviewScene: true }),
+    error => error.code === "ppj.source.unsupportedMutation" && /xValues/.test(error.message));
+  scatterEdit.pages[0].elements[0].data.series[0].xValues[1] = 10;
+  scatterEdit.pages[0].elements[0].data.series[0].values[1] = 5;
+  const scatterCandidate = await compilePpjWorkspace({ ...scatterInput, program: Buffer.from(JSON.stringify(scatterEdit)) }, { includePreviewScene: true });
+  await scatterPixels("scatter-edited", scatterCandidate, 10, 5);
+  const scatterFresh = await projectPptxToPpj(scatterCandidate.file, { sourceUri: "scatter-edited.pptx", assetRootUri: "assets" });
+  const scatterFreshSeries = JSON.parse(new TextDecoder().decode(scatterFresh.programJson)).pages[0].elements[0].data.series[0];
+  assert.deepEqual(scatterFreshSeries.xValues, [0, 10, 50, 100]);
+  assert.deepEqual(scatterFreshSeries.values, [0, 5, null, 10]);
+  const scatterOldZip = await JSZip.loadAsync(scatterSource), scatterNewZip = await JSZip.loadAsync(scatterCandidate.file), scatterChangedParts = [];
+  assert.deepEqual(Object.keys(scatterOldZip.files).sort(), Object.keys(scatterNewZip.files).sort());
+  for (const name of Object.keys(scatterOldZip.files)) if (!scatterOldZip.files[name].dir &&
+    !Buffer.from(await scatterOldZip.file(name).async("uint8array")).equals(Buffer.from(await scatterNewZip.file(name).async("uint8array")))) scatterChangedParts.push(name);
+  assert.deepEqual(scatterChangedParts, ["ppt/slides/charts/chart1.xml"]);
+  assert.deepEqual(scatterSource, scatterBefore);
   const nativeLineInput = { id: "native-line", type: "chart", chartType: "line", title: "Missing is not zero",
     frame: { x: 500, y: 330, width: 400, height: 160 }, yAxis: { min: 0, max: 5 },
     data: { categories: ["A", "Missing", "Zero", "D", "E"], series: [{ id: "observed", name: "Observed",
@@ -1075,12 +1156,24 @@ try {
   assert.deepEqual(chartChangedParts.sort(), ["ppt/slides/charts/chart1.xml"]);
   assert.deepEqual(source, beforeSource);
   assert.ok(started.includes("office") && started.includes("ppj"));
+  assert.deepEqual(await javascriptIdentity(), javascriptAtStart, "Evidence source files changed during integration; rerun a stable snapshot.");
+  const nativeManifest = await readFile(path.join(path.dirname(packageJsonPath), "manifest.json"));
+  assert.deepEqual(JSON.parse(nativeManifest.toString("utf8")), descriptors[0].manifest,
+    "Package manifest changed during integration");
+  for (const descriptor of descriptors) assert.equal(sha256(await readFile(descriptor.executablePath)),
+    descriptor.manifest.files.find(file => file.path === descriptor.manifest.profiles[descriptor.profile].executable).sha256,
+    "Executed package identity must still match its validated manifest");
   const report = { status: relationFailures.length || diagramFailures.length ? "failed" : "passed", scope: "PPJ NativeAOT wire/view and internal SVG foundations; not production scene routing or complete paint coverage",
     diagramFailures: diagramFailures.map(error => error.message),
     recordedAt: new Date().toISOString(),
-    javascript: Object.fromEntries(await Promise.all(["../src/ppj/preview-scene-svg.mjs", "./ppj-preview-scene-native.mjs"].map(async file =>
-      [file, sha256(await readFile(new URL(file, import.meta.url)))]))),
+    javascript: javascriptAtStart,
+    runtimePackage: { manifestSha256: sha256(nativeManifest), packageVersion: descriptors[0].manifest.packageVersion,
+      sdkVersion: descriptors[0].manifest.sdkVersion, target: descriptors[0].manifest.target },
     nativeBars, nativeStacks, nativeCircular,
+    sceneAssessmentPublication: { authored: 2, diagnosticAddressesPreserved: true, returnedPersistedEqual: true, artifactHashes: true, nonOverwrite: true,
+      scope: "internal assessment/publisher contract only; no production scene route or published scene identity yet" },
+    nativeScatter: { authored: true, authoredXChange: true, sourceNoop: true, sourceYEdit: true, sourceXEdit: "rejected as source-owned; explicit error asserted", numericPositionPixels: true, missingAndIsolatedPixels: true,
+      reprojection: true, connectedMode: "unavailable: writer noFill verified; no invented SVG lines", changedParts: scatterChangedParts, sourceSha256: sha256(scatterSource), candidateSha256: sha256(scatterCandidate.file), workbook: "not present in literal-data fixture" },
     relationFailures: relationFailures.map(({ shift, actual, error }) => ({ shift, actual, message: error.message })),
     internalPainting: { artifacts, pairedComponent: 1, customArcPath, generatedBezierPaths: paths, sourceTextEdit: true, directedAnchorCases, requiredDirectedAnchorCases: 2,
       textFormats: { baselinePixels: true, decorationPixels: true, signedSpacingPixels: true, sourceNoop: true, sourceEditReprojection: true, changedParts: formatChangedParts },

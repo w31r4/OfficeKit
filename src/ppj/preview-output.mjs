@@ -47,10 +47,11 @@ export function previewInputEvidence(workspace, compiled) {
   };
 }
 
-async function implementationIdentity() {
+async function implementationIdentity(renderer) {
   const files = ["svg-preview.mjs", "preview-output.mjs", "svg-preview-capabilities.json",
     "preview-diagnostics.mjs", "preview-input-assessment.mjs", "preview-factual-errors.mjs",
     "preview-capabilities.mjs", "capability-registry.json", "ppj-v1.schema.json"];
+  if (renderer === "officekit-native-scene-svg-internal") files.push("preview-scene-svg.mjs", "preview-scene-view.mjs", "preview-scene.mjs", "preset-geometry-profiles.json");
   return {
     version: 2,
     sources: await Promise.all(files.map(async (file) => ({
@@ -90,7 +91,7 @@ export async function publishPpjPreview(result, evidence, {
   const receipt = {
     schema: SCHEMA,
     renderer: result.renderer,
-    implementation: await implementationIdentity(),
+    implementation: await implementationIdentity(result.renderer),
     environment: { node: process.version, raster: { status: "not-loaded" } },
     ...evidence,
     canvas: result.canvas,
@@ -112,9 +113,12 @@ export async function publishPpjPreview(result, evidence, {
       message: error instanceof Error ? error.message : String(error),
       ...(error?.code ? { code: String(error.code) } : {}),
     });
+    const failedAssessment = pageId === undefined ? receipt.assessment
+      : receipt.pages.find((page) => page.id === pageId)?.assessment;
     const diagnostic = previewDiagnostic({
       pageId: typeof pageId === "string" && pageId ? pageId : undefined,
-      path: pages.find((page) => page.id === pageId)?.assessment.path || "$",
+      path: failedAssessment?.path || "$",
+      ...(failedAssessment?.scenePath === undefined ? {} : { scenePath: failedAssessment.scenePath }),
       status: "unavailable", reason: stage === "raster-load" ? "raster-dependency-unavailable" : `preview.output.${stage}${kind ? `.${kind}` : ""}`,
       value: error instanceof Error ? error.message : String(error),
       action: "Inspect the publication failure and retained artifacts, repair its cause, and rerun into a new directory.",
@@ -124,10 +128,13 @@ export async function publishPpjPreview(result, evidence, {
       const next = previewAssessment({ ...page.assessment, assessed: true, diagnostics: [...page.diagnostics, diagnostic] });
       Object.assign(page, { assessment: next, status: next.status, diagnostics: next.diagnostics, reliability: next.reliability });
     }
-    const replacements = new Map(receipt.pages.map((page) => [page.assessment.path, page.assessment]));
+    // Generated pages can share a semantic root. Preserve both native address
+    // and semantic identity instead of replacing every "$" child with one page.
+    const identity = (node) => JSON.stringify([node.pageId ?? null, node.id ?? null, node.path, node.scenePath ?? null]);
+    const replacements = new Map(receipt.pages.map((page) => [identity(page.assessment), page.assessment]));
     const next = previewAssessment({ ...receipt.assessment, assessed: true,
       diagnostics: [...receipt.diagnostics, diagnostic],
-      children: receipt.assessment.children.map((child) => replacements.get(child.path) || child) });
+      children: receipt.assessment.children.map((child) => replacements.get(identity(child)) || child) });
     Object.assign(receipt, { assessment: next, status: next.status, diagnostics: next.diagnostics, reliability: next.reliability });
   };
   const outputError = (code, cause) => new PreviewOutputError(

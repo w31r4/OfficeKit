@@ -1,5 +1,11 @@
 # OfficeKit 本地 PPT 预览渲染器差距审计
 
+运行时基线更新（2026-09-10）：提交 4b7cd9c6 的独立源码快照已按仓库命令构建，原生 scene 39/39、新包真实集成、协议检查、presentation 4/4 和双构建 9 文件一致性均通过；任务 5.2 完成，G-01 当前为 8/15。最终集成 `tmp/officekit-native-scene-paint-NeJHpQ/integration.json`，完整版本与失败调整过程见[当前差距第 3.3 节](ppj-preview-current-gaps.zh-CN.md)。不是正式 scene 接入或全功能视觉验收。
+
+散点进展（2026-09-10）：内部数值 X/Y marker 映射、缺失/零区分、作者 X 变化和源 Y 编辑像素/重新投影通过，旧包完整集成报告 `tmp/officekit-native-scene-paint-laY7Yi/integration.json` passed。源 X 编辑仍拒绝；连接模式因实际 writer noFill 明确失败、不画假线。没有切换正式 CLI、修复原生写出或完成 scatter 全范围。详见[当前差距](ppj-preview-current-gaps.zh-CN.md)的 G-08～G-10。
+
+> 当前状态请先阅读[当前能力与剩余差距](ppj-preview-current-gaps.zh-CN.md)。本文件保留逐轮实施和失败记录，下方历史段落中的“当前”“仍失败”只适用于各自记录时点；已被后续证据取代的结论，不作为当前验收结果。
+
 SmartArt 所有权复核（2026-09-10）：已按源码确认的独占整图替换契约修正前轮过严的部件预期，改以实际关系目标验证图外文件、同页兄弟对象及无关关系保留。最终 `tmp/officekit-native-scene-paint-2MsoJ4/integration.json` passed，取代前轮部件断言失败；导入缓存缺样式/连接线仍未修复，不能宣称源图视觉通过。详见[当前差距 G-07](ppj-preview-current-gaps.zh-CN.md#g-07source-boundopaque-和静态检查边界)。
 
 SmartArt 缓存进展（2026-09-10）：内部 authored verified drawing 已实际绘制；当前导入缓存缺完整样式/连接线，已明确 unavailable。真实源文字修改的严格部件保留断言仍失败，最终报告 `tmp/officekit-native-scene-paint-XyIRJd/integration.json` 为 failed，不能沿用前轮全通过结论。具体成功范围、失败和待审计所有权见[当前差距 G-07](ppj-preview-current-gaps.zh-CN.md#g-07source-boundopaque-和静态检查边界)。

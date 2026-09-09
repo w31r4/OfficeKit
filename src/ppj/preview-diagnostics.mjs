@@ -15,9 +15,14 @@ function validStatus(status) {
   return status;
 }
 
-function validateIdentity({ path, pageId, id }) {
+function validateIdentity({ path, pageId, id, scenePath }) {
   nonempty(path, "path");
   if (path !== "$" && !path.startsWith("$.") && !path.startsWith("$[")) throw new TypeError("Preview path must be rooted at $");
+  if (scenePath !== undefined) {
+    nonempty(scenePath, "scene path");
+    if (scenePath !== "$" && !scenePath.startsWith("$.") && !scenePath.startsWith("$["))
+      throw new TypeError("Preview scene path must be rooted at $");
+  }
   if (pageId !== undefined) nonempty(pageId, "page ID");
   if (id !== undefined) nonempty(id, "element ID");
   if (id !== undefined && pageId === undefined) throw new TypeError("Preview element identity requires a page ID");
@@ -73,14 +78,15 @@ export function previewValueSummary(value, { sensitive = false } = {}) {
 
 /** Create a validated, serializable diagnostic without retaining the input value. */
 export function previewDiagnostic({
-  pageId, id, path, status = "partial", reason, severity,
+  pageId, id, path, scenePath, status = "partial", reason, severity,
   value, sensitive = false, action,
 }) {
   validStatus(status);
   severity ??= status === "supported" ? "info" : status === "unavailable" ? "error" : "warning";
-  validateDiagnostic({ pageId, id, path, status, reason, severity, action });
+  validateDiagnostic({ pageId, id, path, scenePath, status, reason, severity, action });
   return Object.freeze({
     ...(pageId === undefined ? {} : { pageId }), ...(id === undefined ? {} : { id }),
+    ...(scenePath === undefined ? {} : { scenePath }),
     path, status, reason, severity, valueSummary: previewValueSummary(value, { sensitive }), action,
   });
 }
@@ -96,7 +102,9 @@ export function aggregatePreviewStatus(statuses, { assessed = false } = {}) {
 }
 
 function diagnosticKey(diagnostic) {
-  return JSON.stringify([diagnostic.pageId ?? null, diagnostic.id ?? null, diagnostic.path, diagnostic.reason]);
+  // One semantic owner can lower to many native nodes and fields. Their
+  // diagnostics must not collapse merely because they share an input path.
+  return JSON.stringify([diagnostic.pageId ?? null, diagnostic.id ?? null, diagnostic.path, diagnostic.scenePath ?? null, diagnostic.reason]);
 }
 
 /** Deduplicate identities without allowing a weak duplicate to hide an error. */
@@ -132,16 +140,17 @@ export function previewReliability(diagnostics, status) {
 }
 
 /** Same constructor for an element, page or document; children keep their own evidence. */
-export function previewAssessment({ path = "$", pageId, id, assessed = false, diagnostics = [], children = [] } = {}) {
-  validateIdentity({ path, pageId, id });
+export function previewAssessment({ path = "$", scenePath, pageId, id, assessed = false, diagnostics = [], children = [] } = {}) {
+  validateIdentity({ path, scenePath, pageId, id });
   const own = assessed ? diagnostics : [...diagnostics, previewDiagnostic({
-    pageId, id, path, reason: "preview.state.unassessed", value: undefined,
+    pageId, id, path, scenePath, reason: "preview.state.unassessed", value: undefined,
     action: "Assess this input state before using the preview as visual evidence.",
   })];
   const all = mergePreviewDiagnostics(own, ...children.map((child) => child.diagnostics));
   const status = aggregatePreviewStatus([...all.map((diagnostic) => diagnostic.status), ...children.map((child) => child.status)], { assessed });
   return Object.freeze({
     ...(pageId === undefined ? {} : { pageId }), ...(id === undefined ? {} : { id }),
+    ...(scenePath === undefined ? {} : { scenePath }),
     path, status, diagnostics: all, reliability: previewReliability(all, status),
     children: Object.freeze([...children]),
   });

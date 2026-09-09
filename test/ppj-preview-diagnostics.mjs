@@ -22,6 +22,7 @@ for (const options of [
   { status: "supported", severity: "error" }, { status: "partial", severity: "info" },
   { status: "unavailable", severity: "warning" }, { path: "pages[0]" }, { path: "" },
   { reason: "" }, { action: "" }, { pageId: "" }, { id: "" }, { pageId: undefined },
+  { scenePath: "" }, { scenePath: "slides[0]" }, { scenePath: 1 },
 ]) assert.throws(() => make(options), TypeError);
 assert.deepEqual(PREVIEW_SEVERITIES, ["info", "warning", "error"]);
 assert.equal(previewPath(previewPath(previewPath("$", "pages"), 0), "strange.key\""), '$.pages[0]["strange.key\\\""]');
@@ -71,6 +72,17 @@ assert.equal(mergePreviewDiagnostics([warning, failure])[0].severity, "error");
 assert.equal(mergePreviewDiagnostics([warning, failure])[0].status, "partial");
 assert.equal(mergePreviewDiagnostics([warning, make({ pageId: "page-b" })]).length, 2);
 assert.equal(mergePreviewDiagnostics([warning, make({ path: "$.pages[0].elements[1].text" })]).length, 2);
+const sceneFirst = "$.presentation.slides[0].elements[0].shape.fillRgb";
+const sceneSecond = "$.presentation.slides[0].elements[1].shape.fillRgb";
+const sceneWarnings = [make({ scenePath: sceneFirst }), make({ scenePath: sceneSecond })];
+const sceneFailure = make({ scenePath: sceneFirst, status: "unavailable" });
+const sceneMerged = mergePreviewDiagnostics(sceneWarnings, [sceneFailure, warning]);
+assert.equal(sceneMerged.length, 3, "Separate native instances and legacy semantic evidence remain distinct");
+assert.equal(sceneMerged.find(d => d.scenePath === sceneFirst).status, "unavailable");
+assert.deepEqual(sceneMerged, mergePreviewDiagnostics([warning, sceneFailure], [...sceneWarnings].reverse()));
+assert.equal(mergePreviewDiagnostics([sceneWarnings[0], make({ scenePath: sceneFirst.replace("fillRgb", "lineRgb") })]).length, 2);
+assert.equal(previewAssessment({ assessed: true, scenePath: "$.presentation", diagnostics: sceneMerged }).diagnostics.length, 3);
+assert.throws(() => mergePreviewDiagnostics([{ ...warning, scenePath: "unrooted" }]), TypeError);
 assert.equal(previewReliability([failure], "partial").status, "failed");
 assert.equal(previewReliability([missing], "supported").status, "failed");
 assert.equal(previewReliability([warning], "partial").status, "requires-review");
