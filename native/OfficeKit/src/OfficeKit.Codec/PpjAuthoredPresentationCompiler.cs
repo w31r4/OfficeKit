@@ -210,7 +210,15 @@ internal static partial class PpjAuthoredPresentationCompiler
             current.NoSpaceFirstLastParagraph = true;
         }
         if (style.TryGetProperty("compatibleLineSpacing", out _))
+        {
+            current.ClearNoCompatibleLineSpacing();
             current.CompatibleLineSpacing = requested.CompatibleLineSpacing;
+        }
+        else if (previousStyle is { ValueKind: JsonValueKind.Object } previousCompatibleSpacing && previousCompatibleSpacing.TryGetProperty("compatibleLineSpacing", out _))
+        {
+            current.ClearCompatibleLineSpacing();
+            current.NoCompatibleLineSpacing = true;
+        }
         if (style.TryGetProperty("fromWordArt", out _))
             current.FromWordArt = requested.FromWordArt;
         if (style.TryGetProperty("textWarpPreset", out _))

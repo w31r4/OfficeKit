@@ -3517,6 +3517,9 @@ message PresentationTextBodyProperties {
   // Source-edit intent only. Must be true when present and cannot coexist
   // with space_first_last_paragraph, including an explicit false setter.
   optional bool no_space_first_last_paragraph = 42;
+  // Source-edit intent only. Must be true when present and cannot coexist
+  // with compatible_line_spacing, including an explicit false setter.
+  optional bool no_compatible_line_spacing = 43;
 }
 
 message PresentationTextStyle {

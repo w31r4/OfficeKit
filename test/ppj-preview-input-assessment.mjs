@@ -58,6 +58,8 @@ const falseAntiAliasText = assessPpjPreviewInput(deck([{ ...text, style: { force
 assert.ok(falseAntiAliasText.diagnostics.some(d => d.path.endsWith(".style.forceAntiAlias") && d.status !== "supported"));
 const falseParagraphSpacingText = assessPpjPreviewInput(deck([{ ...text, style: { spaceFirstLastParagraph: false } }]));
 assert.ok(falseParagraphSpacingText.diagnostics.some(d => d.path.endsWith(".style.spaceFirstLastParagraph") && d.status !== "supported"));
+const falseCompatibleSpacingText = assessPpjPreviewInput(deck([{ ...text, style: { compatibleLineSpacing: false } }]));
+assert.ok(falseCompatibleSpacingText.diagnostics.some(d => d.path.endsWith(".style.compatibleLineSpacing") && d.status !== "supported"));
 const singleColumnText = assessPpjPreviewInput(deck([{ ...text, style: { columns: 1 } }]));
 assert.ok(singleColumnText.diagnostics.some(d => d.path.endsWith(".style.columns") && d.status !== "supported"));
 const rotatedText = assessPpjPreviewInput(deck([{ ...text, style: { rotation: 0 } }]));

@@ -2,6 +2,17 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ text-body `compatibleLineSpacing` lifecycle (2026-09-10): true/false and
+absence are distinct; deletion removes compatLnSpc while preserving explicit
+paragraph line/before/after spacing and other XML/ZIP state. Seven shared boolean
+cases and one wire case extend the focused native selection to 136/136 passing,
+zero skipped (SDK 8.0.128). Additive deletion field 43 preserves setter 35.
+C#/JS wire, proto:check, scene wire, preview input/capability, generated
+reference/matrix, portability/reference sync and strict OpenSpec pass.
+The concurrent preview native build was observed complete before source edits.
+Updated codec required; no NativeAOT rebuild or host line-metrics acceptance.
+Other-field rejection now uses fromWordArt.
+
 PPJ text-body `spaceFirstLastParagraph` lifecycle (2026-09-10): true/false and
 source absence are distinct; deletion removes spcFirstLastPara. Seven shared
 boolean cases include explicit paragraph before/after spacing and preserve other

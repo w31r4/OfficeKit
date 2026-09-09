@@ -4236,7 +4236,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
     {
         if (after.TryGetProperty(field, out var style)) return style;
         if (PreviousTextBodyStyle(before, field) is { ValueKind: JsonValueKind.Object } previous &&
-            previous.EnumerateObject().Any() && previous.EnumerateObject().All(property => property.Name is "upright" or "rotation" or "columnDirection" or "verticalText" or "wrap" or "horizontalOverflow" or "verticalOverflow" or "verticalAlignment" or "columnGap" or "columns" or "margins" or "autoFit" or "normalAutoFit" or "anchorCenter" or "forceAntiAlias" or "spaceFirstLastParagraph"))
+            previous.EnumerateObject().Any() && previous.EnumerateObject().All(property => property.Name is "upright" or "rotation" or "columnDirection" or "verticalText" or "wrap" or "horizontalOverflow" or "verticalOverflow" or "verticalAlignment" or "columnGap" or "columns" or "margins" or "autoFit" or "normalAutoFit" or "anchorCenter" or "forceAntiAlias" or "spaceFirstLastParagraph" or "compatibleLineSpacing"))
             return JsonSerializer.SerializeToElement(new Dictionary<string, object>());
         throw Unsupported(path + "." + field, "removing source-bound text body style with other fields is not an explicit bounded operation");
     }
@@ -4353,6 +4353,13 @@ internal static partial class PpjSourceBoundPresentationCompiler
         {
             properties.ClearSpaceFirstLastParagraph();
             properties.NoSpaceFirstLastParagraph = true;
+        }
+        if (PreviousTextBodyStyle(previousSource, "style") is { ValueKind: JsonValueKind.Object } previousCompatibleSpacing &&
+            previousCompatibleSpacing.TryGetProperty("compatibleLineSpacing", out _) &&
+            (PreviousTextBodyStyle(source, "style") is not { ValueKind: JsonValueKind.Object } nextCompatibleSpacing || !nextCompatibleSpacing.TryGetProperty("compatibleLineSpacing", out _)))
+        {
+            properties.ClearCompatibleLineSpacing();
+            properties.NoCompatibleLineSpacing = true;
         }
         PpjAuthoredPresentationCompiler.ApplySourceBoundMarginRemoval(properties,
             PreviousTextBodyStyle(source, "style"), PreviousTextBodyStyle(previousSource, "style"));
