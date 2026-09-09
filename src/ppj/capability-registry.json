@@ -1063,6 +1063,13 @@
       "reason": "PpjConnectorObjectAnchorTests covers explicit side/center and deterministic minimum-distance auto anchors, rotation/flips, nested child spaces, component literal placement, native metadata and source edit/reprojection. Signed literal and resolved connector-local coordinates retain negative positions through export/import and source endpoint/frame edits. Native coordinate/extent bounds reject overflow; PPJ projection retains its own frame limits. Missing, opaque or connector targets and unresolved component instance ports fail closed. No arbitrary native site index is invented. Source-library preview on/off produces the same PPTX; installed NativeAOT, PowerPoint drag attachment, production preview adoption and full routing remain unverified."
     },
     {
+      "feature": "source-bound connector arrow fields",
+      "ppjPath": "pages[].elements[].startArrow/endArrow where type is connector",
+      "behavior": "partial",
+      "sourceBound": "Editable connectors issue setConnectorArrows. Add/change/delete either end through the PPJ field; omission or none removes that arrow and its own dimensions. Retained arrows preserve native width/length, endpoint coordinates and frame-anchor/native-site binding state. Non-target ZIP members remain unchanged.",
+      "reason": "PpjConnectorObjectAnchorTests covers original-source no-op, separate add/change/none/omission and open-arrow edits, native size/binding preservation, fresh reprojection and denied capability. PPJ open maps to native arrow in both authored and source lowering and back to open in projection. Unsupported source topology remains opaque; new arrow-size syntax, full routing and host rendering are outside this increment."
+    },
+    {
       "feature": "independently rotated connector frames",
       "ppjPath": "connector.frame",
       "behavior": "fail-closed",

@@ -3040,6 +3040,7 @@ internal static partial class PpjPresentationProjector
                 break;
             case PresentationElement.ContentOneofCase.Connector when source.Editable:
                 output.Add(new("setStroke", ["stroke"]));
+                output.Add(new("setConnectorArrows", ["startArrow", "endArrow"]));
                 if (element.Connector.StartTargetId.Length == 0 && element.Connector.EndTargetId.Length == 0)
                     output.Add(new("setConnectorEndpoints", ["from", "to"]));
                 if (element.Connector.StartFrameAnchor is null && element.Connector.EndFrameAnchor is null)
@@ -3518,6 +3519,7 @@ internal static partial class PpjPresentationProjector
     private static string? Arrow(string? value) => value switch
     {
         "triangle" or "stealth" or "diamond" or "oval" or "open" => value,
+        "arrow" => "open",
         _ => null,
     };
 

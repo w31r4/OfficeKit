@@ -4484,7 +4484,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
 
     private static bool ApplyConnectorElement(PpjProgramModel program, PpjConnectorElementModel before, PpjConnectorElementModel after, PresentationConnector target, string path)
     {
-        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "stroke", "accessibility", "from", "to");
+        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "stroke", "accessibility", "from", "to", "startArrow", "endArrow");
         var endpointsChanged = ConnectorEndpointsChanged(before, after);
         if (endpointsChanged) RequireCapability(after, "setConnectorEndpoints", path);
         if (FrameChanged(before, after) && (endpointsChanged || target.StartFrameAnchor is not null || target.EndFrameAnchor is not null))
@@ -4495,6 +4495,20 @@ internal static partial class PpjSourceBoundPresentationCompiler
         {
             RequireCapability(after, "setStroke", path + ".stroke");
             ApplyConnectorStroke(after.Raw.GetProperty("stroke"), target, program.Root, path + ".stroke");
+            changed = true;
+        }
+        if (PropertyChanged(before.Raw, after.Raw, "startArrow"))
+        {
+            RequireCapabilityField(after.NativeRef, "setConnectorArrows", "startArrow", path + ".startArrow");
+            target.StartArrow = ArrowValue(after.Raw, "startArrow");
+            if (target.StartArrow.Length == 0) target.StartArrowWidth = target.StartArrowLength = string.Empty;
+            changed = true;
+        }
+        if (PropertyChanged(before.Raw, after.Raw, "endArrow"))
+        {
+            RequireCapabilityField(after.NativeRef, "setConnectorArrows", "endArrow", path + ".endArrow");
+            target.EndArrow = ArrowValue(after.Raw, "endArrow");
+            if (target.EndArrow.Length == 0) target.EndArrowWidth = target.EndArrowLength = string.Empty;
             changed = true;
         }
         _ = oldFrame;
@@ -6836,7 +6850,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
     private static string ArrowValue(JsonElement owner, string property) =>
         owner.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String &&
         value.GetString() is { } arrow && arrow != "none"
-            ? arrow
+            ? arrow == "open" ? "arrow" : arrow
             : string.Empty;
 
     private static string? OptionalString(JsonElement owner, string name) =>

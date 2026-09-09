@@ -397,6 +397,17 @@ public sealed class PpjConnectorObjectAnchorTests
         var edge = ByName(request, "edge");
         Assert.DoesNotContain(edge["nativeRef"]!["capabilities"]!.AsArray(), c => c!["operation"]!.GetValue<string>() == "setConnectorEndpoints");
         Assert.Equal(source, Compile(request, source: source).File.ToByteArray());
+        var arrowRequest = Projected(source);
+        ByName(arrowRequest, "edge")["endArrow"] = "open";
+        var arrowResult = Compile(arrowRequest, source: source);
+        Assert.Equal("open", ByName(Projected(arrowResult.File.ToByteArray()), "edge")["endArrow"]!.GetValue<string>());
+        using (var editedDocument = PresentationDocument.Open(new MemoryStream(arrowResult.File.ToByteArray()), false))
+        {
+            var site = editedDocument.PresentationPart!.SlideParts.Single().Slide.Descendants<A.StartConnection>().Single();
+            using var originalDocument = PresentationDocument.Open(new MemoryStream(source), false);
+            Assert.Equal(originalDocument.PresentationPart!.SlideParts.Single().Slide.Descendants<A.StartConnection>().Single().OuterXml, site.OuterXml);
+        }
+        AssertSlideOnly(source, arrowResult.File.ToByteArray());
         edge["from"]!["anchor"] = "left";
         var rejected = Compile(request, source: source, success: false);
         Assert.Contains(rejected.Diagnostics, d => d.Code == "ppj.nativeRef.capabilityMissing");
@@ -467,6 +478,64 @@ public sealed class PpjConnectorObjectAnchorTests
         var response = PpjCodecProtocol.InvokeResponse(ref projection, null);
         Assert.False(response.Ok);
         Assert.Contains(response.Diagnostics, d => d.Code == "ppj.schema.maximum");
+    }
+
+    [Fact]
+    public void SourceArrowFieldsAddChangeAndDeleteWhileRetainingBindingsAndOtherEnd()
+    {
+        var authored = Compile(Program(Box("target", 100, 100, 80, 40),
+            Edge("edge", Anchor("target", "right"), Literal(400, 300))));
+        using var stream = new MemoryStream();
+        stream.Write(PptxCodecTests.RemoveEmbeddedPpj(authored.File.ToByteArray())); stream.Position = 0;
+        using (var document = PresentationDocument.Open(stream, true))
+        {
+            var tail = document.PresentationPart!.SlideParts.Single().Slide.Descendants<A.TailEnd>().Single();
+            tail.Width = A.LineEndWidthValues.Large;
+            tail.Length = A.LineEndLengthValues.Small;
+        }
+        var openEdge = Edge("open", Literal(10, 10), Literal(40, 40));
+        openEdge["endArrow"] = "open";
+        var openAuthored = Compile(Program(openEdge));
+        Assert.Equal("arrow", Find(openAuthored, "open").Connector.EndArrow);
+        Assert.Equal("open", ByName(Projected(PptxCodecTests.RemoveEmbeddedPpj(openAuthored.File.ToByteArray())), "open")["endArrow"]!.GetValue<string>());
+        var source = stream.ToArray();
+        var original = Projected(source);
+        var originalEdge = ByName(original, "edge");
+        Assert.Equal(source, Compile(original, source: source).File.ToByteArray());
+        foreach (var mode in new[] { "add", "change", "open", "none", "omit" })
+        {
+            var request = Projected(source);
+            var edge = ByName(request, "edge");
+            if (mode == "add") edge["startArrow"] = "oval";
+            else if (mode == "change") edge["endArrow"] = "diamond";
+            else if (mode == "open") edge["endArrow"] = "open";
+            else if (mode == "none") edge["endArrow"] = "none";
+            else edge.Remove("endArrow");
+            var result = Compile(request, source: source);
+            var fresh = ByName(Projected(result.File.ToByteArray()), "edge");
+            Assert.True(JsonNode.DeepEquals(originalEdge["from"], fresh["from"]));
+            Assert.True(JsonNode.DeepEquals(originalEdge["to"], fresh["to"]));
+            Assert.Equal(mode == "add" ? "oval" : null, fresh["startArrow"]?.GetValue<string>());
+            Assert.Equal(mode == "change" ? "diamond" : mode == "open" ? "open" : mode == "add" ? "triangle" : null, fresh["endArrow"]?.GetValue<string>());
+            using var document = PresentationDocument.Open(new MemoryStream(result.File.ToByteArray()), false);
+            var outline = document.PresentationPart!.SlideParts.Single().Slide.Descendants<P.ConnectionShape>().Single().ShapeProperties!.GetFirstChild<A.Outline>()!;
+            var tail = outline.GetFirstChild<A.TailEnd>();
+            if (mode is "none" or "omit") Assert.Null(tail);
+            else
+            {
+                Assert.Equal(A.LineEndWidthValues.Large, tail!.Width!.Value);
+                Assert.Equal(A.LineEndLengthValues.Small, tail.Length!.Value);
+            }
+            AssertSlideOnly(source, result.File.ToByteArray());
+        }
+        var denied = Projected(source);
+        var deniedEdge = ByName(denied, "edge");
+        deniedEdge["endArrow"] = "diamond";
+        var caps = deniedEdge["nativeRef"]!["capabilities"]!.AsArray();
+        caps.Remove(caps.Single(c => c!["operation"]!.GetValue<string>() == "setConnectorArrows"));
+        var rejected = Compile(denied, source: source, success: false);
+        Assert.Empty(rejected.File);
+        Assert.Contains(rejected.Diagnostics, d => d.Code == "ppj.nativeRef.stale");
     }
 
     private static JsonObject Projected(byte[] source) => JsonNode.Parse(Project(source).PresentationProgram.ProgramJson.ToByteArray())!.AsObject();

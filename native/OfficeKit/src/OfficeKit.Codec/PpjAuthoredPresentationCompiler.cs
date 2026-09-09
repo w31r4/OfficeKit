@@ -3902,7 +3902,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         _ => "solid",
     };
 
-    private static string Arrow(string? value) => value is null or "none" ? string.Empty : value;
+    private static string Arrow(string? value) => value is null or "none" ? string.Empty : value == "open" ? "arrow" : value;
 
     private static int CropValue(JsonElement crop, string property) =>
         crop.TryGetProperty(property, out var value) ? checked((int)Math.Round(value.GetDouble() * 100_000)) : 0;

@@ -157,6 +157,14 @@ projection also requires its existing frame limits. Missing IDs, opaque or
 connector targets, unresolved component instance ports and unrepresentable
 coordinates fail with a diagnostic.
 
+`startArrow` and `endArrow` use `none`, `triangle`, `stealth`, `diamond`,
+`oval` or `open`. `open` maps to the native arrow shape and returns as `open`
+on fresh projection. Editable source connectors issue `setConnectorArrows`:
+change or add either field directly, or remove it/set `none` to delete that end.
+A changed arrow retains its native width/length; deletion removes its own size
+state. The other arrow and endpoint bindings stay intact. Native arrow-size
+leaves remain a separate surface; this adds no PPJ size fields.
+
 On a fresh source projection, use the issued `setConnectorEndpoints` capability
 to edit `from`/`to`. Moving a supported target frame or its group frame/childFrame,
 including issued native frame leaves, recomputes attached endpoints. Replace an

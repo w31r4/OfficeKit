@@ -1870,6 +1870,7 @@
             "setFill",
             "setStroke",
             "setConnectorEndpoints",
+            "setConnectorArrows",
             "setLinePath",
             "setShapeEffects",
             "setOpacity",
@@ -1938,6 +1939,8 @@
               "visibleText",
               "fill",
               "stroke",
+              "startArrow",
+              "endArrow",
               "from",
               "to",
               "line.path",
@@ -7563,9 +7566,11 @@
               "$ref": "#/$defs/stroke"
             },
             "startArrow": {
+              "description": "Arrow shape; open maps to native arrow. Source edits require setConnectorArrows. Omission or none removes this end and its own dimensions; a retained arrow keeps its native sizes and the opposite end.",
               "$ref": "#/$defs/arrowHead"
             },
             "endArrow": {
+              "description": "Arrow shape; open maps to native arrow. Source edits require setConnectorArrows. Omission or none removes this end and its own dimensions; a retained arrow keeps its native sizes and the opposite end.",
               "$ref": "#/$defs/arrowHead"
             }
           }
