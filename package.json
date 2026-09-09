@@ -131,6 +131,8 @@
     "test:review": "node test/review.mjs",
     "test:render": "node test/render.mjs",
     "test:ppj-svg-preview": "node test/ppj-svg-preview.mjs",
+    "test:ppj-preview-coverage": "node test/ppj-preview-capability-coverage.mjs",
+    "test:ppj-preview-smoke": "node test/ppj-preview-smoke.mjs",
     "test:visual-baselines": "node test/visual-baselines.mjs",
     "test:renderer-adapters": "node test/renderer-adapters.mjs",
     "test:playwright-renderer": "node test/playwright-renderer.mjs",

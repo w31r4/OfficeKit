@@ -1,7 +1,7 @@
 {
   "schema": "office-kit/presentation-svg-preview-capabilities/v1",
   "supported": ["shape", "text", "image", "table", "connector", "group", "placeholder", "chart:bar", "chart:column", "chart:line", "chart:area", "chart:combo", "chart:scatter", "chart:pie"],
-  "partial": ["component", "chart:heatmap", "chart:treemap", "chart:sunburst", "chart:sankey", "chart:waterfall", "chart:candlestick", "chart:streamgraph", "chart:pictographic"],
+  "partial": ["component", "placeholder", "chart:heatmap", "chart:treemap", "chart:sunburst", "chart:sankey", "chart:waterfall", "chart:candlestick", "chart:streamgraph", "chart:pictographic", "chart:bubble", "chart:radar", "chart:doughnut"],
   "opaque": ["opaque", "nativeRef", "embeddedOle", "unsupported"],
   "contract": "Every unsupported or partial node must remain visible in render.json diagnostics; registry and fixtures are the source of truth for future additions."
 }
