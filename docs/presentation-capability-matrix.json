@@ -36,44 +36,728 @@
   },
   "previewCapabilities": {
     "schema": "office-kit/presentation-svg-preview-capabilities/v1",
-    "supported": [
-      "shape",
-      "text",
-      "image",
-      "table",
+    "supported": [],
+    "partial": [
+      "chart",
+      "chart:area",
+      "chart:bar",
+      "chart:bubble",
+      "chart:candlestick",
+      "chart:column",
+      "chart:combo",
+      "chart:doughnut",
+      "chart:heatmap",
+      "chart:line",
+      "chart:pie",
+      "chart:radar",
+      "chart:sankey",
+      "chart:scatter",
+      "chart:sunburst",
+      "chart:treemap",
+      "chart:waterfall",
+      "component",
       "connector",
       "group",
+      "image",
       "placeholder",
-      "chart:bar",
-      "chart:column",
-      "chart:line",
-      "chart:area",
-      "chart:combo",
-      "chart:scatter",
-      "chart:pie"
-    ],
-    "partial": [
-      "component",
-      "placeholder",
-      "chart:heatmap",
-      "chart:treemap",
-      "chart:sunburst",
-      "chart:sankey",
-      "chart:waterfall",
-      "chart:candlestick",
-      "chart:streamgraph",
-      "chart:pictographic",
-      "chart:bubble",
-      "chart:radar",
-      "chart:doughnut"
+      "shape",
+      "table",
+      "text"
     ],
     "opaque": [
+      "icon",
+      "line",
+      "media",
+      "ole",
       "opaque",
-      "nativeRef",
-      "embeddedOle",
-      "unsupported"
+      "slot",
+      "smartArt"
     ],
-    "contract": "Every unsupported or partial node must remain visible in render.json diagnostics; registry and fixtures are the source of truth for future additions."
+    "unavailable": [],
+    "variants": {
+      "stream": "partial",
+      "symbol": "partial"
+    },
+    "sourceBound": {
+      "nativeRef": "opaque",
+      "source": "opaque",
+      "sourceClone": "opaque"
+    },
+    "source": "src/ppj/capability-registry.json#previewSupport",
+    "contract": "Summary grades describe whole families, not proof that a specific input is fully rendered. Unknown visual state remains partial until assessed. Field rules apply only to their schema owner; descendants need their own assessment."
+  },
+  "previewSupport": {
+    "schema": "office-kit/ppj-preview-support/v1",
+    "contract": "Summary grades describe whole families, not proof that a specific input is fully rendered. Unknown visual state remains partial until assessed. Field rules apply only to their schema owner; descendants need their own assessment.",
+    "types": {
+      "text": {
+        "schemaRef": "#/$defs/textElement",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.text.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "shape": {
+        "schemaRef": "#/$defs/shapeElement",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.shape.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "line": {
+        "schemaRef": "#/$defs/lineElement",
+        "owner": "presentation-compiler",
+        "status": "opaque",
+        "reason": "preview.line.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "icon": {
+        "schemaRef": "#/$defs/iconElement",
+        "owner": "presentation-compiler",
+        "status": "opaque",
+        "reason": "preview.icon.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "image": {
+        "schemaRef": "#/$defs/imageElement",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.image.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "chart": {
+        "schemaRef": "#/$defs/chartElement",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.chart.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "table": {
+        "schemaRef": "#/$defs/tableElement",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.table.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "connector": {
+        "schemaRef": "#/$defs/connectorElement",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.connector.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "group": {
+        "schemaRef": "#/$defs/groupElement",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.group.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "media": {
+        "schemaRef": "#/$defs/mediaElement",
+        "owner": "presentation-compiler",
+        "status": "opaque",
+        "reason": "preview.media.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "placeholder": {
+        "schemaRef": "#/$defs/placeholderElement",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.placeholder.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "smartArt": {
+        "schemaRef": "#/$defs/smartArtElement",
+        "owner": "presentation-compiler",
+        "status": "opaque",
+        "reason": "preview.smartArt.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "ole": {
+        "schemaRef": "#/$defs/oleElement",
+        "owner": "source-projector",
+        "status": "opaque",
+        "reason": "preview.ole.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "opaque": {
+        "schemaRef": "#/$defs/opaqueElement",
+        "owner": "source-projector",
+        "status": "opaque",
+        "reason": "preview.opaque.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "component": {
+        "schemaRef": "#/$defs/componentElement",
+        "owner": "component-expander",
+        "status": "partial",
+        "reason": "preview.component.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "slot": {
+        "schemaRef": "#/$defs/slotElement",
+        "owner": "component-expander",
+        "status": "opaque",
+        "reason": "preview.slot.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      }
+    },
+    "charts": {
+      "bar": {
+        "schemaRef": "#/$defs/chartElement/allOf/1/properties/chartType",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "preview.chart.bar.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "column": {
+        "schemaRef": "#/$defs/chartElement/allOf/1/properties/chartType",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "preview.chart.column.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "line": {
+        "schemaRef": "#/$defs/chartElement/allOf/1/properties/chartType",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "preview.chart.line.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "area": {
+        "schemaRef": "#/$defs/chartElement/allOf/1/properties/chartType",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "preview.chart.area.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "pie": {
+        "schemaRef": "#/$defs/chartElement/allOf/1/properties/chartType",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "preview.chart.pie.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "doughnut": {
+        "schemaRef": "#/$defs/chartElement/allOf/1/properties/chartType",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "preview.chart.doughnut.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "scatter": {
+        "schemaRef": "#/$defs/chartElement/allOf/1/properties/chartType",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "preview.chart.scatter.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "bubble": {
+        "schemaRef": "#/$defs/chartElement/allOf/1/properties/chartType",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "preview.chart.bubble.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "radar": {
+        "schemaRef": "#/$defs/chartElement/allOf/1/properties/chartType",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "preview.chart.radar.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "waterfall": {
+        "schemaRef": "#/$defs/chartElement/allOf/1/properties/chartType",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "preview.chart.waterfall.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "heatmap": {
+        "schemaRef": "#/$defs/chartElement/allOf/1/properties/chartType",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "preview.chart.heatmap.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "candlestick": {
+        "schemaRef": "#/$defs/chartElement/allOf/1/properties/chartType",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "preview.chart.candlestick.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "treemap": {
+        "schemaRef": "#/$defs/chartElement/allOf/1/properties/chartType",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "preview.chart.treemap.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "sunburst": {
+        "schemaRef": "#/$defs/chartElement/allOf/1/properties/chartType",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "preview.chart.sunburst.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "sankey": {
+        "schemaRef": "#/$defs/chartElement/allOf/1/properties/chartType",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "preview.chart.sankey.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "combo": {
+        "schemaRef": "#/$defs/chartElement/allOf/1/properties/chartType",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "preview.chart.combo.limited",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      }
+    },
+    "variants": {
+      "symbol": {
+        "schemaRef": "#/$defs/chartSeries/properties/symbol",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "preview.chart.symbol.unassessed",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "stream": {
+        "schemaRef": "#/$defs/chartStyle/properties/stacking",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "preview.chart.stream.unassessed",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      }
+    },
+    "fields": {
+      "frame": {
+        "schemaRef": "#/$defs/frame",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.frame.unassessed",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "geometry": {
+        "schemaRef": "#/$defs/geometry",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.geometry.unassessed",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "text": {
+        "schemaRef": "#/$defs/textContent",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.text.unassessed",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "textStyle": {
+        "schemaRef": "#/$defs/textStyle",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.text.style.unassessed",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "fill": {
+        "schemaRef": "#/$defs/fill",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.fill.unassessed",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "stroke": {
+        "schemaRef": "#/$defs/stroke",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.stroke.unassessed",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "theme": {
+        "schemaRef": "#/$defs/theme",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "preview.theme.unassessed",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "grammar": {
+        "schemaRef": "#/$defs/designGrammar",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "preview.grammar.unassessed",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "groupCoordinates": {
+        "schemaRef": "#/$defs/groupChildFrame",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.group.coordinates.unassessed",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "chartData": {
+        "schemaRef": "#/$defs/chartData",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "preview.chart.data.unassessed",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "chartAxis": {
+        "schemaRef": "#/$defs/chartAxis",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "preview.chart.axis.unassessed",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "errorBars": {
+        "schemaRef": "#/$defs/chartErrorBars",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "reason": "chart-error-bars-not-rendered",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "image": {
+        "schemaRef": "#/$defs/imageElement",
+        "owner": "asset-compiler",
+        "status": "partial",
+        "reason": "preview.image.unassessed",
+        "stateHandler": "inline-png-contain",
+        "stateTest": "test/ppj-preview-field-limits.mjs",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "table": {
+        "schemaRef": "#/$defs/tableElement",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.table.unassessed",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "connector": {
+        "schemaRef": "#/$defs/connectorElement",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.connector.unassessed",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "hidden": {
+        "schemaRef": "#/$defs/elementBase/properties/hidden",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.visibility.unassessed",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "compositing": {
+        "schemaRef": "#/$defs/compositing",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.compositing.unassessed",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "component": {
+        "schemaRef": "#/$defs/componentElement",
+        "owner": "component-expander",
+        "status": "partial",
+        "reason": "preview.component.unexpanded",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      }
+    },
+    "metadata": {
+      "programSchema": {
+        "schemaRef": "#/properties/schema",
+        "owner": "language",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "meta": {
+        "schemaRef": "#/properties/meta",
+        "owner": "language",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "intent": {
+        "schemaRef": "#/properties/intent",
+        "owner": "authoring",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "sections": {
+        "schemaRef": "#/properties/sections",
+        "owner": "presentation-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "customShows": {
+        "schemaRef": "#/properties/customShows",
+        "owner": "presentation-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "comments": {
+        "schemaRef": "#/properties/comments",
+        "owner": "presentation-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "element-id": {
+        "schemaRef": "#/$defs/elementBase/properties/id",
+        "owner": "presentation-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "element-name": {
+        "schemaRef": "#/$defs/elementBase/properties/name",
+        "owner": "presentation-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "element-role": {
+        "schemaRef": "#/$defs/elementBase/properties/role",
+        "owner": "presentation-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "element-accessibility": {
+        "schemaRef": "#/$defs/elementBase/properties/accessibility",
+        "owner": "presentation-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "element-locked": {
+        "schemaRef": "#/$defs/elementBase/properties/locked",
+        "owner": "presentation-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "element-tags": {
+        "schemaRef": "#/$defs/elementBase/properties/tags",
+        "owner": "presentation-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "page-id": {
+        "schemaRef": "#/$defs/page/properties/id",
+        "owner": "presentation-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "page-name": {
+        "schemaRef": "#/$defs/page/properties/name",
+        "owner": "presentation-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "page-role": {
+        "schemaRef": "#/$defs/page/properties/role",
+        "owner": "presentation-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "page-claim": {
+        "schemaRef": "#/$defs/page/properties/claim",
+        "owner": "presentation-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "page-notes": {
+        "schemaRef": "#/$defs/page/properties/notes",
+        "owner": "presentation-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "page-readingOrder": {
+        "schemaRef": "#/$defs/page/properties/readingOrder",
+        "owner": "presentation-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "asset-rights": {
+        "schemaRef": "#/$defs/asset/properties/rights",
+        "owner": "asset-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "asset-accessibility": {
+        "schemaRef": "#/$defs/asset/properties/accessibility",
+        "owner": "asset-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "asset-uri": {
+        "schemaRef": "#/$defs/asset/properties/uri",
+        "owner": "asset-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "asset-sha256": {
+        "schemaRef": "#/$defs/asset/properties/sha256",
+        "owner": "asset-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "asset-mimeType": {
+        "schemaRef": "#/$defs/asset/properties/mimeType",
+        "owner": "asset-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "asset-id": {
+        "schemaRef": "#/$defs/asset/properties/id",
+        "owner": "asset-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "asset-widthPx": {
+        "schemaRef": "#/$defs/asset/properties/widthPx",
+        "owner": "asset-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "asset-heightPx": {
+        "schemaRef": "#/$defs/asset/properties/heightPx",
+        "owner": "asset-compiler",
+        "reason": "preview.metadata.nonvisual",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      }
+    },
+    "factual": {
+      "shapeGeometry": {
+        "schemaRef": "#/$defs/geometry",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "severity": "error",
+        "reason": "preview.fact.shape-geometry-omitted",
+        "test": "test/ppj-preview-factual-errors.mjs"
+      },
+      "connector": {
+        "schemaRef": "#/$defs/connectorElement",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "severity": "error",
+        "reason": "preview.fact.connector-endpoints-ignored",
+        "test": "test/ppj-preview-factual-errors.mjs"
+      },
+      "transform": {
+        "schemaRef": "#/$defs/frame",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "severity": "error",
+        "reason": "preview.fact.transform-ignored",
+        "test": "test/ppj-preview-factual-errors.mjs"
+      },
+      "visibility": {
+        "schemaRef": "#/$defs/elementBase/properties/hidden",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "severity": "error",
+        "reason": "preview.fact.hidden-content-drawn",
+        "test": "test/ppj-preview-factual-errors.mjs"
+      },
+      "groupCoordinates": {
+        "schemaRef": "#/$defs/groupChildFrame",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "severity": "error",
+        "reason": "preview.fact.group-coordinates-ignored",
+        "test": "test/ppj-preview-factual-errors.mjs"
+      },
+      "chartChannels": {
+        "schemaRef": "#/$defs/chartData",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "severity": "error",
+        "reason": "preview.fact.chart-channel-ignored",
+        "test": "test/ppj-preview-factual-errors.mjs"
+      },
+      "chartSeriesType": {
+        "schemaRef": "#/$defs/chartSeries",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "severity": "error",
+        "reason": "preview.fact.series-type-not-inherited",
+        "test": "test/ppj-preview-factual-errors.mjs"
+      },
+      "chartMissing": {
+        "schemaRef": "#/$defs/chartSeries/properties/values",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "severity": "error",
+        "reason": "preview.fact.missing-observation-misrepresented",
+        "test": "test/ppj-preview-factual-errors.mjs"
+      },
+      "chartProportion": {
+        "schemaRef": "#/$defs/chartData",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "severity": "error",
+        "reason": "preview.fact.chart-proportion-misrepresented",
+        "test": "test/ppj-preview-factual-errors.mjs"
+      },
+      "chartHierarchy": {
+        "schemaRef": "#/$defs/chartSeries/properties/parents",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "severity": "error",
+        "reason": "preview.fact.chart-hierarchy-ignored",
+        "test": "test/ppj-preview-factual-errors.mjs"
+      },
+      "chartTotals": {
+        "schemaRef": "#/$defs/chartSeries/properties/pointRoles",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "severity": "error",
+        "reason": "preview.fact.waterfall-total-ignored",
+        "test": "test/ppj-preview-factual-errors.mjs"
+      },
+      "chartScale": {
+        "schemaRef": "#/$defs/chartAxis",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "severity": "error",
+        "reason": "preview.fact.chart-scale-ignored",
+        "test": "test/ppj-preview-factual-errors.mjs"
+      },
+      "chartStacking": {
+        "schemaRef": "#/$defs/chartStyle/properties/stacking",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "severity": "error",
+        "reason": "preview.fact.chart-stacking-misrepresented",
+        "test": "test/ppj-preview-factual-errors.mjs"
+      },
+      "chartSymbol": {
+        "schemaRef": "#/$defs/chartPictographSymbol",
+        "owner": "authored-compiler",
+        "status": "partial",
+        "severity": "error",
+        "reason": "preview.fact.chart-symbol-unit-ignored",
+        "test": "test/ppj-preview-factual-errors.mjs"
+      }
+    },
+    "sourceBound": {
+      "nativeRef": {
+        "schemaRef": "#/$defs/nativeRef",
+        "owner": "source-projector",
+        "status": "opaque",
+        "reason": "preview.source.unassessed",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "source": {
+        "schemaRef": "#/$defs/source",
+        "owner": "source-projector",
+        "status": "opaque",
+        "reason": "preview.source.unassessed",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "sourceClone": {
+        "schemaRef": "#/$defs/sourceClone",
+        "owner": "source-projector",
+        "status": "opaque",
+        "reason": "preview.source.clone.unassessed",
+        "test": "test/ppj-preview-capability-coverage.mjs"
+      }
+    }
   },
   "ppjRootPaths": [
     {

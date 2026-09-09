@@ -35,7 +35,11 @@ schema 为 `office-kit/ppj-svg-preview-output/v1`。
 | `ok` / `output.status` | 发布是否完成；状态为 `complete` 或 `incomplete` |
 | `output.directory` | 本次输出绝对路径 |
 | `artifacts[]` | 实际成功写入的文件，含 `pageId/kind/file/sha256/bytes` |
-| `pages[]` | 原始页 ID 和显示诊断；只有实际写入时才存在 `file`/`png` 字段 |
+| `pages[]` | 原始页 ID、`status`、`reliability`、`diagnostics` 和 `assessment`；只有实际写入时才存在 `file`/`png` 字段 |
+| `assessment` | 整个程序的检查树，`children` 保留页面及嵌套元素；以 `path` 标识节点，不能只用局部元素 ID |
+| `status` | 按实际已检查状态聚合：`unavailable > opaque > partial > supported`，与诊断数量无关 |
+| `reliability` | 独立可靠性门槛：`failed`、`requires-review` 或 `passed`，含错误级 `violations` |
+| `diagnostics[]` | 含 `pageId/id`（适用时）、具体 `path`、`status/reason/severity/valueSummary/action`；源载荷不展开，值摘要限长 |
 | `failures[]` | 失败阶段、可用的页面/元素/文件类型信息和错误消息 |
 | `input` | 实际加载的 PPJ 路径与原始字节 hash |
 | `compile` | canonical program hash 与实际编译结果字节 hash |
@@ -45,7 +49,29 @@ schema 为 `office-kit/ppj-svg-preview-output/v1`。
 | `environment` | Node 版本、栅格后端可用状态与已加载的 sharp/libvips 等版本 |
 | `renderEvidence` / `visualReview` | `local-svg-preview` / `requires-human`，不是 Office 文件渲染验收 |
 
-`status` 和 `diagnostics` 仍包含旧的元素支持信息，尚未代表全部视觉字段正确；G-11 的完整支持等级修复仍待完成。发布失败会覆盖为 unavailable，但发布成功绝不能用来证明画得正确。
+支持与可靠性检查已经接入真实 SVG 绘制和发布。字段限制、继承/全局状态、未知视觉后代以及已登记的事实错误汇入同一份检查结果。分支自报 supported 不能覆盖字段限制；错误级事实诊断或生产失败使可靠性为 failed。仅有 partial/opaque 限制时为 requires-review；passed 只说明这一套自动检查没有发现限制，仍不等于人工视觉或编辑保真通过。
+
+能力声明描述真实类型的整体边界，不把“存在绘制分支”当作该类型完全支持。目前没有整个元素/图表类型被声明为 supported；个别受限状态可以通过，例如已验证的显式 contain PNG 映射。裁切、源绑定或其他未支持状态仍会降低实际结果的等级。诊断不修复绘制，已报告的文字、图表、图片等缺口仍需逐项实现。
+
+## 图片警示与验收含义
+
+事实错误或绘制不可用的页面显示红色 `UNRELIABLE PREVIEW`；只有未实现/不透明限制的页面显示棕色 `PREVIEW REQUIRES REVIEW`。警示在栅格化前加入 SVG，PNG 使用同一份 SVG，保留原画布尺寸与元素 ID。警示覆盖页面顶部的一小条区域，是审查标记，不是修改输入中的版式或新增可编辑页面对象。
+
+SVG 警示包含 `data-officekit-assessment-path`、`data-officekit-diagnostic-path`、`data-officekit-diagnostic-reason`，可对应清单中的具体检查结果。PNG 只能显示简短提示；完整原因与建议看 `render.json`。警示反映绘制时已知的限制；随后发生的磁盘/清单写入失败仍须查看最终清单或异常 receipt，不能从已写图片反推整个发布成功。
+
+以下组合是合法且有意保留的：
+
+```json
+{
+  "ok": true,
+  "output": { "status": "complete" },
+  "status": "partial",
+  "reliability": { "status": "failed" },
+  "visualReview": "requires-human"
+}
+```
+
+示例省略了实际错误内容；真实 failed 事实诊断会出现在 violations 中。含义是“文件写完，但事实表达错误，不能当正确性证据”。CLI 退出码当前仍只表达编译/绘制不可用/发布错误；事实错误诊断可以与退出码 0 并存。调用者必须读取 `reliability`，不能只看退出码或 `ok`。事实失败不能被外观评分抵消；requires-review/passed 也不自动替代结构检查、人工渲染检查或导入后的编辑保真检查。
 
 输入/资源 hash 来自加载的同一份字节，不在编译后重读资产路径。无需输出目录的内部 `renderPpjToSvg` 调用仍返回内存 SVG，不加载 PNG 依赖。当前 CLI 仍保留原有返回布局；完整 CLI 摘要及页选择修复属于 G-13。
 
@@ -73,3 +99,5 @@ node test/ppj-svg-preview.mjs
 ```
 
 第一项是注入栅格/磁盘故障的轻量测试，包含非覆盖、并发、路径、缺依赖、部分写入、hash 和资源快照；已加入 fast/slow gate。其模拟 PNG 字节只测试发布，不用于证明栅格正确。第二项实际调用 codec 和 sharp，包含 authored 与移除私有 PPJ 快照后的 source-bound 投影、原输入保持和产物 hash 校验。
+
+能力声明只编辑 `src/ppj/capability-registry.json` 的 `previewSupport`，再运行 `node scripts/generate-ppj-preview-capabilities.mjs` 与 `npm run docs:presentation-capabilities`；两项生成器均支持 `--check`，检查不应改写产物。诊断及集成回归用 `npm run test:ppj-preview-diagnostics` 验证；`npm run test:slow -- --segment presentation` 包含该测试、发布故障、真实预览和能力覆盖四项。真实预览测试核对返回/落盘检查一致性、源字节、带警示文件 hash 和 PNG 警示像素；字段级完整绘制覆盖仍需后续任务补齐。

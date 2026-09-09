@@ -22,6 +22,7 @@ assert.equal(packageJson.scripts["eval:presentation-authoring-expansion"], undef
 assert.equal(packageJson.scripts["test:presentation"], undefined);
 assert.equal(packageJson.scripts["test:pptx-svg-leaf-benchmark"], undefined);
 assert.equal(packageJson.scripts["test:ppj-preview-output"], "node test/ppj-preview-output-evidence.mjs");
+assert.equal(packageJson.scripts["test:ppj-preview-diagnostics"], "node test/ppj-preview-diagnostics.mjs");
 assert.equal(packageJson.scripts["test:ppj-svg-preview"], "node test/ppj-svg-preview.mjs");
 assert.equal(packageJson.scripts["test:ppj-preview-coverage"], "node test/ppj-preview-capability-coverage.mjs");
 
@@ -31,6 +32,8 @@ const fastSource = gateRunner.slice(fastStart, slowStart);
 const slowSource = gateRunner.slice(slowStart, gateRunner.indexOf("const steps"));
 assert.match(fastSource, /check-js-syntax/);
 assert.match(fastSource, /ppj-preview-output-evidence/);
+assert.match(fastSource, /ppj-preview-diagnostics/);
+assert.match(slowSource, /ppj-preview-diagnostics/);
 assert.match(slowSource, /ppj-preview-output-evidence/);
 assert.match(fastSource, /windows-live-gate/);
 assert.match(fastSource, /windows-pptx-lossless-gate/);
@@ -73,6 +76,7 @@ for (const [index, range] of ranges.entries()) {
 }
 const presentation = ranges.find((r) => r.name === "presentation");
 assert.deepEqual(steps.slice(presentation.start, presentation.end).map((s) => s.target), [
+  "test/ppj-preview-diagnostics.mjs",
   "test/ppj-preview-output-evidence.mjs", "test/ppj-svg-preview.mjs", "test/ppj-preview-capability-coverage.mjs",
 ]);
 const expectedStarts = {

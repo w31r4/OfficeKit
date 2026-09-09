@@ -28,6 +28,9 @@ async function rejected(promise, code) {
   let caught;
   await assert.rejects(promise, (error) => {
     caught = error;
+    assert.equal(error.receipt.reliability.status, "failed", "every production failure must fail reliability");
+    assert.equal(error.receipt.assessment.status, "unavailable");
+    assert.deepEqual(error.receipt.assessment.reliability, error.receipt.reliability);
     return error instanceof PreviewOutputError && error.code === code;
   });
   return caught;
@@ -92,6 +95,7 @@ try {
   assert.notEqual(receipt.source.sha256, receipt.compile.outputSha256);
   assert.equal(receipt.input.sha256, sha256(workspace.program));
   assert.equal(receipt.visualReview, "requires-human");
+  assert.equal(receipt.reliability.status, "requires-review", "unassessed publisher input is not a visual pass");
   assert.equal(receipt.environment.node, process.version);
   for (const source of receipt.implementation.sources) {
     assert.equal(source.sha256, sha256(await readFile(new URL(`../src/ppj/${source.file}`, import.meta.url))));
@@ -185,7 +189,9 @@ try {
     const unavailable = await renderPpjToSvg("unused.ppj", {
       load: async () => ({ ...loaded, assets: data }), compile: async () => ({ ...compiled, programJson: imageProgram }),
     });
-    assert.equal(unavailable.diagnostics[0].reason, "asset-missing");
+    assert.ok(unavailable.diagnostics.some((d) => d.reason === "asset-missing"
+      && d.path === "$.pages[0].elements[0].asset" && d.severity === "error" && d.status === "unavailable"));
+    assert.equal(unavailable.reliability.status, "failed");
     assert.doesNotMatch(unavailable.pages[0].svg, /href=""/);
     const error = await rejected(publish(`asset-${data.length}`, {}, unavailable), "preview.output.incomplete");
     assert.equal(error.receipt.failures[0].stage, "asset");
@@ -204,11 +210,11 @@ try {
         load: async () => ({ ...workspace, program: programJson }),
         compile: async () => ({ ...compiled, programJson }),
       });
-      const diagnostic = preview.diagnostics.find((d) => d.id === "errors");
+      const diagnostic = preview.diagnostics.find((d) => d.id === "errors" && d.reason === "chart-error-bars-not-rendered");
       if (errorBars) {
         assert.equal(diagnostic.status, "partial");
         assert.equal(diagnostic.reason, "chart-error-bars-not-rendered");
-      } else assert.notEqual(diagnostic.reason, "chart-error-bars-not-rendered");
+      } else assert.equal(diagnostic, undefined);
     }
   }
 

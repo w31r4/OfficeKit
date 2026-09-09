@@ -2,17 +2,45 @@
 
 审计日期：2026-09-09。状态：**预览链路已打通，功能覆盖和可靠性尚未完成**。
 
-后续实施进度（2026-09-09）：下文保留原始审计快照；本表及对应章节的“修复进度”优先于原始缺陷描述。
+最新复核：2026-09-09，基于当前未提交的 G-11 工作区；期间另一工作流将 HEAD 推进至 `0e1d8c8f`。本文保留初次审计摘录；涉及已修复问题的历史描述会明确标注。当前状态以本节、第 1.3 节和第 6.1 节为准。未提交的诊断模块属于工作区快照，不能仅检出该提交就假定已经存在。
 
-| 差距 | 已实施并验证 | 尚未完成 |
+| 差距 | 已实施并验证 | 剩余工作或范围边界 |
 | --- | --- | --- |
-| G-12 输出安全与证据 | 新目录独占发布、文件 hash/清单、pending/final 生命周期、失败保留、源/候选/资产身份；轻量故障测试、真实 authored/source-bound codec+sharp 测试及 gate-policy 通过 | 本轮执行专项检查，未运行完整 fast/slow gate；视觉正确性仍需独立验证 |
-| G-05、G-11 的相关部分 | 资产复用已加载字节；空资产诊断；发布失败不会自报完整成功 | 图片视觉语义、字段级支持等级及其他诊断缺口仍未完成 |
+| G-12 输出安全与证据 | 已完成本项限定的发布契约：新目录独占发布、文件 hash/清单、pending/final 生命周期、失败保留、源/候选/资产身份；最新 gate-policy 与 slow/presentation 四项测试通过 | 不包含视觉正确性、断电持久性或恶意进程替换目录树的安全保证 |
+| G-05 图片的有限状态 | 资产复用已加载字节；空资产诊断；独立测试验证一个显式 contain PNG 的 SVG 坐标、透明度和内嵌字节映射 | 不能推广到图片解码、裁切、主体范围、边缘、mask 和效果均正确 |
+| G-11 支持诊断 | 已接通 registry、字段检查、绘制、SVG/PNG 警示及发布清单；事实错误不因配色或发布成功而清除 | 只完成可靠性检查链路，不修复 G-01～G-10 的绘制缺陷；验收见第 5.1 节 |
 | 其余 G 编号 | 本轮未改变绘制语义 | 按原审计要求继续逐项补齐 |
 
 G-12 使用方法与清单字段见 [预览输出说明](ppj-preview-output.md)，实施清单见 [ppj-preview-output-evidence](../openspec/changes/ppj-preview-output-evidence/tasks.md)。以上不是全部 gap 的完成声明。
 
+G-11 后续实施记录（2026-09-09，9/9 任务完成）：[支持诊断变更](../openspec/changes/ppj-preview-support-diagnostics/tasks.md) 已从独立模块推进到真实绘制和发布。能力摘要和生成矩阵同源生成，按真实 schema 校验 16 类元素、16 类图表，另列变体和源绑定字段；不再把 shape/image/connector 等整个类型宣称为完整支持。当前类型声明见第 3 节，具体实现与验收见第 5.1 节。
+
+新增诊断测试已接入 fast/slow；本轮 `slow/presentation` 为 4/4 通过，真实 codec+sharp 产物在 `/tmp/officekit-ppj-preview-itVihO`。能力摘要和矩阵的 `--check` 均通过。`renderPpjToSvg` 已调用字段与事实检查，页面、全局及输出清单共享结果；真实 PNG 警示像素和文件 hash 均有断言。G-14 的完整视觉覆盖和 G-15 的字段维护闭环仍开放。
+
 本文面向 OfficeKit 维护者和后续接手开发的 Agent，记录本地 SVG/PNG 预览距离“简单、覆盖现有功能、能可靠辅助结构与视觉 review”的实际差距。文档记录问题和验收要求，不代表这些问题已经修复，也不代替实施规格。
+
+### 差距总表
+
+“未完成”表示仍有本编号的核心要求未满足，不表示整项完全没有实现。G-12 的限定契约和 G-11 的检查契约已完成，其余 14 类绘制、交付、完整覆盖及性能工作仍开放。这不是按功能数量或工作量计算的完成率。
+
+| 编号 | 当前状态 | 主要影响 | 收口时必须拿出的证据 |
+| --- | --- | --- | --- |
+| G-01 共用解析与布局 | 未完成 | 高层组件与样式可能和编译后的 PPTX 不同 | 高层写法与等价展开写法的几何、数据及样式一致 |
+| G-02 文字与形状 | 未完成 | 带文字形状消失，富文本错分行，几何被替换 | 几何与文字同时存在；run、段落、字号和溢出有断言 |
+| G-03 变换与可见性 | 未完成 | 旋转、镜像、嵌套组及 hidden 表达错误 | 嵌套坐标、旋转边界、可见性与实际展开结果一致 |
+| G-04 样式与主题 | 未完成 | token、继承、背景和 effects 被固定默认值替代 | 样式解析优先级及具体填充、透明度、轮廓回归 |
+| G-05 图片 | 部分修复 | 资源快照已统一；裁切、主体范围、mask 和效果仍不可靠 | 已知裁切和透明边缘案例；未知信息的明确诊断 |
+| G-06 表格与连接线 | 未完成 | 列宽、合并单元格和连接方向不符合输入 | 非等宽与 span 几何、端点移动、锚点和箭头断言 |
+| G-07 源绑定与 opaque | 未完成 | 源快照可能不能说明编辑后状态；静态检查范围不清 | 原包保留、目标修改、重新投影及快照有效性证据 |
+| G-08 图表公共语义 | 未完成 | 数据映射、尺度、双轴与标签可能误导读者 | 每个数据点可对应正确通道、尺度、轴和标签 |
+| G-09 图表类型 | 未完成 | 比例、层级、累计值、流向及 OHLC 可能错误或消失 | 第 4.2 节每类图表至少一个真实语义反例转为通过 |
+| G-10 缺失值 | 未完成 | null 被补 0、跨缺失连线，或独立观测被省略 | 真实 0、连续缺失、单点段及显式显示策略回归 |
+| G-11 支持状态 | 本项检查契约完成，9/9 任务通过 | 已知事实错误变为失败；partial/opaque 保留限制和图片警示 | 字段/页/全局与发布结果一致；事实与视觉分开；不代替绘制修复 |
+| G-12 输出安全与证据 | 限定契约完成 | 已保护已有路径、保留失败产物并绑定实际输入 | 已有故障注入与真实 authored/source-bound 发布测试；边界见第 5.2 节 |
+| G-13 CLI 与交付链 | 未完成 | `--pages` 被忽略，预览结果未闭合各类 review | 参数行为、摘要输出、结构/渲染/编辑保真独立状态 |
+| G-14 测试覆盖 | 部分修复 | 已接入门禁，但仍缺“画对”断言和正例覆盖门槛 | 正例实际渲染、负例独立分类、语义及视觉断言 |
+| G-15 持续维护 | 部分修复 | 类型和生成摘要已防漂移；新增视觉字段仍缺完整绘制回归约束 | schema/registry 到预览、fixture、断言的自动对应检查 |
+| G-16 性能与稳定性 | 未验证 | 尚不能承诺日常多页、大图、长文的速度和内存 | 固定环境下的分阶段耗时、峰值内存及压力结果 |
 
 ## 1. 结论、范围和证据口径
 
@@ -20,7 +48,7 @@ G-12 使用方法与清单字段见 [预览输出说明](ppj-preview-output.md)�
 
 `officekit ppj preview` 已能读取 PPJ，调用现有编译器，然后生成 SVG、PNG 和 `render.json`。这证明了一条可运行的本地预览链路，但不能证明预览忠实表达了输入。
 
-目前存在会改变内容含义的错误：带文字的形状丢失几何本体、饼图不表达数值比例、连接线不依据端点关系、复杂图表读取错误的数据字段。这些问题不能用“只是视觉近似”解释。部分错误还没有诊断，甚至被标为 `supported`。
+目前仍存在会改变内容含义的绘制错误：带文字的形状丢失几何本体、饼图不表达数值比例、连接线不依据端点关系、复杂图表读取错误的数据字段。这些问题不能用“只是视觉近似”解释。G-11 已为已登记的错误生成失败级可靠性和图片警示，未知视觉字段保守报告限制；诊断没有使图形本身变正确。
 
 因此，当前不应宣称：
 
@@ -44,7 +72,24 @@ G-12 使用方法与清单字段见 [预览输出说明](ppj-preview-output.md)�
 
 不要求与 PowerPoint 像素级一致。允许字体栅格化等合理差异，但不允许改变数据比例、方向、层级、缺失值含义或对象可见性。
 
-### 1.3 本次快照
+### 1.3 审计基线与最新复核
+
+以下先列最新复核，再保留初次快照，避免把旧的工作区状态当作当前状态。
+
+| 最新复核项目 | 记录 |
+| --- | --- |
+| HEAD | 本轮从 `09f79e04` 开始，期间另一工作流提交 `0e1d8c8f`；G-11 为未提交工作区实现 |
+| 已落地的输出修复提交 | `c216362a`，`feat(ppj): publish preview artifacts with verifiable output evidence` |
+| Node.js | `v23.10.0` |
+| `src/ppj/svg-preview.mjs` SHA-256 | `f98c59fb95478610748e4377b906c922156fef0e64898eb1659cad2d1d7986ff` |
+| `src/ppj/preview-output.mjs` SHA-256 | `0d5aca1b4c89a5ed43e599250414dedc0312f7076cc928359112759d05f374df` |
+| canonical fixture SHA-256 | `6b3e6c50a67da620494df75aac7a10bb343b0db88e6d97c9f803437b8e5ae048`，与初次相同 |
+| 实际重跑 | gate-policy、slow/presentation、全量 preview smoke、能力摘要/矩阵 --check、JS syntax、Skill portability/reference-sync 和 strict OpenSpec；详细结果见第 6.1 节 |
+| 真实专项产物 | `/tmp/officekit-ppj-preview-itVihO`，含 authored/source-bound 输出；只是本机临时定位，不是可移植证据包 |
+| 工作区边界 | 本轮接通 G-11 运行时，增加测试并同步任务/文档；保留另一工作流的 C# 和 workbook 改动，不将其作为本轮独立验收 |
+| 本轮未执行 | 完整 fast/slow、NativeAOT 重建、宿主 PowerPoint 验收、全量视觉人工校准和性能基准 |
+
+初次审计快照（历史记录，不代表最新 HEAD）：
 
 | 项目 | 本次记录 |
 | --- | --- |
@@ -58,11 +103,11 @@ G-12 使用方法与清单字段见 [预览输出说明](ppj-preview-output.md)�
 
 注意：测试使用当前运行时能加载的 codec，未重建 NativeAOT，不能将本次预览测试视为工作区 C# 改动已经生效的证据。本文也不声称已固定所有字体、原生二进制和资源环境。
 
-证据分为三类：**运行确认**表示本次实际执行所得；**代码确认**表示当前实现可以直接确定的行为；**待验证**表示尚缺专门案例，不能推断成功或失败。下面的完成条件都是后续要求，而非本次完成声明。
+证据分为三类：**运行确认**表示相应审计轮次实际执行所得；**代码确认**表示当前实现可以直接确定的行为；**待验证**表示尚缺专门案例，不能推断成功或失败。G-11/G-12 各自说明已验证范围，其余编号的完成条件仍是后续要求。
 
 本文术语：`authored` 指从结构化输入创建文稿；`source-bound` 指编辑仍绑定原始 PPTX、原生对象和所有权证据；`opaque` 指无法完整、安全建模的原生内容；`canonical JSON` 指规范化程序文本，不承诺已展开布局；`fixture` 指可重复运行的固定测试输入；`smoke` 仅检查基本路径能否跑通。
 
-写作期间有其他工作流继续更新对数轴、registry 和能力矩阵。本文保留测试发生时的观测，并在第 6、8 节注明复核变化；这些并行更新不算本审计完成的修复。
+初次写作期间有其他工作流更新对数轴、registry 和能力矩阵，最新复核期间又有 errorBars 相关开发。本文保留测试发生时的观测，并在第 6、8 节注明复核变化；这些并行更新不算本审计完成的修复。
 
 ## 2. 当前执行链路及能力边界
 
@@ -91,7 +136,7 @@ G-12 使用方法与清单字段见 [预览输出说明](ppj-preview-output.md)�
 
 `renderPpjToSvg` 读取 `compiled.programJson`，而 authored 编译器返回的是 `validation.CanonicalJson`。编译器另外持有 expansion/build plan，返回的 JSON 并不等于已经展开、排好布局、解析完样式的绘制场景。
 
-本次运行 canonical fixture 后，返回的 JSON 中仍有 **1 个 `component`**。预览端随后自行读取 label/value、安排位置；它没有复用该组件实际编译出来的元素树。
+初次审计运行 canonical fixture 后，返回的 JSON 中仍有 **1 个 `component`**。当前预览端仍自行读取 label/value、安排位置；它没有复用该组件实际编译出来的元素树。
 
 影响包括组件 repeat、dataset 编码、styleRef、主题和 grammar token 等高层表达：PPTX 编译可能处理正确，预览却绕过这些处理重新猜测显示。
 
@@ -101,40 +146,40 @@ G-12 使用方法与清单字段见 [预览输出说明](ppj-preview-output.md)�
 
 ## 3. 元素与页面视觉差距
 
-下表对齐 [PPJ schema](../src/ppj/ppj-v1.schema.json) 中的 16 类元素。声明状态来自 [preview capabilities](../src/ppj/svg-preview-capabilities.json)，不是本审计认可的完成状态。
+下表对齐 [PPJ schema](../src/ppj/ppj-v1.schema.json) 中的 16 类元素。声明状态来自当前 [preview capabilities](../src/ppj/svg-preview-capabilities.json)，描述整个类型的保守边界；运行时还会检查实际字段与继承状态。当前没有任何整个元素或图表类型被声明为 supported；这不表示连一个简单原语也画不出来。
 
 | 元素 | 声明状态 | 实际行为和未覆盖范围 |
 | --- | --- | --- |
-| `text` | supported | 输出纯文本和固定行距；未完整处理 runs、字体、字号、段落、换行、AutoFit、列表及样式继承 |
-| `shape` | supported | 无文字时基本画矩形；有文字时提前进入文字分支，几何和填充丢失 |
-| `line` | 未列入声明 | 无独立绘制分支，通常进入未知元素占位；路径和自由曲线未实现 |
-| `icon` | 未列入声明 | 无图标轮廓绘制分支 |
-| `image` | supported | 使用固定 contain 式 `<image>`；裁切、焦点、mask、边框和 effects 未完整映射 |
-| `chart` | 按 chartType 声明 | 各类型差距见第 4 节，不能整体认定支持 |
-| `table` | supported | 均分行列；未按显式尺寸、合并单元格和样式绘制 |
-| `connector` | supported | 固定水平线，不解析 from/to、anchor、路线和箭头 |
-| `group` | supported | 递归输出子元素，没有 childFrame 与父 frame 的坐标转换 |
-| `media` | 未列入声明 | 无专门的静态海报/封面显示或播放能力说明 |
-| `placeholder` | 同时列入 supported、partial | 实现为虚线框加文字，并报告 partial；声明自相矛盾 |
-| `smartArt` | 未列入声明 | 没有消费 SmartArt 实际布局，落入通用兜底 |
-| `ole` | 未按实际类型列入声明 | 声明用了 `embeddedOle`；没有使用 OLE `previewAsset` 的专门分支 |
+| `text` | partial | 输出纯文本和固定行距；未完整处理 runs、字体、字号、段落、换行、AutoFit、列表及样式继承 |
+| `shape` | partial | 无文字时基本画矩形；有文字时提前进入文字分支，几何和填充丢失 |
+| `line` | opaque | 无独立绘制分支，通常进入未知元素占位；路径和自由曲线未实现 |
+| `icon` | opaque | 无图标轮廓绘制分支 |
+| `image` | partial | 使用固定 contain 式 `<image>`；裁切、焦点、mask、边框和 effects 未完整映射 |
+| `chart` | partial；16 个 chartType 也均为 partial | 各类型差距见第 4 节，不能整体认定支持 |
+| `table` | partial | 均分行列；未按显式尺寸、合并单元格和样式绘制 |
+| `connector` | partial | 固定水平线，不解析 from/to、anchor、路线和箭头 |
+| `group` | partial | 递归输出子元素，没有 childFrame 与父 frame 的坐标转换 |
+| `media` | opaque | 无专门的静态海报/封面显示或播放能力说明 |
+| `placeholder` | partial | 实现为虚线框加文字；原先同时属于两个等级的声明已修正 |
+| `smartArt` | opaque | 没有消费 SmartArt 实际布局，落入通用兜底 |
+| `ole` | opaque | 已纠正旧声明 `embeddedOle`；没有使用 OLE `previewAsset` 的专门分支 |
 | `opaque` | opaque | 有 `previewAsset` 时可以显示图片并报告 partial，否则通用虚线框；缺完整源预览和诊断回归 |
 | `component` | partial | 仅抽取 label/value 并竖排，不按组件定义、variant 和真实布局展开 |
-| `slot` | 未列入声明 | 没有独立解析/绘制分支，须与模板或组件展开共同处理 |
+| `slot` | opaque | 没有独立解析/绘制分支，须与模板或组件展开共同处理 |
 
-`nativeRef` 是源绑定字段，不是与 `shape` 平级的实际元素类型。将它列入类型声明不能证明 source-bound 各 owner 已覆盖。即使某个类型有通用占位，也不代表该类型的所有字段和诊断已覆盖。
+`nativeRef` 是源绑定字段，不是与 `shape` 平级的实际元素类型，当前已单独列入 sourceBound 声明。即使某个类型有通用占位或字段限制诊断，也不代表该类型已经正确绘制。
 
 ### 3.1 G-02：文字和形状内容缺失
 
 代码中的 `if (e.type === "text" || e.text)` 位于 shape 分支之前。任何带真值 `text` 的形状都会只输出文字。
 
-本次 canonical fixture 的决策节点 `decision-flow-gate` 本来是 `flowChartDecision`，有填充、白色文字和居中设置；实际 SVG 为：
+初次审计的 canonical fixture 决策节点 `decision-flow-gate` 本来是 `flowChartDecision`，有填充、白色文字和居中设置；当时实际 SVG 摘录为：
 
 ```xml
 <g data-officekit-id="decision-flow-gate"><text x="806" y="302" font-family="Arial, sans-serif" font-size="18" fill="#172033"><tspan x="806" dy="0">Pass?</tspan></text></g>
 ```
 
-该组没有菱形或背景。此节点也没有出现在 diagnostics 中。
+该组没有菱形或背景。初次审计时此节点也没有出现在 diagnostics 中；当前 G-11 已为此类几何丢失报告 `preview.fact.shape-geometry-omitted` 并使可靠性失败，但尚未补画几何。
 
 其他代码确认的差距：
 
@@ -168,12 +213,12 @@ G-12 使用方法与清单字段见 [预览输出说明](ppj-preview-output.md)�
 
 这会使图片主体范围、边缘和阴影与导出结果不同。原始 PNG 的透明像素可能由栅格后端正常显示，但这不等于整套图片语义已经支持，也没有证据证明任意输入的主体边界可靠。
 
-资源加载另有两个问题：
+资源加载的以下两个问题在初次审计中存在，现已由 G-12 修复：
 
 1. workspace 已读取资产字节，预览却又按 URI 读一次磁盘，未复用同一份已加载数据；编译和绘图之间存在资源变化窗口。
 2. 第二次读取失败会被吞掉并生成空 `href`。Map 中仍存在 asset 对象，因此普通 image 的“资产不存在”检查不一定能发现这个错误。
 
-这不表示所有缺失资源都能绕过 workspace；很多错误会更早失败。问题在于预览自己的二次读取和错误状态不完整。
+当前实现直接使用 `workspace.assets[].data` 构造图片，普通 image 对空 href 报 unavailable，发布层将其计为失败；相应故障测试已经通过。以上历史问题不表示所有缺失资源都能绕过 workspace，很多错误会更早失败。资源身份修复不代表 crop、mask、主体判断或所有图片解码情形已经验收。
 
 完成条件：消费同一份验证过的资产；裁切与 mask 使用已知参数，不猜主体；无法确定的信息保守显示并说明；空字节/解码失败不能伪装为成功。
 
@@ -181,13 +226,13 @@ G-12 使用方法与清单字段见 [预览输出说明](ppj-preview-output.md)�
 
 表格直接用元素宽高除以行列数量。canonical fixture 的列宽为 116/158，但预览画成两列各 137；行高和单元格合并、填充、边框、文字排版也没有完整应用。
 
-connector 直接画 frame 中线，没有读取 `from/to.element`、anchor、connectorType 和箭头。本次 canonical fixture 连接线输出只有水平 `<line>`，没有 `endArrow: triangle` 对应的箭头。
+connector 直接画 frame 中线，没有读取 `from/to.element`、anchor、connectorType 和箭头。初次审计的 canonical fixture 连接线输出只有水平 `<line>`，没有 `endArrow: triangle` 对应的箭头；当前该绘制分支未改变。
 
 完成条件：表格几何来自真实尺寸与 span；连接线随实际端点和锚点变化，不能用固定方向代替关系；独立 `line` 和 `connector` 应分清职责。
 
 ### 3.6 G-07：opaque、源绑定和非静态能力
 
-有 `opaque.previewAsset` 的源图像显示路径已经存在，不应误记为“完全没有 opaque 支持”。但仍缺：
+有 `opaque.previewAsset` 的源图像显示路径已经存在，不应误记为“完全没有 opaque 支持”。G-12 也已验证真实 source-bound 发布与源字节保留，但所用输入是本项目生成后去除私有快照的简单文稿，不是第三方复杂 PPTX。以下缺口指复杂输入和编辑后内容正确性的完整回归：
 
 - 无预览时，把 summary、nativeKind、visibleText 和未支持原因清楚呈现给 reviewer；目前通常只有无说明的虚线框。
 - 对 OLE 等其他实际类型的源预览处理。
@@ -222,7 +267,7 @@ connector 直接画 frame 中线，没有读取 `from/to.element`、anchor、con
 | line | 按有限数值拆 polyline 段 | series 类型继承不完整；单点段被丢弃、marker 未画；验证 `[1, null, 3]` 保留两个独立观测 |
 | area | 与 line 相同的无填充 polyline | 缺面积、基线和正确堆叠；验证多系列面积含缺失点 |
 | combo | 拼接 column/line/area 分支 | 共用最大值，忽略主副轴、单位与部分样式；验证柱线双轴不同量纲 |
-| scatter | 按数组序号或假定的对象 x/y 画点 | schema 的 values 是 number/null，真实 X 在 `xValues`；当前忽略该通道；null 还可能在访问 `v.y` 时抛错，需专门回归确认 |
+| scatter | 按数组序号或假定的对象 x/y 画点 | schema 的 values 是 number/null，真实 X 在 `xValues`；当前忽略该通道；null 在访问 `v.y` 时确实抛错；现有回归已确认并转为 unavailable 占位，散点缺失语义仍待修复 |
 | bubble | 无专门气泡映射 | 没有同时表达 X/Y/size；验证非均匀 X 和不同 bubbleSizes |
 | pie | 一个固定半径的单色圆加类别文字 | 没有按比例分扇区；`[1,9]` 与 `[9,1]` 不会改变扇区；这是事实表达错误 |
 | doughnut | 无专门环形映射 | 缺比例扇区、holeSize 和切片布局；验证两种明显不同的比例 |
@@ -252,33 +297,55 @@ connector 直接画 frame 中线，没有读取 `from/to.element`、anchor、con
 
 ## 5. 诊断、CLI 和输出证据差距
 
-### 5.1 G-11：支持等级与真实输出不一致
+### 5.1 G-11：支持等级与可靠性检查已接入
 
-当前存在四类不一致：
+初次审计的类型声明、分支自报和总状态聚合相互矛盾：存在绘制分支就称整个类型 supported，部分图表分支自行报 supported，而总状态又仅由诊断数量决定。当前这些输出判断已统一到实际输入检查；原分支信息仍保留 reason，但不能提升检查层给出的等级。
 
-1. 类型声明称 supported，但有重要字段被忽略，例如 shape/image/group/connector。
-2. heatmap、treemap、sunburst、waterfall、candlestick 在能力表是 partial，具体分支却推入 `status: supported`。
-3. 总状态由“是否存在任意 diagnostic”计算：即使只有 supported 记录，总状态也会变成 partial。
-4. 缺 sharp 的 unavailable 记录在总状态计算之后加入；总状态可能仍是 supported。
+#### 已实施行为与剩余边界
 
-当前 diagnostics 通常只有元素 id、status、reason，缺页面、字段路径、具体被忽略的值及处置建议。顶层 bounds 检查只看原 frame，不检查嵌套子元素、旋转、阴影、文字溢出或 mask 后实际范围。
+| 层 | 当前实现与证据 | 不代表什么 |
+| --- | --- | --- |
+| registry 与生成摘要 | 校验真实元素/chartType、schema 指针、owner、测试路径、等级互斥；摘要与矩阵均可只读检查漂移 | 不是每个视觉字段都已画对或有完整正负 fixture |
+| 共享诊断 | pageId/id/path/status/reason/severity/valueSummary/action；值摘要转义限长；保留 0/false/null；确定性合并 | 不能由无诊断推断未评估状态通过 |
+| 实际输入检查 | 已在编译后、绘制前调用；遍历页面、组和组件，继承全局/页面/组限制；未知后代不默认支持 | 不解析布局、token 或 styles，不代替 G-01/G-04 |
+| source/binary 边界 | 对 source/nativeRef 等源字段停止展开，敏感内容省略，输入保持不变 | 不证明复杂第三方 PPTX 的修改后快照有效 |
+| 字段限制 | 文本、几何、变换、主题、图片、表格、连接线、图表、effects 和未解析范围均有实际路径诊断，包含 errorBars | 诊断不是对应功能的绘制实现 |
+| 事实错误 | 14 类 registry 规则；每类经过实际 SVG 绘制、样式变更和成功发布回归，错误仍为 failed | 未登记或未解析的语义仍可能只报 requires-review，不能宣称发现了所有错误 |
+| 页面警示 | failed 显示红色警示，partial/opaque 显示复核警示；SVG 与 PNG 同源；原 ID、画布和输入不变 | 顶部警示是审查覆盖层，不是修好原页面，也不能预知随后磁盘失败 |
+| 绘制异常 | 已知 scatter/null 异常转为可定位的 unavailable 占位，保留其他页；发布清单记录 preview 失败阶段 | 不把绘制异常误报成缺依赖或资产缺失；scatter 本身仍待修复 |
+| 发布证据 | 返回与落盘检查树、页/全局状态、可靠性一致；生产失败保留 G-12 错误码、产物、hash 并使可靠性失败 | output complete 不等于视觉正确或编辑保真 |
 
-完成条件：按实际元素/字段支持情况聚合状态；supported、partial、opaque、unavailable 的含义一致。部分支持必须列出限制，错误事实不得以普通视觉 warning 掩盖。
+聚合顺序为 `unavailable > opaque > partial > supported`；可靠性独立分为 `failed / requires-review / passed`。已知事实错误使可靠性失败，普通未知限制要求复核。未解析轴 token 和与当前范围相同的明确 min/max 不被误当作已知数值矛盾，但仍有字段限制。实际变换边界、文字溢出、阴影范围仍未计算；检查器明确报告未解析范围。
+
+一个已验证的有限支持状态是显式 contain PNG：检查 SVG 坐标、透明度和内嵌字节，增加 crop 后不再 supported。此正例注入 load/compile，不能推广为所有 PNG 解码、主体或透明边缘的端到端验收。真实 codec+sharp 专项另验证 canonical 和简单 source-bound 输入、原始字节、产物 hash、尺寸与警示像素。
+
+#### 任务与验收
+
+本变更 9/9 项已完成。presentation 四步、gate-policy、生成摘要/矩阵、portability、reference-sync、链接和严格 OpenSpec 检查已通过；同时真实 CLI 回归确认退出码 0 可与 failed 可靠性并存。完整全仓测试、宿主验收和性能并未因此完成。
+
+- 1.1、1.2、2.1、2.2：同源声明、诊断基础、实际字段遍历和字段限制。
+- 2.3：每个已登记事实错误在绘制与发布后仍为失败，配色不能抵消；未知限制与已知矛盾分开。
+- 3.1、3.2：真实绘制/警示/发布接通；嵌套重复局部 ID、失败保留、依赖惰性和源字节保留有断言。
+- 4.1、4.2：常规门禁、相关文档/Skill reference 与严格 OpenSpec 检查；最终勾选以 [任务清单](../openspec/changes/ppj-preview-support-diagnostics/tasks.md) 为准。
+
+真实 authored 样例成功发布，但为 partial/failed；简单 source-bound 样例成功发布，但为 opaque/requires-review。清单 `ok: true` 和 CLI 退出码 0 仍只说明发布成功，调用者必须读取可靠性。failed 不得作为正确性证据；requires-review/passed 也不取代人工视觉、结构和编辑保真检查。CLI 的整体交付策略仍属 G-13。
 
 ### 5.2 G-12：输出安全和失败处理
 
 修复进度：下面列出的初始输出问题已有实现与专项回归。新增 `src/ppj/preview-output.mjs` 独占创建目录和文件，在失败时保留实际产物；清单记录 hash、字节数、原始页 ID、输入/源/候选/资产身份以及 Node/栅格后端信息。源码版本摘要也进入清单。SVG 和 PNG 仅在写入成功后列出，缺少 sharp 返回不完整失败而保留 SVG；pending/final 清单与错误码区分失败阶段。
 
-验证命令：`npm run test:ppj-preview-output`、`node test/ppj-svg-preview.mjs`、`node test/ppj-preview-capability-coverage.mjs` 均已通过。真实 smoke 同时验证 authored 和原生重新投影后的 source-bound 输入，原始 PPJ/PPTX 字节保持不变；模拟故障测试覆盖目标冲突、并发、路径映射、资源变化窗口、页面栅格失败及清单写入失败。
+前次修复验收中，`npm run test:ppj-preview-output`、`node test/ppj-svg-preview.mjs`、`node test/ppj-preview-capability-coverage.mjs` 均已通过；本轮通过 presentation 分段重新执行对应测试，并非另行逐条执行这些命令。真实 SVG/PNG 专项同时验证 authored 和原生重新投影后的 source-bound 输入，原始 PPJ/PPTX 字节保持不变；模拟故障测试覆盖目标冲突、并发、路径映射、资源变化窗口、页面栅格失败及清单写入失败。
 
-集成修复进度：新轻量回归已加入 fast/slow gate，slow 的 presentation 分段同时执行 SVG 预览与覆盖声明检查。`node test/gate-policy.mjs` 已改为校验当前 PPJ 入口、已退役入口不再出现及分段连续性，专项运行通过；本轮未运行完整 fast/slow gate。原始缺陷记录如下：
+集成修复进度：新轻量回归已加入 fast/slow gate，slow 的 presentation 分段同时执行诊断、输出发布、SVG 预览与覆盖声明检查。`node test/gate-policy.mjs` 校验当前 PPJ 入口、已退役入口不再出现及分段连续性。最新复核实际执行该 policy 和完整的 presentation 四步分段，均通过；未运行其他 fast/slow 分段。原始缺陷记录如下：
 
 - `mkdir(..., recursive: true)` 加普通 `writeFile` 会复用目录并覆盖同名 SVG/PNG/render.json，没有继承外部 render 的独占输出保护。
 - 写入是逐文件进行，栅格失败可能留下部分输出；缺失败清单、完成标记或原子交付策略。
 - 缺少 sharp 时，render.json 仍为每页列出 PNG 文件名，实际文件可能不存在。
 - 已记录 program/output hash，但缺每张预览图的实际 hash、sourceBound、输入/输出定位、渲染版本和依赖信息等完整关联证据。
 
-完成条件：不覆盖用户输入和已有证据；失败结果能区分已产生/未产生的文件；输出清单只声明真实产物；预览必须绑定实际输入和资产。路径安全还需独立负向测试，本审计不推断未经验证的路径攻击场景。
+本项完成条件已在限定范围内满足：不覆盖用户输入和已有证据；失败结果区分已产生/未产生的文件；输出清单只声明真实产物；预览绑定实际输入和资产。路径负例已包含现有目录/文件/符号链接、危险页 ID、大小写冲突和并发竞争。测试不等于防御恶意进程替换整个目录树，也不提供断电后的 fsync 持久性保证。
+
+仍需区分四种状态：`output.status: complete` 只说明请求产物已发布；`status/diagnostics` 是保守聚合的支持情况；`reliability` 是独立的自动可靠性门槛；`visualReview: requires-human` 说明人工视觉检查尚未完成。它们不能互相替代。
 
 ### 5.3 G-13：CLI 和交付流程未完整接入
 
@@ -290,7 +357,26 @@ connector 直接画 frame 中线，没有读取 `from/to.element`、anchor、con
 
 ## 6. 测试、覆盖台账和性能差距
 
-### 6.1 本次实际测试结果
+### 6.1 实际测试结果与最新重跑
+
+最新复核结果：
+
+| 检查 | 实际结果 | 证明范围及限制 |
+| --- | --- | --- |
+| `node test/gate-policy.mjs` | 通过 | 活跃入口、已退役入口、分段边界及脚本存在性符合当前门禁契约 |
+| `npm run test:slow -- --segment presentation` | 4/4 通过 | 顺序执行诊断、发布故障、真实 SVG/PNG、能力声明检查；不等于全部 slow 通过 |
+| 共享诊断测试 | 通过 | 聚合、字段遍历、PNG/SVG 映射、事实反例及实际绘制/发布；样式和输出成功不清除事实失败 |
+| 发布故障测试 | 通过 | 保护源输入和已有目标、并发、路径、部分写入、hash、资产快照、依赖惰性加载；模拟 PNG 不用于评价图像 |
+| 真实 SVG/PNG 测试 | 通过 | canonical 两页、真实 source-bound 投影、源字节、候选/产物 hash、警示像素、返回/落盘检查一致；仍非逐元素绘制正确性验收 |
+| 能力声明测试 | 通过，16 类元素、16 类图表 | schema 对齐、等级互斥、嵌套扫描、非法规则和摘要漂移检查；不是字段保真或视觉质量证明 |
+| 矩阵生成器 `--check` | 通过 | registry 派生内容与当前生成矩阵一致，未重写矩阵 |
+| Skill/文档检查 | portability 255 文件、reference-sync 333 文件、strict OpenSpec 通过 | portability 原来误要求 typed PowerPoint Live 使用 REPL，已按实际 typed CLI 纠正并保留安全断言 |
+| JS 预检 | 292 文件通过 | 语法/import 检查，不是全部功能回归 |
+| 全量 preview smoke | 退出码 0；42 输入，4 rendered、38 compilerRejected、0 rendererFailed | 本轮重现前置拒绝分布；真正进入绘制的四项均为 partial，诊断数见下文；不代表视觉通过 |
+
+本轮全量 smoke 中，minimum/canonical/aqua-impact-story/simple-dark-mode 的诊断数分别为 44/686/3674/1032，四项支持状态均为 partial。这表明检查已经进入实际绘制，也提示继承诊断量需要在 G-16 测量和优化；数量多不等于语义覆盖完整。以下初次运行表仍保留为历史记录，不能与当前诊断数混用。
+
+初次审计结果（保留原测试能力描述；真实专项测试后来增加了源绑定与输出证据断言）：
 
 | 检查 | 结果 | 真正证明的范围 |
 | --- | --- | --- |
@@ -321,45 +407,53 @@ connector 直接画 frame 中线，没有读取 `from/to.element`、anchor、con
 
 不能仅凭错误分组断言“都是老模板的问题”。本次没有重建并核对所有 NativeAOT 版本，也没有重新冻结这些 fixtures。
 
-上表和第 3.1 节 SVG 是本次工具输出的审计摘录。完整原始 stdout、临时 PNG/SVG/render.json 没有归档为仓库固定证据；本文不声称这些精确运行结果已具备跨环境复现包。后续正式验收应保存原始记录，而不仅保留汇总表。
+上表和第 3.1 节 SVG 是此前工具输出的审计摘录，不是本轮重新测量值。完整原始 stdout、临时 PNG/SVG/render.json 没有归档为仓库固定证据；本文不声称这些精确运行结果已具备跨环境复现包。后续正式验收应保存原始记录，而不仅保留汇总表。
+
+通用 Skill 模板校验器另报告已有 `name: "Presentations"` 不符合其小写命名规则；本轮只改交付 reference，未改名或变更路由。仓库专用 portability/reference-sync 已通过，此工具兼容性差异不冒充通用校验成功。
 
 ### 6.2 G-14：测试覆盖不足
 
-当前预览测试缺少“画对”的断言。饼图只有圆、形状缺失、双轴错误等均可能通过图片存在性检查。
+当前预览测试已经增加一个有限图片映射的“画对”断言，并在真实绘制和发布中识别已登记的事实错误、核对警示像素，但远未覆盖全部绘制。饼图只有圆、形状缺失、双轴错误仍存在；自动门槛会失败，但图片存在性或发布成功本身仍不能证明画对。
 
-覆盖测试的问题：
+覆盖测试的变化与剩余问题：
 
-- 图表名称来自硬编码列表，再用 feature/path 的字符串包含关系匹配；不是遍历实际 schema 类型和字段。
-- 把 supported/partial/opaque 合成一个 Set，只检查“声明过”，不检查等级正确。
-- fixture 只检查 page 的顶层 elements，不递归 group/component；chart 被类型检查直接放行。
+- 初次图表名称靠硬编码和字符串匹配；现在按实际 schema 对齐 16 类元素和 16 类图表，并校验 registry 指针和 owner。全量视觉字段到具体行为断言的覆盖仍未完成。
+- 初次只检查等级合并后的 Set；现在校验等级互斥、非法提升为 supported 和生成摘要漂移。规则中测试文件存在不等于该测试证明了整个类型正确。
+- 初次只扫顶层；现在递归扫描 fixture 对象树，并有嵌套 group/未知类型反例。独立输入检查器也测试 component 定义、slot、重复局部 ID；真实布局展开与逐对象显示尚未验证。
 - 当前 `test/fixtures` 下只有一个 `.ppj` 文件；这不代表仓库没有其他测试生成 PPJ，只是该扫描并未检查它们。
-- 三个 preview 专项脚本虽在 package.json 注册，但未列入 `scripts/run-test-gate.mjs` 的常规 gate。
+- 初次审计时专项脚本未进常规 gate。当前已修复：发布故障测试进入 fast/slow，真实 SVG/PNG 与声明覆盖进入 slow/presentation；全量仓库扫描 smoke 仍是独立命令，未设正向渲染数量门槛。
 
 smoke 还通过错误字符串正则区分 compilerRejected/rendererFailed，而非实际失败阶段；且仅当 rendererFailed 非空才失败。即使所有输入都在编译阶段被拒绝，也可能返回成功退出码。
+
+另一个待补回归来自输出保护的新边界：smoke 用成功数量 `report.rendered.length` 命名下一例目录。如果某例在取得目录后发布失败并保留该目录，下一例仍使用同一编号，会遇到 `preview.output.exists`，干扰后续故障分类。此为当前代码可以推导的条件路径，本轮未注入该故障；后续应按输入序号或唯一案例 ID 分配目录，并验证单例失败不污染后续案例。
 
 完成条件：结构、数据语义、视觉、编辑保真分别有断言；正例必须确实进入渲染；预期拒绝独立列负例，不得用它们抵消正例失败。事实错误设硬门槛，不能被外观评分抵消。
 
 ### 6.3 G-15：能力台账尚未防止后续漂移
 
-当前生成矩阵记录了 181 个 schema definitions、46 个 authored boundaries、278 个 native leaf kinds、151 个 Help API 等计数。这些是不同粒度的集合，不是可相加的“渲染功能总数”。
+本次读取的生成矩阵记录了 183 个 schema definitions、46 个 authored boundaries、278 个 native leaf kinds、151 个 Help API 等计数。这些是不同粒度的集合，不是可相加的“渲染功能总数”，也会随并行接口开发变化。
 
 矩阵生成器的 `visualStatus` 根据编译 boundary 的 behavior 推导为 unreviewed 或 partial-or-opaque，并不是渲染验证结果。它还将 programJson 标为复用入口，却没有指出 canonical JSON 与已展开布局的区别。
 
-写作期间矩阵中的 previewCapabilities 已与声明同步。这消除了本次观察到的快照差异，但没有修复类型声明本身的矛盾，也没有补上字段级绘制验证和自动防漂移检查。
+G-11 已修复类型声明矛盾，并以 registry 同源生成摘要和矩阵；两个生成器均支持 `--check`，覆盖测试会拒绝新增类型未登记和摘要漂移。未知视觉后代在实际预览中不会静默认定 supported。剩余缺口是：没有证明每个新增视觉字段都具备对应绘制、正负 fixture 和行为断言。类型/摘要防漂移已经有了，字段级完整维护闭环还没有。
 
 完成条件：以 schema/能力 registry 为来源，建立“字段 → 语义 owner → 预览映射或明确边界 → 正/负 fixture → 断言 → 文档”对应关系。新增视觉字段必须触发维护检查；生成矩阵有 `--check` 或等效漂移 gate。不能仅要求开发者记住同步维护几份清单。
 
 ### 6.4 G-16：高性能和运行稳定性尚无验收
 
-当前能确认 SVG→PNG 使用 sharp，不能据此宣称整个渲染器高性能。preview 每次先进行 PPTX 编译，随后又读资产、拼接整页 SVG，并在结果中保留所有页面 SVG；写 PNG 逐页进行。大量 base64 图片也可能在多个页面输出中重复。
+当前能确认 SVG→PNG 使用 sharp，不能据此宣称整个渲染器高性能。preview 每次先进行 PPTX 编译，再将已加载的资产编码为 data URI、拼接整页 SVG，并在结果中保留所有页面 SVG；写 PNG 逐页进行。G-12 已消除编译后的资产路径二次读取，但并未消除 base64 和多页 SVG 的内存开销，大量图片也可能在多个页面输出中重复。
 
 尚缺：冷启动/热运行耗时、编译与绘制分阶段耗时、峰值内存、字体环境、长文和大图、复杂图表、多页大文稿、失败回收等实测。
 
 完成条件：在固定环境下报告分阶段耗时和内存，以小型、常用和压力级文稿对比；先测量再决定缓存、批处理或并发。不在缺数据时承诺毫秒级速度或任意规模支持，也不为基准测试引入常驻服务。
 
+性能实施项开始时，应先约定典型文稿的页数、图片体积、文本量与图表规模，以及可接受耗时和内存，作为验收基线。本文尚未设定这些数值，不能仅凭产生一张测量表就把 G-16 标为完成。
+
 ## 7. 修复顺序与验收要求
 
-以下是建议顺序，不代表已获得独立实施决策。P0 指会造成误判或破坏证据的当前问题，P1 指完成静态功能覆盖，P2 指性能与交付完善；P2 不等于最终目标可以不做。
+G-11 的共享检查、绘制与发布已接通；后续优先明确 G-01 的共用解析边界，再逐项修复实际绘制。P0 指会造成误判或破坏证据的问题，P1 指完成静态功能覆盖，P2 指性能与交付完善；P2 不等于最终目标可以不做。
+
+表内 G-12 已完成的限定契约作为后续回归基线保留，不再列为待实现；大文稿、压力条件下的失败恢复由 G-16 继续验证。
 
 | 阶段 | 关联缺口 | 交付结果 |
 | --- | --- | --- |
@@ -377,7 +471,7 @@ smoke 还通过错误字符串正则区分 compilerRejected/rendererFailed，而
 1. 一个正常 authored 输入，确认编译成功且预览真正绘制目标内容。
 2. 一个能揭露该功能风险的边界输入，例如缺失数据、负值、复杂关系、嵌套变换或透明边缘。
 3. 对支持 source-bound 编辑的功能，从原始源字节重新投影，完成修改/删除/二次投影，并检查非目标内容与包修改范围。
-4. 一项几何/数据语义断言和一项可审阅的渲染结果；不能仅检查输出文件存在。
+4. 一项直接验证目标行为的断言，例如几何、数据语义、格式、诊断或发布状态；影响视觉内容时附可审阅渲染结果。不能仅检查输出文件存在。
 5. 对明确不支持的输入，检查诊断、可见占位/源预览及符合既定策略的状态。允许保留的 opaque/partial 与必须拒绝的错误输入分别验收；后者必须失败。
 
 测试可以小而明确，不要求每个字段都跑庞大的宿主验收。字段只影响数值格式，就验证该格式的真实输出；字段影响拓扑，就必须验证关系，而非图片文件大小。
@@ -395,13 +489,38 @@ smoke 还通过错误字符串正则区分 compilerRejected/rendererFailed，而
 - [ ] 字段级映射和生成文档检查进入维护 gate，新功能不会静默落后于渲染器。
 - [ ] 本地性能、依赖缺失和失败恢复完成实测，达到另行确定的使用目标。
 
+### 7.3 后续开发如何与功能更新同步
+
+下一项先明确 G-01 的共用解析边界，再逐项补绘制。G-11 是防误判措施，不能替代后续实现。对某个具体字段可以直接复用现有结果的，不必等待一套大型新框架。
+
+一次修改以一个明确的视觉字段或语义行为为单位，至少把以下记录放进对应变更及覆盖台账：
+
+| 必填记录 | 内容与检查要求 |
+| --- | --- |
+| 输入与范围 | 写出真实 PPJ 字段路径、默认值、合法取值、适用图表/元素；注明 authored、source-bound 或两者 |
+| 语义归属 | 指向当前 validator、compiler/projector 或布局解析代码；区分“接口未支持”和“接口支持但预览遗漏” |
+| 绘制与降级 | 说明该字段如何改变几何/文字/像素；哪些输入仍 partial/opaque，具体诊断是什么 |
+| 正例与风险例 | 固定输入和预期语义；正例必须进入绘制，风险例包含本字段相关的缺失、关系、透明度或源绑定边界 |
+| 检查与产物 | 分别记录结构、渲染、编辑保真结果；保存实际 SVG/PNG、诊断及输入身份，不仅写“测试通过” |
+| 同步更新 | 更新实际受影响的 schema/registry、预览映射、fixture、断言、Skill/reference 和本文状态；无关层明确不受影响即可 |
+
+目前已实现类型声明与生成摘要的自动检查；第 6.3 节所述字段到绘制及回归的完整对应 gate 尚未实现，因此表中的完整维护要求仍需人工核对。后续自动化应检查真实字段增删与这些记录是否匹配，不能只比较能力名称是否出现。
+
+按变更范围运行最窄检查：预览发布/绘制先跑 presentation 分段；涉及 wire 再跑 `npm run proto:check`；涉及 Skill/reference 再跑 portability 和 reference-sync 检查；涉及生成矩阵用仓库生成脚本并审查差异。C# 功能测试还须确认所用 codec 包确实包含该改动，不能拿旧二进制的预览成功代替新代码验证。
+
+每项完成时更新对应 G 编号的“已验证行为、未覆盖字段、命令与结果、输入及版本身份”。未达到该编号全部完成条件的，只记部分修复；也不因为一项任务清单全部勾选就将第 7.2 节整体标为完成。
+
 ## 8. 与接口补齐、Skill 实验的关系
 
-### 8.1 对数轴接口：在途实现，不能混算渲染完成
+### 8.1 接口已继续更新，不能混算渲染完成
 
-`ppj-chart-axis-log-base` 已有 proposal/design/specs/tasks，工作区包含 schema、proto/generated JS、C# axis codec、编译、投影和校验等改动，写作期间还出现了专项测试及 reference/registry 更新。任务清单从初次读取的 0/4 变为复核时的 3/4，说明另一路工作仍在推进。
+初次审计时 `ppj-chart-axis-log-base` 尚在推进，清单曾从 0/4 变为 3/4。最新复核中，对数轴实现已提交为 `9efc8ce5`，当前任务清单为 5/5 勾选；趋势线 source-bound 列表编辑也已提交为 `fbddc7e7`。本节不再把它们笼统记录为“仅有在途文件”。
 
-本次审计没有执行其 NativeAOT 构建和专项验收，也没有核验清单勾选对应的原始测试日志，所以应记为“已有实现，完成情况由独立变更验收；未由本审计确认”，而非“只有提案”。当前进度以该变更的最新任务和实际测试证据为准，不能只凭勾选判断整个接口或渲染器完成。
+本轮没有重新执行这些 C# 功能的 NativeAOT 构建和专项验收，也未核验清单勾选对应的全部原始日志。“已提交/清单已勾选”是仓库事实，“已由本次独立验收”则不是。当前 preview 仍未读取 `logBase`、`trendlines` 或 `errorBars` 来绘制对应内容。
+
+此前收尾时新增的 errorBars 预览诊断目前已在实际绘制代码中：普通图表兜底分支对存在 errorBars 的系列增加 `chart-error-bars-not-rendered` 的 partial 诊断，最新 presentation 分段也包含相应回归。这是诊断补充，不是误差线绘制实现；提前返回的其他图表分支仍不能据此宣称全部覆盖。
+
+本轮从 `09f79e04`（literal custom error bar data）开始，另一工作流随后提交 `0e1d8c8f`（固定公式误差数据与内嵌 workbook 同步）；之前还有 `ccb93795`（source-bound scalar error bar lifecycle）。这些是可见提交事实，不等于本轮 C# 独立验收。预览尚未绘制这些误差数据，不能用接口提交代替绘制完成。此后又出现 `ppj-chart-trendline-label` 在途工作；本轮生成矩阵的漂移检查捕获其新增 schema，已重新生成并通过检查，但没有将标签接口或绘制记为已验收。
 
 目标是 value axis 的 logBase 创建、读取、修改和删除，含 numeric X 与 combo 副轴、token、非法值及所有权保护。具体跟踪见 [对数轴任务](../openspec/changes/ppj-chart-axis-log-base/tasks.md)。
 
@@ -415,38 +534,48 @@ smoke 还通过错误字符串正则区分 compilerRejected/rendererFailed，而
 
 ### 8.3 Skill 路由实验仍是独立验收
 
-本次未重新冻结案例、准备六个外部 PPTX fixture、执行四路线作者任务、两轮盲评或人类校准。因此本文不能作为 Kimi 路由默认启用或原 Skill 实验完成的依据。
+本次未重新冻结案例、准备六个外部 PPTX fixture、执行四路线作者任务、两轮盲评或人类校准，也没有重新核对独立评测工作树。因此本文不能作为 Kimi 路由默认启用或原 Skill 实验完成的依据。下述路径与评测清单观察来自前次审计，仅保留为恢复入口。
 
 恢复实验时仍需核对：各路线 1→10 编辑任务、每场景的缺失数据/复杂关系/source-bound 输入、事实与视觉分开评分、硬门槛失败处理、报告与 tasks.md 一致。具体完成状态需在实验工作区重新确认；本文不把以前的计划当作已执行事实。
 
-本机确认存在独立评测工作树 `/home/zenfun/mywork/OfficeKit-ablation`，跟踪入口为该工作树内的 `openspec/changes/presentation-skill-ablation/tasks.md` 和 `evals/presentation-skill-ablation/`。该绝对路径仅是本次定位信息，不是运行时依赖；在其他机器可用 `git worktree list` 查找相应工作树，再按仓库内相对路径访问。
+前次审计确认存在独立评测工作树 `/home/zenfun/mywork/OfficeKit-ablation`，跟踪入口为该工作树内的 `openspec/changes/presentation-skill-ablation/tasks.md` 和 `evals/presentation-skill-ablation/`。该绝对路径仅是历史定位信息，不是运行时依赖；在其他机器可用 `git worktree list` 查找相应工作树，再按仓库内相对路径访问。
 
 该目录还存在 `report.v1.md`、`report.tri-route.v1.md`、`report.multi-route.v1.md` 和多个版本的案例/证据文件。文件存在不证明研究完成；恢复时应先确定本轮采用哪个冻结版本，不能合并不同版本的统计作为同一轮结果。
 
-本次补读该 tasks.md，执行研究与分析报告部分仍有未勾选项；其作者任务文字仍写 Shared/Kimi 两臂，不能直接当作后来要求的四路线执行清单。这进一步说明需要先对齐任务、最新 cases/rubric 和实际 evidence，再恢复实验。本文未全面检查该工作树内的实验产物。
+前次补读该 tasks.md 时，执行研究与分析报告部分仍有未勾选项；其作者任务文字仍写 Shared/Kimi 两臂，不能直接当作后来要求的四路线执行清单。恢复时需要重新确认这些观察是否仍成立，再对齐任务、最新 cases/rubric 和实际 evidence。本文未全面检查该工作树内的实验产物。
 
 ## 9. 复核入口
 
 ### 9.1 可重复执行的检查
 
-从仓库根目录运行：
+整段复核，从仓库根目录运行：
 
 ```sh
-node test/ppj-svg-preview.mjs
-node test/ppj-preview-capability-coverage.mjs
+node test/gate-policy.mjs
+npm run test:slow -- --segment presentation
+node scripts/generate-ppj-preview-capabilities.mjs --check
+node scripts/generate-presentation-capability-matrix.mjs --check
 node test/ppj-preview-smoke.mjs
 ```
 
+单项定位时，可分别运行 `node test/ppj-preview-diagnostics.mjs`、`node test/ppj-svg-preview.mjs`、`node test/ppj-preview-capability-coverage.mjs` 或 `node test/ppj-preview-output-evidence.mjs`；这四项已包含在 presentation 分段中。此处列的是可复跑命令，实际本轮执行范围见第 6.1 节，尤其不要把列出全量 smoke 命令当作已重跑。
+
 测试会在操作系统临时目录写预览；smoke JSON 打到 stdout。保存输出时应使用新的证据位置，不覆盖输入。若出现 `spawnSync rg EPERM`，应先解决运行环境权限，不要将环境错误记录成绘制语义错误。
 
-检查结果应同时保留输入数量、真正渲染数量、前置拒绝原因、渲染错误、实际产物与诊断；还应补记具体运行的 codec、字体和依赖版本。上述三条命令不是总体验收的替代品。
+检查结果应同时保留输入数量、真正渲染数量、前置拒绝原因、渲染错误、实际产物与诊断；还应补记具体运行的 codec、字体和依赖版本。同一轮中分段和单项的结果不应重复计数。上述命令不是总体验收的替代品。
 
 ### 9.2 主要代码与文档
 
 | 文件 | 核对用途 |
 | --- | --- |
-| [svg-preview.mjs](../src/ppj/svg-preview.mjs) | `renderElement` 的真实绘制分支、状态汇总、输出和资源处理 |
-| [svg-preview-capabilities.json](../src/ppj/svg-preview-capabilities.json) | 当前支持等级声明及其矛盾 |
+| [svg-preview.mjs](../src/ppj/svg-preview.mjs) | `drawElement` 绘制、`assessedDrawing` 检查合并及页面警示 |
+| [preview-output.mjs](../src/ppj/preview-output.mjs) | G-12 非覆盖发布、失败状态、文件与输入身份清单 |
+| [svg-preview-capabilities.json](../src/ppj/svg-preview-capabilities.json) | 当前 registry 派生的类型级保守声明 |
+| [preview-capabilities.mjs](../src/ppj/preview-capabilities.mjs) | registry/schema 对齐、声明生成与漂移检查 |
+| [preview-diagnostics.mjs](../src/ppj/preview-diagnostics.mjs) | 绘制和发布共用的诊断结构与可靠性聚合 |
+| [preview-input-assessment.mjs](../src/ppj/preview-input-assessment.mjs) | 实际字段、继承、metadata 与源载荷边界检查 |
+| [preview-factual-errors.mjs](../src/ppj/preview-factual-errors.mjs) | 当前绘制缺陷对应的错误级规则；不是绘制修复 |
+| [G-11 任务清单](../openspec/changes/ppj-preview-support-diagnostics/tasks.md) | 9/9 任务、最终门禁和明确保留的其他 gap |
 | [ppj-v1.schema.json](../src/ppj/ppj-v1.schema.json) | 实际元素、图表数据和样式字段；不能根据渲染器字段反推 schema |
 | [workspace.mjs](../src/ppj/workspace.mjs) | 资源读取、安全检查及 compile 转发 |
 | [PpjAuthoredPresentationCompiler.cs](../native/OfficeKit/src/OfficeKit.Codec/PpjAuthoredPresentationCompiler.cs) | CanonicalJson、expansion/build plan 和编译回执的区别 |
@@ -454,8 +583,13 @@ node test/ppj-preview-smoke.mjs
 | [render-review.mjs](../src/ppj/render-review.mjs) | LibreOffice/Poppler 路线、独占输出和结构 review 边界 |
 | [cli.mjs](../src/ppj/cli.mjs) | preview 参数、handler 与格式化返回 |
 | [canonical fixture](../test/fixtures/presentation/evidence-ledger-canonical.ppj) | 当前测试通过但仍显示错误的具体输入 |
-| [预览 smoke 测试](../test/ppj-svg-preview.mjs) | 现有文件/页数/稳定 ID 断言 |
-| [覆盖声明测试](../test/ppj-preview-capability-coverage.mjs) | 声明检查范围及递归/字段缺口 |
+| [预览 smoke 测试](../test/ppj-svg-preview.mjs) | 文件/页数/稳定 ID、真实 source-bound 输入及 hash 断言 |
+| [发布故障测试](../test/ppj-preview-output-evidence.mjs) | 非覆盖、故障恢复、资源快照和惰性依赖的负向测试 |
+| [覆盖声明测试](../test/ppj-preview-capability-coverage.mjs) | schema 类型、等级互斥、嵌套扫描与生成摘要检查 |
+| [共享诊断测试](../test/ppj-preview-diagnostics.mjs) | 基础聚合及字段/事实/实际绘制发布检查套件入口 |
+| [输入检查测试](../test/ppj-preview-input-assessment.mjs) | 嵌套/继承、未知字段、metadata、源载荷不展开及输入不变 |
+| [字段限制测试](../test/ppj-preview-field-limits.mjs) | 有限 PNG/SVG 映射正例、单字段变更和各类限制路径 |
+| [事实错误测试](../test/ppj-preview-factual-errors.mjs) | 已登记错误类别及配色不抵消失败的独立回归 |
 | [全量 smoke](../test/ppj-preview-smoke.mjs) | 42 个输入的运行路径与错误分类 |
 | [常规 test gate](../scripts/run-test-gate.mjs) | 预览专项检查是否进入持续验证 |
 | [能力矩阵生成器](../scripts/generate-presentation-capability-matrix.mjs) | 计数和 visualStatus 的来源 |

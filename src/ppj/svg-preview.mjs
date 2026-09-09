@@ -2,6 +2,8 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import { compilePpjWorkspace, loadPpjWorkspace } from "./workspace.mjs";
 import { previewInputEvidence, publishPpjPreview } from "./preview-output.mjs";
+import { assessPpjPreviewInput } from "./preview-input-assessment.mjs";
+import { previewAssessment, previewDiagnostic } from "./preview-diagnostics.mjs";
 
 const require = createRequire(import.meta.url);
 const PREVIEW_CAPABILITIES = require("./svg-preview-capabilities.json");
@@ -21,12 +23,12 @@ function textValue(text) {
   return (text.paragraphs || []).flatMap((p) => (p.runs || []).map((r) => r.text || "")).join("\n");
 }
 
-function renderElement(e, assets, diagnostics) {
+function drawElement(e, assets, diagnostics, renderChild) {
   const f = frame(e), id = esc(e.id || "element");
   const common = ` data-officekit-id="${id}"`;
   if (e.type === "group") {
     const children = e.elements || e.children || [];
-    return `<g${common}>${children.map((child) => renderElement(child, assets, diagnostics)).join("")}</g>`;
+    return `<g${common}>${children.map((child, index) => renderChild(child, index, e.elements ? "elements" : "children")).join("")}</g>`;
   }
   if (e.type === "placeholder") {
     diagnostics.push({ id: e.id, status: "partial", reason: "placeholder-preview" });
@@ -120,6 +122,56 @@ function renderElement(e, assets, diagnostics) {
   return `<rect${common} x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="#F9FAFB" stroke="#D0D5DD" stroke-dasharray="4 3"/>`;
 }
 
+// The drawing functions may describe what they attempted, but only the actual
+// input assessment owns support grades. Keep errors addressable by tree path,
+// not local IDs (which may repeat on other pages).
+function assessedDrawing(inputAssessment, assets) {
+  const nodes = new Map(), additions = new Map();
+  function index(node) { nodes.set(node.path, node); node.children.forEach(index); }
+  index(inputAssessment);
+  function add(path, diagnostic) {
+    if (!additions.has(path)) additions.set(path, []);
+    additions.get(path).push(diagnostic);
+  }
+  function render(element, path, pageId) {
+    const assessment = nodes.get(path) || previewAssessment({ path, pageId });
+    const id = typeof element.id === "string" && element.id ? element.id : undefined;
+    const diagnostics = { push(...records) {
+      for (const record of records) add(path, previewDiagnostic({
+        pageId, id, path: record.reason === "asset-missing" ? `${path}.asset` : path,
+        status: record.status === "unavailable" ? "unavailable" : assessment.status,
+        reason: record.reason, value: element.type,
+        action: "Inspect the field assessment for this element; a drawing branch is not complete visual support.",
+      }));
+    } };
+    try {
+      return drawElement(element, assets, diagnostics, (child, i, field) => render(child, `${path}.${field}[${i}]`, pageId));
+    } catch (error) {
+      add(path, previewDiagnostic({ pageId, id, path, status: "unavailable", reason: "preview.draw.failed",
+        value: error.message, action: "Repair this element's drawing failure and rerun into a new output directory." }));
+      const f = frame(element);
+      return `<g data-officekit-id="${esc(id || "element")}"><rect x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="#FEF2F2" stroke="#B91C1C"/><text x="${f.x + 4}" y="${f.y + 16}" fill="#B91C1C" font-size="12">preview unavailable</text></g>`;
+    }
+  }
+  function finish(node = inputAssessment) {
+    return previewAssessment({ ...node, assessed: true,
+      diagnostics: [...node.diagnostics, ...(additions.get(node.path) || [])], children: node.children.map(finish) });
+  }
+  return { render, finish, add };
+}
+
+function reviewIndication(assessment, canvas) {
+  const state = assessment.reliability.status;
+  if (state === "passed") return "";
+  const errors = assessment.reliability.violations;
+  const diagnostic = errors[0] || assessment.diagnostics.find((item) => item.status !== "supported");
+  const label = state === "failed" ? "UNRELIABLE PREVIEW" : "PREVIEW REQUIRES REVIEW";
+  const height = Math.min(32, canvas.height * .12), font = height * .45;
+  // This banner is part of the exact SVG sent to the rasterizer. It neither
+  // changes the input layout nor reserves/renames an authored element ID.
+  return `<g data-officekit-review="${state}" data-officekit-assessment-path="${esc(assessment.path)}" data-officekit-diagnostic-path="${esc(diagnostic?.path || assessment.path)}" data-officekit-diagnostic-reason="${esc(diagnostic?.reason || "preview.state.unassessed")}"><title>${esc(`${label}: ${diagnostic?.reason || "unassessed"} at ${diagnostic?.path || assessment.path}; full evidence in render.json`)}</title><rect width="${canvas.width}" height="${height}" fill="${state === "failed" ? "#991B1B" : "#92400E"}"/><text x="${height * .2}" y="${height * .67}" font-family="sans-serif" font-size="${font}" fill="#FFFFFF" textLength="${Math.min(canvas.width * .94, font * (label.length + 14) * .65)}" lengthAdjust="spacingAndGlyphs">${label} · render.json</text></g>`;
+}
+
 export async function renderPpjToSvg(inputPath, {
   cwd = process.cwd(), outputDir,
   load = loadPpjWorkspace, compile = compilePpjWorkspace, loadRaster,
@@ -132,19 +184,29 @@ export async function renderPpjToSvg(inputPath, {
   for (const a of workspace.assets) {
     assets.set(a.id, { href: a.data?.byteLength ? `data:${a.mimeType || "application/octet-stream"};base64,${Buffer.from(a.data).toString("base64")}` : "", mimeType: a.mimeType });
   }
-  const diagnostics = [], pages = [];
-  for (const page of program.pages || []) {
-    const before = diagnostics.length;
-    const body = (page.elements || []).map((e) => renderElement(e, assets, diagnostics)).join("\n");
-    for (const element of page.elements || []) {
+  const inputAssessment = assessPpjPreviewInput(program, { assets: new Map(workspace.assets.map((asset) => [asset.id, asset])) });
+  const drawing = assessedDrawing(inputAssessment, assets), drawn = [];
+  for (const [pageIndex, page] of (program.pages || []).entries()) {
+    const pagePath = `$.pages[${pageIndex}]`;
+    const body = (page.elements || []).map((e, index) => drawing.render(e, `${pagePath}.elements[${index}]`, page.id)).join("\n");
+    for (const [index, element] of (page.elements || []).entries()) {
       const f = frame(element);
       if (f.x < 0 || f.y < 0 || f.x + f.width > canvas.width || f.y + f.height > canvas.height)
-        diagnostics.push({ id: element.id, status: "partial", reason: "element-out-of-canvas" });
+        drawing.add(`${pagePath}.elements[${index}]`, previewDiagnostic({ pageId: page.id, id: element.id,
+          path: `${pagePath}.elements[${index}].frame`, reason: "element-out-of-canvas", value: f,
+          action: "Inspect this frame outside the canvas; this check does not resolve transformed or effect-expanded bounds." }));
     }
     const pageFill = page.background?.fill?.color || page.background?.color || program.design?.theme?.background || "#FFFFFF";
-    pages.push({ id: page.id, svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}"><rect width="100%" height="100%" fill="${esc(typeof pageFill === "string" ? pageFill : "#FFFFFF")}"/>${body}</svg>`, diagnostics: diagnostics.slice(before) });
+    drawn.push({ id: page.id, path: pagePath, body, pageFill });
   }
-  const result = { renderer: "officekit-svg-preview", canvas, pages, diagnostics, status: diagnostics.length ? "partial" : "supported" };
+  const assessment = drawing.finish();
+  const pages = drawn.map(({ id, path, body, pageFill }) => {
+    const page = assessment.children.find((node) => node.path === path);
+    return { id, assessment: page, status: page.status, reliability: page.reliability, diagnostics: page.diagnostics,
+      svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}"><rect width="100%" height="100%" fill="${esc(typeof pageFill === "string" ? pageFill : "#FFFFFF")}"/>${body}${reviewIndication(page, canvas)}</svg>` };
+  });
+  const result = { renderer: "officekit-svg-preview", canvas, pages, assessment,
+    diagnostics: assessment.diagnostics, status: assessment.status, reliability: assessment.reliability };
   if (outputDir) {
     const { receipt, warnings } = await publishPpjPreview(result, previewInputEvidence(workspace, compiled), { cwd, outputDir, loadRaster });
     return { ...result, ...receipt, pages: result.pages, receipt, warnings };

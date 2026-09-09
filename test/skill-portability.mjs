@@ -92,7 +92,15 @@ try {
     for (const [pattern, label] of forbidden) {
       assert.doesNotMatch(text, pattern, `installed ${label}: ${skillId}`);
     }
-    if (!skillId.endsWith("template-creator") && !["presentations", "presentation-skill-maintainer"].includes(skillId)) {
+    if (skillId === "powerpoint-live-control") {
+      // This adapter deliberately exposes bounded typed requests, not REPL /
+      // arbitrary Office.js execution. Portability must test its actual route.
+      for (const command of ["install", "doctor", "sessions", "execute", "disconnect"]) {
+        assert.match(text, new RegExp(`officekit live ${command}\\b`), `installed typed Live guidance: ${command}`);
+      }
+      assert.match(text, /references\/live-protocol\.md/);
+      assert.doesNotMatch(text, /officekit repl/);
+    } else if (!skillId.endsWith("template-creator") && !["presentations", "presentation-skill-maintainer"].includes(skillId)) {
       assert.match(text, /officekit repl|references\/repl\.md/i, `installed REPL guidance: ${skillId}`);
     }
   }

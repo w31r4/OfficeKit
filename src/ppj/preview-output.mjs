@@ -1,6 +1,7 @@
 import { mkdir, readFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import { sha256, writeExclusiveFile } from "./workspace.mjs";
+import { previewAssessment, previewDiagnostic } from "./preview-diagnostics.mjs";
 
 const SCHEMA = "office-kit/ppj-svg-preview-output/v1";
 const jsonBytes = (value) => Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
@@ -47,9 +48,11 @@ export function previewInputEvidence(workspace, compiled) {
 }
 
 async function implementationIdentity() {
-  const files = ["svg-preview.mjs", "preview-output.mjs", "svg-preview-capabilities.json"];
+  const files = ["svg-preview.mjs", "preview-output.mjs", "svg-preview-capabilities.json",
+    "preview-diagnostics.mjs", "preview-input-assessment.mjs", "preview-factual-errors.mjs",
+    "preview-capabilities.mjs", "capability-registry.json", "ppj-v1.schema.json"];
   return {
-    version: 1,
+    version: 2,
     sources: await Promise.all(files.map(async (file) => ({
       file, sha256: sha256(await readFile(new URL(file, import.meta.url))),
     }))),
@@ -76,6 +79,14 @@ export async function publishPpjPreview(result, evidence, {
 } = {}) {
   const destination = path.resolve(cwd, outputDir);
   const stems = previewPageStems(result.pages);
+  const pages = result.pages.map(({ id, diagnostics, assessment }, index) => {
+    // The leaf publisher does not infer visual support from file existence.
+    // Legacy/direct callers without assessment remain explicitly unassessed.
+    assessment ??= previewAssessment({ path: `$.pages[${index}]`,
+      pageId: typeof id === "string" && id ? id : undefined, diagnostics });
+    return { id, assessment, status: assessment.status, diagnostics: assessment.diagnostics, reliability: assessment.reliability };
+  });
+  const assessment = result.assessment ?? previewAssessment({ diagnostics: result.diagnostics, children: pages.map((page) => page.assessment) });
   const receipt = {
     schema: SCHEMA,
     renderer: result.renderer,
@@ -85,13 +96,15 @@ export async function publishPpjPreview(result, evidence, {
     canvas: result.canvas,
     renderEvidence: "local-svg-preview",
     visualReview: "requires-human",
-    status: result.status,
+    assessment,
+    status: assessment.status,
+    reliability: assessment.reliability,
     ok: false,
-    diagnostics: [...result.diagnostics],
+    diagnostics: assessment.diagnostics,
     output: { directory: destination, status: "incomplete" },
     artifacts: [],
     failures: [],
-    pages: result.pages.map(({ id, diagnostics }) => ({ id, diagnostics: [...diagnostics] })),
+    pages,
   };
   const fail = (stage, error, pageId, kind) => {
     receipt.failures.push({
@@ -99,7 +112,23 @@ export async function publishPpjPreview(result, evidence, {
       message: error instanceof Error ? error.message : String(error),
       ...(error?.code ? { code: String(error.code) } : {}),
     });
-    receipt.status = "unavailable";
+    const diagnostic = previewDiagnostic({
+      pageId: typeof pageId === "string" && pageId ? pageId : undefined,
+      path: pages.find((page) => page.id === pageId)?.assessment.path || "$",
+      status: "unavailable", reason: stage === "raster-load" ? "raster-dependency-unavailable" : `preview.output.${stage}${kind ? `.${kind}` : ""}`,
+      value: error instanceof Error ? error.message : String(error),
+      action: "Inspect the publication failure and retained artifacts, repair its cause, and rerun into a new directory.",
+    });
+    for (const page of receipt.pages) {
+      if (pageId !== undefined && page.id !== pageId) continue;
+      const next = previewAssessment({ ...page.assessment, assessed: true, diagnostics: [...page.diagnostics, diagnostic] });
+      Object.assign(page, { assessment: next, status: next.status, diagnostics: next.diagnostics, reliability: next.reliability });
+    }
+    const replacements = new Map(receipt.pages.map((page) => [page.assessment.path, page.assessment]));
+    const next = previewAssessment({ ...receipt.assessment, assessed: true,
+      diagnostics: [...receipt.diagnostics, diagnostic],
+      children: receipt.assessment.children.map((child) => replacements.get(child.path) || child) });
+    Object.assign(receipt, { assessment: next, status: next.status, diagnostics: next.diagnostics, reliability: next.reliability });
   };
   const outputError = (code, cause) => new PreviewOutputError(
     `PPJ preview output ${code}: ${destination}${cause ? ` (${cause.message || cause})` : ""}`,
@@ -124,8 +153,8 @@ export async function publishPpjPreview(result, evidence, {
   for (const page of result.pages) {
     for (const diagnostic of page.diagnostics) {
       if (diagnostic.status !== "unavailable") continue;
-      fail("asset", diagnostic.reason, page.id);
-      receipt.failures.at(-1).elementId = diagnostic.id;
+      fail(diagnostic.reason === "asset-missing" ? "asset" : "preview", diagnostic.reason, page.id);
+      if (diagnostic.id !== undefined) receipt.failures.at(-1).elementId = diagnostic.id;
     }
   }
   let raster;
@@ -136,7 +165,6 @@ export async function publishPpjPreview(result, evidence, {
   } catch (error) {
     raster = null;
     receipt.environment.raster = { name: "sharp", status: "unavailable", reason: error.message || String(error) };
-    receipt.diagnostics.push({ status: "unavailable", reason: "raster-dependency-unavailable" });
     fail("raster-load", error);
   }
 

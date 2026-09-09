@@ -1,10 +1,11 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { derivePreviewCapabilities } from "../src/ppj/preview-capabilities.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const registry = JSON.parse(await readFile(path.join(root, "src/ppj/capability-registry.json"), "utf8"));
 const schema = JSON.parse(await readFile(path.join(root, "src/ppj/ppj-v1.schema.json"), "utf8"));
-const previewCapabilities = JSON.parse(await readFile(path.join(root, "src/ppj/svg-preview-capabilities.json"), "utf8"));
+const previewCapabilities = derivePreviewCapabilities(registry, schema);
 const boundaries = registry.authoredCompilerBoundaries.map((entry) => ({
   feature: entry.feature,
   ppjPath: entry.ppjPath,
@@ -50,12 +51,22 @@ const matrix = {
     driftRule: "Do not add renderer-only capability lists; update registry, compiler/projector, preview capability map, fixture, and test together.",
   },
   previewCapabilities,
+  previewSupport: registry.previewSupport,
   ppjRootPaths: Object.entries(registry.ppjPathOwners).map(([path, value]) => ({ path, ...value })),
   authoredCompilerBoundaries: boundaries,
   nativeLeafKinds: Object.entries(registry.nativeLeafKinds).map(([name, value]) => ({ name, ...value })),
   helpApis: Object.entries(registry.helpApis).map(([name, surface]) => ({ name, surface })),
   hostOnly: registry.hostOnly,
 };
-const output = process.argv[2] || path.join(root, "docs/presentation-capability-matrix.json");
-await writeFile(output, `${JSON.stringify(matrix, null, 2)}\n`);
-console.log(`wrote ${path.relative(root, output)} (${matrix.counts.authoredCompilerBoundaries} authored boundaries, ${matrix.counts.nativeLeafKinds} native leaves)`);
+const args = process.argv.slice(2), check = args.includes("--check");
+const destinations = args.filter((arg) => arg !== "--check");
+if (destinations.length > 1 || destinations.some((arg) => arg.startsWith("--"))) throw new Error("Usage: generate-presentation-capability-matrix.mjs [output] [--check]");
+const output = destinations[0] || path.join(root, "docs/presentation-capability-matrix.json");
+const content = `${JSON.stringify(matrix, null, 2)}\n`;
+if (check) {
+  if (await readFile(output, "utf8") !== content) throw new Error("Presentation capability matrix is stale; run npm run docs:presentation-capabilities");
+  console.log("presentation capability matrix is current");
+} else {
+  await writeFile(output, content);
+  console.log(`wrote ${path.relative(root, output)} (${matrix.counts.authoredCompilerBoundaries} authored boundaries, ${matrix.counts.nativeLeafKinds} native leaves)`);
+}

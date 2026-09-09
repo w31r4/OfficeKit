@@ -1,7 +1,52 @@
 {
   "schema": "office-kit/presentation-svg-preview-capabilities/v1",
-  "supported": ["shape", "text", "image", "table", "connector", "group", "placeholder", "chart:bar", "chart:column", "chart:line", "chart:area", "chart:combo", "chart:scatter", "chart:pie"],
-  "partial": ["component", "placeholder", "chart:heatmap", "chart:treemap", "chart:sunburst", "chart:sankey", "chart:waterfall", "chart:candlestick", "chart:streamgraph", "chart:pictographic", "chart:bubble", "chart:radar", "chart:doughnut"],
-  "opaque": ["opaque", "nativeRef", "embeddedOle", "unsupported"],
-  "contract": "Every unsupported or partial node must remain visible in render.json diagnostics; registry and fixtures are the source of truth for future additions."
+  "supported": [],
+  "partial": [
+    "chart",
+    "chart:area",
+    "chart:bar",
+    "chart:bubble",
+    "chart:candlestick",
+    "chart:column",
+    "chart:combo",
+    "chart:doughnut",
+    "chart:heatmap",
+    "chart:line",
+    "chart:pie",
+    "chart:radar",
+    "chart:sankey",
+    "chart:scatter",
+    "chart:sunburst",
+    "chart:treemap",
+    "chart:waterfall",
+    "component",
+    "connector",
+    "group",
+    "image",
+    "placeholder",
+    "shape",
+    "table",
+    "text"
+  ],
+  "opaque": [
+    "icon",
+    "line",
+    "media",
+    "ole",
+    "opaque",
+    "slot",
+    "smartArt"
+  ],
+  "unavailable": [],
+  "variants": {
+    "stream": "partial",
+    "symbol": "partial"
+  },
+  "sourceBound": {
+    "nativeRef": "opaque",
+    "source": "opaque",
+    "sourceClone": "opaque"
+  },
+  "source": "src/ppj/capability-registry.json#previewSupport",
+  "contract": "Summary grades describe whole families, not proof that a specific input is fully rendered. Unknown visual state remains partial until assessed. Field rules apply only to their schema owner; descendants need their own assessment."
 }

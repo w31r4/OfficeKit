@@ -32,6 +32,19 @@ at full size: dense evidence, combo charts, tables, CJK text, image crops,
 layered backgrounds, diagrams, and animated targets. Check non-target pages
 after imported edits.
 
+For a local review aid without an Office renderer, `officekit ppj preview
+deck.ppj -o preview-new/ --json` publishes SVG/PNG into a new directory. This
+is a separate route, not evidence that LibreOffice or PowerPoint rendered the
+exported PPTX. Read `render.json`: `ok` and `output.status` describe file
+publication; `reliability.status` describes the automated preview check.
+`failed` is a hard correctness failure even when the command exits 0 and files
+are complete. `requires-review` retains partial/opaque limitations; `passed`
+does not replace human visual review, structural checks or edit-fidelity checks.
+The preview images visibly flag known failed/review-required drawing state;
+use diagnostic page IDs, field paths and reasons to locate the problem. Repair
+the responsible input or renderer, preserve the source-bound/opaque boundary,
+and rerun into a new directory. Styling scores cannot offset factual failure.
+
 For every chart or layered composition, apply the four executable contracts in
 `visual-attention.md`: explicit label budget, honest missing-data topology,
 back-to-front evidence-safe layering, and one render-correction loop. If the
