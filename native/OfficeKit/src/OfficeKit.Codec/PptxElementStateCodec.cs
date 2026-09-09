@@ -1,4 +1,5 @@
 using DocumentFormat.OpenXml;
+using Google.Protobuf;
 using OfficeKit.Artifact.Wire.V1;
 using A = DocumentFormat.OpenXml.Drawing;
 using P = DocumentFormat.OpenXml.Presentation;
@@ -89,8 +90,9 @@ internal static class PptxElementStateCodec
         oldSemantic.Id = newSemantic.Id = string.Empty;
         oldSemantic.Source = null;
         newSemantic.Source = null;
-        var equal = newSemantic.Equals(oldSemantic);
-        return equal;
+        // Generated scalar equality can equate absent with explicit defaults.
+        // Native edits must retain optional field presence, including false/0.
+        return newSemantic.ToByteString().Equals(oldSemantic.ToByteString());
     }
 
     internal static bool StateChanged(PresentationElement original, PresentationElement requested) =>

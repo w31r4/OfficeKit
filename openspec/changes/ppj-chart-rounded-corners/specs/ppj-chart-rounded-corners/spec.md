@@ -18,3 +18,7 @@ The presentation and spreadsheet chart models SHALL accept an optional boolean `
 #### Scenario: Unsupported topology fails closed
 - **WHEN** the chart has an external workbook, duplicate rounded-corners nodes, or an unsupported chart topology
 - **THEN** no rounded-corners edit capability is issued and the source remains preserved.
+
+#### Scenario: Explicit false is removed and added again
+- **WHEN** a chart with explicit false is edited to omit roundedCorners and then edited to add false again
+- **THEN** each edit changes the ChartPart, projection preserves the requested presence, and the added node precedes c:style.

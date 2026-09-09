@@ -692,7 +692,7 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-07 Chart、ChartML、嵌入工作簿和扩展图表
 
-**本轮补充（2026-09-09）：** ChartSpace 的 `c:roundedCorners` 现在补齐为 PPJ `chart.roundedCorners`；ordinary/combo ChartPart 均支持 authored 导出、原生投影及 source-bound 增改删，二次投影恢复 presence/value，最小实验复用 `PpjChartStyleIndexAuthorAndEditSourceChart` 验证只改 ChartPart。
+**本轮补充（2026-09-09）：** ChartSpace 的 `c:roundedCorners` 已接入 PPJ `chart.roundedCorners`。普通图和组合图保留缺失、显式 false、true 三态；语义哈希及内容比较均保留字段存在性，修复 false→删除被当成无改动的问题。`PpjChartRoundedCornersPreservesPresenceAcrossEdits` 分别验证两类图的 false→删除→false→true→删除，每步检查原生 XML、去嵌入后的投影，以及除目标 ChartPart 外所有部件字节不变；重新添加时保持 roundedCorners 在 style 前的顺序。`PpjChartRoundedCornersRejectsAmbiguousNativeOwners` 验证非法值、重复节点、额外属性和子节点不获得 setChartPlot，未修改时保留原始 ChartPart。
 
 **优先级：P0；状态：部分完成。**
 

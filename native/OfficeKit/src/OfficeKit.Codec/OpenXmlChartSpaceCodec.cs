@@ -469,13 +469,15 @@ internal static class OpenXmlChartSpaceCodec
     internal static bool TryReadStyleIndex(XElement chartSpace, out bool present, out uint value) =>
         TryOptionalUInt(chartSpace, "style", 1, 48, out present, out value);
 
-    private static bool TryReadBoolean(XElement parent, string localName, out bool present, out bool value)
+    internal static bool TryReadBoolean(XElement parent, string localName, out bool present, out bool value)
     {
         var nodes = parent.Elements(ChartNs + localName).ToArray();
         present = nodes.Length == 1;
         value = false;
         if (nodes.Length > 1) return false;
         if (nodes.Length == 0) return true;
+        if (nodes[0].HasElements || nodes[0].Attributes().Any(attribute => !attribute.IsNamespaceDeclaration && attribute.Name != "val"))
+            return false;
         var token = (string?)nodes[0].Attribute("val");
         if (token is null) return false;
         if (token is "1" or "true") { value = true; return true; }
@@ -483,14 +485,19 @@ internal static class OpenXmlChartSpaceCodec
         return false;
     }
 
-    private static void PatchBoolean(XElement parent, string localName, bool present, bool value, string errorCode, string subject)
+    internal static void PatchBoolean(XElement parent, string localName, bool present, bool value, string errorCode, string subject)
     {
+        if (!TryReadBoolean(parent, localName, out _, out _))
+            throw Topology(errorCode, subject, $"has an invalid c:{localName}");
         var existing = parent.Elements(ChartNs + localName).ToArray();
-        if (existing.Length > 1) throw Topology(errorCode, subject, $"has duplicate c:{localName}");
         if (!present) { foreach (var node in existing) node.Remove(); return; }
         if (existing.Length == 1) { existing[0].ReplaceWith(new XElement(ChartNs + localName, new XAttribute("val", value ? "1" : "0"))); return; }
         var chart = parent.Element(ChartNs + "chart") ?? throw Topology(errorCode, subject, "is missing c:chart");
-        chart.AddBeforeSelf(new XElement(ChartNs + localName, new XAttribute("val", value ? "1" : "0")));
+        // ChartSpace orders roundedCorners before style (and before chart).
+        var following = localName == "roundedCorners"
+            ? parent.Elements().FirstOrDefault(element => element.Name != ChartNs + "date1904" && element.Name != ChartNs + "lang") ?? chart
+            : chart;
+        following.AddBeforeSelf(new XElement(ChartNs + localName, new XAttribute("val", value ? "1" : "0")));
     }
 
     internal static void PatchStyleIndex(

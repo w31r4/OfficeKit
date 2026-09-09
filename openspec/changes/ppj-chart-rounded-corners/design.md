@@ -10,7 +10,9 @@ ChartSpace parsing and patching is shared by the bounded XLSX/PPTX chart codecs.
 
 ## Decisions
 
-Represent presence separately from value so absent, explicit false, and true remain distinguishable. Place `c:roundedCorners` directly under `c:chartSpace`, validate `0|1|false|true`, and insert it before `c:chart` while preserving all unrelated XML.
+Represent presence separately from value so absent, explicit false, and true remain distinguishable. Preserve that distinction in both semantic hashes and content comparison before writing. Generated protobuf value equality can equate explicit scalar defaults with absence; compare serialized content after clearing the separately owned state/identity fields.
+
+Place `c:roundedCorners` directly under `c:chartSpace`, validate `0|1|false|true`, and insert it after date1904/lang and before style/chart while preserving all unrelated XML. Ordinary and combo charts share the same reader and patcher. Duplicate nodes, extra attributes and child elements remain source-owned.
 
 ## Risks / Trade-offs
 

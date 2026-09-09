@@ -3479,11 +3479,8 @@ internal static class PptxCodec
         }
         if (element.ContentCase == PresentationElement.ContentOneofCase.Chart)
         {
-            // ChartML defaults roundedCorners to false; normalize the
-            // explicit false emitted by the native reader so deleting the
-            // optional PPJ field compares equal to the absent XML form.
-            if (element.Chart.HasRoundedCorners && !element.Chart.RoundedCorners)
-                element.Chart.ClearRoundedCorners();
+            // Optional chart settings retain presence: removing explicit false
+            // must still reach the ChartPart writer.
             if (element.Chart.TitleBody is not null)
             {
                 var title = new PresentationShape
