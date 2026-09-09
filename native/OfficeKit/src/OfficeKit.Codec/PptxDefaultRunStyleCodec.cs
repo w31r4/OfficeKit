@@ -115,8 +115,8 @@ internal static class PptxDefaultRunStyleCodec
         var after = source.DefaultRunProperties;
         var beforeWithoutScalars = before.Clone();
         var afterWithoutScalars = after.Clone();
-        beforeWithoutScalars.ClearBold(); beforeWithoutScalars.ClearItalic(); beforeWithoutScalars.ClearFontSizePoints(); beforeWithoutScalars.ClearFontFamily(); beforeWithoutScalars.ClearFontFamilyEastAsia(); beforeWithoutScalars.ClearFontFamilyComplexScript(); beforeWithoutScalars.ClearLanguage(); beforeWithoutScalars.ClearFontKerningPoints();
-        afterWithoutScalars.ClearBold(); afterWithoutScalars.ClearItalic(); afterWithoutScalars.ClearFontSizePoints(); afterWithoutScalars.ClearFontFamily(); afterWithoutScalars.ClearFontFamilyEastAsia(); afterWithoutScalars.ClearFontFamilyComplexScript(); afterWithoutScalars.ClearLanguage(); afterWithoutScalars.ClearFontKerningPoints();
+        beforeWithoutScalars.ClearBold(); beforeWithoutScalars.ClearItalic(); beforeWithoutScalars.ClearFontSizePoints(); beforeWithoutScalars.ClearFontFamily(); beforeWithoutScalars.ClearFontFamilyEastAsia(); beforeWithoutScalars.ClearFontFamilyComplexScript(); beforeWithoutScalars.ClearLanguage(); beforeWithoutScalars.ClearFontKerningPoints(); beforeWithoutScalars.ClearFontSpacingPoints();
+        afterWithoutScalars.ClearBold(); afterWithoutScalars.ClearItalic(); afterWithoutScalars.ClearFontSizePoints(); afterWithoutScalars.ClearFontFamily(); afterWithoutScalars.ClearFontFamilyEastAsia(); afterWithoutScalars.ClearFontFamilyComplexScript(); afterWithoutScalars.ClearLanguage(); afterWithoutScalars.ClearFontKerningPoints(); afterWithoutScalars.ClearFontSpacingPoints();
         if (beforeWithoutScalars.Equals(afterWithoutScalars))
         {
             // Patch changed scalars without rebuilding unrelated font/fill/effect
@@ -139,6 +139,13 @@ internal static class PptxDefaultRunStyleCodec
                     throw Unsupported("Source-preserving PPTX export cannot replace unmodeled default-run kerning.");
                 if (after.HasFontKerningPoints) properties.Kerning = checked((int)Math.Round(after.FontKerningPoints * 100));
                 else properties.Kerning = null;
+            }
+            if (before.HasFontSpacingPoints != after.HasFontSpacingPoints || before.FontSpacingPoints != after.FontSpacingPoints)
+            {
+                if (properties.Spacing is not null && !PptxTextDecoration.TrySpacing(properties, out _))
+                    throw Unsupported("Source-preserving PPTX export cannot replace unmodeled default-run letter spacing.");
+                if (after.HasFontSpacingPoints) properties.Spacing = checked((int)Math.Round(after.FontSpacingPoints * 100));
+                else properties.Spacing = null;
             }
             if (before.HasLanguage != after.HasLanguage || before.Language != after.Language)
             {
@@ -368,7 +375,7 @@ internal static class PptxDefaultRunStyleCodec
         target.Italic = null;
         if (PptxTextDecoration.TryKerning(target, out _)) target.Kerning = null;
         target.Baseline = null;
-        target.Spacing = null;
+        if (PptxTextDecoration.TrySpacing(target, out _)) target.Spacing = null;
         target.Capital = null;
         if (PptxLanguageTag.IsValid(target.Language?.Value)) target.Language = null;
         if (PptxTextDecoration.TryHighlight(target, out _, out _)) target.GetFirstChild<A.Highlight>()?.Remove();

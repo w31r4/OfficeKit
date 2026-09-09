@@ -84,6 +84,14 @@ other defaults and direct run kerning unchanged. Unmodeled native kern remains
 source-owned during unrelated edits and rejects replacement. Preview reports
 its typography limit; this field does not prove host font shaping.
 
+Use defaultText.letterSpacing for direct character spacing in points
+(-768..768). Signed values round to native hundredths with ties to even.
+Explicit zero remains present; remove the field or its spacing-only
+defaultText/style wrapper to clear the direct spacing, then assign a value to
+restore it. Other defaults and direct run spacing stay unchanged. Unmodeled
+native spc survives unrelated scalar changes and rejects replacement.
+Preview typography remains partial.
+
 
 `textWarpPreset`, `textWarpAdjustments`, `flatTextZ`, `fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.

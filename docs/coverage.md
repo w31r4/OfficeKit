@@ -2,6 +2,22 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ paragraph default letterSpacing (2026-09-10): ordinary text/shape
+paragraphs support independent signed spacing assignment, explicit zero,
+deletion, spacing-only wrapper removal and restoration. Finite -768..768pt
+inputs round to native hundredths with ties to even. Canonicalization goes
+through the native integer value so a tiny negative spacing that rounds to
+-0 becomes explicit zero; this fixes the four first-run postwrite mismatch
+failures without weakening preservation checks. Direct run spacing, other
+defaults/effects, unknown attributes and non-target XML/ZIP content remain
+unchanged. Unmodeled native spc rejects replacement and survives unrelated
+scalar assignment/removal; cleanup clears only modeled spacing. Related
+native tests pass 192/192, zero skipped (SDK 8.0.128), with the documented
+whole-default-style baseline exclusion unchanged. Unsupported-field rejection
+now uses baseline. Schema, Help, registry, references, generated metadata,
+preview input/capability, portability/reference sync and strict OpenSpec pass.
+No wire change, NativeAOT rebuild or host typography acceptance.
+
 PPJ paragraph default kerning (2026-09-10): ordinary text/shape paragraphs
 support independent threshold assignment, explicit zero, removal, kerning-only
 wrapper removal and restoration under exact field authority. Finite 0..768pt
@@ -12,7 +28,7 @@ rejects replacement and survives unrelated scalar assignment/removal; cleanup
 now clears only modeled kerning. The shared lifecycle fixture plus one
 unknown-source fixture bring related native tests to 187/187 passing, zero
 skipped (SDK 8.0.128), retaining the documented whole-default-style baseline
-exclusion. Unsupported-field rejection now uses letterSpacing. Schema, Help,
+exclusion. That increment used letterSpacing for unsupported-field rejection. Schema, Help,
 registry, references, generated metadata, preview input/capability,
 portability/reference sync and strict OpenSpec checks pass. No wire change,
 NativeAOT rebuild or host font-shaping acceptance.
