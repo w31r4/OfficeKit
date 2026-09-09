@@ -368,12 +368,14 @@ internal static partial class PpjAuthoredPresentationCompiler
             var slide = Presentation.Slides[pageIndex].Clone();
             if (page.Raw.TryGetProperty("background", out var background))
                 slide.Background = BuildBackground(background, _catalog, _program.Design.Width, _program.Design.Height);
+            var endpoints = new PpjConnectorEndpointResolver(expanded.Elements);
             for (var elementIndex = 0; elementIndex < expanded.Elements.Count; elementIndex++)
                 slide.Elements.Add(BuildElement(
                     expanded.Elements[elementIndex],
                     expanded.ElementJson[elementIndex],
                     _catalog,
-                    textPrecedence));
+                    textPrecedence,
+                    endpoints));
             var loweredElements = WalkPresentation(slide.Elements)
                 .ToDictionary(element => element.Id, StringComparer.Ordinal);
             foreach (var animation in page.Animations)
@@ -486,7 +488,8 @@ internal static partial class PpjAuthoredPresentationCompiler
         PpjElementModel element,
         JsonElement raw,
         Catalog catalog,
-        TextPrecedenceContext? textPrecedence = null)
+        TextPrecedenceContext? textPrecedence = null,
+        PpjConnectorEndpointResolver? endpoints = null)
     {
         var output = new PresentationElement
         {
@@ -516,10 +519,10 @@ internal static partial class PpjAuthoredPresentationCompiler
                 output.Table = BuildTable(table, raw, catalog);
                 break;
             case PpjConnectorElementModel connector:
-                output.Connector = BuildConnector(connector, raw, catalog);
+                output.Connector = BuildConnector(connector, raw, catalog, endpoints);
                 break;
             case PpjGroupElementModel group:
-                output.Group = BuildGroup(group, raw, catalog, textPrecedence);
+                output.Group = BuildGroup(group, raw, catalog, textPrecedence, endpoints);
                 break;
             case PpjPlaceholderElementModel placeholder:
                 output.Shape = BuildPlaceholder(placeholder, raw, catalog, textPrecedence);
@@ -1129,16 +1132,22 @@ internal static partial class PpjAuthoredPresentationCompiler
         return output;
     }
 
-    private static PresentationConnector BuildConnector(PpjConnectorElementModel element, JsonElement raw, Catalog catalog)
+    private static PresentationConnector BuildConnector(PpjConnectorElementModel element, JsonElement raw, Catalog catalog,
+        PpjConnectorEndpointResolver? endpoints)
     {
         RejectUnsupportedFrameTransform(element.Id, element.Frame, "connector");
+        var resolved = endpoints?.Resolve(element) ?? PpjConnectorEndpointResolver.ResolveLiteral(element);
         var connector = new PresentationConnector
         {
             ConnectorType = element.ConnectorType,
-            StartXEmu = Emu(EndpointX(element.From, element.Frame, true)),
-            StartYEmu = Emu(EndpointY(element.From, element.Frame, true)),
-            EndXEmu = Emu(EndpointX(element.To, element.Frame, false)),
-            EndYEmu = Emu(EndpointY(element.To, element.Frame, false)),
+            StartXEmu = resolved.StartX,
+            StartYEmu = resolved.StartY,
+            EndXEmu = resolved.EndX,
+            EndYEmu = resolved.EndY,
+            StartFrameAnchor = element.From.ElementId is { } startTarget
+                ? new PresentationConnectorFrameAnchor { TargetId = startTarget, Anchor = element.From.Anchor! } : null,
+            EndFrameAnchor = element.To.ElementId is { } endTarget
+                ? new PresentationConnectorFrameAnchor { TargetId = endTarget, Anchor = element.To.Anchor! } : null,
         };
         ApplyLine(connector, raw.GetProperty("stroke"), catalog);
         connector.StartArrow = Arrow(OptionalString(raw, "startArrow"));
@@ -1737,7 +1746,8 @@ internal static partial class PpjAuthoredPresentationCompiler
         PpjGroupElementModel element,
         JsonElement raw,
         Catalog catalog,
-        TextPrecedenceContext? textPrecedence = null)
+        TextPrecedenceContext? textPrecedence = null,
+        PpjConnectorEndpointResolver? endpoints = null)
     {
         var group = new PresentationGroup
         {
@@ -1760,7 +1770,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         {
             if (!childJsonById.TryGetValue(child.Id, out var childJson))
                 throw Unsupported(element.Id, $"group readingOrder references missing child {child.Id}");
-            group.Children.Add(BuildElement(child, childJson, catalog, textPrecedence));
+            group.Children.Add(BuildElement(child, childJson, catalog, textPrecedence, endpoints));
         }
         ApplyAccessibility(group, element.Accessibility);
         return group;
@@ -3761,12 +3771,6 @@ internal static partial class PpjAuthoredPresentationCompiler
                 foreach (var child in WalkPresentation(element.Group.Children)) yield return child;
         }
     }
-
-    private static double EndpointX(PpjConnectorEndpointModel endpoint, PpjFrameModel frame, bool start) =>
-        endpoint.X ?? (start ? frame.X : frame.X + frame.Width);
-
-    private static double EndpointY(PpjConnectorEndpointModel endpoint, PpjFrameModel frame, bool start) =>
-        endpoint.Y ?? frame.Y + frame.Height / 2;
 
     private static string PlaceholderType(string value) => value switch
     {

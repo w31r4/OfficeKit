@@ -21,6 +21,7 @@ internal static class PpjSemanticValidator
             ["setTextParagraphStyle"] = Set("textStyles", "text.paragraphs[].style.alignment", "text.paragraphs[].style.tabStops"),
             ["setFill"] = Set("fill"),
             ["setStroke"] = Set("stroke"),
+            ["setConnectorEndpoints"] = Set("from", "to"),
             ["setLinePath"] = Set("line.path"),
             ["setTextBodyStyle"] = Set("text.style", "textStyle"),
             ["setShapeEffects"] = Set("shape.shadow", "shape.glow", "shape.innerShadow", "shape.reflection", "shape.softEdge"),

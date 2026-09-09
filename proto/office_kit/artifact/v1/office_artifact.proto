@@ -2823,6 +2823,17 @@ message PresentationConnector {
   // mutually exclusive; source-bound edits preserve the token instead of
   // resolving it through the presentation theme.
   string line_scheme = 23;
+  // PPJ frame-relative attachment retained in a bounded OfficeKit extension.
+  // This is not a DrawingML geometry connection-site index. Each endpoint
+  // has either a native target/site or a frame anchor, never both.
+  PresentationConnectorFrameAnchor start_frame_anchor = 24;
+  PresentationConnectorFrameAnchor end_frame_anchor = 25;
+}
+
+message PresentationConnectorFrameAnchor {
+  string target_id = 1;
+  // auto, top, right, bottom, left, or center in the target's local frame.
+  string anchor = 2;
 }
 
 message PresentationChart {

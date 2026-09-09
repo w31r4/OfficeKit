@@ -2,6 +2,17 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ connector frame anchors (2026-09-10): `from/to` preserve explicit side/center
+or deterministic auto target identity through authored export, fresh projection
+without embedded PPJ, and supported source-bound endpoint/target-frame edits.
+Group child frames and component placement retain their coordinate spaces;
+issued target frame leaves also recompute dependent endpoints. The focused
+native suite passes 69/69, with original-source no-op and non-target ZIP checks.
+Native geometry-site bindings keep separate authority; opaque/connector targets,
+virtual component ports and negative connector-local coordinates fail closed.
+This is source-library evidence, not a rebuilt NativeAOT or PowerPoint drag test.
+Production preview adoption and full connector routing remain incomplete.
+
 Latest PPTX evidence: candidate product commit `e1bb8699671c3599b44b999ca308ff8d0d9581d7` and packed `office-kit@0.6.0` tarball SHA-256 `0152742d17a07a7b53e53f83f75c08c829804ab8f73ad65841a5e49946e7e8a9` passed the frozen three-sample programmable-import acceptance. All `90/90` clean-source matrix runs passed, all `30/30` declared intents produced deterministic bytes and oracle results across three repetitions, and rendering used LibreOffice for 60 runs plus Keynote for 30 text changes that LibreOffice did not display. Every run preserved the source, reimported successfully, kept the declared non-target parts and relationships byte-identical, recovered target XML/SVG after masking only the issued mutation, and kept non-target pages pixel-identical.
 
 The same candidate passed `9/9` fresh Codex trials, each using a packed clean install and three durable task sessions with reviewed commits `c0001`/`c0002` and only `c0002` published. The separately frozen source-derived companion suite passed `24/24` runs over eight deterministic cases covering text, geometry, image, table, chart, component, add, delete, and reorder. Exact component hashes and boundaries live in `evals/pptx-programmable-import/candidate.v1.json`. This closes the declared macOS three-sample acceptance, not arbitrary OOXML semantics; broader imported-object profiles remain partial, and Windows PowerPoint is tracked as a separate host lane rather than a portable completion gate. Repeated component candidates still require source-bound capabilities, and opaque or topology-bearing components do not become generally editable.

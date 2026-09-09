@@ -4047,9 +4047,14 @@ public sealed partial class PptxCodecTests
         removedErrorBars.Artifact.Presentation.Slides[0].Elements
             .Single(item => item.ContentCase == PresentationElement.ContentOneofCase.Chart && item.Chart.Type == SpreadsheetChartType.Line)
             .Chart.Series[0].ErrorBars = null;
-        var rejectedErrorBarTopology = Export(removedErrorBars.Artifact);
-        Assert.False(rejectedErrorBarTopology.Ok);
-        Assert.Equal("presentation_chart_topology_changed", Assert.Single(rejectedErrorBarTopology.Diagnostics).Code);
+        var withoutErrorBars = Export(removedErrorBars.Artifact);
+        Assert.True(withoutErrorBars.Ok, Diagnostics(withoutErrorBars));
+        var removedRoundTrip = Import(withoutErrorBars.File.ToByteArray());
+        Assert.True(removedRoundTrip.Ok, Diagnostics(removedRoundTrip));
+        var removedLine = removedRoundTrip.Artifact.Presentation.Slides[0].Elements
+            .Single(item => item.ContentCase == PresentationElement.ContentOneofCase.Chart && item.Chart.Type == SpreadsheetChartType.Line).Chart;
+        Assert.Null(removedLine.Series[0].ErrorBars);
+        Assert.Equal(roundTripLine.Series[0].Trendlines, removedLine.Series[0].Trendlines);
     }
 
     [Fact]
@@ -14151,7 +14156,7 @@ public sealed partial class PptxCodecTests
         return stream.ToArray();
     }
 
-    private static byte[] RemoveEmbeddedPpj(byte[] bytes)
+    internal static byte[] RemoveEmbeddedPpj(byte[] bytes)
     {
         using var stream = new MemoryStream();
         stream.Write(bytes);

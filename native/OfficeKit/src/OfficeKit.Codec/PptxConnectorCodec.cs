@@ -33,7 +33,14 @@ internal static class PptxConnectorCodec
         if (nonVisual is null ||
             !TryConnectionTargets(nonVisual, elementIdsByNativeId,
                 out var startTargetId, out var startSiteIndex,
-                out var endTargetId, out var endSiteIndex)) return false;
+                out var endTargetId, out var endSiteIndex) ||
+            !PptxConnectorAnchorCodec.TryRead(nonVisual, elementIdsByNativeId, out var startAnchor, out var endAnchor) ||
+            startAnchor is not null && startTargetId.Length != 0 ||
+            endAnchor is not null && endTargetId.Length != 0) return false;
+        var selfId = source.NonVisualConnectionShapeProperties?.NonVisualDrawingProperties?.Id?.Value;
+        if (selfId is { } ownId && elementIdsByNativeId is not null &&
+            elementIdsByNativeId.TryGetValue(ownId, out var ownTarget) &&
+            (startAnchor?.TargetId == ownTarget || endAnchor?.TargetId == ownTarget)) return false;
 
         connector = new PresentationConnector
         {
@@ -46,6 +53,8 @@ internal static class PptxConnectorCodec
             EndTargetId = endTargetId,
             StartConnectionSiteIndex = startSiteIndex,
             EndConnectionSiteIndex = endSiteIndex,
+            StartFrameAnchor = startAnchor,
+            EndFrameAnchor = endAnchor,
         };
         connector.Accessibility = PptxNonVisualAccessibilityCodec.Read(
             source.NonVisualConnectionShapeProperties?.NonVisualDrawingProperties);
@@ -62,6 +71,7 @@ internal static class PptxConnectorCodec
         var semantic = source.Connector;
         var drawingProperties = new P.NonVisualConnectorShapeDrawingProperties();
         ApplyConnectionTargets(drawingProperties, semantic, nativeIdsByElementId);
+        PptxConnectorAnchorCodec.Apply(drawingProperties, semantic, nativeIdsByElementId);
         var properties = new P.ShapeProperties(
             ConnectorTransform(semantic),
             CanonicalGeometry(semantic.ConnectorType),
@@ -87,6 +97,7 @@ internal static class PptxConnectorCodec
         PptxNonVisualAccessibilityCodec.ApplyBound(nonVisual, requested.Connector.Accessibility, "connector");
         var drawingProperties = source.NonVisualConnectionShapeProperties.NonVisualConnectorShapeDrawingProperties ??= new P.NonVisualConnectorShapeDrawingProperties();
         ApplyConnectionTargets(drawingProperties, requested.Connector, nativeIdsByElementId);
+        PptxConnectorAnchorCodec.Apply(drawingProperties, requested.Connector, nativeIdsByElementId);
 
         var properties = source.ShapeProperties ??= new P.ShapeProperties();
         properties.RemoveAllChildren<A.Transform2D>();
@@ -123,6 +134,8 @@ internal static class PptxConnectorCodec
             throw new CodecException("invalid_presentation_connector", $"Presentation connector {elementId} has invalid endpoints.");
         PptxNonVisualAccessibilityCodec.Validate(source.Accessibility, elementId, "connector");
         PptxLineStyleCodec.Validate(source, elementId);
+        PptxConnectorAnchorCodec.Validate(source.StartFrameAnchor, source.StartTargetId, elementId, nativeIdsByElementId);
+        PptxConnectorAnchorCodec.Validate(source.EndFrameAnchor, source.EndTargetId, elementId, nativeIdsByElementId);
         if (source.StartTargetId.Length == 0 && source.StartConnectionSiteIndex != 0 ||
             source.EndTargetId.Length == 0 && source.EndConnectionSiteIndex != 0)
             throw new CodecException("invalid_presentation_connector", $"Presentation connector {elementId} has incomplete connection-target state.");

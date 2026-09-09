@@ -223,8 +223,22 @@ internal static class PpjComponentExpander
         json["id"] = outputId;
         WriteFrame(json, transform.Apply(element.Frame));
 
+        if (element is PpjConnectorElementModel connector)
+        {
+            TransformEndpoint(json, "from", connector.From, transform);
+            TransformEndpoint(json, "to", connector.To, transform);
+        }
+
         if (element is PpjGroupElementModel group)
         {
+            // The component places the external group frame. Its descendants
+            // stay in the original child space, including an implicit frame.
+            // Applying the component placement again would double-transform.
+            json["childFrame"] = new JsonObject
+            {
+                ["x"] = group.ChildFrame.X, ["y"] = group.ChildFrame.Y,
+                ["width"] = group.ChildFrame.Width, ["height"] = group.ChildFrame.Height,
+            };
             var children = new JsonArray();
             for (var index = 0; index < group.Elements.Count; index++)
             {
@@ -234,7 +248,7 @@ internal static class PpjComponentExpander
                     $"{path}.elements[{index}]",
                     pageId,
                     components,
-                    transform,
+                    Transform.Identity,
                     identityPrefix,
                     componentId,
                     repeatKey,
@@ -655,6 +669,17 @@ internal static class PpjComponentExpander
 
     private static void RewriteLocalReferences(JsonObject element, string identityPrefix)
         => Rewrite(element, identityPrefix);
+
+    private static void TransformEndpoint(JsonObject owner, string field, PpjConnectorEndpointModel endpoint, Transform transform)
+    {
+        if (endpoint.ElementId is not null) return;
+        if (endpoint.X is not { } x || endpoint.Y is not { } y) return;
+        owner[field] = new JsonObject
+        {
+            ["x"] = transform.OffsetX + x * transform.ScaleX,
+            ["y"] = transform.OffsetY + y * transform.ScaleY,
+        };
+    }
 
     private static void Rewrite(JsonNode? node, string identityPrefix)
     {

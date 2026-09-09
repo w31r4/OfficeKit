@@ -1765,8 +1765,8 @@ internal static partial class PpjPresentationProjector
         var output = ElementBase(id, element.Name, ConnectorFrame(connector), Accessibility(connector.Accessibility), nativeRef);
         output["type"] = StringNode("connector");
         output["connectorType"] = StringNode(connector.ConnectorType is "elbow" or "curved" ? connector.ConnectorType : "straight");
-        output["from"] = ConnectorEndpoint(connector.StartTargetId, connector.StartXEmu, connector.StartYEmu, pageId, context);
-        output["to"] = ConnectorEndpoint(connector.EndTargetId, connector.EndXEmu, connector.EndYEmu, pageId, context);
+        output["from"] = ConnectorEndpoint(connector.StartTargetId, connector.StartXEmu, connector.StartYEmu, pageId, context, connector.StartFrameAnchor);
+        output["to"] = ConnectorEndpoint(connector.EndTargetId, connector.EndXEmu, connector.EndYEmu, pageId, context, connector.EndFrameAnchor);
         // A connector has one native line-alpha owner. Authored
         // compositing.opacity is therefore projected as the effective stroke
         // opacity rather than as a second, unrecoverable field.
@@ -3040,7 +3040,10 @@ internal static partial class PpjPresentationProjector
                 break;
             case PresentationElement.ContentOneofCase.Connector when source.Editable:
                 output.Add(new("setStroke", ["stroke"]));
-                output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
+                if (element.Connector.StartTargetId.Length == 0 && element.Connector.EndTargetId.Length == 0)
+                    output.Add(new("setConnectorEndpoints", ["from", "to"]));
+                if (element.Connector.StartFrameAnchor is null && element.Connector.EndFrameAnchor is null)
+                    output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
                 break;
             case PresentationElement.ContentOneofCase.Group when source.Editable:
                 output.Add(new("setFrame", EditableFrameFields));
@@ -3235,8 +3238,15 @@ internal static partial class PpjPresentationProjector
         long x,
         long y,
         string pageId,
-        ProjectionContext context)
+        ProjectionContext context,
+        PresentationConnectorFrameAnchor? frameAnchor = null)
     {
+        if (frameAnchor is not null)
+        {
+            if (!context.TryElementId(pageId, frameAnchor.TargetId, out var anchorTarget))
+                throw new CodecException("ppj.connector.endpoint", "Frame-anchor target cannot be mapped to the projected page.");
+            return new JsonObject { ["element"] = StringNode(anchorTarget), ["anchor"] = StringNode(frameAnchor.Anchor) };
+        }
         if (!string.IsNullOrEmpty(targetId) && context.TryElementId(pageId, targetId, out var projected))
             return new JsonObject { ["element"] = StringNode(projected), ["anchor"] = StringNode("auto") };
         return new JsonObject { ["x"] = JsonValue.Create(Points(x)), ["y"] = JsonValue.Create(Points(y)) };

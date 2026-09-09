@@ -458,7 +458,8 @@ internal static class PptxElementDeletionCodec
 
     private static bool References(P.ConnectionShape connector, uint nativeId) =>
         connector.Descendants<A.StartConnection>().Any(connection => connection.Id?.Value == nativeId) ||
-        connector.Descendants<A.EndConnection>().Any(connection => connection.Id?.Value == nativeId);
+        connector.Descendants<A.EndConnection>().Any(connection => connection.Id?.Value == nativeId) ||
+        PptxConnectorAnchorCodec.References(connector, nativeId);
 
     private static string PartPath(OpenXmlPart part) => part.Uri.OriginalString.TrimStart('/');
     private static string DataPartPath(DataPart part) => part.Uri.OriginalString.TrimStart('/');

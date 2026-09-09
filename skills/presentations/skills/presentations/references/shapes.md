@@ -119,29 +119,54 @@ An ordinary imported custom shape remains a shape or opaque native object: the
 projector never guesses an `iconName` from geometry. Exact embedded PPJ recovery
 does retain the original semantic icon element.
 
-## Lines are connectors
+## Connector endpoints
 
-Use `connector` as PPJ's ordinary line primitive. A connector may join two
-literal points or bind to stable element IDs, and it owns straight, elbow, or
-curved routing plus stroke and arrowheads. Do not use custom geometry merely to
-draw a line, and do not introduce a second line element with overlapping
-semantics.
+Use `connector` for relationships between objects or explicit endpoint pairs.
+Use the independent `line` element for free paths. A connector owns straight,
+elbow or curved routing, stroke and arrowheads.
 
 ```json
 {
   "type": "connector",
-  "id": "threshold-line",
+  "id": "relation",
+  "frame": { "x": 0, "y": 0, "width": 1, "height": 1 },
   "connectorType": "straight",
-  "from": { "x": 84, "y": 260 },
-  "to": { "x": 520, "y": 260 },
-  "stroke": { "color": "#16324F", "width": 1.5, "dash": "dash" },
-  "endArrow": "none"
+  "from": { "element": "source", "anchor": "right" },
+  "to": { "element": "target", "anchor": "left" },
+  "stroke": { "color": "#16324F", "width": 1.5 },
+  "endArrow": "triangle"
 }
 ```
 
-Bind endpoints to elements when the relationship must survive movement. Use
-literal points for rules, axes, baselines, thresholds, or deliberate visual
-dividers that do not belong to another object.
+`source` and `target` must identify expanded objects on the same page. Each
+endpoint can instead be a literal point, for example `{ "x": 520, "y": 260 }`.
+The required connector frame does not replace endpoint coordinates.
+
+`top`, `right`, `bottom` and `left` select the target frame's side midpoint;
+`center` selects its center. The compiler then applies target rotation/flips
+and ancestor group transforms. `auto` chooses the shortest pair among the four
+side midpoints in slide space, holding explicit endpoints fixed. Ties use
+start then end order: top, right, bottom, left. Center is explicit only.
+
+Literal coordinates belong to the connector's parent space. Component placement
+transforms its literal endpoints and sibling frames together; group descendants
+remain in their `childFrame` space. Current native endpoints require nonnegative
+local coordinates. Missing IDs, opaque or connector targets, unresolved component
+instance ports and unrepresentable coordinates fail with a diagnostic.
+
+On a fresh source projection, use the issued `setConnectorEndpoints` capability
+to edit `from`/`to`. Moving a supported target frame or its group frame/childFrame,
+including issued native frame leaves, recomputes attached endpoints. Replace an
+object endpoint with a literal point to remove that attachment. Edit endpoints
+or target placement rather than an attached connector's derived frame.
+
+OfficeKit preserves the exact frame anchor in native metadata even when the
+embedded PPJ snapshot is absent. This supports OfficeKit recompile/edit cycles;
+PowerPoint drag attachment has not been verified. Existing native connection-site
+bindings keep their separate source-owned authority and do not receive this
+endpoint-edit capability. Production preview remains partial; the internal
+compiler scene carries the resolved coordinates. These source-library tests do
+not certify an installed NativeAOT package or host rendering.
 
 ```json
 {
