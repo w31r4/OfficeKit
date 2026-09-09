@@ -44,7 +44,7 @@ public sealed partial class PptxCodecTests
                                     ["startOpacity"] = 0.42,
                                     ["endOpacity"] = 0.08,
                                     ["distance"] = 12,
-                                    ["angle"] = 45,
+                                    ["angle"] = 45.5,
                                 },
                                 ["shadow"] = new JsonObject
                                 {
@@ -89,7 +89,7 @@ public sealed partial class PptxCodecTests
                     Assert.Equal(8_000, native.EndAlpha!.Value);
                     Assert.Equal(100_000, native.EndPosition!.Value);
                     Assert.Equal(152_400, native.Distance!.Value);
-                    Assert.Equal(2_700_000, native.Direction!.Value);
+                    Assert.Equal(2_730_000, native.Direction!.Value);
                 });
         }
 
@@ -113,7 +113,7 @@ public sealed partial class PptxCodecTests
         Assert.Equal(0.42, reflection["startOpacity"]!.GetValue<double>(), precision: 6);
         Assert.Equal(0.08, reflection["endOpacity"]!.GetValue<double>(), precision: 6);
         Assert.Equal(12, reflection["distance"]!.GetValue<double>());
-        Assert.Equal(45, reflection["angle"]!.GetValue<double>());
+        Assert.Equal(45.5, reflection["angle"]!.GetValue<double>());
 
         var reflectionLeaves = projectedElement["nativeRef"]!["leaves"]!.AsArray()
             .Select(leaf => leaf!.AsObject())
@@ -124,13 +124,13 @@ public sealed partial class PptxCodecTests
         Assert.Equal(42_000, reflectionLeaves.Single(leaf => leaf["kind"]!.GetValue<string>() == "textReflectionStartOpacityThousandthPercent")["value"]!.GetValue<long>());
         Assert.Equal(8_000, reflectionLeaves.Single(leaf => leaf["kind"]!.GetValue<string>() == "textReflectionEndOpacityThousandthPercent")["value"]!.GetValue<long>());
         Assert.Equal(152_400, reflectionLeaves.Single(leaf => leaf["kind"]!.GetValue<string>() == "textReflectionDistanceEmu")["value"]!.GetValue<long>());
-        Assert.Equal(45, reflectionLeaves.Single(leaf => leaf["kind"]!.GetValue<string>() == "textReflectionDirectionDegrees")["value"]!.GetValue<double>());
+        Assert.Equal(45.5, reflectionLeaves.Single(leaf => leaf["kind"]!.GetValue<string>() == "textReflectionDirectionDegrees")["value"]!.GetValue<double>());
 
         reflectionLeaves.Single(leaf => leaf["kind"]!.GetValue<string>() == "textReflectionBlurRadiusEmu")["value"] = 101_600;
         reflectionLeaves.Single(leaf => leaf["kind"]!.GetValue<string>() == "textReflectionStartOpacityThousandthPercent")["value"] = 50_000;
         reflectionLeaves.Single(leaf => leaf["kind"]!.GetValue<string>() == "textReflectionEndOpacityThousandthPercent")["value"] = 20_000;
         reflectionLeaves.Single(leaf => leaf["kind"]!.GetValue<string>() == "textReflectionDistanceEmu")["value"] = 38_100;
-        reflectionLeaves.Single(leaf => leaf["kind"]!.GetValue<string>() == "textReflectionDirectionDegrees")["value"] = 90;
+        reflectionLeaves.Single(leaf => leaf["kind"]!.GetValue<string>() == "textReflectionDirectionDegrees")["value"] = 90.25;
 
         var edited = Invoke(new CodecRequest
         {
@@ -160,7 +160,7 @@ public sealed partial class PptxCodecTests
             Assert.Equal(0, native.StartPosition!.Value);
             Assert.Equal(100_000, native.EndPosition!.Value);
             Assert.Equal(38_100, native.Distance!.Value);
-            Assert.Equal(5_400_000, native.Direction!.Value);
+            Assert.Equal(5_415_000, native.Direction!.Value);
         }
 
         var editedBytes = edited.File.ToByteArray();
@@ -186,8 +186,8 @@ public sealed partial class PptxCodecTests
         Assert.Equal(0.5, reprojectedReflection["startOpacity"]!.GetValue<double>(), precision: 6);
         Assert.Equal(0.2, reprojectedReflection["endOpacity"]!.GetValue<double>(), precision: 6);
         Assert.Equal(3, reprojectedReflection["distance"]!.GetValue<double>());
-        Assert.Equal(90, reprojectedReflection["angle"]!.GetValue<double>());
-        Assert.Equal(90, reprojectedElement["nativeRef"]!["leaves"]!.AsArray()
+        Assert.Equal(90.25, reprojectedReflection["angle"]!.GetValue<double>());
+        Assert.Equal(90.25, reprojectedElement["nativeRef"]!["leaves"]!.AsArray()
             .Select(leaf => leaf!.AsObject())
             .Single(leaf => leaf["kind"]!.GetValue<string>() == "textReflectionDirectionDegrees")["value"]!.GetValue<double>());
     }
@@ -224,7 +224,7 @@ public sealed partial class PptxCodecTests
                                     ["startOpacity"] = 0.42,
                                     ["endOpacity"] = 0.08,
                                     ["distance"] = 12,
-                                    ["angle"] = 45,
+                                    ["angle"] = 45.5,
                                 },
                             },
                         },

@@ -4,8 +4,8 @@ using A = DocumentFormat.OpenXml.Drawing;
 
 namespace OfficeKit.Codec;
 
-// Canonical authored DrawingML reflection. Imported effect graphs stay
-// outside this slice; the codec only writes the bounded PPJ profile.
+// Full-span DrawingML reflection. Preserve optional native values; broader
+// spans/transforms and imported sibling graphs remain outside this profile.
 internal static class PptxReflectionCodec
 {
     private const long MaxBlurRadiusEmu = 12_700_000L;
@@ -52,16 +52,12 @@ internal static class PptxReflectionCodec
         }
         Validate(reflection, "authored");
 
-        var native = new A.Reflection
-        {
-            BlurRadius = checked((long)reflection.BlurRadiusEmu),
-            StartOpacity = checked((int)reflection.StartOpacityThousandthPercent),
-            StartPosition = 0,
-            EndAlpha = checked((int)reflection.EndOpacityThousandthPercent),
-            EndPosition = FullReflectionEndPosition,
-            Distance = checked((long)reflection.DistanceEmu),
-            Direction = checked((int)reflection.DirectionAngle60000),
-        };
+        var native = new A.Reflection { StartPosition = 0, EndPosition = FullReflectionEndPosition };
+        if (reflection.HasBlurRadiusEmu) native.BlurRadius = reflection.BlurRadiusEmu;
+        if (reflection.HasStartOpacityThousandthPercent) native.StartOpacity = checked((int)reflection.StartOpacityThousandthPercent);
+        if (reflection.HasEndOpacityThousandthPercent) native.EndAlpha = checked((int)reflection.EndOpacityThousandthPercent);
+        if (reflection.HasDistanceEmu) native.Distance = reflection.DistanceEmu;
+        if (reflection.HasDirectionAngle60000) native.Direction = checked((int)reflection.DirectionAngle60000);
         if (effectList is null)
         {
             properties.AddChild(new A.EffectList(native), true);
@@ -85,11 +81,11 @@ internal static class PptxReflectionCodec
     internal static void Validate(PresentationReflection? reflection, string elementId, string subject = "shape")
     {
         if (reflection is null) return;
-        if (!reflection.HasBlurRadiusEmu || reflection.BlurRadiusEmu is < 0 or > MaxBlurRadiusEmu ||
-            !reflection.HasStartOpacityThousandthPercent || reflection.StartOpacityThousandthPercent > 100_000 ||
-            !reflection.HasEndOpacityThousandthPercent || reflection.EndOpacityThousandthPercent > 100_000 ||
-            !reflection.HasDistanceEmu || reflection.DistanceEmu is < 0 or > MaxDistanceEmu ||
-            !reflection.HasDirectionAngle60000 || reflection.DirectionAngle60000 is < 0 or >= 21_600_000)
+        if (reflection.HasBlurRadiusEmu && reflection.BlurRadiusEmu is < 0 or > MaxBlurRadiusEmu ||
+            reflection.HasStartOpacityThousandthPercent && reflection.StartOpacityThousandthPercent > 100_000 ||
+            reflection.HasEndOpacityThousandthPercent && reflection.EndOpacityThousandthPercent > 100_000 ||
+            reflection.HasDistanceEmu && reflection.DistanceEmu is < 0 or > MaxDistanceEmu ||
+            reflection.HasDirectionAngle60000 && reflection.DirectionAngle60000 is < 0 or >= MaxDirectionAngle60000)
             throw new CodecException(
                 "invalid_presentation_reflection",
                 $"Presentation {subject} {elementId} has invalid reflection geometry or opacity.");

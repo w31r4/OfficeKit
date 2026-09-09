@@ -6306,10 +6306,64 @@
         }
       }
     },
+    "chartTextReflection": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "blur": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000,
+          "description": "Reflection blur radius in points."
+        },
+        "startOpacity": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ],
+          "description": "Reflection start opacity; a token reference must declare kind opacity."
+        },
+        "endOpacity": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "$ref": "#/$defs/grammarTokenRef"
+            }
+          ],
+          "description": "Reflection end opacity; a token reference must declare kind opacity."
+        },
+        "distance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100000,
+          "description": "Reflection distance in points."
+        },
+        "angle": {
+          "type": "number",
+          "minimum": -360,
+          "maximum": 360,
+          "description": "Reflection direction in degrees."
+        }
+      },
+      "description": "Full-span chart character reflection. Empty object retains the effect; scalar omission preserves native defaults."
+    },
     "chartTextStyle": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "reflection": {
+          "$ref": "#/$defs/chartTextReflection"
+        },
         "innerShadow": {
           "$ref": "#/$defs/chartTextInnerShadow",
           "description": "Independent chart character inner shadow; omitted geometry and opacity retain native defaults."

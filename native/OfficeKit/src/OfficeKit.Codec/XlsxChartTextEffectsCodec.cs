@@ -10,8 +10,9 @@ internal static class XlsxChartTextEffectsCodec
 {
     private static readonly XNamespace DrawingNs = "http://schemas.openxmlformats.org/drawingml/2006/main";
 
-    internal static bool TryRead(XElement effects, out PresentationGlow? glow, out PresentationInnerShadow? innerShadow, out PresentationShadow? shadow, out PresentationSoftEdge? softEdge)
+    internal static bool TryRead(XElement effects, out PresentationGlow? glow, out PresentationInnerShadow? innerShadow, out PresentationShadow? shadow, out PresentationSoftEdge? softEdge, out PresentationReflection? reflection)
     {
+        reflection = null;
         glow = null;
         innerShadow = null;
         shadow = null;
@@ -28,7 +29,7 @@ internal static class XlsxChartTextEffectsCodec
                 if (child.Name.Namespace != DrawingNs) return false;
                 var rank = child.Name.LocalName switch
                 {
-                    "glow" => 0, "innerShdw" => 1, "outerShdw" => 2, "softEdge" => 3, _ => -1,
+                    "glow" => 0, "innerShdw" => 1, "outerShdw" => 2, "reflection" => 3, "softEdge" => 4, _ => -1,
                 };
                 if (rank <= previousRank) return false;
                 previousRank = rank;
@@ -48,6 +49,10 @@ internal static class XlsxChartTextEffectsCodec
                         if (!PptxShadowCodec.TryReadTextEffects(isolated, out shadow) || shadow is null) return false;
                         break;
                     case 3:
+                        if (child.HasElements || properties.GetFirstChild<A.EffectList>()?.GetFirstChild<A.Reflection>() is not { } nativeReflection ||
+                            !PptxReflectionCodec.TryReadDirectReflection(nativeReflection, out reflection)) return false;
+                        break;
+                    case 4:
                         if (child.HasElements || properties.GetFirstChild<A.EffectList>()?.GetFirstChild<A.SoftEdge>() is not { } native ||
                             !PptxSoftEdgeValueCodec.TryRead(native, out softEdge)) return false;
                         break;
@@ -68,6 +73,7 @@ internal static class XlsxChartTextEffectsCodec
         PptxShadowCodec.Apply(properties, style.Shadow);
         PptxGlowCodec.Apply(properties, style.Glow);
         PptxInnerShadowCodec.Apply(properties, style.InnerShadow);
+        PptxReflectionCodec.Apply(properties, style.Reflection);
         if (style.SoftEdge is not null)
         {
             PptxSoftEdgeValueCodec.Validate(style.SoftEdge, "chart-text", "chart text");
@@ -79,5 +85,5 @@ internal static class XlsxChartTextEffectsCodec
     }
 
     internal static string Semantics(SpreadsheetChartTextStyleArtifact style) =>
-        style.InnerShadow is null && style.SoftEdge is null && style.Glow is null && style.Shadow is null ? "default-effects" : Element(style).ToString(SaveOptions.DisableFormatting);
+        style.Reflection is null && style.InnerShadow is null && style.SoftEdge is null && style.Glow is null && style.Shadow is null ? "default-effects" : Element(style).ToString(SaveOptions.DisableFormatting);
 }

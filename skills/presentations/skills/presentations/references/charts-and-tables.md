@@ -381,6 +381,18 @@ chart text use the same field, with explicit title-run strike taking
 precedence over title defaults. Like ordinary text strike, this is a literal
 boolean/token-enum field, not a grammar token reference.
 
+`reflection` adds a full-span chart character reflection, for example
+`{"reflection":{"blur":2,"startOpacity":0.5,"endOpacity":0,"distance":1,"angle":90}}`.
+All five chart properties are optional: blur is 0–1000 pt, distance 0–100000 pt,
+angle -360–360 degrees, and start/end opacity 0–1 or an opacity grammar token.
+An empty object keeps the effect with native defaults; explicit zero is retained;
+omitting the field removes only reflection. Native positions are stPos=0 and
+endPos=100000. Partial spans, extra transforms and unknown descendants stay
+source-owned. Shared chart/trendline text styles and vector defaults use the
+field; explicit vector rich-run reflection overrides the default and keeps the
+ordinary text schema's five required properties. Scalar round trips do not
+establish host appearance.
+
 `innerShadow` sets a separate chart character inner shadow, for example
 `{"innerShadow":{"color":{"token":"accent1"},"blur":2,"distance":1,"angle":45}}`.
 Only color is required. Optional blur (0–1000 pt), distance (0–100000 pt),
@@ -389,7 +401,7 @@ presence: zero is explicit, omission keeps defaults. Direct theme colors retain
 their identity; declared color tokens use normal color resolution. Omit the whole
 field to remove only the inner shadow. Shared chart text owners and rich trendline
 styles use this field; explicit vector run effects override title defaults.
-The supported native order is glow, inner shadow, outer shadow, soft edge.
+The supported native order is glow, inner shadow, outer shadow, reflection, soft edge.
 Unknown or extended effects remain source-owned.
 
 `softEdge` sets chart text edge softening, for example
@@ -398,7 +410,7 @@ rounded to native EMU precision with ties to even. Explicit zero is retained;
 omit the field to remove it. It shares the chart and trendline paragraph/run/end
 style owners and propagates to vector text; explicit run radius zero overrides
 a nonzero title default. Known effects are stored in the order `glow`,
-`innerShdw`, `outerShdw`, `softEdge`, and each can be removed without erasing the others.
+`innerShdw`, `outerShdw`, `reflection`, `softEdge`, and each can be removed without erasing the others.
 Missing radius, duplicate/reordered effects and unknown descendants stay
 source-owned. Native round trips do not establish host edge appearance.
 

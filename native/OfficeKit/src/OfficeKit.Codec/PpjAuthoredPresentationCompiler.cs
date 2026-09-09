@@ -3306,6 +3306,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (source.TryGetProperty("kerning", out var kerning)) output.KerningHundredthPoints = XlsxChartTextStyleCodec.KerningHundredthPoints(kerning.GetDouble());
         if (source.TryGetProperty("capitalization", out var capitalization)) output.Capitalization = capitalization.GetString()!;
         if (source.TryGetProperty("softEdge", out var softEdge)) output.SoftEdge = BuildChartTextSoftEdge(softEdge);
+        if (source.TryGetProperty("reflection", out var reflection)) output.Reflection = BuildChartTextReflection(reflection, catalog);
         if (source.TryGetProperty("innerShadow", out var innerShadow)) output.InnerShadow = BuildChartTextInnerShadow(innerShadow, catalog);
         if (source.TryGetProperty("glow", out var glow)) output.Glow = BuildChartTextGlow(glow, catalog);
         if (source.TryGetProperty("shadow", out var shadow)) output.Shadow = BuildChartTextShadow(shadow, catalog);
@@ -3353,7 +3354,7 @@ internal static partial class PpjAuthoredPresentationCompiler
     }
 
     private static readonly string[] ChartTextStyleFields =
-    ["fontSize", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "language", "strike", "baseline", "capitalization", "letterSpacing", "kerning", "highlight", "shadow", "glow", "innerShadow", "softEdge", "bold", "italic", "underline", "alignment", "fill", "color"];
+    ["fontSize", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "language", "strike", "baseline", "capitalization", "letterSpacing", "kerning", "highlight", "shadow", "glow", "innerShadow", "reflection", "softEdge", "bold", "italic", "underline", "alignment", "fill", "color"];
 
     private static void ApplyChartTextStyleProperty(
         SpreadsheetChartTextStyleArtifact output,
@@ -3389,6 +3390,9 @@ internal static partial class PpjAuthoredPresentationCompiler
                 break;
             case "kerning":
                 output.KerningHundredthPoints = XlsxChartTextStyleCodec.KerningHundredthPoints(value.GetDouble());
+                break;
+            case "reflection":
+                output.Reflection = BuildChartTextReflection(value, catalog);
                 break;
             case "innerShadow":
                 output.InnerShadow = BuildChartTextInnerShadow(value, catalog);
@@ -3442,6 +3446,22 @@ internal static partial class PpjAuthoredPresentationCompiler
             RadiusEmu = Emu(ChartEffectNumber(value.GetProperty("radius").GetDouble(), 0, 1000)),
         };
         PptxSoftEdgeValueCodec.Validate(output, "chart-text", "chart text");
+        return output;
+    }
+
+    private static PresentationReflection BuildChartTextReflection(JsonElement value, Catalog catalog) =>
+        BuildChartTextReflection(value, opacity => catalog.NumberToken(opacity, "opacity", "chart text reflection opacity"));
+
+    internal static PresentationReflection BuildChartTextReflection(JsonElement value, Func<JsonElement, double> resolveOpacity)
+    {
+        var output = new PresentationReflection();
+        if (value.TryGetProperty("blur", out var blur)) output.BlurRadiusEmu = Emu(ChartEffectNumber(blur.GetDouble(), 0, 1000));
+        if (value.TryGetProperty("distance", out var distance)) output.DistanceEmu = Emu(ChartEffectNumber(distance.GetDouble(), 0, 100000));
+        if (value.TryGetProperty("angle", out var angle))
+            output.DirectionAngle60000 = Angle(((ChartEffectNumber(angle.GetDouble(), -360, 360) % 360) + 360) % 360) % 21_600_000;
+        if (value.TryGetProperty("startOpacity", out var startOpacity)) output.StartOpacityThousandthPercent = Opacity(ChartEffectNumber(resolveOpacity(startOpacity), 0, 1));
+        if (value.TryGetProperty("endOpacity", out var endOpacity)) output.EndOpacityThousandthPercent = Opacity(ChartEffectNumber(resolveOpacity(endOpacity), 0, 1));
+        PptxReflectionCodec.Validate(output, "chart-text", "chart text");
         return output;
     }
 
