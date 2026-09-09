@@ -137,6 +137,87 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [InlineData("master")]
     [InlineData("layout")]
     [InlineData("table")]
+    public void ColumnGapSourceRemovalAndRestorationPreserveOtherState(string kind)
+    {
+        var program = Program(kind); var style = Style(program, kind);
+        style["columnGap"] = 12.5; style["columns"] = 3; style["columnDirection"] = "right-to-left";
+        var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
+        var original = source.ToArray();
+        var request = Project(source);
+        Assert.Equal(12.5, Style(request, kind)["columnGap"]!.GetValue<double>());
+        Assert.Equal(source, Compile(request, source).File.ToByteArray());
+        Assert.Equal(158750, Body(source, kind).ColumnSpacing!.Value);
+        Style(request, kind).Remove("columnGap");
+        var deleted = Compile(request, source).File.ToByteArray();
+        Assert.Null(Body(deleted, kind).ColumnSpacing);
+        Assert.False(Style(Project(deleted), kind).ContainsKey("columnGap"));
+        AssertOnlyBodyPropertyChanged(source, deleted, kind, "columnGap");
+        foreach (var value in new[] { 0d, 12.5d, 10000d })
+        {
+            var restore = Project(deleted);
+            Style(restore, kind)["columnGap"] = value;
+            var restored = Compile(restore, deleted).File.ToByteArray();
+            Assert.Equal(checked((int)(value * 12700)), Body(restored, kind).ColumnSpacing!.Value);
+            Assert.Equal(value, Style(Project(restored), kind)["columnGap"]!.GetValue<double>());
+            AssertOnlyBodyPropertyChanged(deleted, restored, kind, "columnGap");
+            var removeAgain = Project(restored);
+            Style(removeAgain, kind).Remove("columnGap");
+            Assert.Null(Body(Compile(removeAgain, restored).File.ToByteArray(), kind).ColumnSpacing);
+        }
+        Assert.Equal(original, source);
+    }
+
+    [Theory]
+    [InlineData("shape")]
+    [InlineData("table")]
+    public void ColumnGapOnlyAndCombinedRemovableStylesPreservePresence(string kind)
+    {
+        foreach (var withOtherProperties in new[] { false, true })
+        {
+            var program = Program(kind); var style = Style(program, kind);
+            style.Clear(); style["columnGap"] = 12.5;
+            if (withOtherProperties)
+            {
+                style["upright"] = false; style["rotation"] = 12;
+                foreach (var field in new[] { "columnDirection", "verticalText", "wrap", "horizontalOverflow", "verticalOverflow", "verticalAlignment" })
+                    style[field] = BodyPropertyValues(field).First();
+            }
+            var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
+            var request = Project(source);
+            var owner = (kind == "shape" ? request["pages"]![0]!["elements"]![0] :
+                request["pages"]![0]!["elements"]![0]!["rows"]![0]!["cells"]![0]!["text"])!.AsObject();
+            owner.Remove(kind == "shape" ? "textStyle" : "style");
+            var deleted = Compile(request, source).File.ToByteArray();
+            Assert.Null(Body(deleted, kind).ColumnSpacing);
+            Assert.Null(Body(deleted, kind).UpRight);
+            if (withOtherProperties)
+            {
+                Assert.Null(Body(deleted, kind).Rotation);
+                foreach (var field in new[] { "columnDirection", "verticalText", "wrap", "horizontalOverflow", "verticalOverflow", "verticalAlignment" })
+                    AssertBodyPropertyValue(deleted, kind, field, null);
+            }
+            if (!withOtherProperties) AssertOnlyBodyPropertyChanged(source, deleted, kind, "columnGap");
+            var restore = Project(deleted);
+            var element = restore["pages"]![0]!["elements"]![0]!;
+            if (kind == "shape") element["textStyle"] = new JsonObject { ["columnGap"] = 0 };
+            else element["rows"]![0]!["cells"]![0]!["text"] = new JsonObject
+            {
+                ["style"] = new JsonObject { ["columnGap"] = 0 },
+                ["paragraphs"] = new JsonArray(new JsonObject { ["runs"] = new JsonArray(new JsonObject { ["text"] = "Retain this text" }) }),
+            };
+            var restored = Compile(restore, deleted).File.ToByteArray();
+            Assert.Equal(0, Body(restored, kind).ColumnSpacing!.Value);
+            Assert.Equal(0, Style(Project(restored), kind)["columnGap"]!.GetValue<double>());
+            AssertOnlyBodyPropertyChanged(deleted, restored, kind, "columnGap");
+        }
+    }
+
+    [Theory]
+    [InlineData("shape")]
+    [InlineData("text")]
+    [InlineData("master")]
+    [InlineData("layout")]
+    [InlineData("table")]
     public void RotationSourceRemovalAndRestorationPreserveOtherState(string kind)
     {
         var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(Program(kind)).File.ToByteArray());
@@ -421,7 +502,12 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         using var right = PresentationDocument.Open(new MemoryStream(after), false);
         var oldSlide = Owner(left, kind);
         var newSlide = Owner(right, kind);
-        if (field == "verticalAlignment")
+        if (field == "columnGap")
+        {
+            Assert.Single(oldSlide.Descendants<A.BodyProperties>()).ColumnSpacing = null;
+            Assert.Single(newSlide.Descendants<A.BodyProperties>()).ColumnSpacing = null;
+        }
+        else if (field == "verticalAlignment")
         {
             Assert.Single(oldSlide.Descendants<A.BodyProperties>()).Anchor = null;
             Assert.Single(newSlide.Descendants<A.BodyProperties>()).Anchor = null;

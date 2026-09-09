@@ -2,6 +2,18 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ text-body `columnGap` lifecycle (2026-09-10): explicit zero/fractional spacing
+and source removal now retain distinct native spcCol states. Seven new cases in
+the shared lifecycle fixture cover text/shape/master/layout/table, 0/12.5/10000
+point restoration with exact EMU values, simple-style deletion, compact table
+restoration, no-op bytes, columns/direction and surrounding XML/non-target ZIP
+preservation. Related native body/placeholder/table-text selection passes 82/82,
+zero skipped (SDK 8.0.128, repository TMPDIR, single-process build).
+Preview input/capability, Skill maintenance, matrix, portability (255 files),
+reference sync (333 files) and strict OpenSpec pass. No wire change, NativeAOT
+rebuild or host column-layout acceptance. Other deletions/inheritance remain
+open; the known broader table failure was not rerun.
+
 PPJ text-body `verticalAlignment` lifecycle (2026-09-10): top/middle/bottom
 remain explicit values (middle maps to native Center); source omission removes
 bodyPr anchor independently of anchorCenter. Seven new shared enum cases cover

@@ -41,6 +41,8 @@ const ellipsisText = assessPpjPreviewInput(deck([{ ...text, style: { verticalOve
 assert.ok(ellipsisText.diagnostics.some(d => d.path.endsWith(".style.verticalOverflow") && d.status !== "supported"));
 const middleText = assessPpjPreviewInput(deck([{ ...text, style: { verticalAlignment: "middle" } }]));
 assert.ok(middleText.diagnostics.some(d => d.path.endsWith(".style.verticalAlignment") && d.status !== "supported"));
+const zeroGapText = assessPpjPreviewInput(deck([{ ...text, style: { columnGap: 0 } }]));
+assert.ok(zeroGapText.diagnostics.some(d => d.path.endsWith(".style.columnGap") && d.status !== "supported"));
 const rotatedText = assessPpjPreviewInput(deck([{ ...text, style: { rotation: 0 } }]));
 assert.ok(rotatedText.diagnostics.some(d => d.path.endsWith(".style.rotation") && d.status !== "supported"));
 

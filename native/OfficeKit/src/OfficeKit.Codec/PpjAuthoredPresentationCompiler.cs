@@ -272,6 +272,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             if (requested.ColumnSpacingCase == PresentationTextBodyProperties.ColumnSpacingOneofCase.ColumnSpacingEmu)
                 current.ColumnSpacingEmu = requested.ColumnSpacingEmu;
         }
+        else if (previousStyle is { ValueKind: JsonValueKind.Object } previousGap && previousGap.TryGetProperty("columnGap", out _))
+            current.NoColumnSpacing = true;
         if (style.TryGetProperty("columnDirection", out _))
         {
             current.ClearColumnDirection();
