@@ -2,16 +2,18 @@
 
 审计日期：2026-09-09。状态：**预览链路已打通，功能覆盖和可靠性尚未完成**。
 
-最新实施复核：2026-09-09，从 HEAD `ade46bd5` 的工作区继续 G-01；核对期间另一工作流提交 chart text strike 为 `e092c458`。G-01 的任务清单为 **5/15 已勾选**：2.3 原生节点归属已完成，组件原始路径、嵌套 repeat/slot、矢量子节点 owner、源对象重排和未知身份均有回归。JavaScript 仍从 canonical JSON 绘制，尚未消费新场景，也未重建并验收它实际使用的 NativeAOT。当前检查记录见第 1.3 节，实施边界见第 2.3 节；整体渲染目标仍未完成。
+最新实施复核：2026-09-09，G-01 的任务清单为 **7/15 已勾选**。原生场景生产、归属、传输及 3.2 轻量适配已完成；适配保留完整 native 字段，9 类内容、单位、资产、未知后代和独立进程惰性导入测试通过，也已在指定 PPJ NativeAOT 的真实 authored/source-bound 回执上验证。实际 SVG 仍读取 canonical JSON，未使用新场景。**传输与适配已验证，绘制未切换，整体渲染目标未完成。** 本轮从 `f3ebbb34` 继续，期间读到并行提交 `4782e6e5`；二进制及各轮证据以第 1.3 节为准。
 
-前次文档复核：起点 HEAD 为 `93b89e67`；核对期间另一工作流提交 G-11 实现 `f734890e` 和 G-01 规划 `5118877b`。本文保留初次审计和 G-11 实施轮次的记录；历史测试不得算作最新实施的新测结果。提交规划不等于实现完成；此前未提交状态仅描述当时快照。
+阅读顺序：先看下面的差距总表；了解具体错误看第 3～5 节；安排开发看第 7 节；复跑检查看第 9 节。第 1.3 节明确分隔本轮结果与历史记录。本文中的“已完成”只适用于指定范围，不代表发布包、全部测试或人类视觉验收完成。
+
+早期文档复核：起点 HEAD 为 `93b89e67`；核对期间另一工作流提交 G-11 实现 `f734890e` 和 G-01 规划 `5118877b`。本文保留初次审计和 G-11 实施轮次的记录；历史测试不得算作最新实施的新测结果。提交规划不等于实现完成；此前未提交状态仅描述当时快照。
 
 | 差距 | 已实施并验证 | 剩余工作或范围边界 |
 | --- | --- | --- |
 | G-12 输出安全与证据 | 已完成本项限定的发布契约：新目录独占发布、文件 hash/清单、pending/final 生命周期、失败保留、源/候选/资产身份；最新 gate-policy 与 slow/presentation 四项测试通过 | 不包含视觉正确性、断电持久性或恶意进程替换目录树的安全保证 |
 | G-05 图片的有限状态 | 资产复用已加载字节；空资产诊断；独立测试验证一个显式 contain PNG 的 SVG 坐标、透明度和内嵌字节映射 | 不能推广到图片解码、裁切、主体范围、边缘、mask 和效果均正确 |
 | G-11 支持诊断 | 已接通 registry、字段检查、绘制、SVG/PNG 警示及发布清单；事实错误不因配色或发布成功而清除 | 只完成可靠性检查链路，不修复 G-01～G-10 的绘制缺陷；验收见第 5.1 节 |
-| G-01 编译场景 | 协议、collector、writer 同次采集、实际候选导入及原生归属完成，5/15 | JS 消费、真实 SVG 等价与所用 NativeAOT 仍待验收；未知身份继续 unmapped，不授予编辑权限 |
+| G-01 编译场景 | 原生生产、归属、JS opt-in 传输及轻量适配完成，清单 7/15；已有指定 PPJ 运行时回归 | 场景到 SVG 的实际绘制、等价及完整运行时/性能验收仍待完成；未知身份继续 unmapped，不授予编辑权限 |
 | 其余 G 编号 | 本轮未修改 JS 绘制语义 | 按各节完成条件继续逐项补齐 |
 
 G-12 使用方法与清单字段见 [预览输出说明](ppj-preview-output.md)，实施清单见 [ppj-preview-output-evidence](../openspec/changes/ppj-preview-output-evidence/tasks.md)。以上不是全部 gap 的完成声明。
@@ -28,7 +30,7 @@ G-11 后续实施记录（2026-09-09，9/9 任务完成）：[支持诊断变更
 
 | 编号 | 当前状态 | 主要影响 | 收口时必须拿出的证据 |
 | --- | --- | --- | --- |
-| G-01 共用解析与布局 | 5/15 已勾选；真实 writer/candidate 采集及原生归属已验证，JS 尚未消费 | 高层组件与样式仍可能和编译后的 PPTX 不同 | 高层写法与等价展开写法的几何、数据及样式一致；场景必须来自实际编译结果 |
+| G-01 共用解析与布局 | 7/15 已勾选；真实场景传输与适配已验证，SVG 尚未消费场景 | 高层组件与样式仍可能和编译后的 PPTX 不同 | 高层写法与等价展开写法的几何、数据及样式一致；场景必须来自实际编译结果 |
 | G-02 文字与形状 | 未完成 | 带文字形状消失，富文本错分行，几何被替换 | 几何与文字同时存在；run、段落、字号和溢出有断言 |
 | G-03 变换与可见性 | 未完成 | 旋转、镜像、嵌套组及 hidden 表达错误 | 嵌套坐标、旋转边界、可见性与实际展开结果一致 |
 | G-04 样式与主题 | 未完成 | token、继承、背景和 effects 被固定默认值替代 | 样式解析优先级及具体填充、透明度、轮廓回归 |
@@ -41,7 +43,7 @@ G-11 后续实施记录（2026-09-09，9/9 任务完成）：[支持诊断变更
 | G-11 支持状态 | 本项检查契约完成，9/9 任务通过 | 已知事实错误变为失败；partial/opaque 保留限制和图片警示 | 字段/页/全局与发布结果一致；事实与视觉分开；不代替绘制修复 |
 | G-12 输出安全与证据 | 限定契约完成 | 已保护已有路径、保留失败产物并绑定实际输入 | 已有故障注入与真实 authored/source-bound 发布测试；边界见第 5.2 节 |
 | G-13 CLI 与交付链 | 未完成 | `--pages` 被忽略，预览结果未闭合各类 review | 参数行为、摘要输出、结构/渲染/编辑保真独立状态 |
-| G-14 测试覆盖 | 部分修复 | 已接入门禁，但仍缺“画对”断言和正例覆盖门槛 | 正例实际渲染、负例独立分类、语义及视觉断言 |
+| G-14 测试覆盖 | 部分修复 | 已接入门禁并有有限映射正例，但仍缺完整绘制语义断言和正例覆盖门槛 | 正例实际渲染、负例独立分类、语义及视觉断言 |
 | G-15 持续维护 | 部分修复 | 类型和生成摘要已防漂移；新增视觉字段仍缺完整绘制回归约束 | schema/registry 到预览、fixture、断言的自动对应检查 |
 | G-16 性能与稳定性 | 未验证 | 尚不能承诺日常多页、大图、长文的速度和内存 | 固定环境下的分阶段耗时、峰值内存及压力结果 |
 
@@ -77,9 +79,51 @@ G-11 后续实施记录（2026-09-09，9/9 任务完成）：[支持诊断变更
 
 ### 1.3 审计基线与最新复核
 
-本次继续实施 G-01 的 2.3，并保留其他工作流的改动。以下是最新实施证据；随后保留的文档复核和较早实施记录均为历史证据，不能合并成一次全仓验收。
+以下第一张表是最新 3.2 实施轮次的结果；后面的传输验收、文档整理及各次原生实施表都是历史记录，不应把其中“本次”“当前”“下一项”理解为最新状态。
 
-| 最新 2.3 实施复核 | 2026-09-09 记录 |
+| 最新 3.2 实施复核 | 实际结果与证明范围 |
+| --- | --- |
+| 代码范围 | 新增 `preview-scene-view.mjs` 和专项测试，在共享 registry 登记适配模块、测试及生成 descriptor 来源，并接入常规诊断测试；没有第二份手写内容类型台账，也没有更改 SVG 路由 |
+| 全字段与单位 | 直接引用冻结后的完整 native 对象；保留 runs、数据通道、缺失索引、effects 和 opaque 描述。只转换 EMU/角度/透明度/字号，保留显式 0/false 与未给出状态；不安全的整数转换明确报错 |
+| 身份与树 | 场景路径与语义 owner 路径分开，保留生成节点归属；group 子坐标和 diagram 缓存绘制树不扁平化。空页没有可证明的语义 ID 时明确 unmapped，不按页序号猜身份 |
+| 专项测试 | `node test/ppj-preview-scene-view.mjs` 通过：全部 9 类 native content、有向端点、资产映射、原消息字节不变、未知字段/oneof/枚举及空页限制；root 和实际内存适配在两个全新进程验证惰性依赖 |
+| 真实运行时适配 | `node test/ppj-preview-scene-native.mjs /tmp/officekit-preview-runtime-xZSfO9` 通过，沿用下表 PPJ 二进制摘要。minimum/canonical 和 source-bound no-op/文字编辑进入适配，核对实际位置、候选文字、资产和 native 对象身份；不是 SVG 像素断言 |
+| 常规回归 | presentation 4/4 通过，旧路线真实产物 `/tmp/officekit-ppj-preview-hMJ6U2`；补充空页限制后又完整重跑 4/4，通过产物 `/tmp/officekit-ppj-preview-O9lE46`，不重复计算覆盖数。真实 NativeAOT 适配再次通过；gate-policy、两个能力生成器 `--check`、语法、strict OpenSpec、63 个本地链接和差异检查通过 |
+| 状态与未执行 | 3.2 已勾选，7/15；未修改 C# 或重新构建运行时，本轮未重跑原生 39 项、proto 生成、全量 smoke、全仓测试、宿主验收、人类校准或性能。真实 SVG、完整 G-11/G-12 场景对接及等价仍待 3.3 以后完成 |
+
+#### 历史：3.1 传输验收
+
+| 最新 3.1 实施复核 | 实际结果与证明范围 |
+| --- | --- |
+| 重建状态 | 重新轮询此前构建句柄，确认仓库 `build:office-kit` 命令退出 0；SDK 8.0.128，独立输出 `/tmp/officekit-preview-runtime-xZSfO9`，没有覆盖安装包。manifest 为 schema 2、package 2.0.0、wire/transport 2、linux-x64 |
+| 实际 PPJ 可执行文件 | `bin/officekit-ppj-codec`，SHA-256 `9c97c6605c36c9e2b8218fe208a380745cc25b3b94742c4a620eb4ed21a496e9`；测试加载器核验 manifest 和实际文件身份，不以当前源码 HEAD 代替二进制身份 |
+| 真实跨语言回归 | `node test/ppj-preview-scene-native.mjs /tmp/officekit-preview-runtime-xZSfO9` 通过。minimum/canonical 两个 authored 输入，以及带资产的 source-bound no-op、文字叶编辑；轻量和生成 wire 读法场景相等，实际 canonical/candidate/scene/asset 摘要通过；源输入不变，普通 build/check 无场景 |
+| 路由边界纠正 | 初稿调用打包 `office` profile 编译 PPJ，按设计收到 `unsupported_operation`。该包只处理 Word/Excel，不等于 C# 通用 `CodecProtocol`。修正测试去实际 PPJ 二进制，并断言 Office 拒绝；没有扩大 Office 包依赖，也移除了此前为该错误路线添加但不需要的解码覆盖 |
+| 原生专项 | SDK 8.0.128 重跑 `FullyQualifiedName~PpjPreview`，39/39 通过、0 跳过，覆盖通用 `CodecProtocol` 与 `PpjCodecProtocol` 库入口；此源码测试与临时包集成是两项独立证据 |
+| JS 与维护回归 | presentation 分段 4/4 通过，真实旧路线产物 `/tmp/officekit-ppj-preview-GmzKQ2`；gate-policy、两个能力生成器 `--check`、集成脚本语法检查和 strict OpenSpec 通过；`npm run proto:check` 完成 lint、生成及差异检查，退出 0 |
+| 任务状态 | 3.1 已勾选，6/15；3.2～5.4 仍未勾选。此结果不证明新场景已进入 SVG，不证明任务 5.2 的双构建复现及整条新绘制链路完成 |
+| 修改及未执行范围 | 修正真实集成测试，保留传输负例，并更新本文和 tasks；没有提交、推送或更换安装包。未运行完整 smoke、全仓测试、实际 scene-to-SVG、宿主视觉验收、人类校准或性能基准 |
+
+#### 历史：仅文档复核（HEAD `ae8f9404`）
+
+该轮只编辑本文，未修改运行时代码、任务勾选、生成文件或 Skill，也未提交或推送；当时没有核验后台构建结果。以下保留当时记录。
+
+| 本轮文档复核 | 实际结果与证明范围 |
+| --- | --- |
+| 代码基线 | HEAD `ae8f9404`；工作区另有 `src/codecs/office-kit-runtime.mjs`、`test/ppj-preview-scene-transport.mjs` 的已有修改及未跟踪的 `test/ppj-preview-scene-native.mjs`，全部保留。本文描述此工作区，不推断 origin/main 或安装包同步状态 |
+| 当前绘制输入 | `renderPpjToSvg` 调用 `compile(workspace, { includeNodeMap: false })`，随后解析 `compiled.programJson`；没有开启 `includePreviewScene`。绘制代码仍含组件启发式和第 3～4 节的语义缺口 |
+| 当前传输代码 | workspace/native 转发默认关闭的 scene 选项；专用 wire 保留场景消息字节，场景模块延迟解码。校验版本、来源、实际 canonical/candidate 字节摘要、场景摘要、节点绑定和资产 MIME/hash；拒绝源编辑授权及 opaque XML 进入只读场景 |
+| G-01 清单 | 5/15 勾选；3.1 有实现和合成传输测试，但真实重建运行时验收仍待确认；3.2～5.4 未勾选，不在本次文档任务中提前改状态 |
+| presentation 专项 | `npm run test:slow -- --segment presentation` 4/4 通过，包含场景传输、诊断、发布故障、真实 SVG/PNG 和能力声明检查；不是全仓测试，也不是新场景绘制验收 |
+| 本轮实际图像产物 | `/tmp/officekit-ppj-preview-9zAt7n`，来自实际 codec + sharp 的 authored/source-bound 回归；仍为旧绘制路线的本机临时证据，不是第三方 PPTX 验收包 |
+| 维护检查 | `node test/gate-policy.mjs` 通过；预览能力摘要和演示能力矩阵两个生成器的 `--check` 通过；声明覆盖测试确认 16 类元素、16 类图表 |
+| 未执行或未确认 | 本轮未运行 C# 专项、NativeAOT 构建/双构建复现、真实 scene-native 集成、全量 smoke、全仓测试、proto 生成、外部 Office 视觉对照、人类校准或性能基准。不判断其他后台构建是否成功，测试文件存在也不算执行通过 |
+
+#### 历史：G-01 2.3 实施复核
+
+以下记录的是原生归属任务完成时的结果，早于 `ae8f9404` 的 JavaScript 传输提交。
+
+| 历史 2.3 实施复核 | 2026-09-09 记录 |
 | --- | --- |
 | 基线与范围 | 起点 `ade46bd5`，最新读取 HEAD `e092c458`；归属源码和测试仍在工作区。本轮未提交或推送 |
 | authored 原始路径 | 在已有 expansion 中按实际 typed model/JSON clone 身份记录 owner，跟随真实 slot 替换；保留原始 JSON 路径与独立 scenePath，不改 canonical JSON 或旧 node map |
@@ -216,7 +260,7 @@ G-11 实施复核记录（历史轮次）：
 | --- | --- | --- | --- |
 | 缺失数据不得当作 0 连线 | 普通 line 有有限拆段；登记的错误会降低可靠性 | 单点段仍被丢弃；若干图表仍通过 Number/num 将 null 转 0；显式 zero/connect 显示策略尚未统一到绘制与证据 | G-08～G-11 |
 | 图表关系必须和数据拓扑一致 | 对已知比例、通道、层级、轴等错误有事实诊断 | 饼图比例、Sankey 边、树层级、OHLC 通道、主副轴等实际图形仍可能错误；诊断没有修复它们 | G-01、G-06、G-08、G-09 |
-| source-bound / opaque 不得扁平化 | 复用编译流程与源身份；native 已从实际编辑候选采集，测试验证 opaque 原内容与非目标 ZIP 保留 | JS 还未消费候选场景；完整语义身份、第三方复杂输入、实际视觉与编辑保真仍缺全面验证 | G-01、G-07、G-12、G-14 |
+| source-bound / opaque 不得扁平化 | 复用编译流程与源身份；native 已从实际编辑候选采集，有限归属测试验证 owner、opaque 原内容与非目标 ZIP 保留 | SVG 还未消费候选场景；第三方复杂输入的归属、实际视觉与编辑保真仍缺全面验证 | G-01、G-07、G-12、G-14 |
 | 图片不确定信息保守处理 | 使用同一资产字节，空资源失败；有字段限制和有限 contain 映射断言 | 解码、裁切、透明边缘、主体范围、mask 与阴影没有完整绘制/验证，不能依据未经证明的主体估计改图 | G-04、G-05、G-11 |
 | 输出前结构、渲染、编辑保真分别检查 | 已有独立入口、诊断和可核对的发布清单 | preview 尚未形成三项独立验收的完整交付链；文件发布成功仍可与事实失败并存 | G-11～G-14 |
 
@@ -259,7 +303,24 @@ G-11 实施复核记录（历史轮次）：
 
 #### 已形成的方案与尚未实现的部分
 
-现已建立 [G-01 提案](../openspec/changes/ppj-preview-compiler-scene/proposal.md)、[设计](../openspec/changes/ppj-preview-compiler-scene/design.md)、[规格](../openspec/changes/ppj-preview-compiler-scene/specs/ppj-preview-compiler-scene/spec.md) 和 [15 项任务](../openspec/changes/ppj-preview-compiler-scene/tasks.md)。1.1、1.2、2.1、2.2、2.3 已实施并勾选；其他 10 项未完成。wire 已有只读场景回执，authored 采集 writer 实际输入，source-bound 导入最终候选，节点保留真实 owner；JS 仍未转发/消费，旧组件 label/value 启发式仍在执行。
+现已建立 [G-01 提案](../openspec/changes/ppj-preview-compiler-scene/proposal.md)、[设计](../openspec/changes/ppj-preview-compiler-scene/design.md)、[规格](../openspec/changes/ppj-preview-compiler-scene/specs/ppj-preview-compiler-scene/spec.md) 和 [15 项任务](../openspec/changes/ppj-preview-compiler-scene/tasks.md)。1.1、1.2、2.1、2.2、2.3、3.1、3.2 已实施并勾选；其他 8 项未完成。wire 已有只读场景回执，authored 采集 writer 实际输入，source-bound 导入最终候选，节点保留真实 owner；JS 传输、校验和适配已由指定真实运行时验证，但 SVG 未消费场景，旧组件 label/value 启发式仍在执行。
+
+3.1 的当前实现分布在 [轻量 wire](../src/codecs/office-kit-ppj-wire.mjs)、[native 客户端](../src/ppj/native.mjs)、[workspace](../src/ppj/workspace.mjs) 和 [场景校验模块](../src/ppj/preview-scene.mjs)。普通 build/check 不请求场景；显式请求但回执缺失、版本不符或内容身份不匹配时明确报错，不回退成旧 canonical 绘制。只读校验不进行布局，也不能替代视觉字段支持判断。
+
+[传输回归](../test/ppj-preview-scene-transport.mjs) 使用合成字节及替代 native 调用，证明两种 wire 读法、选项转发、显式 0/false/缺失状态、完整性失败与默认惰性加载。[真实运行时回归](../test/ppj-preview-scene-native.mjs) 已对指定重建包执行并通过，覆盖真实进程、跨语言场景摘要及 authored/source-bound 回执；它只替换包定位，不伪造响应。两个 C# 库入口另由 3.1 轮次的 39 个原生用例验证。打包后的 Office profile 不接受 PPJ，这是现有拆包契约，不是缺少场景功能。3.1 完成不等于场景到 SVG 已验证。
+
+3.2 的 [只读适配层](../src/ppj/preview-scene-view.mjs) 已加入，[专项回归](../test/ppj-preview-scene-view.mjs) 已进入常规诊断套件。`native` 保留原始完整对象，`frame` 等仅为机械单位视图；资产按 native ID 找到已验证的 MIME/hash 字节，不二次读文件、不在此层编码图片。原生内容类型来自 generated descriptor，未知字段及后代保留在证据中并报告限制。所有适配结果都是 `paintAssessment: unassessed`，不能由无适配诊断推出支持绘制。当前两条限制尤其需要后续消费者保留：未知/冲突页面身份不猜映射，零 group 子范围不回填为外框；解释和处理它们属于实际绘制及诊断任务。
+
+| 剩余任务 | 具体还差什么 | 最小完成证据 |
+| --- | --- | --- |
+| 3.3 基础绘制接场景 | shape/text/image/group 仍读取 canonical PPJ | 真实组件、矢量子节点的几何及样式进入 SVG；移除 label/value 猜测；保留未修文本/效果限制 |
+| 3.4 其他绘制接场景 | chart/table/connector/opaque 仍未使用实际 native 字段 | 数据通道、位置、顺序来自场景；不重新猜 dataset/grammar/拓扑，未修绘制继续明确失败或限制 |
+| 4.1 场景诊断 | 现有 G-11 判断基于旧绘制输入 | 归属路径和未知字段可定位；仅以直接绘制回归撤销旧事实错误规则 |
+| 4.2 发布绑定 | 现有清单尚未记录 scene 身份 | scene 版本/来源/摘要与实际候选绑定，返回与落盘一致；保留 G-12 所有保护 |
+| 5.1 等价案例 | 缺高层写法与展开写法的实际 SVG 配对证明 | component/repeat/slot、样式、dataset 和图表成对比较几何/数据/样式，每对覆盖相关风险输入 |
+| 5.2 实际运行时 | 源码及合成测试不能说明已安装二进制正确 | 仓库构建流程、manifest/hash、双构建复现及指定二进制的真实集成；保留诊断与发布门禁 |
+| 5.3 场景成本 | 缺场景开关的真实尺寸、时延与保留内存对照 | 组件密集和 source-bound 样例分阶段记录；关闭时不保留场景，超限明确失败 |
+| 5.4 文档及维护收口 | registry、输出说明及 review 指引尚未随实际绘制切换验收 | 以真实结果更新受影响材料，生成检查和相应 Skill 检查通过；不把其余 G 编号一起勾完 |
 
 此前基础实施轮次的验证记录：
 
@@ -286,7 +347,7 @@ G-11 实施复核记录（历史轮次）：
 | 生成节点的归属类型 | 组件展开节点及 writer 生成子节点标为 Generated；保留实例/重复标识，矢量子节点定位到真实 chart owner | Generated 不是独立可编辑的 PPJ 子节点，也不证明对应图形已经画对 |
 | 资产 | collector/candidate 测试已有 native ID、MIME/hash 与实际字节断言 | 资产正确不代表图片 crop、alpha、边缘或效果已经画对；后者属于 G-05 |
 
-以上完成的是 C# 场景生产与身份层。原始 canonical JSON、原有 node map 和候选 PPTX 均有开关前后字节不变断言；旧 `#component(...)` expansion 路径没有被改写成新的可编辑契约。JS 实际消费、新场景对应的图片警示/清单绑定及重建 NativeAOT 待后续任务。G-11/G-12 已有的警示与发布清单继续有效，待做的是它们与新场景的对接。
+以上 2.1～2.3 完成的是 C# 场景生产与身份层。原始 canonical JSON、原有 node map 和候选 PPTX 均有开关前后字节不变断言；旧 `#component(...)` expansion 路径没有被改写成新的可编辑契约。JS 传输进展见上文；实际绘制消费、新场景对应的图片警示/清单绑定及指定 NativeAOT 验收仍待完成。G-11/G-12 已有的警示与发布清单继续有效，待做的是它们与新场景的对接。
 
 方案复用 C# 已有 `PresentationArtifact`，不再定义一套作者语言，也不在 JS 中重新解析 OOXML。默认关闭的只读场景选项已加入 wire，`programJson` 保留既有含义。下表是整条方案及完成证据；协议与 collector 的基础已经完成，其余环节按上文区分在途与待实现：
 
@@ -653,7 +714,7 @@ G-11 的共享检查、绘制与发布已接通；后续优先明确 G-01 的共
 
 ### 7.3 后续开发如何与功能更新同步
 
-下一项按已有 G-01 方案完成 3.1 的 JS 场景传输与校验，再接通实际绘制；目前清单勾选 5/15，writer/candidate 采集及原生归属已验证，G-01 整项仍未完成。G-11 是防误判措施，不能替代后续实现。对某个具体字段可以直接复用现有结果的，不必等待一套大型新框架。
+下一项按已有 G-01 方案完成 3.3 的基础元素真实绘制，再推进 3.4 图表等剩余内容及 4.x 检查/发布对接；目前清单勾选 7/15，writer/candidate 采集、归属、传输和轻量适配已验证，G-01 整项仍未完成。G-11 是防误判措施，不能替代后续实现。对某个具体字段可以直接复用现有结果的，不必等待一套大型新框架。
 
 一次修改以一个明确的视觉字段或语义行为为单位，至少把以下记录放进对应变更及覆盖台账：
 
@@ -692,7 +753,7 @@ G-11 实施轮次从 `09f79e04`（literal custom error bar data）开始，另�
 
 前次实施快照补记：起点 HEAD 已包含 `f3a67617` 的趋势线标签手动布局及 `3eb58b3a` 的数字格式链接保留，当时工作区另有趋势线富文本改动；收尾时该功能已由另一工作流提交为 `3b6272dd`。它们继续扩大接口与预览的同步检查范围；本文只核对提交和差异归属，不将其算作已完成的趋势线视觉渲染或该次 C# 验收。
 
-本次读取基线还包含 `307106dc` 的 chart text language 变更，以及 `ade46bd5` 对并行 preview bindings 归属的调整。当前 renderer 源码未变；图表文字语言、趋势线标签富文本、布局和格式是否进入最终画面仍要单独验证。不能因为这些字段已加入接口或生成矩阵，就认定渲染器已同步支持。
+此前读取基线还包含 `307106dc` 的 chart text language 变更，以及 `ade46bd5` 对并行 preview bindings 归属的调整。最新基线又包含 `e092c458` 的 chart text strike 与 `654cb3e5` 的有符号 baseline 偏移。当前 SVG 仍走旧绘制路线；图表文字语言、删除线、基线偏移、趋势线标签富文本、布局和格式是否进入最终画面仍要单独验证。本轮未重新执行这些接口的 C# 专项，不能因为字段已加入接口或生成矩阵，就认定渲染器已同步支持。
 
 ### 8.2 更广泛 PPJ/PowerPoint 差距
 
@@ -727,6 +788,16 @@ node test/ppj-preview-smoke.mjs
 ```
 
 单项定位时，可分别运行 `node test/ppj-preview-diagnostics.mjs`、`node test/ppj-svg-preview.mjs`、`node test/ppj-preview-capability-coverage.mjs` 或 `node test/ppj-preview-output-evidence.mjs`；这四项已包含在 presentation 分段中。此处列的是可复跑命令，本次文档复核的执行范围见第 1.3 节，历史结果见第 6.1 节；不要把列出全量 smoke 命令当作已重跑。
+
+3.1 的真实运行时传输必须显式指向仓库构建命令生成的新包；普通 presentation 分段不自动重建运行时，也不会自动执行这个集成脚本。准备好 `global.json` 固定的 SDK 后可单独运行：
+
+```sh
+preview_package="$(mktemp -d)"
+npm run build:office-kit -- --output "$preview_package"
+node test/ppj-preview-scene-native.mjs "$preview_package"
+```
+
+构建成功后才运行第二条测试。测试核验包的 manifest/可执行文件 hash，输出实际 PPJ 二进制身份，并比较轻量和生成 wire 的真实回执；打包 Office profile 应拒绝 PPJ 请求。C# 通用协议入口用下方原生专项验证，不能把它等同于 Office 可执行文件。以上不验证 SVG 场景消费，也不替代任务 5.2 的 `npm run verify:office-kit-build`。
 
 测试会在操作系统临时目录写预览；smoke JSON 打到 stdout。保存输出时应使用新的证据位置，不覆盖输入。若出现 `spawnSync rg EPERM`，应先解决运行环境权限，不要将环境错误记录成绘制语义错误。
 
@@ -766,13 +837,13 @@ dotnet test native/OfficeKit/tests/OfficeKit.Codec.Tests/OfficeKit.Codec.Tests.c
 | [preview-factual-errors.mjs](../src/ppj/preview-factual-errors.mjs) | 当前绘制缺陷对应的错误级规则；不是绘制修复 |
 | [G-11 任务清单](../openspec/changes/ppj-preview-support-diagnostics/tasks.md) | 9/9 任务、最终门禁和明确保留的其他 gap |
 | [G-01 设计](../openspec/changes/ppj-preview-compiler-scene/design.md) | 共用 native 场景、实际候选导入、身份及预算的方案；不能用规划代替实现证据 |
-| [G-01 任务清单](../openspec/changes/ppj-preview-compiler-scene/tasks.md) | 5/15 已勾选；JS 消费、真实 SVG 等价和所用运行时仍待验收 |
+| [G-01 任务清单](../openspec/changes/ppj-preview-compiler-scene/tasks.md) | 7/15 已勾选；传输和适配完成，场景绘制、SVG 等价和完整运行时验收仍待完成 |
 | [场景 collector](../native/OfficeKit/src/OfficeKit.Codec/PpjPreviewSceneBuilder.cs) | native 视觉字段复制、预算、摘要和载荷隔离 |
 | [writer observer](../native/OfficeKit/src/OfficeKit.Codec/PpjPreviewSourceFreeBuildPlan.cs) | authored 同次 materialization 采集及节点绑定 |
 | [authored 原始归属](../native/OfficeKit/src/OfficeKit.Codec/PpjPreviewOrigins.cs) | 现有 expansion/slot 替换中的只读 origin 跟踪，不改 JSON 和旧 node map |
 | [authored 场景测试](../native/OfficeKit/tests/OfficeKit.Codec.Tests/PpjPreviewAuthoredSceneTests.cs) | 12 个实际编译、上下文、图表、writer 生命周期及嵌套/repeat/slot 归属案例 |
 | [candidate 场景生产](../native/OfficeKit/src/OfficeKit.Codec/PpjPreviewCandidateScene.cs) | 实际候选 native 导入、资产复用、确定归属及未知身份的保守处理 |
-| [candidate 身份匹配](../native/OfficeKit/src/OfficeKit.Codec/PpjPreviewCandidateBindings.cs) | 在途物理 part/对象身份连接；重复和缺失身份不授予归属 |
+| [candidate 身份匹配](../native/OfficeKit/src/OfficeKit.Codec/PpjPreviewCandidateBindings.cs) | 已实现物理 part/对象身份连接；重复和缺失身份不授予归属 |
 | [candidate 场景测试](../native/OfficeKit/tests/OfficeKit.Codec.Tests/PpjPreviewCandidateSceneTests.cs) | 当前 11 个候选编译、文件复用、快照隔离、重排、嵌套组、删除、overlay 和歧义身份案例 |
 | [ppj-v1.schema.json](../src/ppj/ppj-v1.schema.json) | 实际元素、图表数据和样式字段；不能根据渲染器字段反推 schema |
 | [workspace.mjs](../src/ppj/workspace.mjs) | 资源读取、安全检查及 compile 转发 |
@@ -796,6 +867,6 @@ dotnet test native/OfficeKit/tests/OfficeKit.Codec.Tests/OfficeKit.Codec.Tests.c
 
 维护本文时，应逐项更新证据和状态。修好某个 G 编号不代表相关类型的所有字段完成；只有达到第 7 节要求，才可以收回“整体未完成”的结论。
 
-### 2026-09-09 提交快照复核
+### 历史：2026-09-09 提交快照复核
 
-基于 `654cb3e5` 的独立提交快照已验证：原生预览专项 39/39 通过；JS 预览诊断及新增场景传输测试、`proto:check`、gate-policy、OpenSpec 严格校验和差异格式检查通过。此次包含原生归属实现和 JS 默认关闭的场景传输、身份与资产校验。传输实验使用合成回执和替代原生调用，只证明传输契约；尚未重建 NativeAOT，也未验证新场景的 SVG 绘制，任务 3.1 与 G-01 保持开放。以上是本次提交检查，前文“未提交”等描述保留为各轮历史快照。
+基于 `654cb3e5` 的独立提交快照已验证：原生预览专项 39/39 通过；JS 预览诊断及新增场景传输测试、`proto:check`、gate-policy、OpenSpec 严格校验和差异格式检查通过。该次包含原生归属实现和 JS 默认关闭的场景传输、身份与资产校验。传输实验使用合成回执和替代原生调用，只证明传输契约；当时尚未重建 NativeAOT，也未验证新场景的 SVG 绘制，任务 3.1 与 G-01 保持开放。以上仅属于该次提交检查，不属于第 1.3 节的最新文档复核；前文“未提交”等描述保留为各轮历史快照。

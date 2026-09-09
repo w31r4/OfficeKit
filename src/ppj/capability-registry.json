@@ -4,6 +4,12 @@
   "languageSchema": "src/ppj/ppj-v1.schema.json",
   "presetGeometryProfiles": "src/ppj/preset-geometry-profiles.json",
   "generatedReference": "skills/presentations/skills/presentations/references/ppj.md",
+  "previewScene": {
+    "adapter": "src/ppj/preview-scene-view.mjs",
+    "adapterTest": "test/ppj-preview-scene-view.mjs",
+    "contentSource": "office_kit.artifact.v1.PresentationElement.content",
+    "contract": "Read-only views preserve complete native state and use generated content descriptors. Mechanical units, asset and owner mapping are not paint support; unknown descendants require review. SVG adoption is tracked separately."
+  },
   "previewSupport": {
     "schema": "office-kit/ppj-preview-support/v1",
     "contract": "Summary grades describe whole families, not proof that a specific input is fully rendered. Unknown visual state remains partial until assessed. Field rules apply only to their schema owner; descendants need their own assessment.",

@@ -8,6 +8,7 @@ import { BinaryWriter, WireType } from "@bufbuild/protobuf/wire";
 import {
   CodecRequestSchema, CodecResponseSchema, PresentationPreviewSceneSchema,
   PresentationProgramResultSchema,
+  PresentationElementSourceBindingSchema,
 } from "../src/generated/office_kit/artifact/v1/office_artifact_pb.js";
 import { encodePpjCodecRequest, decodePpjCodecResponse } from "../src/codecs/office-kit-ppj-wire.mjs";
 import { readPpjPreviewScene } from "../src/ppj/preview-scene.mjs";
@@ -145,6 +146,7 @@ if (process.argv.includes("--native-forwarding")) {
   rejects(v => { v.program.previewScene.assets.push(v.program.previewScene.assets[0]); }, "asset-mismatch");
   rejects(v => { v.program.previewScene.assets = []; }, "asset-mismatch");
   rejects(v => { v.program.previewScene.presentation.slides[0].elements[1].content.value.assetId = "missing"; }, "asset-mismatch");
+  rejects(v => { v.program.previewScene.presentation.slides[0].elements[0].source = create(PresentationElementSourceBindingSchema); }, "authority");
   const value = fixture();
   value.program.assets[0].sha256 = value.program.assets[0].sha256.toUpperCase();
   value.program.assets[0].contentType = "IMAGE/PNG";
