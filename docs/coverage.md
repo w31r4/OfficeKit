@@ -2,6 +2,21 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ paragraph default kerning (2026-09-10): ordinary text/shape paragraphs
+support independent threshold assignment, explicit zero, removal, kerning-only
+wrapper removal and restoration under exact field authority. Finite 0..768pt
+values round to native hundredths with ties to even; out-of-range inputs
+reject before rounding. Direct run kerning, other defaults/effects, unknown
+attributes and non-target XML/ZIP content stay intact. Unmodeled native kern
+rejects replacement and survives unrelated scalar assignment/removal; cleanup
+now clears only modeled kerning. The shared lifecycle fixture plus one
+unknown-source fixture bring related native tests to 187/187 passing, zero
+skipped (SDK 8.0.128), retaining the documented whole-default-style baseline
+exclusion. Unsupported-field rejection now uses letterSpacing. Schema, Help,
+registry, references, generated metadata, preview input/capability,
+portability/reference sync and strict OpenSpec checks pass. No wire change,
+NativeAOT rebuild or host font-shaping acceptance.
+
 PPJ paragraph default language (2026-09-10): ordinary text/shape owners
 support independent assignment, deletion, language-only wrapper removal and
 restoration. Bounded tags preserve spelling/case; 63 characters pass and 64
@@ -12,7 +27,7 @@ checkpoint failures came from converting a null string to an empty native
 StringValue (lang=""); direct null assignment now removes the attribute.
 Related native tests pass 182/182, zero skipped (SDK 8.0.128), with the
 documented whole-default-style baseline failure still excluded. Unsupported
-default-field rejection now uses kerning. Schema/Help/registry/references,
+default-field rejection used kerning in that increment. Schema/Help/registry/references,
 generated metadata, preview input/capability, portability/reference sync and
 strict OpenSpec checks pass. No wire change, NativeAOT rebuild or host proofing
 acceptance.

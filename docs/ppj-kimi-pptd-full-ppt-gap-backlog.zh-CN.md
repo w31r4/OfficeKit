@@ -464,6 +464,17 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 ### F-03 文本、段落、列表、字段和 WordArt
 
 
+**段落默认 kerning 增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.defaultText.kerning`
+表示启用字偶距调整的最小字号阈值，单位 pt，范围 0–768。
+支持独立赋值、显式零、删除、恢复和单字段包装删除；原生精度为 0.01pt，
+中点向偶数舍入。直接 run 的 kerning、其它默认样式、未知属性和非目标
+XML/ZIP 保留。未建模的原生 kern 拒绝覆盖，修改或删除其它标量仍保留它。
+相关 **187/187 通过，0 跳过**，沿用已记录的整组默认样式基线失败排除项。
+资料、生成检查和 OpenSpec 已同步；字体实际排版仍需主机证据。
+
+
+
 **段落默认语言增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.defaultText.language`
 支持独立赋值、删除、恢复，以及仅包含语言的 defaultText/style 包装删除。

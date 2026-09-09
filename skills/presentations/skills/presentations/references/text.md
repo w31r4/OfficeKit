@@ -76,6 +76,14 @@ languages and native altLang remain unchanged. A source lang outside this
 grammar stays source-owned: replacing it rejects, while unrelated scalar
 edits preserve it.
 
+Use defaultText.kerning for the independent minimum font-size threshold that
+enables kerning, in points (0..768). Native precision is 0.01pt with ties-to-even
+rounding. Explicit zero remains present; deleting the field or its kerning-only
+defaultText/style wrapper removes the direct threshold. Restoration leaves
+other defaults and direct run kerning unchanged. Unmodeled native kern remains
+source-owned during unrelated edits and rejects replacement. Preview reports
+its typography limit; this field does not prove host font shaping.
+
 
 `textWarpPreset`, `textWarpAdjustments`, `flatTextZ`, `fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.

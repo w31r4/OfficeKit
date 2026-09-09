@@ -41,6 +41,10 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [InlineData("text", true, "language")]
     [InlineData("shape", false, "language")]
     [InlineData("shape", true, "language")]
+    [InlineData("text", false, "kerning")]
+    [InlineData("text", true, "kerning")]
+    [InlineData("shape", false, "kerning")]
+    [InlineData("shape", true, "kerning")]
     public void ParagraphDefaultScalarPresencePreservesOtherState(string kind, bool otherDefaults, string field)
     {
         var program = Program(kind);
@@ -48,6 +52,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         var initial = field switch
         {
             "size" => JsonValue.Create(18.25),
+            "kerning" => JsonValue.Create(12.25),
             "language" => JsonValue.Create("en-US"),
             "fontFamily" => JsonValue.Create("Arial"),
             "fontFamilyEastAsia" => JsonValue.Create("SimSun"),
@@ -72,7 +77,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         {
             ["paragraphs"] = new JsonArray(
                 new JsonObject { ["style"] = paragraphStyle, ["runs"] = new JsonArray(
-                    new JsonObject { ["text"] = "Retain ", ["style"] = new JsonObject { ["bold"] = false, ["fontFamily"] = "Courier New", ["language"] = "de-DE" } },
+                    new JsonObject { ["text"] = "Retain ", ["style"] = new JsonObject { ["bold"] = false, ["fontFamily"] = "Courier New", ["language"] = "de-DE", ["kerning"] = 8 } },
                     new JsonObject { ["text"] = "these runs", ["style"] = new JsonObject { ["italic"] = false } }) },
                 new JsonObject { ["style"] = new JsonObject { ["defaultText"] = new JsonObject { ["bold"] = false } },
                     ["runs"] = new JsonArray(new JsonObject { ["text"] = "Second paragraph" }) })
@@ -107,6 +112,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             foreach (var value in field switch
             {
                 "size" => new[] { "1", "18.25", "18.256", "18.125", "768" },
+                "kerning" => new[] { "0", "0.001", "0.01", "12.25", "12.256", "12.125", "768" },
                 "language" => new[] { "fr-FR", "zh-Hant-TW", "EN-us", "en-" + string.Join("-", Enumerable.Repeat("abcdefgh", 6)) + "-abcdef" }
                     .Select(language => JsonValue.Create(language)!.ToJsonString()).ToArray(),
                 "fontFamilyComplexScript" => new[] { "Amiri", "+mn-cs", new string('F', 255) }
@@ -123,7 +129,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                 restoredParagraph["style"]!["defaultText"] ??= new JsonObject();
                 restoredParagraph["style"]!["defaultText"]![field] = JsonNode.Parse(value);
                 var restored = Compile(restore, deleted).File.ToByteArray();
-                var expected = field == "size"
+                var expected = field is "size" or "kerning"
                     ? JsonValue.Create(Math.Round(double.Parse(value, System.Globalization.CultureInfo.InvariantCulture) * 100) / 100d)!.ToJsonString()
                     : value;
                 Assert.Equal(expected, ParagraphDefaultScalar(restored, kind, field)?.ToJsonString());
@@ -134,20 +140,27 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         var denied = Project(source);
         FirstTextParagraph(denied)["style"]!["defaultText"]![field] = isFont ? JsonValue.Create("Georgia")
             : field == "language" ? JsonValue.Create("fr-FR")
-            : field == "size" ? JsonValue.Create(24) : JsonValue.Create(false);
+            : field is "size" or "kerning" ? JsonValue.Create(24) : JsonValue.Create(false);
         var capability = denied["pages"]![0]!["elements"]![0]!["nativeRef"]!["capabilities"]!.AsArray()
             .Single(c => c!["operation"]!.GetValue<string>() == "setTextParagraphStyle")!;
         var fields = capability["fields"]!.AsArray();
         fields.Remove(fields.Single(f => f!.GetValue<string>() == "text.paragraphs[].style.defaultText." + field));
         Assert.Empty(Compile(denied, source, success: false).File);
         var unsupported = Project(source);
-        FirstTextParagraph(unsupported)["style"]!["defaultText"]!["kerning"] = 12;
+        FirstTextParagraph(unsupported)["style"]!["defaultText"]!["letterSpacing"] = 1;
         Assert.Empty(Compile(unsupported, source, success: false).File);
         if (field == "size")
             foreach (var invalid in new[] { 0d, -1d, 768.01, 0.001, 0.01, 0.99 })
             {
                 var request = Project(source);
                 FirstTextParagraph(request)["style"]!["defaultText"]!["size"] = invalid;
+                Assert.Empty(Compile(request, source, success: false).File);
+            }
+        if (field == "kerning")
+            foreach (var invalid in new[] { -0.001, -1, 768.001, 769 })
+            {
+                var request = Project(source);
+                FirstTextParagraph(request)["style"]!["defaultText"]![field] = invalid;
                 Assert.Empty(Compile(request, source, success: false).File);
             }
         if (field == "language")
@@ -237,6 +250,40 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         Assert.Equal(original, source);
     }
 
+    [Fact]
+    public void ParagraphDefaultKerningPreservesUnmodeledNativeValue()
+    {
+        var program = Program("text");
+        program["pages"]![0]!["elements"]![0]!["text"] = new JsonObject
+        {
+            ["paragraphs"] = new JsonArray(new JsonObject
+            {
+                ["style"] = new JsonObject { ["defaultText"] = new JsonObject { ["kerning"] = 12, ["bold"] = true } },
+                ["runs"] = new JsonArray(new JsonObject { ["text"] = "Retain native kerning" }),
+            }),
+        };
+        var authored = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
+        using var stream = new MemoryStream(); stream.Write(authored);
+        using (var doc = PresentationDocument.Open(stream, true))
+            Owner(doc, "text").Descendants<A.DefaultRunProperties>().First().Kerning = 76801;
+        var source = stream.ToArray(); var original = source.ToArray();
+        var projected = Project(source);
+        Assert.Null(FirstTextParagraph(projected)["style"]?["defaultText"]?["kerning"]);
+        Assert.Equal(source, Compile(projected, source).File.ToByteArray());
+        FirstTextParagraph(projected)["style"]!["defaultText"]!["kerning"] = 12;
+        Assert.Empty(Compile(projected, source, success: false).File);
+        foreach (var remove in new[] { false, true })
+        {
+            var unrelated = Project(source);
+            var defaults = FirstTextParagraph(unrelated)["style"]!["defaultText"]!.AsObject();
+            if (remove) defaults.Remove("bold"); else defaults["bold"] = false;
+            var candidate = Compile(unrelated, source).File.ToByteArray();
+            Assert.Equal(768.01, ParagraphDefaultScalar(candidate, "text", "kerning")!.GetValue<double>());
+            AssertOnlyBodyPropertyChanged(source, candidate, "text", "paragraphDefault.bold");
+        }
+        Assert.Equal(original, source);
+    }
+
     private static JsonObject FirstTextParagraph(JsonObject program) =>
         program["pages"]![0]!["elements"]![0]!["text"]!["paragraphs"]![0]!.AsObject();
 
@@ -251,6 +298,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             "italic" => defaults?.Italic is { } italic ? JsonValue.Create(italic.Value) : null,
             "size" => defaults?.FontSize is { } size ? JsonValue.Create(size.Value / 100d) : null,
             "language" => defaults?.Language is { } language ? JsonValue.Create(language.Value) : null,
+            "kerning" => defaults?.Kerning is { } kerning ? JsonValue.Create(kerning.Value / 100d) : null,
             "fontFamily" => defaults?.GetFirstChild<A.LatinFont>()?.Typeface is { } family ? JsonValue.Create(family.Value) : null,
             "fontFamilyEastAsia" => defaults?.GetFirstChild<A.EastAsianFont>()?.Typeface is { } eastAsian ? JsonValue.Create(eastAsian.Value) : null,
             "fontFamilyComplexScript" => defaults?.GetFirstChild<A.ComplexScriptFont>()?.Typeface is { } complexScript ? JsonValue.Create(complexScript.Value) : null,
@@ -1241,6 +1289,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                     else if (field == "paragraphDefault.fontFamilyEastAsia") defaults.GetFirstChild<A.EastAsianFont>()?.Remove();
                     else if (field == "paragraphDefault.fontFamilyComplexScript") defaults.GetFirstChild<A.ComplexScriptFont>()?.Remove();
                     else if (field == "paragraphDefault.language") defaults.Language = null;
+                    else if (field == "paragraphDefault.kerning") defaults.Kerning = null;
                     if (defaults.GetAttributes().Count == 0 && defaults.ChildElements.Count == 0) defaults.Remove();
                 }
                 if (paragraphProperties is not null && paragraphProperties.GetAttributes().Count == 0 && paragraphProperties.ChildElements.Count == 0)

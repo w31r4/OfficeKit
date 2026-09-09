@@ -115,8 +115,8 @@ internal static class PptxDefaultRunStyleCodec
         var after = source.DefaultRunProperties;
         var beforeWithoutScalars = before.Clone();
         var afterWithoutScalars = after.Clone();
-        beforeWithoutScalars.ClearBold(); beforeWithoutScalars.ClearItalic(); beforeWithoutScalars.ClearFontSizePoints(); beforeWithoutScalars.ClearFontFamily(); beforeWithoutScalars.ClearFontFamilyEastAsia(); beforeWithoutScalars.ClearFontFamilyComplexScript(); beforeWithoutScalars.ClearLanguage();
-        afterWithoutScalars.ClearBold(); afterWithoutScalars.ClearItalic(); afterWithoutScalars.ClearFontSizePoints(); afterWithoutScalars.ClearFontFamily(); afterWithoutScalars.ClearFontFamilyEastAsia(); afterWithoutScalars.ClearFontFamilyComplexScript(); afterWithoutScalars.ClearLanguage();
+        beforeWithoutScalars.ClearBold(); beforeWithoutScalars.ClearItalic(); beforeWithoutScalars.ClearFontSizePoints(); beforeWithoutScalars.ClearFontFamily(); beforeWithoutScalars.ClearFontFamilyEastAsia(); beforeWithoutScalars.ClearFontFamilyComplexScript(); beforeWithoutScalars.ClearLanguage(); beforeWithoutScalars.ClearFontKerningPoints();
+        afterWithoutScalars.ClearBold(); afterWithoutScalars.ClearItalic(); afterWithoutScalars.ClearFontSizePoints(); afterWithoutScalars.ClearFontFamily(); afterWithoutScalars.ClearFontFamilyEastAsia(); afterWithoutScalars.ClearFontFamilyComplexScript(); afterWithoutScalars.ClearLanguage(); afterWithoutScalars.ClearFontKerningPoints();
         if (beforeWithoutScalars.Equals(afterWithoutScalars))
         {
             // Patch changed scalars without rebuilding unrelated font/fill/effect
@@ -133,6 +133,13 @@ internal static class PptxDefaultRunStyleCodec
                 ApplyEastAsianFont(properties, after);
             if (before.HasFontFamilyComplexScript != after.HasFontFamilyComplexScript || before.FontFamilyComplexScript != after.FontFamilyComplexScript)
                 ApplyComplexScriptFont(properties, after);
+            if (before.HasFontKerningPoints != after.HasFontKerningPoints || before.FontKerningPoints != after.FontKerningPoints)
+            {
+                if (properties.Kerning is not null && !PptxTextDecoration.TryKerning(properties, out _))
+                    throw Unsupported("Source-preserving PPTX export cannot replace unmodeled default-run kerning.");
+                if (after.HasFontKerningPoints) properties.Kerning = checked((int)Math.Round(after.FontKerningPoints * 100));
+                else properties.Kerning = null;
+            }
             if (before.HasLanguage != after.HasLanguage || before.Language != after.Language)
             {
                 if (properties.Language is { } nativeLanguage && !PptxLanguageTag.IsValid(nativeLanguage.Value))
@@ -359,7 +366,7 @@ internal static class PptxDefaultRunStyleCodec
     {
         target.Bold = null;
         target.Italic = null;
-        target.Kerning = null;
+        if (PptxTextDecoration.TryKerning(target, out _)) target.Kerning = null;
         target.Baseline = null;
         target.Spacing = null;
         target.Capital = null;
