@@ -26,6 +26,7 @@ internal static class OpenXmlChartTrendlineCodec
         [ChartNs + "intercept"] = 7,
         [ChartNs + "dispRSqr"] = 8,
         [ChartNs + "dispEq"] = 9,
+        [ChartNs + "trendlineLbl"] = 10,
     };
 
     internal static void Validate(SpreadsheetChartSeriesArtifact series, SpreadsheetChartType chartType, string worksheetId, string chartId)
@@ -56,6 +57,7 @@ internal static class OpenXmlChartTrendlineCodec
             if (item.HasIntercept && (!double.IsFinite(item.Intercept) || Math.Abs(item.Intercept) > MaxSafeInteger))
                 throw Invalid(worksheetId, chartId, series.Name, $"trendline {index + 1} intercept must be finite and within the JavaScript safe-integer magnitude");
             XlsxChartSeriesLineStyleCodec.ValidateLine(item.Line, worksheetId, chartId, series.Name, $"trendline {index + 1} line");
+            OpenXmlChartTrendlineLabelCodec.Validate(item.Label, worksheetId, chartId, series.Name);
         }
     }
 
@@ -166,6 +168,11 @@ internal static class OpenXmlChartTrendlineCodec
         trendline.DisplayRSquared = displayRSquared ?? false;
         if (!TryOptionalBoolean(source, "dispEq", out var displayEquation)) return false;
         trendline.DisplayEquation = displayEquation ?? false;
+        if (source.Element(ChartNs + "trendlineLbl") is { } label)
+        {
+            if (!OpenXmlChartTrendlineLabelCodec.TryRead(label, out var parsed)) return false;
+            trendline.Label = parsed;
+        }
         return true;
     }
 
@@ -183,6 +190,7 @@ internal static class OpenXmlChartTrendlineCodec
         if (trendline.HasIntercept) output.Add(Scalar("intercept", trendline.Intercept.ToString("R", CultureInfo.InvariantCulture)));
         if (trendline.DisplayRSquared) output.Add(Scalar("dispRSqr", "1"));
         if (trendline.DisplayEquation) output.Add(Scalar("dispEq", "1"));
+        output.Add(OpenXmlChartTrendlineLabelCodec.Element(trendline.Label));
         return output;
     }
 
@@ -196,7 +204,8 @@ internal static class OpenXmlChartTrendlineCodec
         trendline.HasIntercept ? trendline.Intercept.ToString("R", CultureInfo.InvariantCulture) : "no-intercept",
         trendline.DisplayEquation ? "equation" : "no-equation",
         trendline.DisplayRSquared ? "r-squared" : "no-r-squared",
-        XlsxChartSeriesLineStyleCodec.Semantics(trendline.Line));
+        XlsxChartSeriesLineStyleCodec.Semantics(trendline.Line),
+        OpenXmlChartTrendlineLabelCodec.Semantics(trendline.Label));
 
     private static void ValidateForecast(bool present, double value, string name, string worksheetId, string chartId, string seriesName, int index)
     {

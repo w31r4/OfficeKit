@@ -466,6 +466,33 @@ For example, `"trendlines": [{ "type": "linear", "name": "Fit" },
 { "type": "polynomial", "order": 2, "name": "Curve" }]` requests two fits in
 that order.
 
+Each trendline can own a native `label`:
+
+```json
+{
+  "type": "linear",
+  "displayEquation": true,
+  "displayRSquared": true,
+  "label": {
+    "numberFormat": "0.00",
+    "textStyle": { "fontSize": 11, "color": "#2563EB" },
+    "fill": { "type": "solid", "color": "#FEF3C7" },
+    "line": { "color": "#D97706", "width": 1 }
+  }
+}
+```
+
+Omit `text` for automatic equation/R-squared content, or set it to one literal
+text run. Text and numberFormat also accept string grammar tokens, resolving to
+1–255 characters without controls. Label textStyle/fill/line use the existing
+bounded chart-label styling. `{}` retains the default label container; omitting
+`label` removes it. Authored and imported ordinary/combo trendlines support
+creation, replacement, removal and recreation, with label-only edits confined
+to the target ChartPart. Formula text, nonempty manual layouts, source-linked
+formats and unsupported effects/extensions remain source-owned. Native
+round-trip checks establish label state; automatic layout and local SVG label
+rendering remain unverified.
+
 The same capability owns the optional `errorBars` object. For example,
 `"errorBars": { "valueType": "fixed-value", "value": 2, "direction": "y", "type": "both" }`
 adds or replaces it. Remove the property to delete it; a later edit can add it
@@ -508,7 +535,7 @@ unsupported workbook dependencies reject value edits without an output file.
 Other workbook-backed data channels cannot change through this operation.
 
 Creating, deleting or retargeting a formula, source-free formula authoring,
-trendline labels, extensions and complex ChartML remain source-owned and fail
+complex trendline labels, extensions and complex ChartML remain source-owned and fail
 closed. An absent PPJ object does not authorize overwriting unprojected data.
 Local SVG preview reports `chart-error-bars-not-rendered` as partial; verify
 exported error-bar semantics through native inspection and fresh projection.

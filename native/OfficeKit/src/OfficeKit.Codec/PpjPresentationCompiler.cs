@@ -6005,6 +6005,16 @@ internal static class PpjSourceBoundPresentationCompiler
         if (source.TryGetProperty("intercept", out var intercept)) output.Intercept = intercept.GetDouble();
         if (source.TryGetProperty("stroke", out var stroke))
             output.Line = SourceBoundChartLine(stroke, path + ".stroke", grammarRoot);
+        if (source.TryGetProperty("label", out var label))
+        {
+            var value = new SpreadsheetChartTrendlineLabelArtifact();
+            if (label.TryGetProperty("text", out var text)) value.Text = grammarRoot is { } textRoot ? ResolveGrammarStringToken(textRoot, text, path + ".label.text") : text.GetString()!;
+            if (label.TryGetProperty("numberFormat", out var format)) value.NumberFormatCode = grammarRoot is { } formatRoot ? ResolveGrammarStringToken(formatRoot, format, path + ".label.numberFormat") : format.GetString()!;
+            if (label.TryGetProperty("textStyle", out var style)) value.TextStyle = SourceBoundChartTextStyle(style, path + ".label.textStyle", grammarRoot);
+            if (label.TryGetProperty("fill", out var fill)) value.Fill = SourceBoundChartFill(fill, path + ".label.fill", grammarRoot);
+            if (label.TryGetProperty("line", out var line)) value.Line = SourceBoundChartLine(line, path + ".label.line", grammarRoot);
+            output.Label = value;
+        }
         return output;
     }
 

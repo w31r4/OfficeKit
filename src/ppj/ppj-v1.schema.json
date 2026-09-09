@@ -6910,9 +6910,24 @@
         "displayRSquared": {
           "type": "boolean"
         },
+        "label": {
+          "$ref": "#/$defs/chartTrendlineLabel"
+        },
         "stroke": {
           "$ref": "#/$defs/stroke"
         }
+      }
+    },
+    "chartTrendlineLabel": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Native trendline label. An empty object retains the automatic label container; omit the property to remove it.",
+      "properties": {
+        "text": { "$ref": "#/$defs/stringOrToken", "description": "One literal run; resolves to 1–255 characters without controls. Omit for automatic equation/R-squared content." },
+        "numberFormat": { "$ref": "#/$defs/stringOrToken", "description": "Explicit non-source-linked format; resolves to 1–255 characters without controls." },
+        "textStyle": { "$ref": "#/$defs/chartTextStyle" },
+        "fill": { "$ref": "#/$defs/fill" },
+        "line": { "$ref": "#/$defs/stroke" }
       }
     },
     "chartErrorBars": {

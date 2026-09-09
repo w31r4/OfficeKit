@@ -46,7 +46,7 @@ public sealed class OpenXmlChartTrendlineCodecTests
         Assert.Equal("0EA5E9", patched.Series[0].Trendlines[1].Line.Color.Rgb);
 
         var unsupported = new XDocument(document);
-        unsupported.Descendants(ChartNs + "trendline").First().Add(new XElement(ChartNs + "trendlineLbl"));
+        unsupported.Descendants(ChartNs + "trendline").First().Add(new XElement(ChartNs + "trendlineLbl", new XElement(ChartNs + "layout", new XElement(ChartNs + "manualLayout"))));
         Assert.True(OpenXmlChartSpaceCodec.TryRead(unsupported.ToString(SaveOptions.DisableFormatting), out var preserved, out _, out var unsupportedEditable));
         Assert.False(unsupportedEditable);
         Assert.Empty(preserved.Series[0].Trendlines);

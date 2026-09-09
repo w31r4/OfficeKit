@@ -198,7 +198,7 @@ internal static class XlsxChartSeriesDataLabelsCodec
         XlsxChartTextStyleCodec.ValidateStyle(value.TextStyle, worksheetId, chartId, $"series {series} {field}.text_style");
     }
 
-    private static XElement PointPropertiesElement(
+    internal static XElement PointPropertiesElement(
         SpreadsheetChartSurfaceFill? fill,
         SpreadsheetChartLineStyleArtifact? line)
     {
@@ -208,7 +208,7 @@ internal static class XlsxChartSeriesDataLabelsCodec
             line is null ? null : XlsxChartSeriesLineStyleCodec.Element(line));
     }
 
-    private static XElement PointTextElement(string text) => new(
+    internal static XElement PointTextElement(string text) => new(
         ChartNs + "tx",
         new XElement(ChartNs + "rich",
             new XElement(DrawingNs + "bodyPr"),
@@ -216,7 +216,7 @@ internal static class XlsxChartSeriesDataLabelsCodec
             new XElement(DrawingNs + "p",
                 new XElement(DrawingNs + "r", new XElement(DrawingNs + "t", text)))));
 
-    private static bool TryReadPointProperties(
+    internal static bool TryReadPointProperties(
         XElement properties,
         out SpreadsheetChartSurfaceFill? fill,
         out SpreadsheetChartLineStyleArtifact? line)
@@ -243,7 +243,7 @@ internal static class XlsxChartSeriesDataLabelsCodec
         return fill is not null || line is not null;
     }
 
-    private static bool TryReadPointText(XElement text, out string value)
+    internal static bool TryReadPointText(XElement text, out string value)
     {
         value = string.Empty;
         if (text.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration) || text.Elements().Count() != 1)

@@ -178,7 +178,7 @@ function seriesLineToWire(line) {
   };
 }
 
-function trendlineToWire(trendline) {
+function trendlineToWire(trendline, original) {
   return {
     type: TRENDLINE_TYPES_TO_WIRE.get(trendline.type),
     name: trendline.name || "",
@@ -190,6 +190,7 @@ function trendlineToWire(trendline) {
     displayEquation: trendline.displayEquation,
     displayRSquared: trendline.displayRSquared,
     line: seriesLineToWire(trendline.line),
+    ...(original?.label == null ? {} : { label: original.label }),
   };
 }
 
@@ -595,7 +596,7 @@ function wireChart(chart, original) {
           ? {}
           : { fillOpacityThousandthPercent: original.series[index].marker.fillOpacityThousandthPercent }),
       },
-      trendlines: series.trendlines.map(trendlineToWire),
+      trendlines: series.trendlines.map((trendline, trendlineIndex) => trendlineToWire(trendline, original?.series?.[index]?.trendlines?.[trendlineIndex])),
       errorBars: errorBarsToWire(series.errorBars),
       ...((original?.series?.[index]?.missingValueIndexes || []).length
         ? { missingValueIndexes: [...original.series[index].missingValueIndexes] }

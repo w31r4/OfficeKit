@@ -90,7 +90,7 @@ public sealed partial class PptxCodecTests
         XNamespace c = "http://schemas.openxmlformats.org/drawingml/2006/chart";
         foreach (var invalid in new[]
         {
-            "<c:trendlineType val='linear'/><c:trendlineLbl/>",
+            "<c:trendlineType val='linear'/><c:trendlineLbl><c:layout><c:manualLayout/></c:layout></c:trendlineLbl>",
             "<c:trendlineType val='linear'/><c:extLst/>",
             "<c:trendlineType val='linear'/><c:trendlineType val='power'/>",
             "<c:trendlineType val='unknown'/>",

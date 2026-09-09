@@ -5294,6 +5294,7 @@ message SpreadsheetChartTrendlineArtifact {
   bool display_equation = 8;
   bool display_r_squared = 9;
   SpreadsheetChartLineStyleArtifact line = 10;
+  SpreadsheetChartTrendlineLabelArtifact label = 11;
 }
 
 // Appended after every existing descriptor so the additive protocol-2 error
@@ -5462,4 +5463,14 @@ message PresentationImageReplacement {
 // sequence or exposing raw XML/package selectors.
 message PresentationEditElementDeletion {
   uint32 expected_native_id = 1;
+}
+
+// Appended to preserve the existing descriptor sequence. Presence of an empty
+// label retains the native automatic equation/R-squared label container.
+message SpreadsheetChartTrendlineLabelArtifact {
+  optional string text = 1;
+  optional string number_format_code = 2;
+  SpreadsheetChartTextStyleArtifact text_style = 3;
+  SpreadsheetChartSurfaceFill fill = 4;
+  SpreadsheetChartLineStyleArtifact line = 5;
 }

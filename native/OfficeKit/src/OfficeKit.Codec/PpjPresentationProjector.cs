@@ -1355,6 +1355,16 @@ internal static partial class PpjPresentationProjector
                 if (item.DisplayRSquared) trendline["displayRSquared"] = JsonValue.Create(true);
                 if (item.Line is not null && !string.IsNullOrEmpty(item.Line.Color?.Rgb))
                     trendline["stroke"] = ProjectChartLine(item.Line);
+                if (item.Label is { } label)
+                {
+                    var value = new JsonObject();
+                    if (label.HasText) value["text"] = StringNode(label.Text);
+                    if (label.HasNumberFormatCode) value["numberFormat"] = StringNode(label.NumberFormatCode);
+                    if (label.TextStyle is not null) value["textStyle"] = ProjectChartTextStyle(label.TextStyle);
+                    if (label.Fill is not null) value["fill"] = ProjectChartSurfaceFill(label.Fill);
+                    if (label.Line is not null) value["line"] = ProjectChartLine(label.Line);
+                    trendline["label"] = value;
+                }
                 trendlines.Add(trendline);
             }
             if (trendlines.Count > 0) output["trendlines"] = trendlines;

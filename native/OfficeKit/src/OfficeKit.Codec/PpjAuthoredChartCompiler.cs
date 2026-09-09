@@ -4365,6 +4365,16 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (source.TryGetProperty("backward", out var backward)) trendline.Backward = backward.GetDouble();
         if (source.TryGetProperty("intercept", out var intercept)) trendline.Intercept = intercept.GetDouble();
         if (source.TryGetProperty("stroke", out var stroke)) trendline.Line = BuildChartLine(stroke, catalog);
+        if (source.TryGetProperty("label", out var label))
+        {
+            var value = new SpreadsheetChartTrendlineLabelArtifact();
+            if (label.TryGetProperty("text", out var text)) value.Text = catalog.StringToken(text, "string", "trendline label text");
+            if (label.TryGetProperty("numberFormat", out var format)) value.NumberFormatCode = catalog.StringToken(format, "string", "trendline label numberFormat");
+            if (label.TryGetProperty("textStyle", out var style)) value.TextStyle = BuildChartTextStyle(style, catalog);
+            if (label.TryGetProperty("fill", out var fill)) value.Fill = BuildChartFill(fill, catalog, "trendline label fill");
+            if (label.TryGetProperty("line", out var line)) value.Line = BuildChartLine(line, catalog);
+            trendline.Label = value;
+        }
         return trendline;
     }
 
