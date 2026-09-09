@@ -6279,6 +6279,10 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "softEdge": {
+          "$ref": "#/$defs/softEdge",
+          "description": "Direct soft-edge radius in points, independently editable beside glow and outer shadow; explicit zero is retained."
+        },
         "glow": {
           "$ref": "#/$defs/glow",
           "description": "Direct glow with required color/radius, optional opacity and independent outer-shadow coexistence."

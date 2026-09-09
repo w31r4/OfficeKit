@@ -3305,6 +3305,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (source.TryGetProperty("letterSpacing", out var spacing)) output.LetterSpacingHundredthPoints = XlsxChartTextStyleCodec.LetterSpacingHundredthPoints(spacing.GetDouble());
         if (source.TryGetProperty("kerning", out var kerning)) output.KerningHundredthPoints = XlsxChartTextStyleCodec.KerningHundredthPoints(kerning.GetDouble());
         if (source.TryGetProperty("capitalization", out var capitalization)) output.Capitalization = capitalization.GetString()!;
+        if (source.TryGetProperty("softEdge", out var softEdge)) output.SoftEdge = BuildChartTextSoftEdge(softEdge);
         if (source.TryGetProperty("glow", out var glow)) output.Glow = BuildChartTextGlow(glow, catalog);
         if (source.TryGetProperty("shadow", out var shadow)) output.Shadow = BuildChartTextShadow(shadow, catalog);
         if (source.TryGetProperty("highlight", out var highlight)) output.HighlightRgb = BuildChartHighlight(highlight, catalog);
@@ -3351,7 +3352,7 @@ internal static partial class PpjAuthoredPresentationCompiler
     }
 
     private static readonly string[] ChartTextStyleFields =
-    ["fontSize", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "language", "strike", "baseline", "capitalization", "letterSpacing", "kerning", "highlight", "shadow", "glow", "bold", "italic", "underline", "alignment", "fill", "color"];
+    ["fontSize", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "language", "strike", "baseline", "capitalization", "letterSpacing", "kerning", "highlight", "shadow", "glow", "softEdge", "bold", "italic", "underline", "alignment", "fill", "color"];
 
     private static void ApplyChartTextStyleProperty(
         SpreadsheetChartTextStyleArtifact output,
@@ -3387,6 +3388,9 @@ internal static partial class PpjAuthoredPresentationCompiler
                 break;
             case "kerning":
                 output.KerningHundredthPoints = XlsxChartTextStyleCodec.KerningHundredthPoints(value.GetDouble());
+                break;
+            case "softEdge":
+                output.SoftEdge = BuildChartTextSoftEdge(value);
                 break;
             case "glow":
                 output.Glow = BuildChartTextGlow(value, catalog);
@@ -3425,6 +3429,16 @@ internal static partial class PpjAuthoredPresentationCompiler
             default:
                 throw new InvalidOperationException($"Unknown chart text style field {field}.");
         }
+    }
+
+    internal static PresentationSoftEdge BuildChartTextSoftEdge(JsonElement value)
+    {
+        var output = new PresentationSoftEdge
+        {
+            RadiusEmu = Emu(ChartEffectNumber(value.GetProperty("radius").GetDouble(), 0, 1000)),
+        };
+        PptxSoftEdgeValueCodec.Validate(output, "chart-text", "chart text");
+        return output;
     }
 
     private static PresentationShadow BuildChartTextShadow(JsonElement value, Catalog catalog) =>

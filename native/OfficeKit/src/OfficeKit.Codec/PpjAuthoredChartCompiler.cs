@@ -2063,6 +2063,7 @@ internal static partial class PpjAuthoredPresentationCompiler
             if (!run.HasFontSpacingPoints && defaults.HasLetterSpacingHundredthPoints) run.FontSpacingPoints = defaults.LetterSpacingHundredthPoints / 100d;
             if (!run.HasFontKerningPoints && defaults.HasKerningHundredthPoints) run.FontKerningPoints = defaults.KerningHundredthPoints / 100d;
             if (!run.HasFontCaps && defaults.HasCapitalization) run.FontCaps = defaults.Capitalization;
+            if (run.SoftEdge is null && defaults.SoftEdge is not null) run.SoftEdge = defaults.SoftEdge.Clone();
             if (run.Glow is null && defaults.Glow is not null) run.Glow = defaults.Glow.Clone();
             if (run.Shadow is null && defaults.Shadow is not null) run.Shadow = defaults.Shadow.Clone();
             if (run.HighlightCase == PresentationTextRun.HighlightOneofCase.None && defaults.HasHighlightRgb) run.HighlightRgb = defaults.HighlightRgb;
@@ -2101,6 +2102,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (value.TryGetProperty("letterSpacing", out var spacing)) run.FontSpacingPoints = XlsxChartTextStyleCodec.LetterSpacingHundredthPoints(spacing.GetDouble()) / 100d;
         if (value.TryGetProperty("kerning", out var kerning)) run.FontKerningPoints = XlsxChartTextStyleCodec.KerningHundredthPoints(kerning.GetDouble()) / 100d;
         if (value.TryGetProperty("capitalization", out var capitalization)) run.FontCaps = capitalization.GetString()!;
+        if (value.TryGetProperty("softEdge", out var softEdge)) run.SoftEdge = BuildChartTextSoftEdge(softEdge);
         if (value.TryGetProperty("glow", out var glow)) run.Glow = BuildChartTextGlow(glow, catalog);
         if (value.TryGetProperty("shadow", out var shadow)) run.Shadow = BuildChartTextShadow(shadow, catalog);
         if (value.TryGetProperty("highlight", out var highlight)) run.HighlightRgb = BuildChartHighlight(highlight, catalog);

@@ -4009,7 +4009,9 @@ internal static class PpjSemanticValidator
         if (value.ValueKind == JsonValueKind.Object)
         {
             if (value.TryGetProperty("token", out var token) && token.ValueKind == JsonValueKind.String &&
-                IsColorReferencePath(path) && !colorIds.Contains(token.GetString()!))
+                IsColorReferencePath(path) && !colorIds.Contains(token.GetString()!) &&
+                !(IsDirectEffectThemeColorPath(path) && !grammarTokenKinds.ContainsKey(token.GetString()!) &&
+                  PptxColor.TrySchemeToken(token.GetString()!, out _)))
             {
                 var tokenName = token.GetString()!;
                 var code = grammarTokenKinds.TryGetValue(tokenName, out var kind)
@@ -4044,6 +4046,16 @@ internal static class PpjSemanticValidator
                 path.Length = length;
             }
         }
+    }
+
+    private static bool IsDirectEffectThemeColorPath(StringBuilder path)
+    {
+        // These effect builders preserve standard theme identity directly.
+        // Do not grant the same fallback to RGB-only foreground/fill fields
+        // or let it override a declared grammar token of the wrong kind.
+        var value = path.ToString();
+        return value.EndsWith(".shadow.color", StringComparison.Ordinal) ||
+               value.EndsWith(".glow.color", StringComparison.Ordinal);
     }
 
     private static bool IsColorReferencePath(StringBuilder path)

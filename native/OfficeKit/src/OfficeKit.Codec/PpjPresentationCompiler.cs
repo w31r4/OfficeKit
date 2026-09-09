@@ -3611,6 +3611,7 @@ internal static class PpjSourceBoundPresentationCompiler
         if (source.TryGetProperty("letterSpacing", out var spacing)) output.LetterSpacingHundredthPoints = XlsxChartTextStyleCodec.LetterSpacingHundredthPoints(spacing.GetDouble());
         if (source.TryGetProperty("kerning", out var kerning)) output.KerningHundredthPoints = XlsxChartTextStyleCodec.KerningHundredthPoints(kerning.GetDouble());
         if (source.TryGetProperty("capitalization", out var capitalization)) output.Capitalization = capitalization.GetString()!;
+        if (source.TryGetProperty("softEdge", out var softEdge)) output.SoftEdge = PpjAuthoredPresentationCompiler.BuildChartTextSoftEdge(softEdge);
         if (source.TryGetProperty("glow", out var glow))
             output.Glow = PpjAuthoredPresentationCompiler.BuildChartTextGlow(glow,
                 color => grammarRoot is { } root ? ResolveGrammarColorValue(root, color, path + ".glow.color") : ParseSourceBoundColor(color, path + ".glow.color"),

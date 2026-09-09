@@ -9,8 +9,6 @@ namespace OfficeKit.Codec;
 // only writes the bounded PPJ radius profile alongside the direct effects.
 internal static class PptxSoftEdgeCodec
 {
-    private const long MaxRadiusEmu = 12_700_000L;
-
     internal static bool TryRead(OpenXmlCompositeElement? properties, out PresentationSoftEdge? softEdge)
     {
         softEdge = null;
@@ -85,28 +83,9 @@ internal static class PptxSoftEdgeCodec
             effectList.Append(native);
     }
 
-    internal static void Validate(PresentationSoftEdge? softEdge, string elementId, string subject = "shape")
-    {
-        if (softEdge is null) return;
-        if (!softEdge.HasRadiusEmu || softEdge.RadiusEmu is < 0 or > MaxRadiusEmu)
-            throw new CodecException(
-                "invalid_presentation_soft_edge",
-                $"Presentation {subject} {elementId} has invalid soft-edge radius.");
-    }
+    internal static void Validate(PresentationSoftEdge? softEdge, string elementId, string subject = "shape") =>
+        PptxSoftEdgeValueCodec.Validate(softEdge, elementId, subject);
 
-    private static bool TryReadSoftEdge(A.SoftEdge source, out PresentationSoftEdge? softEdge)
-    {
-        softEdge = null;
-        if (!HasOnlyAttributes(source, "rad") || source.ChildElements.Count != 0 ||
-            source.Radius?.Value is not { } radius || radius > MaxRadiusEmu)
-            return false;
-        softEdge = new PresentationSoftEdge { RadiusEmu = radius };
-        return true;
-    }
-
-    private static bool HasOnlyAttributes(OpenXmlElement element, params string[] names)
-    {
-        var allowed = names.ToHashSet(StringComparer.Ordinal);
-        return element.GetAttributes().All(attribute => attribute.NamespaceUri.Length == 0 && allowed.Contains(attribute.LocalName));
-    }
+    private static bool TryReadSoftEdge(A.SoftEdge source, out PresentationSoftEdge? softEdge) =>
+        PptxSoftEdgeValueCodec.TryRead(source, out softEdge);
 }

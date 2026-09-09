@@ -18,6 +18,7 @@
     <Compile Include="../OfficeKit.Codec/CodecRuntime.cs" Link="CodecRuntime.cs" />
     <Compile Include="../OfficeKit.Codec/PackageGuards.cs" Link="PackageGuards.cs" />
     <Compile Include="../OfficeKit.Codec/OpenXmlChart*.cs" Link="%(Filename)%(Extension)" />
+    <Compile Include="../OfficeKit.Codec/PptxSoftEdgeValueCodec.cs" Link="PptxSoftEdgeValueCodec.cs" />
     <Compile Include="../OfficeKit.Codec/PptxGlowCodec.cs" Link="PptxGlowCodec.cs" />
     <Compile Include="../OfficeKit.Codec/PptxShadowCodec.cs" Link="PptxShadowCodec.cs" />
     <Compile Include="../OfficeKit.Codec/PptxColor.cs" Link="PptxColor.cs" />

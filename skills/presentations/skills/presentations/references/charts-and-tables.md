@@ -381,6 +381,16 @@ chart text use the same field, with explicit title-run strike taking
 precedence over title defaults. Like ordinary text strike, this is a literal
 boolean/token-enum field, not a grammar token reference.
 
+`softEdge` sets chart text edge softening, for example
+`{"softEdge":{"radius":2}}`. Radius is a required number from 0 to 1000 pt,
+rounded to native EMU precision with ties to even. Explicit zero is retained;
+omit the field to remove it. It shares the chart and trendline paragraph/run/end
+style owners and propagates to vector text; explicit run radius zero overrides
+a nonzero title default. Known effects are stored in the order `glow`,
+`outerShdw`, `softEdge`, and each can be removed without erasing the others.
+Missing radius, duplicate/reordered effects and unknown descendants stay
+source-owned. Native round trips do not establish host edge appearance.
+
 `glow` adds direct chart text glow using the ordinary text field:
 `{"glow":{"color":"#FFD966","radius":3,"opacity":0.5}}`.
 Color and radius are required; radius is 0–1000 pt and rounds to native EMU
