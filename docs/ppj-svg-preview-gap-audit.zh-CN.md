@@ -1,5 +1,21 @@
 # OfficeKit 本地 PPT 预览渲染器差距审计
 
+SmartArt 所有权复核（2026-09-10）：已按源码确认的独占整图替换契约修正前轮过严的部件预期，改以实际关系目标验证图外文件、同页兄弟对象及无关关系保留。最终 `tmp/officekit-native-scene-paint-2MsoJ4/integration.json` passed，取代前轮部件断言失败；导入缓存缺样式/连接线仍未修复，不能宣称源图视觉通过。详见[当前差距 G-07](ppj-preview-current-gaps.zh-CN.md#g-07source-boundopaque-和静态检查边界)。
+
+SmartArt 缓存进展（2026-09-10）：内部 authored verified drawing 已实际绘制；当前导入缓存缺完整样式/连接线，已明确 unavailable。真实源文字修改的严格部件保留断言仍失败，最终报告 `tmp/officekit-native-scene-paint-XyIRJd/integration.json` 为 failed，不能沿用前轮全通过结论。具体成功范围、失败和待审计所有权见[当前差距 G-07](ppj-preview-current-gaps.zh-CN.md#g-07source-boundopaque-和静态检查边界)。
+
+形状轮廓进展（2026-09-10）：内部形状/路径已消费虚线、端帽和连接角，真实创建/源修改/像素/重新投影通过，报告 `tmp/officekit-native-scene-paint-chiuBR/integration.json`。精确 Office 虚线节距、主题和生产入口仍开放，详见[当前差距 G-04](ppj-preview-current-gaps.zh-CN.md#g-04样式主题和效果)。
+
+段落边距进展（2026-09-10）：内部整段左边距及左对齐首行缩进已消费 native 坐标，悬挂和清零的真实像素/源编辑/重新投影通过；报告 `tmp/officekit-native-scene-paint-PHbQnD/integration.json`。列表、非左对齐首行缩进及生产路由仍开放，详见[当前差距 G-02](ppj-preview-current-gaps.zh-CN.md#g-02文字和形状)。
+
+point 段落间距进展（2026-09-10）：内部行距、段前/段后已消费明确 point 值，真实 40→55pt 和前后清零的三行像素、源保留及重新投影通过，报告 `tmp/officekit-native-scene-paint-d2vSYk/integration.json`。百分比间距、完整排版和生产入口仍开放，范围见[当前差距 G-02](ppj-preview-current-gaps.zh-CN.md#g-02文字和形状)。
+
+字间距进展（2026-09-10）：内部 signed fontSpacingPoints 已映射 SVG，继承与零覆盖、真实字形宽度、源编辑及等值 authored 像素对照通过；最终报告 `tmp/officekit-native-scene-paint-b252Er/integration.json`。仍是既有 495daafc 包与新 JS 的限定验证；kerning、排版及生产入口开放，详见[当前差距 G-02](ppj-preview-current-gaps.zh-CN.md#g-02文字和形状)。
+
+文字格式进展（2026-09-10）：内部单下划线、单删除线和有符号基线偏移已通过合成及指定 495daafc 包的真实创建/源编辑/像素/重新投影检查，报告 `tmp/officekit-native-scene-paint-MUHC4L/integration.json` 为 passed。具体行为、首次拒绝原因和剩余边界已整合进[当前差距 G-02](ppj-preview-current-gaps.zh-CN.md#g-02文字和形状)；完整排版、其他装饰和生产入口仍未完成。
+
+当前状态阅读入口：[当前能力与剩余差距](ppj-preview-current-gaps.zh-CN.md)（2026-09-10，`ec9a2ab4` 加已有工作区修改）。该文按功能整合本页后续实施进展，区分正式 CLI、内部 painter 和旧运行时证据。本页保留多轮审计与历史日志，未标明同一快照的“当前”描述不可合并为最新覆盖结论。
+
 最新实施补记（2026-09-10，G-05 图片边框）：内部图片边框已消费 direct RGB、width、opacity、style、cap/join；使用已绘制遮罩轮廓，边框位于图片 clip 外层，保留外半边线。无 mask 时沿 frame；custom mask 遵守各路径 stroke=false。合成验证椭圆边框、半透明及显式零宽/零 alpha；未解析主题色保留失败诊断，虚线精确长度继续标注近似。真实创建和源编辑的 magenta 边框像素、内部绿色图片、fresh projection width=4、原源及非目标 ZIP 保留通过，整套报告 `tmp/officekit-native-scene-paint-Hyrhgw/integration.json` 为 passed。使用既有 495daafc 包及当前 JS，presentation 4/4 通过。主题颜色解析、效果、tile 及生产入口仍开放。
 
 最新实施补记（2026-09-10，G-02/G-05 roundRect）：普通形状和图片遮罩共用圆角矩形绘制，默认 adjustment 从仓库 preset-geometry-profiles.json 读取。半径遵循该文件引用的 pinned docx4j preset 定义：短边乘以 pin(0, adjustment, 50000)/100000。合成测试验证非正方形、默认/0/25000/50000、负值和超上限的几何；真实 mask 创建、源编辑为 50000、再次编辑为 0、角落像素和 fresh projection 均通过。最终完整集成报告 `tmp/officekit-native-scene-paint-M9UI1y/integration.json` 为 passed，仍使用 495daafc 包和当前 JS。presentation 4/4、gate-policy、差异检查通过。默认 /tmp 因 ENOSPC 导致首轮发布和 codec 失败，改用仓库 TMPDIR 后重跑成功；未删除旧产物。其他预设、文字布局、效果和正式入口仍开放。

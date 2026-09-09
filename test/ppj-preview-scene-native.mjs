@@ -11,7 +11,7 @@ import { loadOfficeKitNativeDescriptor, startOfficeKitNativeClient } from "../sr
 import { readPpjPreviewScene } from "../src/ppj/preview-scene.mjs";
 import { createPpjSceneView } from "../src/ppj/preview-scene-view.mjs";
 import { paintPpjSceneSvg, nativePathData } from "../src/ppj/preview-scene-svg.mjs";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 
 assert.ok(process.argv[2], "Pass the directory produced by npm run build:office-kit -- --output <new-directory>.");
@@ -125,6 +125,303 @@ try {
   // One bounded component/explicit pair, with the same genuine zero/missing
   // chart edge in both. This is not all of task 5.1's required equivalences.
   const pairBase = JSON.parse(new TextDecoder().decode(sourceWorkspace.program));
+  // Real rich-text decoration/baseline mapping, independent of font-specific
+  // glyph contours: compare identical glyphs and inspect their raster bounds.
+  const formatProgram = structuredClone(pairBase);
+  formatProgram.pages[0].elements = [{ id: "formatted", type: "text", frame: { x: 100, y: 100, width: 300, height: 100 },
+    text: { paragraphs: [{ runs: [{ text: "HHHH", style: { size: 40, color: "#000000", baseline: 0, letterSpacing: 0, underline: "none", strike: "noStrike" } }] }] } }];
+  const compileFormat = program => compilePpjWorkspace({ ...sourceWorkspace, program: Buffer.from(JSON.stringify(program)) }, { includePreviewScene: true });
+  async function formatPixels(name, result, baseline, decorated, spacing = 0) {
+    const painted = await savePaint(name, result);
+    const run = createPpjSceneView(result).pages[0].nodes.find(n => n.kind === "shape").native.textBody.paragraphs[0].runs[0];
+    assert.equal(run.fontBaselinePercent, baseline);
+    assert.equal(run.underline, decorated ? "sng" : "none");
+    assert.equal(run.strike, decorated ? "sngStrike" : "noStrike");
+    assert.equal(run.fontSpacingPoints, spacing);
+    assert.ok(painted.pages[0].svg.includes(`letter-spacing="${spacing}"`));
+    assert.ok(painted.pages[0].svg.includes(`text-decoration="${decorated ? "underline line-through" : "none"}" dy="${baseline ? -40 * baseline / 100 : 0}"`));
+    const { data, info } = await sharp(Buffer.from(painted.pages[0].svg)).flatten({ background: "#FFFFFF" }).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    let minY = Infinity, maxY = -Infinity, minX = Infinity, maxX = -Infinity, count = 0;
+    for (let y = 60; y < 200; y++) for (let x = 100; x < 350; x++) {
+      const i = (y * info.width + x) * info.channels;
+      if (data[i] < 128 && data[i + 1] < 128 && data[i + 2] < 128) {
+        minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+        minX = Math.min(minX, x); maxX = Math.max(maxX, x); count++;
+      }
+    }
+    assert.ok(count > 0);
+    return { minY, maxY, minX, maxX, count };
+  }
+  const plainFormat = await compileFormat(formatProgram);
+  const plainPixels = await formatPixels("text-plain", plainFormat, 0, false);
+  for (const spacing of [-3, 4]) {
+    const spaced = structuredClone(formatProgram);
+    spaced.pages[0].elements[0].text.paragraphs[0].runs[0].style.letterSpacing = spacing;
+    const pixels = await formatPixels(`text-spacing-${spacing}`, await compileFormat(spaced), 0, false, spacing);
+    // Four identical glyphs have three internal character gaps. Compare ink
+    // width, not the backend's trailing advance or font-specific glyph size.
+    assert.equal(pixels.maxX - pixels.minX, plainPixels.maxX - plainPixels.minX + 3 * spacing);
+    assert.equal(pixels.minY, plainPixels.minY);
+    assert.equal(pixels.maxY, plainPixels.maxY);
+  }
+  const shiftedProgram = structuredClone(formatProgram);
+  shiftedProgram.pages[0].elements[0].text.paragraphs[0].runs[0].style.baseline = 30;
+  const shiftedPixels = await formatPixels("text-raised", await compileFormat(shiftedProgram), 30, false);
+  assert.equal(shiftedPixels.minY, plainPixels.minY - 12);
+  assert.equal(shiftedPixels.maxY, plainPixels.maxY - 12);
+  const decoratedProgram = structuredClone(formatProgram);
+  Object.assign(decoratedProgram.pages[0].elements[0].text.paragraphs[0].runs[0].style, { underline: "sng", strike: "sngStrike" });
+  const decoratedPixels = await formatPixels("text-decorated", await compileFormat(decoratedProgram), 0, true);
+  assert.ok(decoratedPixels.count > plainPixels.count, "Decoration adds actual raster ink, not only SVG attributes");
+  const formatSource = await withoutAuthoredSnapshot(plainFormat.file), formatBefore = formatSource.slice();
+  const formatProjection = await projectPptxToPpj(formatSource, { sourceUri: "text-format.pptx", assetRootUri: "assets" });
+  const formatInput = { program: formatProjection.programJson, source: formatSource, assets: formatProjection.assets };
+  const formatNoop = await compilePpjWorkspace(formatInput, { includePreviewScene: true });
+  assert.deepEqual(formatNoop.file, formatSource);
+  await formatPixels("text-source-noop", formatNoop, 0, false);
+  const formatEdit = JSON.parse(new TextDecoder().decode(formatProjection.programJson));
+  for (const [kind, value] of [["fontBaselinePercent", -30], ["fontUnderline", "sng"], ["fontStrike", "sngStrike"], ["fontSpacingPoints", -3]]) {
+    const leaf = formatEdit.pages[0].elements[0].nativeRef.leaves.find(leaf => leaf.kind === kind);
+    assert.ok(leaf, `Source must issue ${kind} editing capability`);
+    leaf.value = value;
+  }
+  const formatCandidate = await compilePpjWorkspace({ ...formatInput, program: Buffer.from(JSON.stringify(formatEdit)) }, { includePreviewScene: true });
+  const editedPixels = await formatPixels("text-source-edited", formatCandidate, -30, true, -3);
+  assert.equal(editedPixels.minY, decoratedPixels.minY + 12);
+  assert.equal(editedPixels.maxY, decoratedPixels.maxY + 12);
+  const equivalentFormat = structuredClone(decoratedProgram);
+  Object.assign(equivalentFormat.pages[0].elements[0].text.paragraphs[0].runs[0].style, { baseline: -30, letterSpacing: -3 });
+  assert.deepEqual(editedPixels, await formatPixels("text-equivalent-authored", await compileFormat(equivalentFormat), -30, true, -3));
+  const formatFresh = await projectPptxToPpj(formatCandidate.file, { sourceUri: "text-format-edited.pptx", assetRootUri: "assets" });
+  const freshStyle = JSON.parse(new TextDecoder().decode(formatFresh.programJson)).pages[0].elements[0].text.paragraphs[0].runs[0].style;
+  assert.equal(freshStyle.baseline, -30);
+  assert.equal(freshStyle.underline, "single");
+  assert.equal(freshStyle.strike, "sngStrike");
+  assert.equal(freshStyle.letterSpacing, -3);
+  const formatOldZip = await JSZip.loadAsync(formatSource), formatNewZip = await JSZip.loadAsync(formatCandidate.file);
+  assert.deepEqual(Object.keys(formatOldZip.files).sort(), Object.keys(formatNewZip.files).sort());
+  const formatChangedParts = [];
+  for (const name of Object.keys(formatOldZip.files)) if (!formatOldZip.files[name].dir &&
+    !Buffer.from(await formatOldZip.file(name).async("uint8array")).equals(Buffer.from(await formatNewZip.file(name).async("uint8array")))) formatChangedParts.push(name);
+  assert.deepEqual(formatChangedParts, ["ppt/slides/slide1.xml"]);
+  assert.deepEqual(formatSource, formatBefore);
+  const paragraphProgram = structuredClone(formatProgram);
+  paragraphProgram.pages[0].elements[0].frame.height = 260;
+  paragraphProgram.pages[0].elements[0].text.paragraphs = [
+    { style: { lineSpacing: 40, spaceBefore: 10, spaceAfter: 15, indent: 30, hanging: 10 }, runs: [{ text: "HH\nHH", style: { size: 20, color: "#000000" } }] },
+    { runs: [{ text: "HH", style: { size: 20, color: "#000000" } }] },
+  ];
+  async function paragraphPixels(name, result) {
+    const painted = await savePaint(name, result);
+    const positions = [...painted.pages[0].svg.matchAll(/<text x="([^"]+)" y="([^"]+)" text-anchor/g)].map(m => ({ x: Number(m[1]), y: Number(m[2]) }));
+    const ys = positions.map(p => p.y), xs = positions.map(p => p.x);
+    assert.equal(ys.length, 3);
+    const { data, info } = await sharp(Buffer.from(painted.pages[0].svg)).flatten({ background: "#FFFFFF" }).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const starts = [], lefts = []; let previousInk = false;
+    for (let y = 60; y < 350; y++) {
+      let ink = false, left = Infinity;
+      for (let x = 100; x < 250; x++) {
+        const i = (y * info.width + x) * info.channels;
+        if (data[i] < 128 && data[i + 1] < 128 && data[i + 2] < 128) { ink = true; left = x; break; }
+      }
+      if (ink && !previousInk) { starts.push(y); lefts.push(left); }
+      else if (ink) lefts[lefts.length - 1] = Math.min(lefts.at(-1), left);
+      previousInk = ink;
+    }
+    assert.equal(starts.length, 3);
+    return { ys, xs, starts, lefts };
+  }
+  const paragraphAuthored = await compileFormat(paragraphProgram);
+  const paragraphPixelsBefore = await paragraphPixels("paragraph-authored", paragraphAuthored);
+  assert.ok(Math.abs(paragraphPixelsBefore.ys[1] - paragraphPixelsBefore.ys[0] - 40) < 1e-9);
+  assert.equal(paragraphPixelsBefore.starts[1] - paragraphPixelsBefore.starts[0], 40);
+  paragraphPixelsBefore.xs.forEach((x, i) => assert.ok(Math.abs(x - [127.2, 137.2, 107.2][i]) < 1e-9));
+  assert.equal(paragraphPixelsBefore.lefts[1] - paragraphPixelsBefore.lefts[0], 10);
+  const paragraphSource = await withoutAuthoredSnapshot(paragraphAuthored.file), paragraphBefore = paragraphSource.slice();
+  const paragraphProjection = await projectPptxToPpj(paragraphSource, { sourceUri: "paragraph.pptx", assetRootUri: "assets" });
+  const paragraphInput = { program: paragraphProjection.programJson, source: paragraphSource, assets: paragraphProjection.assets };
+  const paragraphNoop = await compilePpjWorkspace(paragraphInput, { includePreviewScene: true });
+  assert.deepEqual(paragraphNoop.file, paragraphSource);
+  assert.deepEqual(await paragraphPixels("paragraph-noop", paragraphNoop), paragraphPixelsBefore);
+  const paragraphEdit = JSON.parse(new TextDecoder().decode(paragraphProjection.programJson));
+  for (const [kind, value] of [["paragraphLineSpacingPoints", 55], ["paragraphSpaceBeforePoints", 0], ["paragraphSpaceAfterPoints", 0], ["paragraphMarginLeftEmu", 0], ["paragraphIndentEmu", 0]]) {
+    const leaf = paragraphEdit.pages[0].elements[0].nativeRef.leaves.find(l => l.kind === kind);
+    assert.ok(leaf, kind); leaf.value = value;
+  }
+  const paragraphCandidate = await compilePpjWorkspace({ ...paragraphInput, program: Buffer.from(JSON.stringify(paragraphEdit)) }, { includePreviewScene: true });
+  const paragraphPixelsAfter = await paragraphPixels("paragraph-edited", paragraphCandidate);
+  assert.deepEqual(paragraphPixelsAfter.starts.map((y, i) => y - paragraphPixelsBefore.starts[i]), [-10, 5, -10]);
+  assert.deepEqual(paragraphPixelsAfter.lefts.map((x, i) => x - paragraphPixelsBefore.lefts[i]), [-20, -30, 0]);
+  assert.deepEqual(paragraphPixelsAfter.xs, [107.2, 107.2, 107.2]);
+  assert.ok(Math.abs(paragraphPixelsAfter.ys[1] - paragraphPixelsAfter.ys[0] - 55) < 1e-9);
+  const paragraphFresh = await projectPptxToPpj(paragraphCandidate.file, { sourceUri: "paragraph-edited.pptx", assetRootUri: "assets" });
+  const paragraphStyle = JSON.parse(new TextDecoder().decode(paragraphFresh.programJson)).pages[0].elements[0].text.paragraphs[0].style;
+  assert.equal(paragraphStyle.lineSpacing, 55);
+  assert.equal(paragraphStyle.spaceBefore, 0);
+  assert.equal(paragraphStyle.spaceAfter, 0);
+  assert.equal(paragraphStyle.indent, 0);
+  assert.equal(paragraphStyle.hanging, 0);
+  const paragraphOldZip = await JSZip.loadAsync(paragraphSource), paragraphNewZip = await JSZip.loadAsync(paragraphCandidate.file);
+  assert.deepEqual(Object.keys(paragraphOldZip.files).sort(), Object.keys(paragraphNewZip.files).sort());
+  const paragraphChangedParts = [];
+  for (const name of Object.keys(paragraphOldZip.files)) if (!paragraphOldZip.files[name].dir &&
+    !Buffer.from(await paragraphOldZip.file(name).async("uint8array")).equals(Buffer.from(await paragraphNewZip.file(name).async("uint8array")))) paragraphChangedParts.push(name);
+  assert.deepEqual(paragraphChangedParts, ["ppt/slides/slide1.xml"]);
+  assert.deepEqual(paragraphSource, paragraphBefore);
+  const outlineProgram = structuredClone(pairBase);
+  outlineProgram.pages[0].elements = [{ id: "outline", type: "shape", geometry: { kind: "preset", preset: "rect" },
+    frame: { x: 100, y: 100, width: 200, height: 100 },
+    style: { fill: { type: "solid", color: "#FFFFFF" }, stroke: { color: "#FF0000", width: 4, dash: "dash", cap: "flat", join: "miter" } } }];
+  async function outlinePixels(name, result, edited = false) {
+    const painted = await savePaint(name, result);
+    const shape = createPpjSceneView(result).pages[0].nodes.find(n => n.kind === "shape").native;
+    assert.equal(shape.lineStyle, edited ? "dotted" : "dashed");
+    assert.equal(shape.lineCap, edited ? "round" : "flat");
+    assert.equal(shape.lineJoin, edited ? "bevel" : "miter");
+    assert.ok(painted.pages[0].svg.includes(`stroke-linecap="${edited ? "round" : "butt"}" stroke-linejoin="${edited ? "bevel" : "miter"}" stroke-dasharray="${edited ? "4 12" : "16 12"}"`));
+    const { data, info } = await sharp(Buffer.from(painted.pages[0].svg)).flatten({ background: "#FFFFFF" }).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    for (const [x, expected] of edited ? [[110, [255,255,255]], [118, [255,0,0]]] : [[110, [255,0,0]], [122, [255,255,255]]]) {
+      const offset = (100 * info.width + x) * info.channels;
+      assert.deepEqual([...data.subarray(offset, offset + 3)], expected);
+    }
+  }
+  const outlineAuthored = await compileFormat(outlineProgram);
+  await outlinePixels("outline-authored", outlineAuthored);
+  const outlineSource = await withoutAuthoredSnapshot(outlineAuthored.file), outlineBefore = outlineSource.slice();
+  const outlineProjection = await projectPptxToPpj(outlineSource, { sourceUri: "outline.pptx", assetRootUri: "assets" });
+  const outlineInput = { program: outlineProjection.programJson, source: outlineSource, assets: outlineProjection.assets };
+  const outlineNoop = await compilePpjWorkspace(outlineInput, { includePreviewScene: true });
+  assert.deepEqual(outlineNoop.file, outlineSource);
+  await outlinePixels("outline-noop", outlineNoop);
+  const outlineEdit = JSON.parse(new TextDecoder().decode(outlineProjection.programJson));
+  for (const [kind, value] of [["lineStyle", "dotted"], ["lineCap", "round"], ["lineJoin", "bevel"]]) {
+    const leaf = outlineEdit.pages[0].elements[0].nativeRef.leaves.find(l => l.kind === kind);
+    assert.ok(leaf, kind); leaf.value = value;
+  }
+  const outlineCandidate = await compilePpjWorkspace({ ...outlineInput, program: Buffer.from(JSON.stringify(outlineEdit)) }, { includePreviewScene: true });
+  await outlinePixels("outline-edited", outlineCandidate, true);
+  const outlineFresh = await projectPptxToPpj(outlineCandidate.file, { sourceUri: "outline-edited.pptx", assetRootUri: "assets" });
+  const outlineLeaves = JSON.parse(new TextDecoder().decode(outlineFresh.programJson)).pages[0].elements[0].nativeRef.leaves;
+  for (const [kind, value] of [["lineStyle", "dotted"], ["lineCap", "round"], ["lineJoin", "bevel"]]) assert.equal(outlineLeaves.find(l => l.kind === kind).value, value);
+  const outlineOldZip = await JSZip.loadAsync(outlineSource), outlineNewZip = await JSZip.loadAsync(outlineCandidate.file);
+  assert.deepEqual(Object.keys(outlineOldZip.files).sort(), Object.keys(outlineNewZip.files).sort());
+  const outlineChangedParts = [];
+  for (const name of Object.keys(outlineOldZip.files)) if (!outlineOldZip.files[name].dir &&
+    !Buffer.from(await outlineOldZip.file(name).async("uint8array")).equals(Buffer.from(await outlineNewZip.file(name).async("uint8array")))) outlineChangedParts.push(name);
+  assert.deepEqual(outlineChangedParts, ["ppt/slides/slide1.xml"]);
+  assert.deepEqual(outlineSource, outlineBefore);
+  const diagramProgram = structuredClone(pairBase);
+  diagramProgram.design.styles.shape = [{ id: "cache-shape", style: { fill: { type: "solid", color: "#CC5500" } } }];
+  diagramProgram.design.styles.text = [{ id: "cache-text", style: { defaultText: { fontFamily: "Arial", size: 20, color: "#000000" } } }];
+  diagramProgram.pages[0].elements = [{ id: "process", type: "smartArt", mode: "authored", layout: "process",
+    frame: { x: 100, y: 100, width: 600, height: 180 }, shapeStyleRef: "cache-shape", textStyleRef: "cache-text",
+    nodeGeometry: { kind: "preset", preset: "rect" },
+    connector: { stroke: { color: "#000000", width: 2 }, endArrow: "triangle" },
+    nodes: [{ id: "a", text: "Observe" }, { id: "b", text: "Decide" }],
+    connections: [{ id: "edge", from: "a", to: "b", role: "sequence", order: 0 }] }];
+  diagramProgram.pages[0].elements.push({ id: "diagram-sibling", type: "shape", frame: { x: 750, y: 100, width: 80, height: 80 },
+    geometry: { kind: "preset", preset: "ellipse" }, style: { fill: { type: "solid", color: "#0088CC" } }, text: "Keep sibling" });
+  async function diagramPixels(name, result, label) {
+    const view = createPpjSceneView(result), diagram = view.pages[0].nodes.find(n => n.kind === "diagram");
+    assert.ok(diagram?.native.drawingCacheVerified);
+    if (result.previewScene.origin === 2) {
+      const painted = await savePaint(name, result);
+      assert.ok(diagram.native.nodes.some(n => n.textBody.paragraphs.some(p => p.runs.some(r => r.content.value === label))));
+      assert.equal(painted.reliability.status, "failed");
+      assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.diagram-import-incomplete"));
+      assert.match(painted.pages[0].svg, /diagram: imported drawing incomplete/);
+      return;
+    }
+    assert.ok(diagram.drawing.children.some(n => n.kind === "connector"));
+    const shape = diagram.drawing.children.find(n => n.kind === "shape" && n.native.text.includes(label));
+    assert.ok(shape, "Verified cache must contain current candidate text");
+    const painted = await savePaint(name, result);
+    assert.match(painted.pages[0].svg, /data-officekit-diagram="verified-cache"/);
+    assert.ok(painted.pages[0].svg.includes(label));
+    assert.ok(painted.pages[0].svg.includes(`data-officekit-native-id="${shape.nativeId}"`));
+    const f = diagram.drawing.frame, c = diagram.drawing.childFrame;
+    const x = Math.floor(f.x + (shape.frame.x + shape.frame.width / 2 - c.x) * f.width / c.width);
+    const y = Math.floor(f.y + (shape.frame.y + shape.frame.height - 8 - c.y) * f.height / c.height);
+    const { data, info } = await sharp(Buffer.from(painted.pages[0].svg)).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const offset = (y * info.width + x) * info.channels;
+    assert.deepEqual([...data.subarray(offset, offset + 3)], [204, 85, 0]);
+  }
+  const diagramAuthored = await compileFormat(diagramProgram);
+  await diagramPixels("diagram-authored", diagramAuthored, "Observe");
+  const diagramSource = await withoutAuthoredSnapshot(diagramAuthored.file), diagramBefore = diagramSource.slice();
+  const diagramProjection = await projectPptxToPpj(diagramSource, { sourceUri: "diagram.pptx", assetRootUri: "assets" });
+  const diagramInput = { program: diagramProjection.programJson, source: diagramSource, assets: diagramProjection.assets };
+  const diagramNoop = await compilePpjWorkspace(diagramInput, { includePreviewScene: true });
+  assert.deepEqual(diagramNoop.file, diagramSource);
+  await diagramPixels("diagram-noop", diagramNoop, "Observe");
+  const diagramEdit = JSON.parse(new TextDecoder().decode(diagramProjection.programJson));
+  diagramEdit.pages[0].elements.find(e => e.type === "smartArt").nodes[0].text = "Updated observation";
+  const diagramCandidate = await compilePpjWorkspace({ ...diagramInput, program: Buffer.from(JSON.stringify(diagramEdit)) }, { includePreviewScene: true });
+  await diagramPixels("diagram-edited", diagramCandidate, "Updated observation");
+  const diagramFresh = await projectPptxToPpj(diagramCandidate.file, { sourceUri: "diagram-edited.pptx", assetRootUri: "assets" });
+  assert.ok(new TextDecoder().decode(diagramFresh.programJson).includes("Updated observation"));
+  const diagramOldZip = await JSZip.loadAsync(diagramSource), diagramNewZip = await JSZip.loadAsync(diagramCandidate.file);
+  const diagramFailures = [];
+  // This controlled fixture has exactly one SmartArt. Its source editor
+  // replaces an exclusively owned graph, not a single drawing XML leaf.
+  // Resolve actual relationship targets instead of allowing a directory glob.
+  const xmlAttributes = tag => Object.fromEntries([...tag.matchAll(/([\w:]+)="([^"]*)"/g)].map(m => [m[1], m[2]]));
+  // The controlled SDK fixture may reorder attributes and add a redundant
+  // root declaration for the same a namespace already declared on children.
+  // Do not remove arbitrary namespaces or alter any content/attribute values.
+  const orderedXml = xml => xml.replace(/<p:sld\b[^>]*>/, tag => tag.replace(' xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"', ""))
+    .replace(/<([\w:.-]+)(\s[^<>]*?)?(\/?)>/g, (tag, name, _, close) =>
+    `<${name} ${JSON.stringify(Object.entries(xmlAttributes(tag)).sort(([a],[b]) => a.localeCompare(b)))}${close}>`);
+  async function diagramGraph(zip) {
+    const slide = await zip.file("ppt/slides/slide1.xml").async("string");
+    const frames = [...slide.matchAll(/<(?:\w+:)?graphicFrame\b[\s\S]*?<\/(?:\w+:)?graphicFrame>/g)].map(m => m[0]);
+    assert.equal(frames.length, 1);
+    const ids = xmlAttributes(frames[0].match(/<(?:\w+:)?relIds\b[^>]*>/)[0]);
+    const rels = [...(await zip.file("ppt/slides/_rels/slide1.xml.rels").async("string")).matchAll(/<Relationship\b[^>]*\/>/g)].map(m => xmlAttributes(m[0]));
+    const targets = {}, relationshipIds = new Set();
+    const resolve = (id, role) => {
+      const rel = rels.find(r => r.Id === id);
+      assert.ok(rel && !rel.TargetMode && rel.Type.endsWith(`/${role}`), `${role} relationship`);
+      const part = path.posix.normalize(rel.Target.startsWith("/") ? rel.Target.slice(1) : path.posix.join("ppt/slides", rel.Target));
+      assert.ok(zip.file(part), part); relationshipIds.add(id); return part;
+    };
+    for (const [key, role] of [["dm", "diagramData"], ["lo", "diagramLayout"], ["qs", "diagramQuickStyle"], ["cs", "diagramColors"]])
+      targets[role] = resolve(Object.entries(ids).find(([name]) => name.endsWith(`:${key}`))[1], role);
+    const data = await zip.file(targets.diagramData).async("string");
+    const drawingId = xmlAttributes(data.match(/<(?:\w+:)?dataModelExt\b[^>]*>/)[0]).relId;
+    targets.diagramDrawing = resolve(drawingId, "diagramDrawing");
+    return { slide, frame: frames[0], rels, relationshipIds, targets };
+  }
+  const diagramOldGraph = await diagramGraph(diagramOldZip), diagramNewGraph = await diagramGraph(diagramNewZip);
+  const diagramOwnedParts = new Set([...Object.values(diagramOldGraph.targets), ...Object.values(diagramNewGraph.targets)]);
+  const diagramOwnedRelationships = new Set([...diagramOldGraph.relationshipIds, ...diagramNewGraph.relationshipIds]);
+  const diagramChangedParts = [];
+  for (const name of new Set([...Object.keys(diagramOldZip.files), ...Object.keys(diagramNewZip.files)])) {
+    const old = diagramOldZip.file(name), candidate = diagramNewZip.file(name);
+    if (!old && !candidate) continue;
+    if (!old || !candidate || !Buffer.from(await old.async("uint8array")).equals(Buffer.from(await candidate.async("uint8array")))) diagramChangedParts.push(name);
+  }
+  assert.ok(diagramChangedParts.length > 0);
+  try {
+    const permitted = new Set([...diagramOwnedParts, "[Content_Types].xml", "ppt/slides/slide1.xml", "ppt/slides/_rels/slide1.xml.rels"]);
+    assert.ok(diagramChangedParts.every(name => permitted.has(name)), JSON.stringify(diagramChangedParts));
+    // Whole other files are byte-equal, because every changed/added/removed
+    // part was classified above. Check shared parts below at subtree scope.
+    const outsideBefore = diagramOldGraph.slide.replace(diagramOldGraph.frame, "TARGET"), outsideAfter = diagramNewGraph.slide.replace(diagramNewGraph.frame, "TARGET");
+    assert.equal(orderedXml(outsideBefore), orderedXml(outsideAfter));
+    assert.notEqual(orderedXml(outsideBefore), orderedXml(outsideAfter.replace("Keep sibling", "WRONG sibling")));
+    const unrelatedRels = graph => graph.rels.filter(r => !diagramOwnedRelationships.has(r.Id)).sort((a,b) => a.Id.localeCompare(b.Id));
+    assert.deepEqual(unrelatedRels(diagramOldGraph), unrelatedRels(diagramNewGraph));
+    const unrelatedTypes = async zip => [...(await zip.file("[Content_Types].xml").async("string")).matchAll(/<(?:Default|Override)\b[^>]*\/>/g)]
+      .map(m => xmlAttributes(m[0])).filter(a => !diagramOwnedParts.has(a.PartName?.replace(/^\//, "")))
+      .sort((a,b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+    assert.deepEqual(await unrelatedTypes(diagramOldZip), await unrelatedTypes(diagramNewZip));
+    for (const role of ["diagramLayout", "diagramQuickStyle", "diagramColors"])
+      assert.deepEqual(await diagramOldZip.file(diagramOldGraph.targets[role]).async("uint8array"), await diagramNewZip.file(diagramNewGraph.targets[role]).async("uint8array"));
+  } catch (error) { diagramFailures.push(error); }
+  await writeFile(path.join(artifacts, "diagram-source.pptx"), diagramSource, { flag: "wx" });
+  await writeFile(path.join(artifacts, "diagram-candidate.pptx"), diagramCandidate.file, { flag: "wx" });
+  assert.deepEqual(diagramSource, diagramBefore);
   const primitive = { id: "tile", type: "shape", frame: { x: 10, y: 10, width: 60, height: 40 },
     geometry: { kind: "custom", viewBox: { x: 0, y: 0, width: 100, height: 100 }, paths: [{ fill: true, stroke: false,
       commands: [{ op: "moveTo", x: 50, y: 0 }, { op: "arcTo", radiusX: 50, radiusY: 25, startAngle: 45, sweepAngle: 90 },
@@ -778,10 +1075,20 @@ try {
   assert.deepEqual(chartChangedParts.sort(), ["ppt/slides/charts/chart1.xml"]);
   assert.deepEqual(source, beforeSource);
   assert.ok(started.includes("office") && started.includes("ppj"));
-  const report = { status: relationFailures.length ? "failed" : "passed", scope: "PPJ NativeAOT wire/view and internal SVG foundations; not production scene routing or complete paint coverage",
+  const report = { status: relationFailures.length || diagramFailures.length ? "failed" : "passed", scope: "PPJ NativeAOT wire/view and internal SVG foundations; not production scene routing or complete paint coverage",
+    diagramFailures: diagramFailures.map(error => error.message),
+    recordedAt: new Date().toISOString(),
+    javascript: Object.fromEntries(await Promise.all(["../src/ppj/preview-scene-svg.mjs", "./ppj-preview-scene-native.mjs"].map(async file =>
+      [file, sha256(await readFile(new URL(file, import.meta.url)))]))),
     nativeBars, nativeStacks, nativeCircular,
     relationFailures: relationFailures.map(({ shift, actual, error }) => ({ shift, actual, message: error.message })),
     internalPainting: { artifacts, pairedComponent: 1, customArcPath, generatedBezierPaths: paths, sourceTextEdit: true, directedAnchorCases, requiredDirectedAnchorCases: 2,
+      textFormats: { baselinePixels: true, decorationPixels: true, signedSpacingPixels: true, sourceNoop: true, sourceEditReprojection: true, changedParts: formatChangedParts },
+      paragraphSpacing: { authored: true, sourceNoop: true, pixels: true, marginAndHangingPixels: true, zeroSpacingEdit: true, reprojection: true, changedParts: paragraphChangedParts },
+      shapeOutline: { authored: true, sourceNoop: true, dashPixels: true, sourceEditReprojection: true, changedParts: outlineChangedParts },
+      diagramCache: { authoredPixels: true, sourceNoop: true, candidateText: true, reprojection: true, changedParts: diagramChangedParts,
+        ownership: { source: diagramOldGraph.targets, candidate: diagramNewGraph.targets, outsideGraphPreserved: diagramFailures.length === 0 },
+        importedPainting: "unavailable: importer omits cached connection and paint state; explicit failure asserted" },
       imageCrop: { positiveCrop: true, negativeLetterbox: true, sourceNoop: true, sourceEditReprojection: true, pixels: true },
       imageBorder: { authoredAndSourceEdit: true, rgbPixels: true, reprojection: true, nonTargetPreserved: true },
       imageMasks: { presets: ["ellipse", "diamond", "roundRect"], roundRectZeroEdit: true, customPath: true, authoredAndSourceEdit: true, cropCombinedPixels: true, reprojection: true },
@@ -796,6 +1103,7 @@ try {
   })), authored: 2, sourceBound: ["no-op with assets/table", "text leaf edit with assets/table", "table frame edit and fresh reprojection", "literal line value edit and fresh reprojection"] };
   await writeFile(path.join(artifacts, "integration.json"), JSON.stringify(report, null, 2), { flag: "wx" });
   console.log(JSON.stringify(report, null, 2));
+  if (diagramFailures.length) throw new AggregateError(diagramFailures, "Diagram source-edit part preservation needs ownership audit; independent regressions executed, not a passing integration.");
   if (relationFailures.length) throw new AggregateError(relationFailures.map(f => f.error), "Authored object-anchor regressions failed; independent table/source checks executed, not a passing integration.");
 } finally {
   hook.deregister();

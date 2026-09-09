@@ -202,46 +202,93 @@ export function paintPpjSceneSvg(receipt) {
     return paragraphs.map((paragraph, pi) => {
       const defaults = paragraph.defaultRunStyle?.case === "defaultRunProperties" ? paragraph.defaultRunStyle.value : {};
       const prefix = `${ownerField}.textBody.paragraphs[${pi}].`;
+      const leftAligned = !paragraph.alignment || paragraph.alignment === "left";
       if (body) {
-        unused(PresentationTextParagraphSchema, paragraph, ["runs", "alignment", "defaultRunProperties"], node, prefix);
+        unused(PresentationTextParagraphSchema, paragraph, ["runs", "alignment", "defaultRunProperties", "lineSpacingPoints", "spaceBeforePoints", "spaceAfterPoints", "marginLeftEmu", ...(leftAligned ? ["indentEmu"] : [])], node, prefix);
         if (defaults.$typeName) unused(PresentationTextStyleSchema, defaults,
-          ["fontSizePoints", "fontFamily", "bold", "italic", "colorRgb", "colorOpacityThousandthPercent"], node, `${prefix}defaultRunProperties.`);
+          ["fontSizePoints", "fontFamily", "bold", "italic", "colorRgb", "colorOpacityThousandthPercent", "underline", "strike", "fontBaselinePercent", "fontSpacingPoints"], node, `${prefix}defaultRunProperties.`);
       }
       const align = paragraph.alignment;
       if (align && !["left", "center", "right"].includes(align)) limit(node, `${prefix}alignment`, "preview.scene.paint.text-alignment", align);
-      const x = align === "center" ? (left + right) / 2 : align === "right" ? right : left;
+      const paragraphLeft = left + (paragraph.leftMargin?.case === "marginLeftEmu" ? scenePoints(paragraph.leftMargin.value) : 0);
+      const firstLineIndent = leftAligned && paragraph.indentation?.case === "indentEmu" ? scenePoints(paragraph.indentation.value) : 0;
+      const x = align === "center" ? (paragraphLeft + right) / 2 : align === "right" ? right : paragraphLeft;
+      const pointSpacing = (field, selected) => {
+        const choice = paragraph[field];
+        if (choice?.case !== selected) return undefined;
+        const value = choice.value;
+        if (!Number.isFinite(value) || value < 0 || field === "lineSpacing" && value === 0) {
+          limit(node, `${prefix}${selected}`, "preview.scene.paint.paragraph-spacing", value, "unavailable");
+          throw new RangeError("Invalid native paragraph spacing");
+        }
+        return value;
+      };
+      const lineSpacing = pointSpacing("lineSpacing", "lineSpacingPoints");
+      const spaceBefore = pointSpacing("spaceBefore", "spaceBeforePoints") ?? 0;
+      const spaceAfter = pointSpacing("spaceAfter", "spaceAfterPoints") ?? 0;
+      y += spaceBefore;
       const lines = [[]];
       for (const [ri, run] of paragraph.runs.entries()) {
         const rp = `${prefix}runs[${ri}].`;
         if (body) unused(PresentationTextRunSchema, run,
-          ["text", "lineBreak", "fontSizePoints", "fontFamily", "bold", "italic", "colorRgb", "colorOpacityThousandthPercent"], node, rp);
+          ["text", "lineBreak", "fontSizePoints", "fontFamily", "bold", "italic", "colorRgb", "colorOpacityThousandthPercent", "underline", "strike", "fontBaselinePercent", "fontSpacingPoints"], node, rp);
         if (run.content.case === "lineBreak") { lines.push([]); continue; }
         if (run.content.case !== "text") { limit(node, `${rp}content`, "preview.scene.paint.text-content", run.content.case); continue; }
         const size = sceneFontPoints(run.fontSizePoints ?? defaults.fontSizePoints ?? fallback.fontSizePoints ?? 18);
+        const decorations = [];
+        for (const [field, off, on, svgValue] of [["underline", "none", "sng", "underline"], ["strike", "noStrike", "sngStrike", "line-through"]]) {
+          const value = run[field] ?? defaults[field] ?? fallback[field];
+          if (value === on) decorations.push(svgValue);
+          else if (value !== undefined && value !== off)
+            limit(node, `${rp}${field}`, "preview.scene.paint.text-decoration", value, "unavailable");
+        }
+        const baseline = run.fontBaselinePercent ?? defaults.fontBaselinePercent ?? fallback.fontBaselinePercent ?? 0;
+        if (!Number.isFinite(baseline) || baseline < -400 || baseline > 400) {
+          limit(node, `${rp}fontBaselinePercent`, "preview.scene.paint.text-baseline", baseline, "unavailable");
+          throw new RangeError("Invalid native text baseline percentage");
+        }
+        const shift = -size * baseline / 100;
+        const spacing = run.fontSpacingPoints ?? defaults.fontSpacingPoints ?? fallback.fontSpacingPoints;
+        if (spacing !== undefined && (!Number.isFinite(spacing) || spacing < -768 || spacing > 768)) {
+          limit(node, `${rp}fontSpacingPoints`, "preview.scene.paint.text-spacing", spacing, "unavailable");
+          throw new RangeError("Invalid native text spacing in points");
+        }
         const defaultColor = defaults.color?.case === "colorRgb" ? defaults.color.value : fallback.color?.case === "colorRgb" ? fallback.color.value : undefined;
         const style = `font-family="${esc(run.fontFamily || defaults.fontFamily || fallback.fontFamily || "sans-serif")}" font-size="${n(size)}" font-weight="${(run.bold ?? defaults.bold ?? fallback.bold) ? "bold" : "normal"}" font-style="${(run.italic ?? defaults.italic ?? fallback.italic) ? "italic" : "normal"}" fill="${rgb(run.colorRgb || defaultColor, "#000000")}" fill-opacity="${n(sceneOpacity(run.colorOpacityThousandthPercent ?? defaults.colorOpacityThousandthPercent ?? fallback.colorOpacityThousandthPercent ?? 100000))}"`;
         // Preserve explicit newlines as line boundaries, not one line per run.
         run.content.value.split(/\r\n|\r|\n/u).forEach((segment, i) => {
           if (i) lines.push([]);
-          lines.at(-1).push({ size, svg: `<tspan ${style}>${esc(segment)}</tspan>` });
+          lines.at(-1).push({ size, shift, spacing, style, decoration: decorations.join(" ") || "none", segment });
         });
       }
-      return lines.map(line => {
+      let previousSize = 0;
+      const paragraphSvg = lines.map((line, index) => {
         const size = Math.max(sceneFontPoints(defaults.fontSizePoints ?? fallback.fontSizePoints ?? 18), ...line.map(run => run.size));
-        y += size;
-        const svg = `<text x="${n(x)}" y="${n(y)}" text-anchor="${align === "center" ? "middle" : align === "right" ? "end" : "start"}" xml:space="preserve">${line.map(run => run.svg).join("")}</text>`;
-        y += size * .2;
+        y += index === 0 ? size : lineSpacing ?? previousSize * .2 + size;
+        previousSize = size;
+        let previousShift = 0;
+        const spans = line.map(run => {
+          // SVG dy changes the current text position. Undo the previous run's
+          // shift so following runs (including explicit zero) do not inherit it.
+          const dy = run.shift - previousShift;
+          previousShift = run.shift;
+          return `<tspan text-decoration="${run.decoration}" dy="${n(dy)}"${run.spacing === undefined ? "" : ` letter-spacing="${n(run.spacing)}"`} ${run.style}>${esc(run.segment)}</tspan>`;
+        }).join("");
+        const svg = `<text x="${n(x + (index === 0 ? firstLineIndent : 0))}" y="${n(y)}" text-anchor="${align === "center" ? "middle" : align === "right" ? "end" : "start"}" xml:space="preserve">${spans}</text>`;
         return svg;
       }).join("");
+      y += previousSize * .2 + spaceAfter;
+      return paragraphSvg;
     }).join("");
   }
   function shape(node) {
     const s = node.native, f = node.frame;
     unused(content.get("shape"), s, [...frameFields, "geometry", "text", "textBody", "fillRgb", "lineRgb", "lineWidthEmu",
-      "fillOpacityThousandthPercent", "lineOpacityThousandthPercent", "lineStyle", "transform", "customPaths",
+      "fillOpacityThousandthPercent", "lineOpacityThousandthPercent", "lineStyle", "lineCap", "lineJoin", "transform", "customPaths",
       ...(s.geometry === "roundRect" && !s.customPaths.length ? ["presetAdjustments"] : [])], node, "shape.");
-    if (s.lineStyle && !["solid", "none"].includes(s.lineStyle)) limit(node, "shape.lineStyle", "preview.scene.paint.line-style", s.lineStyle);
-    const paint = `fill="${rgb(s.fillRgb)}" fill-opacity="${n(sceneOpacity(s.fillOpacityThousandthPercent ?? 100000))}" stroke="${s.lineStyle === "none" ? "none" : rgb(s.lineRgb)}" stroke-opacity="${n(sceneOpacity(s.lineOpacityThousandthPercent ?? 100000))}" stroke-width="${n(scenePoints(s.lineWidthEmu))}"`;
+    const outline = linePaint(node, "shape", s.lineStyle === "none" ? "none" : rgb(s.lineRgb), scenePoints(s.lineWidthEmu),
+      sceneOpacity(s.lineOpacityThousandthPercent ?? 100000), s.lineStyle === "none" ? "solid" : s.lineStyle || "solid", s.lineCap, s.lineJoin, "lineStyle");
+    const paint = `fill="${rgb(s.fillRgb)}" fill-opacity="${n(sceneOpacity(s.fillOpacityThousandthPercent ?? 100000))}" ${outline}`;
     let geometry;
     if (s.customPaths.length) geometry = s.customPaths.map((path, i) => {
       const field = `shape.customPaths[${i}]`;
@@ -906,6 +953,15 @@ export function paintPpjSceneSvg(receipt) {
     const heading = text({ ...node, frame: { x: plot.x, y: f.y, width: plot.width, height: f.height * .15 } }, { text: s.title, textBody: s.titleBody }, "chart");
     return `<g data-officekit-chart="line" data-officekit-blank-policy="${blank}" data-officekit-scale-min="${n(low)}" data-officekit-scale-max="${n(high)}" data-officekit-log-base="${logBase ?? "linear"}">${heading}${axes}<svg ${box(f)} viewBox="${n(f.x)} ${n(f.y)} ${n(f.width)} ${n(f.height)}" overflow="hidden">${output}</svg>${observed.length ? "" : `<text x="${n(plot.x)}" y="${n(plot.y + 12)}" font-size="10">No observed data</text>`}</g>`;
   }
+  function paintGroup(node, group, prefix) {
+    const f = group.frame, c = group.childFrame;
+    unused(content.get("group"), group.native, [...frameFields, "childLeftEmu", "childTopEmu", "childWidthEmu", "childHeightEmu", "frameTransform", "children"], node, `${prefix}.`);
+    if (!f || !c || c.width <= 0 || c.height <= 0) throw new RangeError("Nonpositive native group child extent");
+    for (const value of Object.values(f)) numeric(value);
+    if (f.width < 0 || f.height < 0) throw new RangeError("Negative native group frame");
+    const matrix = `translate(${n(f.x)} ${n(f.y)}) scale(${n(f.width / c.width)} ${n(f.height / c.height)}) translate(${n(-c.x)} ${n(-c.y)})`;
+    return `<g transform="${matrix}">${group.children.map(draw).join("")}</g>`;
+  }
   function draw(node) {
     const identity = `data-officekit-native-id="${esc(node.nativeId)}" data-officekit-scene-path="${esc(node.scenePath)}"${node.semanticId ? ` data-officekit-id="${esc(node.semanticId)}"` : ""}`;
     let svg;
@@ -915,11 +971,21 @@ export function paintPpjSceneSvg(receipt) {
       for (const value of Object.values(node.frame)) numeric(value);
       if (node.frame.width < 0 || node.frame.height < 0) throw new RangeError("Negative native frame");
       if (node.kind === "group") {
-        const f = node.frame, c = node.childFrame;
-        unused(content.get("group"), node.native, [...frameFields, "childLeftEmu", "childTopEmu", "childWidthEmu", "childHeightEmu", "frameTransform", "children"], node, "group.");
-        if (!c || c.width <= 0 || c.height <= 0) throw new RangeError("Nonpositive native group child extent");
-        const matrix = `translate(${n(f.x)} ${n(f.y)}) scale(${n(f.width / c.width)} ${n(f.height / c.height)}) translate(${n(-c.x)} ${n(-c.y)})`;
-        svg = `<g transform="${matrix}">${node.children.map(draw).join("")}</g>`;
+        svg = paintGroup(node, node, "group");
+      } else if (node.kind === "diagram") {
+        unused(content.get("diagram"), node.native, [...frameFields, "drawing", "drawingCacheVerified"], node, "diagram.");
+        if (!node.native.drawingCacheVerified || !node.drawing?.children.length) {
+          limit(node, "diagram.drawing", "preview.scene.paint.diagram-cache", "No verified cached drawing is available", "opaque");
+          svg = placeholder(node, "diagram: verified drawing unavailable");
+        } else if (view.scene.origin === 2) {
+          // ReadCachedDrawing currently proves semantic-node geometry only;
+          // it does not import the complete cached pens/fills/connections.
+          limit(node, "diagram.drawing", "preview.scene.paint.diagram-import-incomplete", "Candidate-import cache lacks complete native paint and connection state", "unavailable");
+          svg = placeholder(node, "diagram: imported drawing incomplete");
+        } else {
+          limit(node, "diagram.drawing", "preview.scene.paint.diagram-cache-scope", "Displaying verified native cache; semantic layout/edit fidelity is not independently established by this image.");
+          svg = `<g data-officekit-diagram="verified-cache" transform="${frameTransform(node.drawing.frame, node.drawing.transform)}">${paintGroup(node, node.drawing, "diagram.drawing")}</g>`;
+        }
       } else if (node.kind === "shape") svg = shape(node);
       else if (node.kind === "image") svg = image(node);
       else if (node.kind === "connector") svg = connector(node);

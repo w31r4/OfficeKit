@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { create, clone, toBinary } from "@bufbuild/protobuf";
-import { PresentationPreviewSceneSchema, PresentationElementSchema,
+import { PresentationPreviewSceneSchema, PresentationElementSchema, PresentationTextParagraphSchema,
   PresentationCustomGeometryPathSchema, SpreadsheetChartMarkerArtifactSchema,
   SpreadsheetChartSeriesArtifactSchema, SpreadsheetChartPointStyleArtifactSchema,
   SpreadsheetChartSurfaceFillSchema, SpreadsheetChartAxisArtifactSchema } from "../src/generated/office_kit/artifact/v1/office_artifact_pb.js";
@@ -109,6 +109,7 @@ function fixture(edit = () => {}) {
         programPath: "$.pages[0]", scenePath, attribution: 1, zOrder: i,
       }));
       if (element.content.case === "group") bind(element.content.value.children, `${scenePath}.group.children`);
+      if (element.content.case === "diagram" && element.content.value.drawing) bind(element.content.value.drawing.children, `${scenePath}.diagram.drawing.children`);
     });
   }
   bind(scene.presentation.slides[0].elements, "$.presentation.slides[0].elements");
@@ -117,6 +118,144 @@ function fixture(edit = () => {}) {
     assets: [{ id: "public-asset", mimeType: "image/png", sha256: sha(data), data }] };
 }
 const receipt = fixture(), before = toBinary(PresentationPreviewSceneSchema, receipt.previewScene);
+for (const verified of [true, false]) {
+  const input = fixture(scene => scene.presentation.slides[0].elements.push(child("diagram", "diagram", {
+    ...frame(100, 100, 200, 100), drawingCacheVerified: verified, layout: "process",
+    drawing: { ...frame(100, 100, 200, 100), childLeftEmu: emu(10), childTopEmu: emu(20), childWidthEmu: emu(100), childHeightEmu: emu(50),
+      children: [child("cached-node", "shape", { ...frame(10, 20, 40, 20), geometry: "rect", fillRgb: "AA5500", text: "Cached label" })] },
+  })));
+  const original = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const result = paintPpjSceneSvg(input);
+  if (verified) {
+    assert.match(result.pages[0].svg, /data-officekit-diagram="verified-cache"/);
+    assert.match(result.pages[0].svg, /translate\(100 100\) scale\(2 2\) translate\(-10 -20\)/);
+    assert.match(result.pages[0].svg, /data-officekit-native-id="cached-node"/);
+    assert.match(result.pages[0].svg, /Cached label/);
+    assert.ok(result.diagnostics.some(d => d.scenePath.includes("diagram.drawing.children[0].shape.textBody")));
+  } else {
+    assert.match(result.pages[0].svg, /diagram: verified drawing unavailable/);
+    assert.ok(!result.pages[0].svg.includes("Cached label"));
+  }
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+for (const [dash, pattern] of [["dashed", "8 6"], ["dotted", "2 6"], ["dash-dot", "8 6 2 6"], ["dash-dot-dot", "16 6 2 6 2 6"]]) {
+  const input = fixture(scene => {
+    const s = scene.presentation.slides[0].elements[0].content.value;
+    Object.assign(s, { lineStyle: dash, lineCap: "round", lineJoin: "bevel", lineOpacityThousandthPercent: 50000 });
+  });
+  const original = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const result = paintPpjSceneSvg(input);
+  assert.ok(result.pages[0].svg.includes(`stroke="#AA2200" stroke-width="2" stroke-opacity="0.5" stroke-linecap="round" stroke-linejoin="bevel" stroke-dasharray="${pattern}"`));
+  assert.ok(result.diagnostics.some(d => d.reason === "preview.scene.paint.dash-metrics" && d.scenePath.endsWith("shape.lineStyle")));
+  assert.ok(!result.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && /\.(lineCap|lineJoin)$/.test(d.scenePath)));
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+for (const [lineWidthEmu, lineOpacityThousandthPercent] of [[0n, 100000], [emu(2), 0]]) {
+  const painted = paintPpjSceneSvg(fixture(scene => Object.assign(scene.presentation.slides[0].elements[0].content.value,
+    { lineWidthEmu, lineOpacityThousandthPercent })));
+  assert.ok(painted.pages[0].svg.includes(`stroke="#AA2200" stroke-width="${Number(lineWidthEmu) / 12700}" stroke-opacity="${lineOpacityThousandthPercent / 100000}"`));
+}
+const strokelessPath = paintPpjSceneSvg(fixture(scene => {
+  Object.assign(scene.presentation.slides[0].elements[2].content.value,
+    { lineStyle: "dashed", lineCap: "round", lineJoin: "bevel", lineRgb: "FF0000", lineWidthEmu: emu(2) });
+}));
+assert.match(strokelessPath.pages[0].svg, /stroke-dasharray="8 6"><path data-officekit-path="0"[^>]*stroke="none"/);
+const invalidShapeStroke = paintPpjSceneSvg(fixture(scene => {
+  scene.presentation.slides[0].elements[0].content.value.lineCap = "invented";
+}));
+assert.equal(invalidShapeStroke.reliability.status, "failed");
+for (const [margin, indent] of [[30, -10], [30, 10], [0, 0], [-5, 0]]) {
+  const input = fixture(scene => {
+    const p = scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0];
+    p.alignment = "left";
+    p.leftMargin = { case: "marginLeftEmu", value: emu(margin) };
+    p.indentation = { case: "indentEmu", value: emu(indent) };
+  });
+  const original = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const painted = paintPpjSceneSvg(input);
+  const xs = [...painted.pages[0].svg.matchAll(/<text x="([^"]+)" y="(?:59.6|78.8)"/g)].map(m => Number(m[1]));
+  assert.equal(xs.length, 2);
+  assert.ok(Math.abs(xs[0] - (17.2 + margin + indent)) < 1e-9);
+  assert.ok(Math.abs(xs[1] - (17.2 + margin)) < 1e-9);
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+  assert.ok(!painted.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && /\.(marginLeftEmu|indentEmu)$/.test(d.scenePath)));
+}
+const centeredIndent = paintPpjSceneSvg(fixture(scene => {
+  scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0].indentation = { case: "indentEmu", value: emu(10) };
+}));
+assert.ok(centeredIndent.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && d.scenePath.endsWith("indentEmu")));
+const paragraphSpacing = fixture(scene => {
+  const body = scene.presentation.slides[0].elements[0].content.value.textBody;
+  const p = body.paragraphs[0];
+  p.lineSpacing = { case: "lineSpacingPoints", value: 30 };
+  p.spaceBefore = { case: "spaceBeforePoints", value: 5 };
+  p.spaceAfter = { case: "spaceAfterPoints", value: 7 };
+  body.paragraphs.push(clone(PresentationTextParagraphSchema, p));
+});
+const paragraphOriginal = toBinary(PresentationPreviewSceneSchema, paragraphSpacing.previewScene);
+const paragraphPaint = paintPpjSceneSvg(paragraphSpacing);
+const textYs = [...paragraphPaint.pages[0].svg.matchAll(/<text x="110" y="([^"]+)"/g)].map(m => Number(m[1]));
+assert.equal(textYs.length, 4);
+assert.ok(Math.abs(textYs[0] - 64.6) < 1e-9);
+assert.ok(Math.abs(textYs[1] - textYs[0] - 30) < 1e-9);
+assert.ok(Math.abs(textYs[2] - textYs[1] - 31.2) < 1e-9);
+assert.ok(Math.abs(textYs[3] - textYs[2] - 30) < 1e-9);
+assert.deepEqual(toBinary(PresentationPreviewSceneSchema, paragraphSpacing.previewScene), paragraphOriginal);
+assert.ok(!paragraphPaint.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && /\.(lineSpacingPoints|spaceBeforePoints|spaceAfterPoints)$/.test(d.scenePath)));
+const zeroParagraph = paintPpjSceneSvg(fixture(scene => {
+  const p = scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0];
+  p.spaceBefore = { case: "spaceBeforePoints", value: 0 };
+  p.spaceAfter = { case: "spaceAfterPoints", value: 0 };
+  p.lineSpacing = { case: "lineSpacingMultiplier", value: 2 };
+}));
+assert.match(zeroParagraph.pages[0].svg, /<text x="110" y="59.6"/);
+assert.ok(zeroParagraph.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && d.scenePath.endsWith("lineSpacingMultiplier")));
+for (const value of [-1, 0, Infinity]) {
+  const result = paintPpjSceneSvg(fixture(scene => {
+    scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0].lineSpacing = { case: "lineSpacingPoints", value };
+  }));
+  assert.equal(result.reliability.status, "failed");
+  assert.ok(result.diagnostics.some(d => d.reason === "preview.scene.paint.paragraph-spacing"));
+}
+for (const spacing of [-768, -2.5, 0, 3.25, 768]) {
+  const input = fixture(scene => {
+    const p = scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0];
+    p.defaultRunStyle.value.fontSpacingPoints = spacing;
+    p.runs[1].fontSpacingPoints = 0;
+  });
+  const original = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const result = paintPpjSceneSvg(input);
+  assert.ok(result.pages[0].svg.includes(`letter-spacing="${spacing}"`));
+  assert.match(result.pages[0].svg, /letter-spacing="0"[^>]*>B<\/tspan>/);
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+  assert.ok(!result.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && d.scenePath.endsWith("fontSpacingPoints")));
+}
+for (const value of [-769, 769, Infinity]) {
+  const result = paintPpjSceneSvg(fixture(scene => {
+    scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0].runs[0].fontSpacingPoints = value;
+  }));
+  assert.equal(result.reliability.status, "failed");
+  assert.ok(result.diagnostics.some(d => d.reason === "preview.scene.paint.text-spacing"));
+}
+const textFormats = fixture(scene => {
+  const paragraph = scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0];
+  Object.assign(paragraph.defaultRunStyle.value, { underline: "sng", strike: "sngStrike", fontBaselinePercent: 25 });
+  Object.assign(paragraph.runs[1], { underline: "none", strike: "noStrike", fontBaselinePercent: 0 });
+  Object.assign(paragraph.runs[3], { fontBaselinePercent: -50 });
+});
+const textFormatsBefore = toBinary(PresentationPreviewSceneSchema, textFormats.previewScene);
+const textFormatsPaint = paintPpjSceneSvg(textFormats);
+assert.match(textFormatsPaint.pages[0].svg, /<tspan text-decoration="underline line-through" dy="-4"[^>]*>A &amp; <\/tspan><tspan text-decoration="none" dy="4"[^>]*>B<\/tspan>/);
+assert.match(textFormatsPaint.pages[0].svg, /<tspan text-decoration="underline line-through" dy="8"[^>]*>C<\/tspan>/);
+assert.deepEqual(toBinary(PresentationPreviewSceneSchema, textFormats.previewScene), textFormatsBefore);
+assert.ok(!textFormatsPaint.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && /\.(underline|strike|fontBaselinePercent)$/.test(d.scenePath)));
+for (const [field, value, reason] of [["underline", "wavyDbl", "text-decoration"], ["strike", "dblStrike", "text-decoration"], ["fontBaselinePercent", 401, "text-baseline"]]) {
+  const result = paintPpjSceneSvg(fixture(scene => {
+    scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0].runs[0][field] = value;
+  }));
+  assert.equal(result.reliability.status, "failed");
+  assert.ok(result.diagnostics.some(d => d.reason === `preview.scene.paint.${reason}` && d.scenePath.endsWith(field)));
+}
 for (const [width, alpha] of [[2, 50000], [0, 0]]) {
   const result = paintPpjSceneSvg(fixture(scene => {
     const photo = scene.presentation.slides[0].elements.find(e => e.content.case === "image").content.value;
