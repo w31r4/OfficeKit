@@ -1,0 +1,19 @@
+{
+  "description": "Interleaved series, array/object dataset rows, named/indexed channels, explicit missing value and real zeros.",
+  "frame": { "x": 100, "y": 100, "width": 600, "height": 300 },
+  "encoded": {
+    "dataset": {
+      "cols": ["category", "value", "series"],
+      "rows": [["A", 1, "Alpha"], ["A", 0, "Beta"], ["B", null, "Alpha"], ["B", 4, "Beta"],
+        { "category": "C", "value": 0, "series": "Alpha" }, { "category": "C", "value": 5, "series": "Beta" }]
+    },
+    "encoding": { "category": "category", "value": 1, "series": "series" }
+  },
+  "explicit": {
+    "categories": ["A", "B", "C"],
+    "series": [
+      { "id": "series-1", "name": "Alpha", "values": [1, null, 0] },
+      { "id": "series-2", "name": "Beta", "values": [0, 4, 5] }
+    ]
+  }
+}

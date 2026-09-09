@@ -15,8 +15,28 @@ const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const assetKey = (mime, sha) => `${mime.toLowerCase()}\0${sha.toLowerCase()}`;
 const fail = (code, message) => { throw new OfficeKitCodecError(message, [], { code: `preview.scene.${code}` }); };
 
+// Compact JSON-safe identity of an already validated scene. This is evidence,
+// not the scene payload or source editing authority.
+export function ppjPreviewSceneIdentity(scene) {
+  if (!scene) fail("missing", "Preview scene identity is missing.");
+  if (scene.version !== PPJ_PREVIEW_SCENE_VERSION) fail("version", "Preview scene identity version is incompatible.");
+  const origin = scene.origin === Origin.AUTHORED_LOWERING ? "authored-lowering"
+    : scene.origin === Origin.CANDIDATE_IMPORT ? "candidate-import" : undefined;
+  if (!origin) fail("origin", "Preview scene identity has an unknown origin.");
+  for (const key of ["sha256", "programSha256", "candidateSha256"])
+    if (typeof scene[key] !== "string" || !HASH.test(scene[key])) fail("identity", `Preview scene ${key} is not a valid digest.`);
+  return Object.freeze({ version: scene.version, origin, sha256: scene.sha256,
+    programSha256: scene.programSha256, candidateSha256: scene.candidateSha256 });
+}
+
 // Loaded only for an explicit scene request. Native fields and optional presence
 // stay intact; this module validates transport, not layout or paint support.
+export function readPpjPreviewReceiptScene(receipt, options) {
+  return readPpjPreviewScene({ ...receipt,
+    assets: receipt.assets?.map(asset => ({ ...asset, contentType: asset.mimeType ?? asset.contentType })),
+  }, receipt.file, options);
+}
+
 export function readPpjPreviewScene(program, candidate, { limits = {} } = {}) {
   const requestedLimit = BigInt(limits.maxUncompressedBytes ?? 0);
   const maxBytes = requestedLimit > 0n && requestedLimit < BigInt(MAX_BYTES) ? Number(requestedLimit) : MAX_BYTES;

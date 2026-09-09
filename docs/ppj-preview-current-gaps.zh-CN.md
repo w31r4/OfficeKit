@@ -1,8 +1,28 @@
 # OfficeKit 本地 PPT 渲染器：当前能力与剩余差距
 
-核对日期：2026-09-10。文档本次复核时 HEAD：`aff0f24b580db490d3fed08e7cee96dc2db9de54`，工作区存在未提交的渲染器、测试和原生文字属性修改。本文区分当前所读源码、留存运行结果与尚未验证的变更，不代表安装包或远端分支状态。本文是现状清单，不是完整字段覆盖率报告：目前缺少逐字段分母，不能据此声称已穷尽所有 OOXML 属性。
+核对日期：2026-09-10。本次文档复核读取的 HEAD：`3946f5a3f81299c26be2fc19e72a1c23d249163c`，工作区存在已暂存和未暂存的原生、渲染器、测试、能力声明及文档修改。本文区分当前所读源码、留存运行结果与尚未验证的变更，不代表安装包或远端分支状态。本文是现状清单，不是完整字段覆盖率报告：目前缺少逐字段分母，不能据此声称已穷尽所有 OOXML 属性。
+
+初次文档核对之后，G-03 已继续完成修复包的真实 NativeAOT 源组回归，结果见该节（实施复核 HEAD `60f0c5e55799badb4b0736832ec1a6678fad99b5`，原生包仍是明确冻结的基线加有界修复，非该 HEAD 全量构建）。本轮未执行全仓测试、外部 Office 或人类验收；历史结果仍按各自版本和范围解释。
 
 初次文档核对只整理文档并复跑内部 SVG 专项；后续实施进展按功能段记录。散点绘制见 G-08～G-10，冻结源码重建验收见第 3.3 节；正式入口未切换。其他在途工作不因出现在工作区就计入验收。
+
+### 本次复核摘要
+
+后续实施已增加命名样式/grammar 的实际成功对照，报告 BhbhbY 仍有同样四项源变换删除失败；详见 G-14。下表保留文档复核当时的 PZD4Ht 证据范围。
+
+本次重新读取正式入口、内部 painter 的检查开关、OpenSpec 勾选及留存的 `tmp/officekit-native-scene-paint-PZD4Ht/integration.json`。本轮是文档核对，没有重新执行原生构建、完整集成或人类视觉评审。下列结果来自该明确指定的留存报告，不将它称为当前工作区全量验收：
+
+| 核对项 | 结果 | 对完成判断的含义 |
+| --- | --- | --- |
+| 正式预览入口 | 仍读取 `compiled.programJson`，编译请求未启用 preview scene | 内部 painter 的进展尚未默认交付给 CLI 用户 |
+| 内部输入可靠性检查 | `paintPpjSceneSvg` 的 `assessInput` 默认仍为 false，可显式启用 | 有合并检查的实现和限定证据，尚不是不可绕过的正式入口保证 |
+| 嵌套组件、repeat、slot 对照 | 原生视觉载荷及整页栅格一致；来源、实例身份和缺失/零值断言通过 | 这一固定组合已验证，不代表所有组件组合或任务 5.1 完成 |
+| dataset/encoding 对照 | 两系列、数组/对象行、列名/索引、缺失/零值对照通过 | 这一作者数据映射已验证，不代表 workbook 或源数据编辑完成 |
+| 源变换字段删除 | rotation、flipH、flipV、组合四例失败 | 删除仍留下显式 0/false；画面恢复原位不能抵消编辑语义失败 |
+| 报告整体状态 | `failed`；上述四例保留在 `transformProfileFailures` | 局部对照成功不能报告为整套通过 |
+| G-01 任务 | 9 项勾选、6 项未勾选，共 15 项 | 只表示任务记录，不是渲染覆盖率或总体完成率 |
+
+该报告使用的原生包是固定 `4b7cd9c6` 源码加两项 AOT 修复，包摘要见 G-14；并非本次 HEAD 及工作区所有修改的构建。报告中的 SmartArt 源绘制是明确的 unavailable 反例，不因失败列表为空就变成视觉保真成功。历史成功报告保留为对应版本的证据，不能覆盖这次新增的失败断言。
 
 ## 1. 结论与阅读范围
 
@@ -29,6 +49,31 @@
 - **opaque**：无法安全解释或编辑的原生内容。可展示可信源预览或明确占位，不得猜测其结构后重写。
 - **重新投影**：将编辑后 PPTX 再导入为模型，检查实际写入结果，而非只检查内存中的编辑请求。
 
+### 1.2 差距总表
+
+状态按行为和交付范围判断。“部分实现”指存在可用子集；“待验收”指有代码或产物但缺指定回归；“未闭合”指整个交付条件尚未满足。下表不是新增的能力声明，也不按行数计算完成率。
+
+| 编号 | 当前差距及状态 | 对用户的影响 | 关闭前必须补的证据 |
+| --- | --- | --- | --- |
+| G-01 | 场景路线部分实现，正式入口未接入 | 内部改进尚未成为日常 CLI 输出 | 真实 CLI 场景消费、检查与发布整链回归 |
+| G-02 | 文字布局、几何求值部分实现 | 长文本可能错行或越界，复杂形状可能失真 | 换行/继承/删除、非矩形与复杂路径行为断言 |
+| G-03 | AOT 投影已修复；显式归零通过，源字段删除仍失败 | 删除变换实际留下 0/false；复杂嵌套等也未完整验收 | 真正移除原生属性且保留显式零；嵌套/导入组合及正式接入 |
+| G-04 | 主题、继承和效果未完整消费 | 色彩、可见范围和对比度可能误导检查 | 有效样式、覆盖/删除、透明叠加和效果边界 |
+| G-05 | 图片已有裁切/有限遮罩；tile 与效果等仍缺 | 主体或透明边缘可能显示不完整 | 裁切/变换组合、解码失败及不确定范围诊断 |
+| G-06 | 表格与连接线部分实现 | 合并边界、锚点或连线关系可能不准确 | 合并边框、目标移动/解绑、端点与源保留 |
+| G-07 | 简单源生命周期有证据，SmartArt 源视觉不可用 | 语义编辑成功不能证明候选外观保真 | 实际目标缓存、关系、直接样式及非目标内容保留 |
+| G-08 | 图表公共语义不完整 | 轴、单位、标签和尺度可能改变事实理解 | 双轴、数值格式、标题/标签与有效样式 |
+| G-09 | 全部 chartType 仍为 partial | 能生成形状不等于正确表达该类数据 | 每类有效正例、复杂拓扑和实际图形断言 |
+| G-10 | 缺失值只有限定类型回归 | 缺口、真实零、堆叠分母可能被混淆 | 各通道缺失、孤立观测及显式显示策略 |
+| G-11 | 旧路线诊断已验收，新 profile 接入未闭合 | 内部通过不能使未检查节点或字段自动通过 | 逐规则证明、节点归属、未知字段与继承失败 |
+| G-12 | 场景发布契约已验收，正式接入未完成 | 内部清单证据尚非默认 CLI 交付保证 | 接入后保留身份、失败状态及非覆盖发布回归 |
+| G-13 | 页面选择与完整交付流程未闭合 | 用户难以选择页、辨认三类检查的完成情况 | 页过滤/编号、隐藏页策略、分项结果和失败重跑 |
+| G-14 | 外部源与逐字段测试不足 | 自生成简单文稿的成功难以外推 | 第三方 PPTX、workbook、正反例分开统计 |
+| G-15 | 防漂移有基础，行为覆盖未闭合 | 模型新增字段可能只传输而不实际显示 | 字段到绘制/诊断/测试的逐项对应与生成检查 |
+| G-16 | 性能与稳定性没有完整基线 | 不能承诺大文稿耗时、内存及失败恢复 | 预先约定负载目标，测量分阶段耗时和资源峰值 |
+
+优先关注会改变事实的差距：SmartArt 目标缓存损失、错误数据通道/轴/拓扑、缺失值以及误导性的通过状态。源组投影故障已有有界修复回归，仍需保留为后续版本的防退化案例。主题和文字问题也可能遮住数据或改变关系理解，不能一律当成装饰问题。各项实现位置、限定成功和剩余工作见第 4 节；执行顺序见第 6 节。
+
 ## 2. 两条路线：为什么内部成功不等于用户已经可用
 
 | 环节 | 正式 CLI | 内部场景路线 |
@@ -36,7 +81,7 @@
 | 输入与编译 | 加载 workspace、调用 PPJ 编译器 | 由编译接口请求并传输 `PresentationPreviewScene` |
 | 绘制依据 | 解析 `compiled.programJson`，自行读取元素和数据 | 消费 scene view 中的原生状态、坐标、数据及资产 |
 | 主要实现 | `src/ppj/svg-preview.mjs` | `src/ppj/preview-scene-svg.mjs` |
-| 检查与发布 | 已有输入/绘制诊断、SVG/PNG、`render.json` 和非覆盖保护 | 已有页级/全局 assessment，并在两个作者案例复用 publisher；来源绑定及正式接入仍缺，显式标记 integration pending |
+| 检查与发布 | 已有输入/绘制诊断、SVG/PNG、`render.json` 和非覆盖保护 | 场景身份、作者/源候选发布与发布故障矩阵已验收；正式接入仍缺，显式标记 integration pending |
 | 当前意义 | 能运行，但保留旧语义和几何缺陷 | 证明有限功能可按原生状态正确绘制，尚非正式交付入口 |
 
 正式 `renderPpjToSvg()` 目前调用编译器时只传 `includeNodeMap: false`，随后读取 `compiled.programJson`，没有调用内部 `paintPpjSceneSvg()`。因此，最近图片、表格、折线图、比例扇区、柱形堆叠和折点的内部修复，不能计为正式 CLI 已修复。
@@ -68,9 +113,9 @@
 
 ### 3.2 初次文档核验与旧包报告
 
-本次重新核对正式入口、内部 painter、任务勾选、留存报告和两份 JS 文件 SHA-256；重新执行 `node test/ppj-preview-scene-svg.mjs`，退出 0。该专项使用合成原生场景，不证明最新 C# 已构建或生产入口已切换。
+初次文档核验重新核对了正式入口、内部 painter、任务勾选、留存报告和两份 JS 文件 SHA-256，并执行 `node test/ppj-preview-scene-svg.mjs`，退出 0。这是此前核验记录，不是本次文档修订重跑结果。该专项使用合成原生场景，不证明最新 C# 已构建或生产入口已切换。
 
-最近核对的完整留存报告为 `tmp/officekit-native-scene-paint-2MsoJ4/integration.json`，记录时间 `2026-09-09T20:31:55.736Z`（北京时间 9 月 10 日 04:31）。报告为 passed，diagramFailures 和 relationFailures 均为空；测试包含图片、文字、段落、形状轮廓、表格、连接线和限定图表的内部绘制及源编辑回归。SmartArt 的通过范围单独见 G-07。
+初次核验使用的完整留存报告为 `tmp/officekit-native-scene-paint-2MsoJ4/integration.json`，记录时间 `2026-09-09T20:31:55.736Z`（北京时间 9 月 10 日 04:31）。报告为 passed，diagramFailures 和 relationFailures 均为空；测试包含图片、文字、段落、形状轮廓、表格、连接线和限定图表的内部绘制及源编辑回归。SmartArt 的通过范围单独见 G-07。
 
 | 验证身份 | 报告记录 |
 | --- | --- |
@@ -99,7 +144,7 @@
 | 新包真实 JS 集成 | `tmp/officekit-native-scene-paint-NeJHpQ/integration.json`，passed，含 manifest 不变断言的最终复跑 |
 | 原生 scene 专项 | 冻结快照中 `FullyQualifiedName~PpjPreview`，39/39、0 跳过 |
 | 原生专项文件 | `tmp/preview-build-4b7cd9c6-ksr777/tmp/test-results/preview-scene.trx` |
-| 协议检查 | 当前工作区 `npm run proto:check` 退出 0；生成绑定与冻结提交 SHA-256 相同 |
+| 协议检查 | 该轮工作区 `npm run proto:check` 退出 0；当时生成绑定与冻结提交 SHA-256 相同，非本次重跑结果 |
 | presentation / gate-policy / 语法 | 4/4 及专项检查通过，保留 G-11/G-12 检查 |
 | 双构建一致性 | 冻结快照中 `npm run verify:office-kit-build` 退出 0，两次构建的 9 个包文件一致 |
 
@@ -111,19 +156,33 @@
 
 ### 3.4 内部诊断与发布的最近证据
 
-留存报告 `tmp/officekit-native-scene-paint-HWHugG/integration.json` 记录于 `2026-09-09T21:06:30.832Z`（北京时间 9 月 10 日 05:06），状态为 passed，运行时仍为第 3.3 节的固定原生包。本次文档核对重新计算报告中七份 JS/生成绑定的 SHA-256，全部与当前文件相同；没有重新运行完整 NativeAOT 集成，也没有把匹配范围扩大到整个工作树。
+本节按实施先后记录发布与诊断证据，后续源组失败另见 G-03。多页归属修复报告 `tmp/officekit-native-scene-paint-OFGUGQ/integration.json` 记录于 `2026-09-09T21:14:17.834Z`（北京时间 9 月 10 日 05:14），状态为 passed，运行时仍为第 3.3 节的固定原生包。该轮修复后重新执行了完整 JS 原生集成；报告记录七份 JS/生成绑定的 SHA-256，不把匹配范围扩大到整个工作树，也不表示重新构建了当前 C#。
 
 这次报告增加两个作者案例的真实发布检查：诊断地址保留、返回值与落盘 JSON 相同、输出文件实际摘要正确、重复发布拒绝覆盖。内部 painter 现已生成页面和全局 assessment；诊断去重使用独立 `scenePath`，避免同一个语义组件生成的不同原生节点或不同字段互相覆盖。全局未知字段也进入页级诊断。
 
-这些是接入前置能力，仍有三条边界：没有切换正式 CLI；没有把 scene version/origin/digest 绑定到发布清单；没有完成 source-bound 候选的同等发布验收和 renderer profile 事实规则调整。报告的 passed 也包含预期 unavailable 反例，不能理解成页面事实检查全部通过。
+发布失败的多页归属另有故障注入回归。旧实现仅按语义 `path` 回填页面：两页均为 `$` 时，第一页失败会被第二页 assessment 替换，文档检查树丢失第一页身份（顶层失败仍保留，并非整个结果变绿）。现按 `pageId/id/path/scenePath` 匹配，局部失败保留页地址，全局失败保留文档地址。首/末页单独栅格失败、两页都失败、全局依赖失败和 PNG 写入 ENOSPC 均通过，断言每页与文档子项、返回与落盘一致，其他页和输入 assessment 不被改写。注入 PNG 不作为真实像素证据；上面的 NativeAOT 集成用于确认既有真实绘制/发布未退化。
+
+场景身份绑定随后已实现，最终报告为 `tmp/officekit-native-scene-paint-dBwhGX/integration.json`（`2026-09-09T21:19:38.058Z`，passed）。清单记录 version/origin/digest、program/candidate 摘要，绘制和发布共用 receipt 验证器。两个作者输入、源 no-op 和源文字编辑的真实发布均验证返回/落盘一致、实际文件 hash 和 PNG 顶部警示色；源 no-op 的候选 hash 等于原源，文字编辑后不同。旧场景配新候选、损坏场景摘要、缺失资产明确拒绝，身份失败先于创建目录和栅格加载。首次真实调用因 JS mimeType 与 wire contentType 差异失败，已抽取 scene view 原有转换作为共享验证入口后复跑，未放宽资产检查。
+
+发布故障矩阵随后通过，最终报告为 `tmp/officekit-native-scene-paint-yuV8XP/integration.json`（`2026-09-09T21:23:50.212Z`，passed）。四个真实输入分别注入依赖加载、首张栅格、首个 SVG/PNG 写入、pending/final 清单写入失败，共 24 例；逐一验证场景和源/候选摘要、页面及文档状态、未受影响页、实际文件摘要、剩余 PNG 可解码、清单生命周期和输入不变。另对真实作者散点连接失败与源 SmartArt 缓存失败发布红色警示，核对 PNG 像素和失败清单。场景缺失/版本错误及缺少资产在真实 receipt 上被拒绝。首次矩阵测试错误地将空源字节当作源文件，已按无源契约修正后完整复跑。
+
+以上完成 OpenSpec 任务 4.2 的发布契约；正式 CLI 未切换，renderer profile 事实规则调整仍未完成。报告的 passed 包含预期 unavailable 反例，不能理解成页面事实检查全部通过；原生包仍是第 3.3 节固定快照。
+
+任务 4.1 的节点检查树已有后续进展：页面下保留真实 group/diagram 子节点，每个节点携带原始语义 page/id/path 和独立 scenePath；共享语义 owner 的生成节点不会合并。字段诊断按最近的真实原生节点归属；父节点隐藏、失败或未展开时，其未访问子节点明确为 unassessed。节点局部通过不抵消页面或全局限制，也不授予源编辑能力。最终 `tmp/officekit-native-scene-paint-WbYaHv/integration.json` passed，在每次真实 savePaint 中逐个比对检查树与 scene bindings 的数量和身份，并保留前述发布故障回归；没有解除旧事实规则或完成 profile 接入。
+
+后续已实现可选输入/场景合并：内部 `paintPpjSceneSvg(receipt, { assessInput: true })` 在完成所有页的真实绘制后调用 native profile，再把输入诊断按最近语义 owner 映射到原生节点。输入 path 不变，同 owner 的多个生成节点各有 scenePath；无对应节点的限制进入页或全局，最终警示与 publisher 使用合并状态。公共资产 ID 与原生 ID 不同的情形通过已验证 MIME/hash 对应同一份字节；首次真实合并曾误报 asset-missing，修复后复跑，没有绕过资产校验。
+
+实际报告 `tmp/officekit-native-scene-paint-ewzfZH/integration.json` 中 `combinedAssessment` 四例均完成返回/落盘一致性、输入及原绘制诊断保留、实际 PNG 警示、候选与程序字节不变检查：minimum 为 requires-review，canonical、源 no-op 和源文字编辑为 failed。这里通过的是证据合并契约，不是这些页面的事实检查。完整集成仍因 G-03 四个删除断言失败而退出 1；不得记为整体通过。运行时仍是 G-03 的有界修复包，本轮没有改 C# 或重建；合成专项另验证共享 owner、多节点输入失败、未知全局字段、公共/原生不同资产 ID 及大写摘要。
+
+合并选项默认关闭，尚未接入正式 CLI；其余事实规则逐条映射、更多归属边界及任务 4.1 整体验收仍开放。已有合并代码不再记为“完全未实现”，也不据此勾选整个任务。
 
 ## 4. 按功能核对剩余差距
 
 ### G-01：共用场景与正式入口
 
-**现状：8/15 个任务勾选，实际绘制与交付接入未完成。** 编译采集、传输、归属与适配已有基础，OpenSpec 任务 5.2 的固定版本构建验收通过；OpenSpec 任务 3.3/3.4 的绘制要求、4.1/4.2 的检查发布接入以及 5.1、5.3、5.4 仍开放。这些是任务编号，不是本文章节编号。
+**现状：9/15 个任务勾选，实际绘制与正式入口接入未完成。** 编译采集、传输、归属与适配已有基础，OpenSpec 任务 5.2 的固定版本构建和 4.2 的场景发布验收通过；OpenSpec 任务 3.3/3.4 的绘制要求、4.1 的可靠性接入以及 5.1、5.3、5.4 仍开放。这些是任务编号，不是本文章节编号。
 
-剩余工作：把正式入口改为消费真实 scene；按 renderer profile 区分仍适用和已修复的事实规则；清单绑定 scene 版本、来源、摘要与实际编辑候选；补高层组件与显式元素、数据集与显式数据等成对案例。不能用“两边都编译成功”或“两边都显示占位”代替等价性。
+剩余工作：把正式入口改为消费真实 scene；按 renderer profile 区分仍适用和已修复的事实规则，并接入已验证的场景发布契约；补高层组件与显式元素、数据集与显式数据等成对案例。不能用“两边都编译成功”或“两边都显示占位”代替等价性。
 
 完成证据：真实 CLI 输出包含正确场景几何/数据/样式；返回值与落盘清单一致；缺场景、资产、栅格及写入失败均有明确结果；旧发布保护不退化。
 
@@ -147,9 +206,40 @@
 
 ### G-03：变换与可见性
 
+四类旋转/镜像的作者与源 no-op 回归现已通过，完整 G-03 仍开放。新增源编辑回归中显式归零通过，但字段删除失败；首次保留这些失败的完整集成 `tmp/officekit-native-scene-paint-REM5Lk/integration.json` 为 failed、退出 1，本次复核的 PZD4Ht 报告仍保留同样四项失败，具体原因见本节末尾。历史固定包曾在四个去除私有快照的源组投影上返回 `codec_failure`，未进入源 no-op 或绘制；`tmp/officekit-native-scene-paint-eIGtvx/integration.json` 保留该旧失败。投影故障的修复证据与新增删除缺口分别判断。
+
+为定位失败，临时托管测试直接调用固定源码快照的投影器，在 IncludeNodeMap 关闭/开启时均通过同一个旋转组。随后独立诊断包保留的 `tmp/preview-transform-diagnostic-jqYdBe/probe-result.json` 明确记录 NativeAOT 异常：`ProjectGroup` 经 `JsonNode.ConvertFromValue<T>` 请求 `System.String` 的运行时 JSON 元数据，但 `EmptyJsonTypeInfoResolver` 无法提供。失败发生在组的 readingOrder 构造，不是 SVG 旋转函数，也不能解释为所有旋转输入都失败。
+
+当前源码已将 `readingOrder.Add(childId.GetValue<string>())` 改为 `readingOrder.Add(StringNode(childId.GetValue<string>()))`，复用页面 readingOrder 使用的 AOT 安全字符串节点构造；测试增加完整子节点顺序断言。独立副本的 `tmp/group-fix-results/preview-group-aot-fix.trx` 记录 39/39 托管 scene 专项通过、零跳过。诊断异常详情补丁已恢复为原逻辑，再构建 `tmp/preview-transform-diagnostic-jqYdBe/runtime-fixed/`；随后真实 NativeAOT 探针成功，完整集成最终报告 `tmp/officekit-native-scene-paint-3gbXxj/integration.json` 为 passed，退出 0，transformProfileFailures 为空。
+
+最终回归包含 90 度、水平镜像、垂直镜像、组合变换各自的作者和源候选，共 8 个实际 SVG/PNG 像素案例；四个源输入去掉私有快照，验证完整 readingOrder、no-op 字节相同和输入不变。报告记录每例 source/candidate/scene 摘要，原始源 PPTX 另存为 `profile-*-source.pptx`。只有全部 owner 绑定的原生字段匹配，且实际成功绘制了变换，才按字段解除旧 transform 事实错误；缺绘制记录和无关规则继续保留。
+
+修复包 PPJ SHA-256 为 `6b2c3f0c65624ef9f9fc81dc8e9fba721edbbd0ea9a674f05b172469ee3202b4`，manifest 为 `073333a05ec5a4a414d9f7a2e14631f41bab1af3c6241a5d1474fd12e6220653`。这是固定 4b7cd9c6 快照加组字符串节点修复，不等于当前工作区全部 C# 已验证，也没有对新修复包重做双构建一致性检查。该轮 presentation 4/4、两项生成摘要检查、gate-policy 和严格 OpenSpec 验证通过。限定 AOT 故障已关闭；源变换修改/删除、复杂嵌套、完整 profile 合并和正式入口仍未完成。
+
+此前实现的 scene profile 可见性映射也保留：只有编译场景及输入身份匹配，且某语义 owner 的所有原生绑定均为 hidden 并实际经过 painter 隐藏分支时，才免除旧 renderer 的 visibility 事实错误。默认 canonical profile 保持旧检查；上述变换映射单独验收，不解除其他限制。真实作者和源 no-op 案例验证同一形状从橙色像素变为隐藏后的背景像素；缺记录、错输入/场景或缺 registry 映射保持错误或拒绝。早期报告 `tmp/officekit-native-scene-paint-SYsUNl/integration.json` 使用固定 4b7cd9c6 原生包通过，这些案例也保留在修复包最终回归中；正式入口及输入/节点检查树合并未完成。
+
 正式路线未完整处理 rotation/flip、group childFrame 和 hidden。内部已有这些基础映射，但还需完整的嵌套组、组件展开、旋转后锚点、导入变换和效果外扩案例。
 
+组 childFrame 的事实规则已有有界映射：全部语义 owner 绑定必须是成功绘制的原生组，外框与 childFrame 的八个值逐项匹配，才解除旧 `group-coordinates-ignored` 错误。合成反例覆盖输入/场景尺寸不匹配、隐藏组和零子尺寸绘制失败；这些状态继续失败。真实 `tmp/officekit-native-scene-paint-KEpYTd/integration.json` 的 groupCoordinates 四例通过：两层嵌套、非零子原点、两种缩放，各含作者与去快照源 no-op。改变外层 childWidth 100→200 后，橙色子形状中心从 (150,136) 移至 (125,136)，互相对应的旧位置为背景；源 no-op 字节相同，缺绘制记录或 registry 映射不通过。两个组 owner 分别检查，不把父子当一个节点。
+
+该轮只修正内部 profile 的有证据误报，保留字段级 partial 和无关规则，未新增源 childFrame 编辑/删除或复杂组件验收。旧变换测试相应增加“组错误确实解除、缺记录时仍存在”的精确断言，而非豁免所有其他诊断。presentation 4/4、两项生成检查与 gate-policy 通过；完整集成仍因四个源变换删除断言失败而退出 1，不能记为整体绿色。原生包不变，正式入口仍未切换。
+
 隐藏页是否包含、如何编号和如何选择也需要明确契约。元素未显示可能是合法隐藏，也可能是渲染失败，不能在证据中混为一类。完成条件是同一有效场景中的坐标、层叠顺序和可见性进入实际 SVG，并有嵌套/反向/边界测试。
+
+#### G-03 源编辑补充：删除被写成显式零/false
+
+同一修复包上的新增回归分别从原始源投影发起请求，不串联候选编辑。四类源组（rotation、flipH、flipV、三者组合）各执行显式归零和字段删除，结果如下：
+
+| 请求 | 候选画面 | 重新投影与实际 XML | 验收 |
+| --- | --- | --- | --- |
+| 显式设置 rotation=0、flipH/flipV=false | 橙色子形状恢复原位，旧位置为背景 | 对应字段保留明确的 0/false | 4/4 通过 |
+| 从 frame 删除对应字段 | 像素也恢复原位 | 字段仍存在；组 xfrm 留下 rot="0"、flipH="0" 或 flipV="0" | 4/4 失败 |
+
+两组候选均通过实际像素、完整 readingOrder、子节点 frame 与非目标 ZIP 检查：文件清单不变，仅 `ppt/slides/slide1.xml` 有差异。删除例随后在字段缺失断言失败，不能因画面相同就计为删除成功。最终报告记录请求/实际 frame、源/候选/scene 摘要；`profile-*-delete.pptx` 与 `profile-*-delete.reprojected.ppj` 保留实际结果。原作者/no-op 八例及独立回归继续执行，四个删除失败最终抛 AggregateError，未跳过或改成预期成功。
+
+当前 `PpjPresentationCompiler.TryCollectFrameLeafMutations` 根据解析后的 Rotation/FlipH/FlipV 值生成快速编辑，把缺失字段的默认值也写成 0/false；它没有按原始 JSON 属性存在性区分删除和显式覆盖。组 `ApplyFrame` 的内存更新不能纠正随后选中的 token-splice 候选。scene 再导入该候选，正确反映了仍存在的零值；这不是 painter 自行补出的属性。
+
+修复需明确原生 frame 快速编辑的属性移除契约，并检查 presence-only 删除、组合变换中只删一项、源与非目标内容保留，以及显式零/false 继续存在。它涉及源编辑输出语义，超出当前只读 scene change 的边界，待确认扩展或另建原生 change 后实施；本轮没有修改编译器。首次测试将 program 误传字符串，按 workspace 的 Uint8Array 契约修正后才得到上述原生失败。presentation 4/4 仍通过，但不含这些新的真实原生删除断言，不能抵消该集成失败。
 
 ### G-04：样式、主题和效果
 
@@ -261,11 +351,11 @@ SmartArt 必须分开判断作者输入、源导入和源编辑保留：
 
 支持诊断清单为 9/9，输出安全与证据清单为 8/8。已具备的限定能力包括支持状态/事实失败区分、图内警示、资产快照复用、非覆盖发布、失败产物和输入/输出摘要记录。
 
-这些完成结论归属正式旧路线的检查与发布契约，不代表内部 scene 路线已经通过同一套交付验收。第 3.4 节补充了内部页级/全局 assessment、独立场景地址与两个作者案例的 publisher 复用证据，不应再把内部发布基础整体写成“没有实现”。
+这些清单完成结论归属正式旧路线。内部 scene 发布另已完成任务 4.2：场景身份绑定、两个作者输入和源 no-op/文字候选的真实发布、24 例操作失败及两例事实失败警示都有第 3.4 节证据；页级/全局 assessment 和独立场景地址也已实现。尚缺的是 profile 与正式入口的完整接入，不能把已验收的内部发布写成“未实现”，也不能将其扩大为正式 CLI 已使用新路线。
 
 当前声明为 16 类元素中 9 类 partial、7 类 opaque；16 种 chartType 均 partial，没有整个类型提升为 supported。这是保守声明分布，不是完成率。
 
-剩余是 G-01 对新路线的完整对接：逐节点 assessment 与 registry/profile 的一致性、来源及实际候选身份、scene 摘要、源候选发布、PNG 警示与清单一致，以及新路线的失败分支。已有地址保留和状态汇总需要纳入这些端到端案例。旧事实规则只能在有对应修复断言后按 profile 调整，不能为了让新路线变绿全部删除。
+剩余是 G-01 对新路线的完整对接：节点检查树已有第 3.4 节的可选原始输入合并，仍需完成其他事实映射、更多归属边界及正式入口接入。场景身份、源 no-op/文字候选发布、操作失败与事实失败警示已有证据；新类型或新错误分支仍须扩充回归。旧事实规则只能在有对应修复断言后按 profile 调整，不能为了让新路线变绿全部删除。
 
 ### G-13：CLI 与交付流程
 
@@ -275,7 +365,23 @@ SmartArt 必须分开判断作者输入、源导入和源编辑保留：
 
 ### G-14：测试覆盖
 
+嵌套样式组合另在 `tmp/officekit-native-scene-paint-x2Cj1e/integration.json` 验证：保留 plain 对照，新增 styled 对照，将下述固定嵌套组件与命名样式 fixture 组合。两个重复 slot 的字体/字号/false 和蓝色墨迹、定义与 slot 原始路径、不同实例身份、缺失/真实零、完整原生载荷及整页栅格均通过。报告明确记录两个 variants；独立 style/dataset 对照仍通过。此轮仍使用相同 runtime-slot-fixed，未重建 C#；整套仍有四项删除失败，任务 5.1 保持开放。小 slot 的文字超出 frame，本例检查实际墨迹范围，不据此宣布溢出排版已完成。
+
+命名样式/grammar 新增[固定对照](../test/fixtures/presentation/preview-style-grammar-equivalence.json)及[案例说明](../test/fixtures/presentation/preview-style-grammar-equivalence.md)。本次实施实际运行 `tmp/officekit-native-scene-paint-BhbhbY/integration.json`：styleGrammarPair 通过，stylePairFailures 为空；形状/文字命名样式中的颜色、字体、字号 token 与独立显式值的完整原生载荷和整页栅格一致，显式 false 覆盖命名 true、实际橙色/蓝色墨迹、owner/frame、缺失值与真实零均有断言。两侧各自 scene 开关不改变候选字节，输入与 fixture 摘要不变。
+
+首轮 lgFqET 的 grammar token 与基础主题 ink 重名，按既有主题优先规则得到不同颜色，像素断言正确失败；改用独立 label-ink 后通过，没有改变编译器语义。使用 G-14 下文相同的两项 AOT 修复包，没有重建当前 C#。嵌套/dataset 两组仍通过，完整集成仍因四项源变换删除失败退出 1；presentation 4/4 不抵消这些失败。该对照关闭的是有限作者样式证据缺口，完整主题继承、源样式编辑/删除、剩余向量/原生图表及组合对照仍开放，任务 5.1 不勾选。
+
+任务 5.1 已验证一对[固定嵌套重复/slot 对照案例](../test/fixtures/presentation/preview-nested-repeat-equivalence.json)，[案例说明](../test/fixtures/presentation/preview-nested-repeat-equivalence.md)列出比较边界。高层侧为两层组件、重复实例及 slot 文本 0；显式侧独立写出坐标，两侧共同包含 `[1,null,0]` 折线风险。实际比较的有序原生视觉载荷逐字节相同、整页 raw raster 相同，来源路径/实例身份单独验证，scene 开关不改变各自候选字节。比较没有把组件输出反生成为显式输入；外层 ID/归属不作为视觉载荷字节比较，而有独立断言。
+
+旧修复包实际报告 `tmp/officekit-native-scene-paint-UO1dDt/integration.json` 为 failed：显式侧通过，高层侧在 scene 编译时报 codec_failure。诊断包将异常定位到 `PpjPreviewOrigins.Index` 中的 `JsonSerializer.Serialize(slot.Key)`：NativeAOT 禁用反射序列化，无法构造 slot 来源路径。当前代码改用 `JsonEncodedText` 加 JSON 引号，未改组件展开语义；固定快照托管 scene 39/39 通过。随后按仓库命令构建独立 `tmp/preview-transform-diagnostic-jqYdBe/runtime-slot-fixed`，实际 `tmp/officekit-native-scene-paint-SxRCLN/integration.json` 的 nestedRepeatSlotPair 为 passed、nestedPairFailures 为空；失败的编译侧已有直接修复验证。完整套件仍因四个原生变换删除反例退出 1，未把局部 pair 通过算成整体通过。
+
+新包 PPJ SHA-256 为 `ca442bdfcef428e9d0a6444f661fd77f63ad1a593beda02d406fbffdebb0b9a6`，manifest 为 `a37862d1b45875a150bcecab933a972595c4f626ab727a8e8bade4ac7f070223`。原生来源是 4b7cd9c6 加组 readingOrder 和 slot 来源转义两项 AOT 修复，不是当前整个工作区；未替换安装包，也没有对新包重做双构建一致性检查。fixture 摘要纳入集成前后身份校验。实施时已查看输出图片，但不是人类校准。更多向量/原生图表及其他组合仍需单独对照；命名样式/grammar 的有限成功见本节开头，dataset/encoding 见下文，任务 5.1 未完成。
+
 现有专项和像素断言证明了真实局部进展，但缺少完整的字段分母、第三方复杂源及所有类型的有效渲染正例。测试中的自行生成文稿去掉私有快照，仍不等于独立第三方 fixture。
+
+dataset/encoding 另已补[固定数据对照](../test/fixtures/presentation/preview-dataset-equivalence.json)及[说明](../test/fixtures/presentation/preview-dataset-equivalence.md)。两系列行交错，混用数组/对象行、列名/列索引通道，独立显式答案为 Alpha `[1,null,0]`、Beta `[0,4,5]`。实际 `tmp/officekit-native-scene-paint-PZD4Ht/integration.json` 的 datasetPair 为 passed：系列名称/顺序、原生值与缺失索引、两个孤立观测和唯一连续线段、整个原生 chart 载荷及整页 raw raster 均与显式侧一致；两侧各自 scene 开关候选字节相同，原始输入与 owner 保留。fixture 纳入运行前后摘要检查。
+
+这一轮沿用上述 runtime-slot-fixed，没有修改 C#、增加 JS 数据解释器或重建包。嵌套组件 pair 继续通过，完整集成仍因四个原生变换删除断言失败而退出 1；dataset 的局部通过不覆盖这些失败。其他数据通道、向量/原生图表及跨功能组合仍不齐，不代表任务 5.1 完成，也不代表内嵌 workbook 的源编辑已验收。
 
 需要固定预期可编译正例与预期拒绝反例，分别统计 `compilerRejected`、`rendererFailed`、实际渲染及可靠性状态。任一必需正例发生非预期编译拒绝、绘制失败或可靠性硬门槛失败，都应使对应验收失败；不能只在全部正例失败时才报错。预期拒绝反例必须匹配指定原因，不将任意异常算作成功。像素断言要验证比例、端点、空隙和边缘等含义，不能只断言“存在 SVG/PNG”。
 
@@ -309,9 +415,9 @@ SmartArt 必须分开判断作者输入、源导入和源编辑保留：
 
 按小功能持续补齐，不用等全部功能做完才验证，也不为每个字段新增一套庞大框架。
 
-1. **维护验证快照**：沿用第 3.3 节已验证的新包，后续修改记录源码、dirty diff、二进制 manifest/hash 和测试脚本身份；新字段继续补视觉断言，原生语义改变时再更新精确包验证。
+1. **维护验证快照**：以本次摘要及 G-14 指定的两项 AOT 修复包作为当前回归基线；第 3.3 节保留原始冻结构建与双构建证据，不退回未修复包。后续修改记录源码、dirty diff、二进制 manifest/hash 和测试脚本身份；新字段继续补视觉断言，原生语义改变时再更新精确包验证。当前基线中的四项删除失败仍须保留，不能称作全绿基线。
 2. **补基础显示**：文字格式/布局、剩余几何、主题及图片效果；每次选一个字段或一组直接相关行为。
-3. **补事实风险高的图表与关系**：数值 X、气泡 size、双轴、层级/流向/OHLC、缺失显示策略；优先复用编译生成结果。
+3. **补事实风险高的图表与关系**：源 X 编辑、X 缺失表达、散点连接语义、气泡 size、双轴、层级/流向/OHLC、缺失显示策略；保留已有数值 X/Y marker 回归，优先复用编译生成结果。
 4. **完成正式接入**：内部绘制与 profile 检查、来源身份、G-12 发布保护同步切换；未解决项继续明确失败或标注限制。接入本身不等于全面覆盖。
 5. **补外部样本和运行验收**：第三方源、字段级 gate、性能基线和人类校准；最后再判断总体目标和 Skill 路由。
 
@@ -325,14 +431,13 @@ SmartArt 必须分开判断作者输入、源导入和源编辑保留：
 
 ### 6.1 开放任务与交付物对应表
 
-G-01 的 8/15 是任务勾选数，既不是实现比例，也不是 G-01～G-16 的总进度。剩余七项如下；文字、图表等跨任务问题仍以第 4 节的功能边界为准。
+G-01 的 9/15 是任务勾选数，既不是实现比例，也不是 G-01～G-16 的总进度。剩余六项如下；文字、图表等跨任务问题仍以第 4 节的功能边界为准。4.2 的已完成证据见第 3.4 节。
 
 | 任务 | 尚需交付 | 最小验收依据 |
 | --- | --- | --- |
 | 3.3 基础绘制 | 完整消费计划内的形状、文字、图片、组及生成路径，移除正式路线组件猜测 | 成对高层/显式案例的实际几何、样式、ID 与像素；剩余字段明确限制 |
 | 3.4 关系与原生内容 | 图表、表格、连接线、源和 opaque 内容沿 scene 绘制 | 数据通道、端点、顺序及候选保留断言；不重解 PPJ、不伪造拓扑 |
 | 4.1 可靠性接入 | scene/source 归属、registry 与 renderer profile 事实规则统一 | 未知字段和未解析继承必须保守失败；每条解除的旧限制有对应修复回归 |
-| 4.2 证据发布 | 清单绑定 scene 版本、来源、摘要与实际候选 | 作者和源候选的清单一致性、警示像素、非覆盖，以及 scene/资产/栅格/写入失败测试 |
 | 5.1 等价性案例 | 嵌套组件、repeat/slot、命名样式/grammar、dataset/encoding、向量/原生图表成对 fixture | 每对含一个事实风险；比较有效场景和真实图形，不能仅比较编译成功 |
 | 5.3 性能回归基线 | scene 开关、重复组件和源候选的开销记录 | 响应大小、分阶段耗时、保留数据/内存及关闭 scene 的行为；不等同 G-16 全部验收 |
 | 5.4 同步与收口 | registry、派生资料、输出说明、Skill 指导和审计一致 | 生成检查、链接、适用的 Skill 门禁与严格 OpenSpec 验证；其余任务完成后才关闭 G-01 |
@@ -362,7 +467,7 @@ G-01 的 8/15 是任务勾选数，既不是实现比例，也不是 G-01～G-16
 | [内部 painter](../src/ppj/preview-scene-svg.mjs)、[scene view](../src/ppj/preview-scene-view.mjs) | 核对原生状态到实际图形的消费 |
 | [能力声明](../src/ppj/svg-preview-capabilities.json)、[registry](../src/ppj/capability-registry.json) | 核对保守等级与派生元数据 |
 | [SVG 专项](../test/ppj-preview-scene-svg.mjs)、[原生集成](../test/ppj-preview-scene-native.mjs) | 区分合成场景与真实编译/源编辑证据 |
-| [G-01 tasks](../openspec/changes/ppj-preview-compiler-scene/tasks.md) | 8/15；剩余任务见第 4 节 |
+| [G-01 tasks](../openspec/changes/ppj-preview-compiler-scene/tasks.md) | 9/15；六项剩余任务见第 6.1 节 |
 | [G-11 tasks](../openspec/changes/ppj-preview-support-diagnostics/tasks.md)、[G-12 tasks](../openspec/changes/ppj-preview-output-evidence/tasks.md) | 限定检查/发布契约，分别 9/9、8/8 |
 | [输出说明](ppj-preview-output.md) | 发布状态、清单与文件行为 |
 | [原始审计](ppj-svg-preview-gap-audit.zh-CN.md) | 历史反例、实施日志和详细恢复入口 |

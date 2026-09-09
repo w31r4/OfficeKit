@@ -2,6 +2,7 @@ import { mkdir, readFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import { sha256, writeExclusiveFile } from "./workspace.mjs";
 import { previewAssessment, previewDiagnostic } from "./preview-diagnostics.mjs";
+import { readPpjPreviewReceiptScene, ppjPreviewSceneIdentity } from "./preview-scene.mjs";
 
 const SCHEMA = "office-kit/ppj-svg-preview-output/v1";
 const jsonBytes = (value) => Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
@@ -33,6 +34,9 @@ export function previewPageStems(pages) {
 
 export function previewInputEvidence(workspace, compiled) {
   return {
+    ...(compiled.previewScene || compiled.previewSceneBytes ? {
+      scene: ppjPreviewSceneIdentity(readPpjPreviewReceiptScene(compiled)),
+    } : {}),
     input: { path: workspace.path, sha256: sha256(workspace.program) },
     compile: {
       programSha256: compiled.programSha256,
@@ -141,6 +145,25 @@ export async function publishPpjPreview(result, evidence, {
     `PPJ preview output ${code}: ${destination}${cause ? ` (${cause.message || cause})` : ""}`,
     code, receipt, cause,
   );
+
+  // Match the identity captured by painting to independently validated compile
+  // evidence. A scene renderer must never publish with a legacy/missing receipt.
+  if (result.renderer === "officekit-native-scene-svg-internal" || result.sceneEvidence || evidence.scene) {
+    try {
+      const painted = ppjPreviewSceneIdentity(result.scene);
+      const keys = Object.keys(painted);
+      if (!result.sceneEvidence || !evidence.scene || keys.some(key =>
+        painted[key] !== result.sceneEvidence[key] || painted[key] !== evidence.scene[key]) ||
+        painted.programSha256 !== evidence.compile?.programSha256 ||
+        painted.candidateSha256 !== evidence.compile?.outputSha256 ||
+        painted.origin !== (evidence.sourceBound ? "candidate-import" : "authored-lowering"))
+        throw Object.assign(new Error("Painted scene does not match the published compile/candidate identity."),
+          { code: "preview.scene.publication-mismatch" });
+    } catch (error) {
+      fail("scene", error);
+      throw outputError("preview.output.scene", error);
+    }
+  }
 
   try {
     await mkdir(path.dirname(destination), { recursive: true });

@@ -1,0 +1,45 @@
+{
+  "base": "examples/ppj/minimum.ppj",
+  "description": "Two-level component, horizontal repeat, definition-supplied slot zero, and a missing/real-zero line. Explicit geometry is independently specified.",
+  "components": [
+    {
+      "id": "inner", "frame": { "x": 0, "y": 0, "width": 100, "height": 60 },
+      "slots": [{ "name": "label", "accepts": ["text"], "minItems": 1, "maxItems": 1 }],
+      "elements": [
+        { "id": "tile", "type": "shape", "frame": { "x": 0, "y": 0, "width": 20, "height": 20 },
+          "geometry": { "kind": "preset", "preset": "rect" }, "style": { "fill": { "type": "solid", "color": "#CC5500" } } },
+        { "id": "label-slot", "type": "slot", "slot": "label", "frame": { "x": 30, "y": 0, "width": 40, "height": 20 } }
+      ]
+    },
+    {
+      "id": "outer", "frame": { "x": 0, "y": 0, "width": 200, "height": 100 },
+      "elements": [
+        { "id": "nested", "type": "component", "component": "inner", "frame": { "x": 20, "y": 10, "width": 100, "height": 60 },
+          "slots": { "label": [{ "id": "supplied-zero", "type": "text", "frame": { "x": 30, "y": 0, "width": 40, "height": 20 }, "text": "0" }] } }
+      ]
+    }
+  ],
+  "instance": {
+    "id": "outer-instance", "type": "component", "component": "outer",
+    "frame": { "x": 100, "y": 100, "width": 400, "height": 100 },
+    "repeat": { "items": [{ "key": "one", "arguments": {} }, { "key": "two", "arguments": {} }], "layout": { "direction": "horizontal", "gap": 0 } }
+  },
+  "explicit": [
+    { "id": "tile-one", "type": "shape", "frame": { "x": 120, "y": 110, "width": 20, "height": 20 },
+      "geometry": { "kind": "preset", "preset": "rect" }, "style": { "fill": { "type": "solid", "color": "#CC5500" } } },
+    { "id": "zero-one", "type": "text", "frame": { "x": 150, "y": 110, "width": 40, "height": 20 }, "text": "0" },
+    { "id": "tile-two", "type": "shape", "frame": { "x": 320, "y": 110, "width": 20, "height": 20 },
+      "geometry": { "kind": "preset", "preset": "rect" }, "style": { "fill": { "type": "solid", "color": "#CC5500" } } },
+    { "id": "zero-two", "type": "text", "frame": { "x": 350, "y": 110, "width": 40, "height": 20 }, "text": "0" }
+  ],
+  "risk": {
+    "id": "missing-line", "type": "chart", "chartType": "line", "frame": { "x": 600, "y": 100, "width": 300, "height": 200 },
+    "data": { "categories": ["A", "B", "C"], "series": [{ "id": "values", "name": "Values", "values": [1, null, 0] }] }
+  },
+  "expected": {
+    "orangePixels": [[130, 120], [330, 120]],
+    "blankPixels": [[230, 120]],
+    "tileOwner": "$.components[0].elements[0]",
+    "slotOwner": "$.components[1].elements[0].slots[\"label\"][0]"
+  }
+}

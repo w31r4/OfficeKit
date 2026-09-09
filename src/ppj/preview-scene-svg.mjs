@@ -13,6 +13,8 @@ import { PresentationElementSchema, PresentationSlideSchema, PresentationTextBod
   SpreadsheetChartPointStyleArtifactSchema, SpreadsheetChartSurfaceFillSchema } from "../generated/office_kit/artifact/v1/office_artifact_pb.js";
 import { createPpjSceneView, scenePoints, sceneOpacity, sceneFontPoints } from "./preview-scene-view.mjs";
 import { escapePreviewText as esc, previewDiagnostic, previewAssessment } from "./preview-diagnostics.mjs";
+import { ppjPreviewSceneIdentity } from "./preview-scene.mjs";
+import { assessPpjPreviewInput } from "./preview-input-assessment.mjs";
 
 const content = new Map(PresentationElementSchema.fields.filter(f => f.oneof?.localName === "content").map(f => [f.localName, f.message]));
 const frameFields = ["leftEmu", "topEmu", "widthEmu", "heightEmu"];
@@ -165,8 +167,11 @@ function frameTransform(f, transform) {
 
 /** Actual native-state-to-SVG drawing; deliberately not a public publication
  * receipt. No support promotion or G-11 rule retirement is implied. */
-export function paintPpjSceneSvg(receipt) {
+export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
   const view = createPpjSceneView(receipt), diagnostics = [...view.diagnostics];
+  const visitedNodes = new Set();
+  const hiddenScenePaths = new Set();
+  const transformedScenePaths = new Set();
   let imageMaskSequence = 0;
   const limit = (node, field, reason = "preview.scene.paint.unmapped", value, status = "partial") => {
     diagnostics.push(Object.freeze({ ...previewDiagnostic({
@@ -1076,10 +1081,14 @@ export function paintPpjSceneSvg(receipt) {
     return `<g transform="${matrix}">${group.children.map(draw).join("")}</g>`;
   }
   function draw(node) {
+    visitedNodes.add(node.scenePath);
     const identity = `data-officekit-native-id="${esc(node.nativeId)}" data-officekit-scene-path="${esc(node.scenePath)}"${node.semanticId ? ` data-officekit-id="${esc(node.semanticId)}"` : ""}`;
     let svg;
     try {
-      if (node.hidden === true) return `<g ${identity} display="none"/>`;
+      if (node.hidden === true) {
+        hiddenScenePaths.add(node.scenePath);
+        return `<g ${identity} display="none"/>`;
+      }
       if (!node.frame) throw new TypeError("Missing native frame");
       for (const value of Object.values(node.frame)) numeric(value);
       if (node.frame.width < 0 || node.frame.height < 0) throw new RangeError("Negative native frame");
@@ -1105,7 +1114,9 @@ export function paintPpjSceneSvg(receipt) {
       else if (node.kind === "table") svg = table(node);
       else if (node.kind === "chart") svg = chart(node);
       else { limit(node, node.kind, "preview.scene.paint.content", node.kind, "opaque"); svg = placeholder(node, `${node.kind}: not painted`); }
-      return `<g ${identity} transform="${frameTransform(node.frame, node.transform)}">${svg}</g>`;
+      const transform = frameTransform(node.frame, node.transform);
+      transformedScenePaths.add(node.scenePath);
+      return `<g ${identity} transform="${transform}">${svg}</g>`;
     } catch (error) {
       // Do not erase diagnostics already emitted for this node's descendants.
       limit(node, "", "preview.scene.paint.failed", error.message, "unavailable");
@@ -1118,20 +1129,92 @@ export function paintPpjSceneSvg(receipt) {
       unused(PresentationElementSchema, node.element, ["id", "hidden", node.kind], node);
     }
   }
+  // Complete actual drawing before the input profile can inspect successful
+  // hidden/transform branches, including owners lowered across multiple pages.
+  const bodies = view.pages.map(page => page.nodes.map(draw).join(""));
+  const paintIdentity = { renderer: "officekit-native-scene-svg-internal", scene: view.scene,
+    sceneEvidence: ppjPreviewSceneIdentity(view.scene),
+    hiddenScenePaths: Object.freeze([...hiddenScenePaths]),
+    transformedScenePaths: Object.freeze([...transformedScenePaths]) };
+  let inputAssessment;
+  if (assessInput) {
+    const program = JSON.parse(new TextDecoder().decode(receipt.programJson));
+    // Public asset IDs need not match native IDs. Resolve the canonical
+    // declaration through already-verified MIME/hash scene payloads, never IO.
+    const assetKey = (mime, sha) => `${mime}:${String(sha).toLowerCase()}`;
+    const payloads = new Map(view.assets.map(asset => [assetKey(asset.contentType, asset.sha256), asset.data]));
+    const inputAssets = new Map((program.assets ?? []).map(asset => [asset.id, {
+      ...asset, data: payloads.get(assetKey(asset.mimeType, asset.sha256)),
+    }]));
+    inputAssessment = assessPpjPreviewInput(program, {
+      rendererProfile: "native-scene-svg", sceneReceipt: receipt, scenePaint: paintIdentity,
+      assets: inputAssets,
+    });
+    // A character trie finds the deepest semantic owner in O(path length),
+    // without scanning every scene binding for every input diagnostic.
+    const root = { next: new Map() };
+    for (const binding of view.scene.bindings) {
+      let cursor = root;
+      for (const char of binding.programPath) {
+        if (!cursor.next.has(char)) cursor.next.set(char, { next: new Map() });
+        cursor = cursor.next.get(char);
+      }
+      (cursor.bindings ??= []).push(binding);
+    }
+    const pagePaths = new Map(view.pages.filter(page => page.pageId).map(page => [page.pageId, page.scenePath]));
+    for (const diagnostic of inputAssessment.diagnostics) {
+      let cursor = root, owners;
+      for (let i = 0; i < diagnostic.path.length; i++) {
+        cursor = cursor.next.get(diagnostic.path[i]);
+        if (!cursor) break;
+        if (cursor.bindings && (i + 1 === diagnostic.path.length || ".[".includes(diagnostic.path[i + 1]))) {
+          const matching = cursor.bindings.filter(binding => binding.pageId === diagnostic.pageId);
+          if (matching.length) owners = matching;
+        }
+      }
+      if (owners) for (const owner of owners) diagnostics.push(Object.freeze({ ...diagnostic, scenePath: owner.scenePath }));
+      else diagnostics.push(Object.freeze({ ...diagnostic,
+        scenePath: pagePaths.get(diagnostic.pageId) ?? "$.presentation" }));
+    }
+  }
   // Native fields outside any page affect every page's review evidence.
   // Keep program ownership separate from the native scene address.
   const globalDiagnostics = diagnostics.filter(d => !view.pages.some(page =>
     d.scenePath === page.scenePath || d.scenePath.startsWith(`${page.scenePath}.`)));
-  const pages = view.pages.map(page => {
+  const pages = view.pages.map((page, index) => {
     const pageNode = { ...page, path: "$" };
     limit(pageNode, "", "preview.scene.paint.integration-pending", "Internal scene painter: production G-11/G-12 integration and complete field coverage remain pending.");
     unused(PresentationSlideSchema, page.native, ["id", "elements", "background", "hidden"], pageNode);
     const background = page.native.background;
     if (background) unused(PresentationBackgroundSchema, background, ["colorRgb", "opacityThousandthPercent", "solid"], pageNode, "background.");
     const fill = background?.color.case === "colorRgb" ? rgb(background.color.value, "#FFFFFF") : "#FFFFFF";
-    const body = page.nodes.map(draw).join("");
+    const body = bodies[index];
     const pageDiagnostics = [...globalDiagnostics, ...diagnostics.filter(d => d.scenePath === page.scenePath || d.scenePath.startsWith(`${page.scenePath}.`))];
-    const assessment = previewAssessment({ path: "$", scenePath: page.scenePath, pageId: page.pageId, assessed: true, diagnostics: pageDiagnostics });
+    const ownDiagnostics = new Map();
+    const childrenOf = node => node.children.length ? node.children : node.drawing?.children ?? [];
+    function indexNode(node) {
+      ownDiagnostics.set(node.scenePath, []);
+      childrenOf(node).forEach(indexNode);
+    }
+    page.nodes.forEach(indexNode);
+    // Resolve each field to the closest actual node by structural address, not
+    // semantic ID (generated siblings may share one owner). No prefix scan of
+    // every node for every diagnostic is needed.
+    for (const diagnostic of pageDiagnostics) {
+      let address = diagnostic.scenePath;
+      while (address && !ownDiagnostics.has(address)) {
+        const dot = address.lastIndexOf(".");
+        address = dot < 0 ? undefined : address.slice(0, dot);
+      }
+      if (address) ownDiagnostics.get(address).push(diagnostic);
+    }
+    function assessNode(node) {
+      return previewAssessment({ path: node.path, scenePath: node.scenePath,
+        pageId: node.pageId, id: node.semanticId, assessed: visitedNodes.has(node.scenePath),
+        diagnostics: ownDiagnostics.get(node.scenePath), children: childrenOf(node).map(assessNode) });
+    }
+    const assessment = previewAssessment({ path: "$", scenePath: page.scenePath, pageId: page.pageId,
+      assessed: true, diagnostics: pageDiagnostics, children: page.nodes.map(assessNode) });
     const { status, reliability } = assessment;
     const bannerHeight = Math.min(24, view.canvas.height * .12);
     const banner = `<g data-officekit-review="${reliability.status}"><rect width="${n(view.canvas.width)}" height="${n(bannerHeight)}" fill="${reliability.status === "failed" ? "#991B1B" : "#92400E"}"/><text x="2" y="${n(bannerHeight * .7)}" font-size="${n(bannerHeight * .5)}" fill="#FFFFFF">INTERNAL SCENE PREVIEW · ${esc(reliability.status)}</text></g>`;
@@ -1141,6 +1224,7 @@ export function paintPpjSceneSvg(receipt) {
   });
   const assessment = previewAssessment({ path: "$", scenePath: "$.presentation", assessed: true, diagnostics: globalDiagnostics,
     children: pages.map(page => page.assessment) });
-  return Object.freeze({ renderer: "officekit-native-scene-svg-internal", scene: view.scene, canvas: view.canvas,
+  return Object.freeze({ ...paintIdentity, canvas: view.canvas,
+    ...(inputAssessment ? { inputAssessment } : {}),
     pages: Object.freeze(pages), assessment, diagnostics: assessment.diagnostics, status: assessment.status, reliability: assessment.reliability });
 }

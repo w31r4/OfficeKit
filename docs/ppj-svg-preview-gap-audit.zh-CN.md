@@ -1,5 +1,25 @@
 # OfficeKit 本地 PPT 预览渲染器差距审计
 
+嵌套样式组合进展（2026-09-10）：原 plain 案例保留，新增 named-style/grammar 经两层组件、repeat 与定义 slot 的 styled 对照。真实报告 `tmp/officekit-native-scene-paint-x2Cj1e/integration.json` 两个 variants 均通过完整视觉载荷/整页像素、重复文字颜色/字体、来源与实例身份及缺失值断言。整套仍因四项原生删除失败退出 1；未重建 C# 或切换 CLI，任务 5.1 仍开放，见[当前差距 G-14](ppj-preview-current-gaps.zh-CN.md#g-14测试覆盖)。
+
+命名样式/grammar 等价性进展（2026-09-10）：固定 named/explicit 对照已在既有 runtime-slot-fixed 验证完整视觉载荷、整页栅格、颜色墨迹、字体/字号、显式 false 覆盖及缺失/真实零。报告 `tmp/officekit-native-scene-paint-BhbhbY/integration.json` 的 styleGrammarPair 通过，嵌套/dataset 对照仍通过；整套仍因四项源变换删除失败退出 1。首轮 token 与主题重名导致错误预期，被像素断言捕获后修正 fixture，没有修改解析规则。完整主题/源样式生命周期和其余组合仍缺，任务 5.1 未完成，详见[当前差距 G-14](ppj-preview-current-gaps.zh-CN.md#g-14测试覆盖)。
+
+dataset 等价性进展（2026-09-10）：固定交错双系列 dataset/encoding 与独立显式数据对照已在 runtime-slot-fixed 通过完整原生 chart 载荷、整页像素、owner、缺失/真实零及 scene 开关候选一致性检查。报告 `tmp/officekit-native-scene-paint-PZD4Ht/integration.json` 中 datasetPair 和嵌套组件 pair 均通过，完整集成仍因四个原生删除反例失败。未加入 JS 数据解释器，未声称源 workbook 编辑或全部通道完成；任务 5.1 仍开放。详见[当前差距 G-14](ppj-preview-current-gaps.zh-CN.md#g-14测试覆盖)。
+
+嵌套组件等价性进展（2026-09-10）：固定两层组件/repeat/slot 与独立显式坐标对照，含文本 0 和缺失折线，已在新 NativeAOT 包通过有序视觉载荷逐字节、整页像素、来源/实例及 scene 开关候选一致性检查。旧包 `UO1dDt` 的 slot 来源反射序列化失败已改为无反射 JSON 转义，固定快照 scene 39/39 及新包 SxRCLN 的该 pair 通过。完整集成仍因四个原生删除反例失败；其他等价性组合仍缺，任务 5.1 未勾选。精确包身份、失败经过与 fixture 见[当前差距 G-14](ppj-preview-current-gaps.zh-CN.md#g-14测试覆盖)。
+
+组坐标规则进展（2026-09-10）：内部 profile 仅在所有 owner 绑定均为成功绘制的原生组、外框/childFrame 八值匹配时解除旧坐标事实错误；隐藏、失败、错配或缺记录仍失败。真实 `tmp/officekit-native-scene-paint-KEpYTd/integration.json` 新增两层嵌套、非零原点、两种缩放 × 作者/源 no-op 四例，实际橙色/背景像素及逐 owner 规则验证通过。完整集成仍因四个原生删除反例退出 1；任务 4.1、正式接入和整体目标仍开放。详见[当前差距 G-03](ppj-preview-current-gaps.zh-CN.md#g-03变换与可见性)。
+
+输入/场景合并进展（2026-09-10）：内部 painter 的可选 `assessInput: true` 已把原始输入限制按实际 owner/scenePath 合入节点、页面与全局，并用合并状态生成警示及发布清单。公共/原生资产 ID 按已验证 MIME/hash 对应；不读取新资产。`tmp/officekit-native-scene-paint-ewzfZH/integration.json` 的两个作者和两个源候选合并发布回归通过，失败页面仍显示红色警示；完整集成仍因下面四个原生删除反例退出 1。选项默认关闭、正式 CLI 未切换、其他事实映射仍缺，任务 4.1 保持开放；详见[当前差距第 3.4 节](ppj-preview-current-gaps.zh-CN.md)。
+
+源变换删除反例（2026-09-10）：新增四类源组的显式归零/删除回归，前者 4/4 通过，后者 4/4 在字段缺失断言失败。候选画面恢复原位，但实际 xfrm 属性仍为 0，重新投影也保留 0/false。最终 `tmp/officekit-native-scene-paint-REM5Lk/integration.json` 为 failed、退出 1，保留候选、重新投影、请求/实际 frame 和摘要；原先作者/no-op 八例仍通过。根因位于原生 frame 快速编辑的存在性处理，非 scene painter；原生删除契约待确认规划范围后修复。详见[当前差距 G-03](ppj-preview-current-gaps.zh-CN.md#g-03变换与可见性)，不得用下方较早的完整通过报告覆盖新增失败。
+
+源组 AOT 修复验收（2026-09-10）：`ProjectGroup` 构造 readingOrder 的泛型 JSON 字符串序列化在 NativeAOT 缺元数据，现复用 `StringNode` 保留完整顺序。固定 4b7cd9c6 加有界修复的包经真实探针和完整集成通过；最终 `tmp/officekit-native-scene-paint-3gbXxj/integration.json` 验证四类变换 × 作者/源 no-op 共 8 例、实际像素、原源不变及逐字段 profile 规则，原 `eIGtvx` 四项投影失败已有直接替代证据。托管 scene 39/39、presentation 4/4 通过；精确包身份和剩余边界见[当前差距 G-03](ppj-preview-current-gaps.zh-CN.md#g-03变换与可见性)。此处只关闭限定 AOT 故障；G-03、任务 4.1、正式接入和整体目标仍开放，G-01 保持 9/15。
+
+场景发布验收完成（2026-09-10）：任务 4.2 已勾选，G-01 当前 9/15。最终 `tmp/officekit-native-scene-paint-yuV8XP/integration.json` 通过四个真实作者/源候选输入 × 六类操作故障（24 例），以及作者散点和源 SmartArt 两类事实失败的红色警示像素、清单与身份保留。使用固定 4b7cd9c6 原生包，非当前 C# 重建。正式入口及任务 4.1 的 profile/输入检查仍开放；后续历史条目的 8/15 与“4.2 未完成”不再代表现状。
+
+场景发布身份进展（2026-09-10）：内部清单已绑定 scene 版本、来源、摘要与实际候选；两个作者输入和源 no-op/文字编辑发布、文件摘要与 PNG 警示色通过，错配候选/损坏摘要/缺失资产拒绝。最终报告 `tmp/officekit-native-scene-paint-dBwhGX/integration.json` 使用固定 4b7cd9c6 原生包。多页失败归属也已修复。正式入口和完整失败矩阵仍待完成，任务 4.2 未勾选；当前状态见[当前差距第 3.4 节](ppj-preview-current-gaps.zh-CN.md)。
+
 运行时基线更新（2026-09-10）：提交 4b7cd9c6 的独立源码快照已按仓库命令构建，原生 scene 39/39、新包真实集成、协议检查、presentation 4/4 和双构建 9 文件一致性均通过；任务 5.2 完成，G-01 当前为 8/15。最终集成 `tmp/officekit-native-scene-paint-NeJHpQ/integration.json`，完整版本与失败调整过程见[当前差距第 3.3 节](ppj-preview-current-gaps.zh-CN.md)。不是正式 scene 接入或全功能视觉验收。
 
 散点进展（2026-09-10）：内部数值 X/Y marker 映射、缺失/零区分、作者 X 变化和源 Y 编辑像素/重新投影通过，旧包完整集成报告 `tmp/officekit-native-scene-paint-laY7Yi/integration.json` passed。源 X 编辑仍拒绝；连接模式因实际 writer noFill 明确失败、不画假线。没有切换正式 CLI、修复原生写出或完成 scatter 全范围。详见[当前差距](ppj-preview-current-gaps.zh-CN.md)的 G-08～G-10。

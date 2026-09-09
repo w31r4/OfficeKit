@@ -1,7 +1,7 @@
 // Internal read-only painter view. No layout, PPJ lowering, OOXML parsing,
 // filesystem, raster backend or public Presentation facade belongs here.
 import { PresentationPreviewSceneSchema, PresentationElementSchema } from "../generated/office_kit/artifact/v1/office_artifact_pb.js";
-import { readPpjPreviewScene } from "./preview-scene.mjs";
+import { readPpjPreviewReceiptScene } from "./preview-scene.mjs";
 import { previewDiagnostic, previewPath } from "./preview-diagnostics.mjs";
 import { OfficeKitCodecError } from "../codecs/office-kit-error.mjs";
 
@@ -54,9 +54,7 @@ function schemaMetadata(schema) {
  * flattening native fields. Views are not editable PPJ and imply no paint grade.
  * Asset bytes are borrowed from the verified receipt, never fetched again. */
 export function createPpjSceneView(receipt, { limits } = {}) {
-  const scene = readPpjPreviewScene({ ...receipt,
-    assets: receipt.assets?.map(asset => ({ ...asset, contentType: asset.mimeType ?? asset.contentType })),
-  }, receipt.file, { limits });
+  const scene = readPpjPreviewReceiptScene(receipt, { limits });
   const bindings = new Map(scene.bindings.map(binding => [binding.scenePath, binding]));
   const diagnostics = [];
   function limitation(scenePath, reason, value, owner) {

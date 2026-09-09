@@ -2,7 +2,8 @@ import { previewDiagnostic } from "./preview-diagnostics.mjs";
 
 // These conditions describe the current SVG drawing branches. Removing a
 // limitation requires a drawing regression, not a weaker diagnostic severity.
-export function previewFactualErrors(element, { path, pageId, id }, support) {
+export function previewFactualErrors(element, { path, pageId, id }, support,
+  { hiddenOwnerPaths = new Set(), resolvedTransformPaths = new Set(), resolvedGroupCoordinates = false } = {}) {
   const diagnostics = [];
   const add = (name, suffix, value) => {
     const rule = support.factual[name];
@@ -20,10 +21,12 @@ export function previewFactualErrors(element, { path, pageId, id }, support) {
   if (element.type === "connector") {
     for (const key of ["from", "to"]) if (element[key] !== undefined) add("connector", `.${key}`, element[key]);
   }
-  if (element.hidden === true) add("visibility", ".hidden", true);
-  if (Number.isFinite(element.frame?.rotation) && element.frame.rotation % 360 !== 0) add("transform", ".frame.rotation", element.frame.rotation);
-  for (const key of ["flipH", "flipV"]) if (element.frame?.[key] === true) add("transform", `.frame.${key}`, true);
-  if (element.type === "group" && element.childFrame && ["x", "y", "width", "height"].some((key) =>
+  if (element.hidden === true && !hiddenOwnerPaths.has(path)) add("visibility", ".hidden", true);
+  if (Number.isFinite(element.frame?.rotation) && element.frame.rotation % 360 !== 0
+      && !resolvedTransformPaths.has(`${path}.frame.rotation`)) add("transform", ".frame.rotation", element.frame.rotation);
+  for (const key of ["flipH", "flipV"]) if (element.frame?.[key] === true
+      && !resolvedTransformPaths.has(`${path}.frame.${key}`)) add("transform", `.frame.${key}`, true);
+  if (!resolvedGroupCoordinates && element.type === "group" && element.childFrame && ["x", "y", "width", "height"].some((key) =>
     Number.isFinite(element.frame?.[key]) && Number.isFinite(element.childFrame[key]) && element.frame[key] !== element.childFrame[key])) add("groupCoordinates", ".childFrame", element.childFrame);
   if (element.type !== "chart") return diagnostics;
 

@@ -7,6 +7,7 @@ import { publishPpjPreview, previewInputEvidence, previewPageStems, PreviewOutpu
 import { renderPpjToSvg } from "../src/ppj/svg-preview.mjs";
 import { sha256, writeExclusiveFile } from "../src/ppj/workspace.mjs";
 import { previewAssessment } from "../src/ppj/preview-diagnostics.mjs";
+import { ppjPreviewSceneIdentity } from "../src/ppj/preview-scene.mjs";
 
 const root = await mkdtemp(path.join(os.tmpdir(), "officekit-preview-evidence-"));
 const page = (id) => ({ id, svg: `<svg xmlns="http://www.w3.org/2000/svg"><text>${id}</text></svg>`, diagnostics: [] });
@@ -215,6 +216,40 @@ try {
   assert.deepEqual(cleanup.receipt, await json("cleanup"));
   assert.equal(cleanup.receipt.ok, true);
   assert.ok(await readFile(path.join(root, "cleanup", "render.pending.json")));
+
+  // These are identity-contract fixtures, not validated native paint fixtures.
+  // The real runtime test independently validates the scene digest and bytes.
+  const scene = { version: 1, origin: 2, sha256: sha256("scene"),
+    programSha256: compiled.programSha256, candidateSha256: sha256(compiled.file) };
+  const boundResult = { ...result, renderer: "officekit-native-scene-svg-internal", scene,
+    sceneEvidence: ppjPreviewSceneIdentity(scene) };
+  const boundEvidence = { ...evidence, scene: boundResult.sceneEvidence };
+  for (const key of ["version", "origin", "sha256", "programSha256", "candidateSha256", "missing"]) {
+    const name = `identity-${key}`;
+    const changed = key === "missing" ? undefined : { ...boundEvidence.scene,
+      [key]: key === "version" ? 99 : key === "origin" ? "authored-lowering" : sha256("wrong") };
+    const error = await rejected(publishPpjPreview(boundResult, { ...boundEvidence, scene: changed }, {
+      outputDir: path.join(root, name), loadRaster: async () => { assert.fail("no raster before identity verification"); },
+    }), "preview.output.scene");
+    assert.equal(error.receipt.failures[0].stage, "scene");
+    assert.deepEqual(error.receipt.artifacts, []);
+    await assert.rejects(readdir(path.join(root, name)), { code: "ENOENT" });
+  }
+  const bound = await publishPpjPreview(boundResult, boundEvidence, { outputDir: path.join(root, "identity-success"), loadRaster });
+  assert.deepEqual(bound.receipt.scene, boundResult.sceneEvidence);
+  assert.deepEqual(bound.receipt, await json("identity-success"));
+  for (const [name, value, inputEvidence] of [
+    ["missing-painted", { ...boundResult, scene: undefined }, boundEvidence],
+    ["missing-capture", { ...boundResult, sceneEvidence: undefined }, boundEvidence],
+    ["wrong-compile", boundResult, { ...boundEvidence, compile: { ...evidence.compile, outputSha256: sha256("wrong") } }],
+    ["wrong-mode", boundResult, { ...boundEvidence, sourceBound: false }],
+    ["invalid-version", { ...boundResult, scene: { ...scene, version: 99 } }, boundEvidence],
+  ]) {
+    await rejected(publishPpjPreview(value, inputEvidence, {
+      outputDir: path.join(root, name), loadRaster: async () => { assert.fail("invalid scene must not load raster"); },
+    }), "preview.output.scene");
+    await assert.rejects(readdir(path.join(root, name)), { code: "ENOENT" });
+  }
 
   // Exercise the preview boundary without a native runtime: compilation sees
   // loaded bytes, then the path is changed before the SVG is built.

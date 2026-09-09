@@ -3,6 +3,7 @@ import capabilityRegistry from "./capability-registry.json" with { type: "json" 
 import { previewSchemaAt, validatePreviewSupport } from "./preview-capabilities.mjs";
 import { previewAssessment, previewDiagnostic, previewPath, mergePreviewDiagnostics } from "./preview-diagnostics.mjs";
 import { previewFactualErrors } from "./preview-factual-errors.mjs";
+import { readPpjPreviewReceiptScene } from "./preview-scene.mjs";
 
 const object = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const ref = (name) => ({ $ref: `#/$defs/${name}` });
@@ -41,8 +42,59 @@ function childSchema(parts, key, isArray) {
 }
 
 /** Assess canonical PPJ without changing input or claiming resolved layout. */
-export function assessPpjPreviewInput(program, { schema = languageSchema, registry = capabilityRegistry, assets = new Map() } = {}) {
+export function assessPpjPreviewInput(program, { schema = languageSchema, registry = capabilityRegistry, assets = new Map(),
+  rendererProfile = "canonical-svg", sceneReceipt, scenePaint } = {}) {
   const support = validatePreviewSupport(registry, schema);
+  if (!["canonical-svg", "native-scene-svg"].includes(rendererProfile)) throw new TypeError("Unknown preview renderer profile");
+  const hiddenOwnerPaths = new Set();
+  const paintedOwnerTransforms = new Map();
+  const paintedOwnerGroups = new Map();
+  if (rendererProfile === "native-scene-svg") {
+    const mapping = registry.previewScene?.factualMappings?.visibility;
+    if (mapping?.handler !== "all-owner-nodes-hidden" || mapping.test !== "test/ppj-preview-scene-native.mjs")
+      throw new Error("Missing verified native visibility mapping in the preview registry");
+    const transformMapping = registry.previewScene?.factualMappings?.transform;
+    if (transformMapping?.handler !== "all-owner-native-transforms-painted" || transformMapping.test !== "test/ppj-preview-scene-native.mjs")
+      throw new Error("Missing verified native transform mapping in the preview registry");
+    const groupMapping = registry.previewScene?.factualMappings?.groupCoordinates;
+    if (groupMapping?.handler !== "all-owner-group-frames-painted" || groupMapping.test !== "test/ppj-preview-scene-native.mjs")
+      throw new Error("Missing verified native group coordinate mapping in the preview registry");
+    const scene = readPpjPreviewReceiptScene(sceneReceipt ?? {});
+    if (scenePaint?.renderer !== "officekit-native-scene-svg-internal" || scenePaint.scene !== scene ||
+        scenePaint.sceneEvidence?.sha256 !== scene.sha256 || !Array.isArray(scenePaint.hiddenScenePaths) || !Array.isArray(scenePaint.transformedScenePaths) ||
+        JSON.stringify(program) !== JSON.stringify(JSON.parse(new TextDecoder().decode(sceneReceipt.programJson))))
+      throw new Error("Native preview input assessment requires the matching canonical input and painted scene");
+    // Do not infer hidden ownership from a component label or just receiving a
+    // scene. Every lowered node for the owner must have taken the hidden branch.
+    const hidden = new Set(scenePaint.hiddenScenePaths), nativeHidden = new Set(), owners = new Map();
+    const transformed = new Set(scenePaint.transformedScenePaths), nativeTransforms = new Map();
+    const nativeGroups = new Map();
+    function visitNative(elements, prefix) {
+      elements.forEach((element, index) => {
+        const address = `${prefix}[${index}]`;
+        const native = element.content.value;
+        nativeTransforms.set(address, native?.transform ?? native?.frameTransform);
+        if (element.content.case === "group") nativeGroups.set(address, native);
+        if (element.hidden === true) nativeHidden.add(address);
+        if (element.content.case === "group") visitNative(element.content.value.children, `${address}.group.children`);
+        if (element.content.case === "diagram" && element.content.value.drawing)
+          visitNative(element.content.value.drawing.children, `${address}.diagram.drawing.children`);
+      });
+    }
+    scene.presentation.slides.forEach((slide, index) => visitNative(slide.elements, `$.presentation.slides[${index}].elements`));
+    for (const binding of scene.bindings) {
+      if (!owners.has(binding.programPath)) owners.set(binding.programPath, []);
+      owners.get(binding.programPath).push(binding);
+    }
+    for (const [path, bindings] of owners)
+      if (bindings.every(binding => hidden.has(binding.scenePath) && nativeHidden.has(binding.scenePath))) hiddenOwnerPaths.add(path);
+    for (const [path, bindings] of owners)
+      if (bindings.every(binding => transformed.has(binding.scenePath)))
+        paintedOwnerTransforms.set(path, bindings.map(binding => nativeTransforms.get(binding.scenePath)));
+    for (const [path, bindings] of owners)
+      if (bindings.every(binding => transformed.has(binding.scenePath) && nativeGroups.has(binding.scenePath)))
+        paintedOwnerGroups.set(path, bindings.map(binding => nativeGroups.get(binding.scenePath)));
+  }
   const rules = new Map(Object.values(support.fields).map((rule) => [previewSchemaAt(schema, rule.schemaRef), rule]));
   const metadata = new Set(Object.values(support.metadata).map((rule) => previewSchemaAt(schema, rule.schemaRef)));
   const sourceRules = new Map(Object.values(support.sourceBound).map((rule) => [previewSchemaAt(schema, rule.schemaRef), rule]));
@@ -149,7 +201,24 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
     const id = pageId !== undefined && typeof element?.id === "string" && element.id ? element.id : undefined;
     const provenImage = support.fields.image.stateHandler === "inline-png-contain" && inlinePngContain(element);
     const context = { pageId, id, elementPath: path, provenImage, diagnostics: [...inherited], children: [], inherited };
-    context.diagnostics.push(...previewFactualErrors(element, { path, pageId, id }, support));
+    const resolvedTransformPaths = new Set();
+    const transforms = paintedOwnerTransforms.get(path);
+    for (const [field, nativeField] of [["rotation", "rotationAngle60000"], ["flipH", "flipHorizontal"], ["flipV", "flipVertical"]]) {
+      const value = element?.frame?.[field];
+      if (value !== undefined && transforms?.length && transforms.every(transform =>
+        transform?.[nativeField] !== undefined && (field === "rotation" ? Number(transform[nativeField]) / 60000 : transform[nativeField]) === value))
+        resolvedTransformPaths.add(`${path}.frame.${field}`);
+    }
+    const groups = paintedOwnerGroups.get(path);
+    const coordinateFields = [["x", "LeftEmu"], ["y", "TopEmu"], ["width", "WidthEmu"], ["height", "HeightEmu"]];
+    const resolvedGroupCoordinates = element?.type === "group" && groups?.length > 0 && groups.every(group =>
+      coordinateFields.every(([field, nativeField]) => {
+        const outer = group[nativeField[0].toLowerCase() + nativeField.slice(1)], inner = group[`child${nativeField}`];
+        return Number.isSafeInteger(Number(outer)) && Number.isSafeInteger(Number(inner)) &&
+          Number(outer) / 12700 === element.frame?.[field] && Number(inner) / 12700 === element.childFrame?.[field];
+      }));
+    context.diagnostics.push(...previewFactualErrors(element, { path, pageId, id }, support,
+      { hiddenOwnerPaths, resolvedTransformPaths, resolvedGroupCoordinates }));
     const type = object(element) && Object.hasOwn(support.types, element.type) ? support.types[element.type] : undefined;
     if (!provenImage) emit(context, previewPath(path, "type"), element?.type, type, type ? {} : { status: "opaque", reason: "preview.element.unknown" });
     if (element?.type === "image" && !assets.get(element.asset)?.data?.byteLength) {

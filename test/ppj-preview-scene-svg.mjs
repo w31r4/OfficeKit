@@ -65,8 +65,8 @@ for (const bad of [
 
 // Synthetic native receipts isolate drawing semantics; real compiler coverage
 // lives in the explicitly selected NativeAOT integration test.
-function fixture(edit = () => {}) {
-  const file = Buffer.from("candidate"), programJson = Buffer.from('{"pages":[]}');
+function fixture(edit = () => {}, program = { pages: [] }, editBindings = () => {}) {
+  const file = Buffer.from("candidate"), programJson = Buffer.from(JSON.stringify(program));
   const data = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==", "base64");
   const nodes = [
     child("box", "shape", { ...frame(10, 40, 200, 100), geometry: "textbox", fillRgb: "114477", lineRgb: "AA2200", lineWidthEmu: emu(2),
@@ -113,11 +113,68 @@ function fixture(edit = () => {}) {
     });
   }
   bind(scene.presentation.slides[0].elements, "$.presentation.slides[0].elements");
+  editBindings(scene.bindings);
   scene.sha256 = sha(toBinary(PresentationPreviewSceneSchema, { ...scene, sha256: "" }));
   return { file, programJson, programSha256: sha(programJson), outputSha256: sha(file), sourceBound: scene.origin === 2, previewScene: scene,
     assets: [{ id: "public-asset", mimeType: "image/png", sha256: sha(data), data }] };
 }
 const receipt = fixture(), before = toBinary(PresentationPreviewSceneSchema, receipt.previewScene);
+const combinedInput = { pages: [{ id: "page", elements: [{ id: "owner", type: "shape",
+  frame: { x: 10, y: 40, width: 100, height: 100, rotation: 30 },
+  geometry: { kind: "preset", preset: "rect" }, futurePaint: "unmapped input" }] }],
+  futureGlobal: "unresolved global input" };
+const combinedReceipt = fixture(scene => {
+  scene.presentation.slides[0].elements = scene.presentation.slides[0].elements.slice(0, 2);
+}, combinedInput, bindings => {
+  for (const binding of bindings) {
+    binding.semanticId = "owner";
+    binding.programPath = "$.pages[0].elements[0]";
+    binding.attribution = 2;
+  }
+});
+const combinedBefore = toBinary(PresentationPreviewSceneSchema, combinedReceipt.previewScene);
+const paintOnly = paintPpjSceneSvg(combinedReceipt);
+const combinedAssessment = paintPpjSceneSvg(combinedReceipt, { assessInput: true });
+assert.ok(!paintOnly.inputAssessment);
+assert.ok(combinedAssessment.inputAssessment);
+const inputTransform = combinedAssessment.inputAssessment.diagnostics.find(d => d.path.endsWith(".frame.rotation") && d.severity === "error");
+assert.ok(inputTransform, "unpainted requested rotation remains factual failure");
+for (const node of combinedAssessment.pages[0].assessment.children) {
+  assert.ok(node.diagnostics.some(d => d.path === inputTransform.path && d.scenePath === node.scenePath && d.severity === "error"));
+  assert.ok(node.diagnostics.some(d => d.path.endsWith(".futurePaint") && d.scenePath === node.scenePath));
+}
+assert.equal(combinedAssessment.reliability.status, "failed");
+assert.match(combinedAssessment.pages[0].svg, /data-officekit-review="failed"/);
+assert.match(combinedAssessment.pages[0].svg, /fill="#991B1B"/);
+assert.ok(combinedAssessment.diagnostics.some(d => d.path === "$.futureGlobal" && d.scenePath === "$.presentation"));
+for (const d of paintOnly.diagnostics) assert.ok(combinedAssessment.diagnostics.some(a => a.reason === d.reason && a.scenePath === d.scenePath));
+assert.deepEqual(toBinary(PresentationPreviewSceneSchema, combinedReceipt.previewScene), combinedBefore);
+const inputAsset = receipt.assets[0];
+const assetProgram = { assets: [{ id: "different-public-id", mimeType: inputAsset.mimeType, sha256: inputAsset.sha256.toUpperCase() }],
+  pages: [{ id: "page", elements: [{ id: "photo", type: "image", asset: "different-public-id", fit: "contain",
+    frame: { x: 330, y: 40, width: 50, height: 100 } }] }] };
+const assetReceipt = fixture(scene => { scene.presentation.slides[0].elements = [scene.presentation.slides[0].elements[3]]; }, assetProgram,
+  bindings => { bindings[0].programPath = "$.pages[0].elements[0]"; });
+assert.ok(!paintPpjSceneSvg(assetReceipt, { assessInput: true }).diagnostics.some(d => d.reason === "asset-missing"),
+  "different public/native IDs resolve via verified MIME/hash, including uppercase declaration digest");
+function groupProfileFixture({ requestedWidth = 100, nativeWidth = 100, hidden = false } = {}) {
+  return fixture(scene => {
+    scene.presentation.slides[0].elements = [child("outer", "group", {
+      ...frame(100, 100, 200, 100), childLeftEmu: emu(10), childTopEmu: emu(20),
+      childWidthEmu: emu(nativeWidth), childHeightEmu: emu(50), children: [],
+    }, hidden)];
+  }, { pages: [{ id: "page", elements: [{ id: "outer", type: "group", hidden,
+    frame: { x: 100, y: 100, width: 200, height: 100 },
+    childFrame: { x: 10, y: 20, width: requestedWidth, height: 50 }, elements: [] }] }] },
+  bindings => { bindings[0].programPath = "$.pages[0].elements[0]"; });
+}
+const groupReason = "preview.fact.group-coordinates-ignored";
+assert.ok(!paintPpjSceneSvg(groupProfileFixture(), { assessInput: true }).diagnostics.some(d => d.reason === groupReason));
+for (const options of [{ requestedWidth: 80 }, { hidden: true }, { nativeWidth: 0 }]) {
+  const result = paintPpjSceneSvg(groupProfileFixture(options), { assessInput: true });
+  assert.ok(result.diagnostics.some(d => d.reason === groupReason), "mismatch, hidden and failed group retain old factual rule");
+  assert.equal(result.reliability.status, "failed");
+}
 const attributed = fixture(scene => {
   scene.presentation.futureReviewField = "unmodeled global state";
   scene.presentation.slides[0].elements = ["generated-a", "generated-b"].map(id => child(id, "shape", {
@@ -139,6 +196,30 @@ assert.ok(attributedPaint.pages[0].diagnostics.some(d => d.scenePath === "$.pres
 assert.deepEqual(attributedPaint.assessment.diagnostics, attributedPaint.diagnostics);
 assert.deepEqual(attributedPaint.pages[0].assessment.diagnostics, attributedPaint.pages[0].diagnostics);
 assert.equal(JSON.parse(JSON.stringify(attributedPaint.assessment)).diagnostics.length, attributedPaint.diagnostics.length);
+const generatedAssessments = attributedPaint.pages[0].assessment.children;
+assert.equal(generatedAssessments.length, 2);
+for (const [index, assessment] of generatedAssessments.entries()) {
+  assert.equal(assessment.id, "component-owner");
+  assert.equal(assessment.path, "$.pages[0].elements[0]");
+  assert.equal(assessment.scenePath, `$.presentation.slides[0].elements[${index}]`);
+  assert.equal(assessment.diagnostics.filter(d => /shape(?:DepthEmu|ExtrusionHeightEmu)$/.test(d.scenePath)).length, 2);
+  assert.ok(assessment.diagnostics.every(d => d.scenePath.startsWith(`${assessment.scenePath}.`)));
+}
+for (const hidden of [true, false]) {
+  const skipped = fixture(scene => {
+    scene.presentation.slides[0].elements = [child("parent", "group", {
+      ...frame(0, 0, 100, 100), childWidthEmu: 0n, childHeightEmu: emu(100),
+      children: [child("unvisited", "shape", { ...frame(0, 0, 10, 10), geometry: "rect", fillRgb: "CC5500" })],
+    }, hidden)];
+  });
+  const painted = paintPpjSceneSvg(skipped);
+  const parent = painted.pages[0].assessment.children[0];
+  assert.equal(parent.children.length, 1);
+  const leaf = parent.children[0];
+  assert.ok(leaf.diagnostics.some(d => d.reason === "preview.state.unassessed" && d.scenePath === leaf.scenePath));
+  assert.notEqual(leaf.reliability.status, "passed");
+  if (!hidden) assert.equal(parent.reliability.status, "failed");
+}
 for (const verified of [true, false]) {
   const input = fixture(scene => scene.presentation.slides[0].elements.push(child("diagram", "diagram", {
     ...frame(100, 100, 200, 100), drawingCacheVerified: verified, layout: "process",
