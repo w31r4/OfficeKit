@@ -153,7 +153,8 @@ internal static class PptxBodyPropertiesCodec
                 source.AnchorCase == PresentationTextBodyProperties.AnchorOneofCase.NoVerticalAnchor && source.NoVerticalAnchor) &&
             (source.WrappingCase is PresentationTextBodyProperties.WrappingOneofCase.None or PresentationTextBodyProperties.WrappingOneofCase.Wrap ||
                 source.WrappingCase == PresentationTextBodyProperties.WrappingOneofCase.NoWrap && source.NoWrap) &&
-            (source.AutoFitCase is PresentationTextBodyProperties.AutoFitOneofCase.None or PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode) &&
+            (source.AutoFitCase is PresentationTextBodyProperties.AutoFitOneofCase.None or PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode ||
+                source.AutoFitCase == PresentationTextBodyProperties.AutoFitOneofCase.NoAutoFitMode && source.NoAutoFitMode) &&
             (source.VerticalTextCase is PresentationTextBodyProperties.VerticalTextOneofCase.None or PresentationTextBodyProperties.VerticalTextOneofCase.VerticalTextMode ||
                 source.VerticalTextCase == PresentationTextBodyProperties.VerticalTextOneofCase.NoVerticalTextMode && source.NoVerticalTextMode) &&
             (source.ColumnCountCase is PresentationTextBodyProperties.ColumnCountOneofCase.None or PresentationTextBodyProperties.ColumnCountOneofCase.Columns ||
@@ -178,8 +179,10 @@ internal static class PptxBodyPropertiesCodec
         if (source.NormalAutoFit is not { } normal) return true;
         if (source.AutoFitCase != PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode || source.AutoFitMode != "shrinkText")
             return false;
-        if (normal.FontScaleCase is not (PresentationNormalAutoFit.FontScaleOneofCase.None or PresentationNormalAutoFit.FontScaleOneofCase.FontScale1000) ||
-            normal.LineSpacingReductionCase is not (PresentationNormalAutoFit.LineSpacingReductionOneofCase.None or PresentationNormalAutoFit.LineSpacingReductionOneofCase.LineSpacingReduction1000))
+        if (!(normal.FontScaleCase is PresentationNormalAutoFit.FontScaleOneofCase.None or PresentationNormalAutoFit.FontScaleOneofCase.FontScale1000 ||
+                normal.FontScaleCase == PresentationNormalAutoFit.FontScaleOneofCase.NoFontScale && normal.NoFontScale) ||
+            !(normal.LineSpacingReductionCase is PresentationNormalAutoFit.LineSpacingReductionOneofCase.None or PresentationNormalAutoFit.LineSpacingReductionOneofCase.LineSpacingReduction1000 ||
+                normal.LineSpacingReductionCase == PresentationNormalAutoFit.LineSpacingReductionOneofCase.NoLineSpacingReduction && normal.NoLineSpacingReduction))
             return false;
         if (normal.FontScaleCase == PresentationNormalAutoFit.FontScaleOneofCase.FontScale1000 &&
             (normal.FontScale1000 < MinFontScale1000 || normal.FontScale1000 > MaxFontScale1000))

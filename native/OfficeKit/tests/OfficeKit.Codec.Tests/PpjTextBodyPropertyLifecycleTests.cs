@@ -311,6 +311,116 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         }
     }
 
+    [Theory]
+    [InlineData("shape")]
+    [InlineData("text")]
+    [InlineData("master")]
+    [InlineData("layout")]
+    [InlineData("table")]
+    public void AutoFitChoicesAndPercentagesPreserveSourceLifecycle(string kind)
+    {
+        var program = Program(kind);
+        Style(program, kind)["autoFit"] = "shrink-text";
+        Style(program, kind)["normalAutoFit"] = new JsonObject { ["fontScale"] = 87.125, ["lineSpacingReduction"] = 12.5 };
+        var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
+        var original = source.ToArray();
+        Assert.Equal(source, Compile(Project(source), source).File.ToByteArray());
+        var invalid = Project(source);
+        Style(invalid, kind).Remove("autoFit");
+        Assert.Empty(Compile(invalid, source, success: false).File);
+        foreach (var field in new[] { "fontScale", "lineSpacingReduction", "normalAutoFit" })
+        {
+            var request = Project(source);
+            if (field == "normalAutoFit") Style(request, kind).Remove(field);
+            else Style(request, kind)["normalAutoFit"]!.AsObject().Remove(field);
+            var deleted = Compile(request, source).File.ToByteArray();
+            var native = Assert.Single(Body(deleted, kind).Elements<A.NormalAutoFit>());
+            if (field != "lineSpacingReduction") Assert.Null(native.FontScale);
+            if (field != "fontScale") Assert.Null(native.LineSpaceReduction);
+            var fresh = Style(Project(deleted), kind);
+            Assert.Equal("shrink-text", fresh["autoFit"]!.GetValue<string>());
+            if (field == "normalAutoFit") Assert.False(fresh.ContainsKey(field));
+            else Assert.False(fresh["normalAutoFit"]!.AsObject().ContainsKey(field));
+            AssertOnlyBodyPropertyChanged(source, deleted, kind, "normalAutoFit." + field);
+            foreach (var value in field == "fontScale" ? new[] { 1d, 87.125d, 100d } : new[] { 0d, 12.5d, 13200d })
+            {
+                var restore = Project(deleted);
+                Style(restore, kind)["normalAutoFit"] ??= new JsonObject();
+                var restoredField = field == "normalAutoFit" ? "lineSpacingReduction" : field;
+                Style(restore, kind)["normalAutoFit"]![restoredField] = value;
+                var restored = Compile(restore, deleted).File.ToByteArray();
+                var profile = Assert.Single(Body(restored, kind).Elements<A.NormalAutoFit>());
+                Assert.Equal(checked((int)(value * 1000)), restoredField == "fontScale" ? profile.FontScale!.Value : profile.LineSpaceReduction!.Value);
+                Assert.Equal(value, Style(Project(restored), kind)["normalAutoFit"]![restoredField]!.GetValue<double>());
+                AssertOnlyBodyPropertyChanged(deleted, restored, kind, "normalAutoFit." + restoredField);
+            }
+        }
+        var remove = Project(source);
+        Style(remove, kind).Remove("autoFit"); Style(remove, kind).Remove("normalAutoFit");
+        var absent = Compile(remove, source).File.ToByteArray();
+        Assert.Empty(AutoFitChildren(Body(absent, kind)));
+        Assert.False(Style(Project(absent), kind).ContainsKey("autoFit"));
+        Assert.False(Style(Project(absent), kind).ContainsKey("normalAutoFit"));
+        AssertOnlyBodyPropertyChanged(source, absent, kind, "autoFit");
+        foreach (var mode in new[] { "none", "shrink-text", "resize-shape" })
+        {
+            var restore = Project(absent); Style(restore, kind)["autoFit"] = mode;
+            var restored = Compile(restore, absent).File.ToByteArray();
+            Assert.Equal(mode switch { "none" => "noAutofit", "shrink-text" => "normAutofit", _ => "spAutoFit" }, Assert.Single(AutoFitChildren(Body(restored, kind))).LocalName);
+            Assert.Equal(mode, Style(Project(restored), kind)["autoFit"]!.GetValue<string>());
+            Assert.Equal(restored, Compile(Project(restored), restored).File.ToByteArray());
+            AssertOnlyBodyPropertyChanged(absent, restored, kind, "autoFit");
+            var again = Project(restored); Style(again, kind).Remove("autoFit");
+            Assert.Empty(AutoFitChildren(Body(Compile(again, restored).File.ToByteArray(), kind)));
+            var switchMode = Project(source);
+            Style(switchMode, kind)["autoFit"] = mode; Style(switchMode, kind).Remove("normalAutoFit");
+            var switched = Compile(switchMode, source).File.ToByteArray();
+            Assert.False(Style(Project(switched), kind).ContainsKey("normalAutoFit"));
+            AssertOnlyBodyPropertyChanged(source, switched, kind, "autoFit");
+        }
+        Assert.Equal(original, source);
+    }
+
+    [Theory]
+    [InlineData("shape")]
+    [InlineData("table")]
+    public void AutoFitSimpleStyleRemovalAndRestoration(string kind)
+    {
+        foreach (var combined in new[] { false, true })
+        {
+            var program = Program(kind);
+            if (!combined) Style(program, kind).Clear();
+            Style(program, kind)["autoFit"] = "shrink-text";
+            Style(program, kind)["normalAutoFit"] = new JsonObject { ["fontScale"] = 100, ["lineSpacingReduction"] = 0 };
+            var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
+            var request = Project(source);
+            var owner = (kind == "shape" ? request["pages"]![0]!["elements"]![0] :
+                request["pages"]![0]!["elements"]![0]!["rows"]![0]!["cells"]![0]!["text"])!.AsObject();
+            owner.Remove(kind == "shape" ? "textStyle" : "style");
+            var deleted = Compile(request, source).File.ToByteArray();
+            Assert.Empty(AutoFitChildren(Body(deleted, kind)));
+            Assert.Null(Body(deleted, kind).UpRight); Assert.Null(Body(deleted, kind).Rotation);
+            Assert.Null(Body(deleted, kind).Wrap); Assert.Null(Body(deleted, kind).LeftInset);
+            if (!combined) AssertOnlyBodyPropertyChanged(source, deleted, kind, "autoFit");
+            var restore = Project(deleted); var element = restore["pages"]![0]!["elements"]![0]!;
+            var style = new JsonObject { ["autoFit"] = "shrink-text", ["normalAutoFit"] = new JsonObject { ["fontScale"] = 100, ["lineSpacingReduction"] = 0 } };
+            if (kind == "shape") element["textStyle"] = style;
+            else element["rows"]![0]!["cells"]![0]!["text"] = new JsonObject
+            {
+                ["style"] = style,
+                ["paragraphs"] = new JsonArray(new JsonObject { ["runs"] = new JsonArray(new JsonObject { ["text"] = "Retain this text" }) }),
+            };
+            var restored = Compile(restore, deleted).File.ToByteArray();
+            var profile = Assert.Single(Body(restored, kind).Elements<A.NormalAutoFit>());
+            Assert.Equal(100000, profile.FontScale!.Value); Assert.Equal(0, profile.LineSpaceReduction!.Value);
+            Assert.Equal(0, Style(Project(restored), kind)["normalAutoFit"]!["lineSpacingReduction"]!.GetValue<double>());
+            AssertOnlyBodyPropertyChanged(deleted, restored, kind, "autoFit");
+        }
+    }
+
+    private static IEnumerable<OpenXmlElement> AutoFitChildren(A.BodyProperties body) =>
+        body.ChildElements.Where(child => child is A.NoAutoFit or A.NormalAutoFit or A.ShapeAutoFit);
+
     private static int? Margin(byte[] bytes, string kind, string edge)
     {
         var body = Body(bytes, kind);
@@ -613,7 +723,20 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         using var right = PresentationDocument.Open(new MemoryStream(after), false);
         var oldSlide = Owner(left, kind);
         var newSlide = Owner(right, kind);
-        if (field == "margins" || field.StartsWith("margins."))
+        if (field == "autoFit")
+        {
+            foreach (var child in AutoFitChildren(Assert.Single(oldSlide.Descendants<A.BodyProperties>())).ToArray()) child.Remove();
+            foreach (var child in AutoFitChildren(Assert.Single(newSlide.Descendants<A.BodyProperties>())).ToArray()) child.Remove();
+        }
+        else if (field.StartsWith("normalAutoFit."))
+        {
+            foreach (var profile in new[] { Assert.Single(oldSlide.Descendants<A.NormalAutoFit>()), Assert.Single(newSlide.Descendants<A.NormalAutoFit>()) })
+            {
+                if (field != "normalAutoFit.lineSpacingReduction") profile.FontScale = null;
+                if (field != "normalAutoFit.fontScale") profile.LineSpaceReduction = null;
+            }
+        }
+        else if (field == "margins" || field.StartsWith("margins."))
         {
             foreach (var edge in new[] { "left", "top", "right", "bottom" }.Where(edge => field == "margins" || field == "margins." + edge))
             {

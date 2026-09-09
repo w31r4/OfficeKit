@@ -47,6 +47,11 @@ for (const edge of ["left", "top", "right", "bottom"]) {
   const zeroMarginText = assessPpjPreviewInput(deck([{ ...text, style: { margins: { [edge]: 0 } } }]));
   assert.ok(zeroMarginText.diagnostics.some(d => d.path.includes(".style.margins") && d.status !== "supported"));
 }
+for (const style of [{ autoFit: "none" }, { autoFit: "shrink-text", normalAutoFit: { lineSpacingReduction: 0 } }]) {
+  const autoFitText = assessPpjPreviewInput(deck([{ ...text, style }]));
+  assert.ok(autoFitText.diagnostics.some(d => d.path.includes(".style.autoFit") && d.status !== "supported"));
+  if (style.normalAutoFit) assert.ok(autoFitText.diagnostics.some(d => d.path.includes(".style.normalAutoFit") && d.status !== "supported"));
+}
 const singleColumnText = assessPpjPreviewInput(deck([{ ...text, style: { columns: 1 } }]));
 assert.ok(singleColumnText.diagnostics.some(d => d.path.endsWith(".style.columns") && d.status !== "supported"));
 const rotatedText = assessPpjPreviewInput(deck([{ ...text, style: { rotation: 0 } }]));

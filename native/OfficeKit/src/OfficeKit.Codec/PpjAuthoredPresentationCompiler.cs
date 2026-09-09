@@ -325,7 +325,38 @@ internal static partial class PpjAuthoredPresentationCompiler
         else if (previousStyle is { ValueKind: JsonValueKind.Object } previous && previous.TryGetProperty("upright", out _))
             current.NoUpright = true;
         ApplySourceBoundMarginRemoval(current, style, previousStyle);
+        ApplySourceBoundAutoFitRemoval(current, style, previousStyle);
         target.BodyProperties = PptxBodyPropertiesCodec.HasModeledProperties(current) ? current : null;
+    }
+
+    internal static void ApplySourceBoundAutoFitRemoval(
+        PresentationTextBodyProperties target, JsonElement? style, JsonElement? previousStyle)
+    {
+        if (previousStyle is not { ValueKind: JsonValueKind.Object } previous) return;
+        var next = style ?? default;
+        if (previous.TryGetProperty("autoFit", out _) &&
+            (next.ValueKind != JsonValueKind.Object || !next.TryGetProperty("autoFit", out _)))
+        {
+            target.NoAutoFitMode = true;
+            target.NormalAutoFit = null;
+            return;
+        }
+        if (target.AutoFitCase != PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode ||
+            target.AutoFitMode != "shrinkText" || !previous.TryGetProperty("normalAutoFit", out var oldNormal)) return;
+        var nextNormal = next.ValueKind == JsonValueKind.Object && next.TryGetProperty("normalAutoFit", out var normal)
+            ? normal : default;
+        bool Removed(string field) => oldNormal.TryGetProperty(field, out _) &&
+            (nextNormal.ValueKind != JsonValueKind.Object || !nextNormal.TryGetProperty(field, out _));
+        if (Removed("fontScale"))
+        {
+            target.NormalAutoFit ??= new PresentationNormalAutoFit();
+            target.NormalAutoFit.NoFontScale = true;
+        }
+        if (Removed("lineSpacingReduction"))
+        {
+            target.NormalAutoFit ??= new PresentationNormalAutoFit();
+            target.NormalAutoFit.NoLineSpacingReduction = true;
+        }
     }
 
     internal static void ApplySourceBoundMarginRemoval(

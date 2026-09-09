@@ -2,6 +2,18 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ text-body `autoFit`/`normalAutoFit` lifecycle (2026-09-10): source deletion
+now removes canonical AutoFit choices or individual shrink-text percentages.
+Explicit none remains noAutofit; removing the percentage profile retains
+normAutofit. Seven shared lifecycle cases cover five text owner kinds, three
+modes, percentage bounds/fractional values, explicit zero, dependency rejection,
+simple-style/compact table restoration, no-op and non-target XML/ZIP preservation.
+Focused lifecycle/body/AutoFit/placeholder/table-text tests pass 104/104, zero
+skipped (SDK 8.0.128). Preview input/capability, maintenance, generated matrix,
+portability/reference sync and strict OpenSpec pass. No wire change, NativeAOT
+rebuild or host reflow acceptance; noncanonical source and inheritance boundaries
+remain.
+
 PPJ text-body `margins` lifecycle (2026-09-10): independent left/top/right/bottom
 deletion, empty/removed margins and guarded simple-style removal now remove
 native inset overrides. Seven shared cases cover all five text owner kinds,
