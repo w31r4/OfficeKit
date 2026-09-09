@@ -275,6 +275,10 @@ export function paintPpjSceneSvg(receipt) {
     // is a separate factual check; neither frame direction nor nearest objects
     // participate in this routing.
     const points = [start];
+    if (s.bendAdjustment !== undefined && s.bendAdjustment !== 50000) {
+      limit(node, "connector.bendAdjustment", "preview.scene.paint.connector-bend", "Nondefault native bend is retained but its route is not painted.", "unavailable");
+      return placeholder(node, "Adjusted connector: route unavailable");
+    }
     if (s.connectorType === "elbow") {
       const mid = (start.x + end.x) / 2;
       points.push({ x: mid, y: start.y }, { x: mid, y: end.y });

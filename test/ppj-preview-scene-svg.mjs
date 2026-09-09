@@ -173,6 +173,14 @@ for (const bad of [
   assert.ok(failure.diagnostics.some(d => d.id === "grid" && d.reason === "preview.scene.paint.failed"));
   assert.doesNotMatch(failure.pages[0].svg, /data-officekit-table-cell=/);
 }
+const adjusted = paintPpjSceneSvg(fixture(scene => {
+  const edge = scene.presentation.slides[0].elements[8].content.value;
+  edge.connectorType = "elbow"; edge.bendAdjustment = 0;
+}));
+assert.ok(adjusted.diagnostics.some(d => d.reason === "preview.scene.paint.connector-bend" && d.status === "unavailable"));
+assert.doesNotMatch(adjusted.pages[0].svg, /data-officekit-connector="elbow"/);
+assert.match(adjusted.pages[0].svg, /Adjusted connector: route unavailable/);
+
 const curved = paintPpjSceneSvg(fixture(scene => { scene.presentation.slides[0].elements[8].content.value.connectorType = "curved"; }));
 assert.equal(curved.reliability.status, "failed");
 assert.match(curved.pages[0].svg, /curved: route unavailable/);

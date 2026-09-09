@@ -35,6 +35,15 @@ source edits, byte-identical no-op, binding and non-target ZIP preservation.
 Production preview retains its explicit partial connector diagnostic; no new
 NativeAOT build or PowerPoint appearance acceptance is claimed.
 
+PPJ connector `bendAdjustment` (2026-09-10) preserves a direct signed int32
+`adj1` literal for elbow/curved routes, including zero and omission. Source
+`setConnectorType` permits change/removal with endpoints, arrows and bindings
+retained; switching to straight clears the old bend. The connector/preview
+native suite passes 69/69, zero skipped, including original-source no-op,
+SlidePart-only mutations and opaque preservation for computed guides or bend
+axes not representable by endpoint normalization. The internal SVG painter
+explicitly reports nondefault bends as unavailable; host appearance is unverified.
+
 Latest PPTX evidence: candidate product commit `e1bb8699671c3599b44b999ca308ff8d0d9581d7` and packed `office-kit@0.6.0` tarball SHA-256 `0152742d17a07a7b53e53f83f75c08c829804ab8f73ad65841a5e49946e7e8a9` passed the frozen three-sample programmable-import acceptance. All `90/90` clean-source matrix runs passed, all `30/30` declared intents produced deterministic bytes and oracle results across three repetitions, and rendering used LibreOffice for 60 runs plus Keynote for 30 text changes that LibreOffice did not display. Every run preserved the source, reimported successfully, kept the declared non-target parts and relationships byte-identical, recovered target XML/SVG after masking only the issued mutation, and kept non-target pages pixel-identical.
 
 The same candidate passed `9/9` fresh Codex trials, each using a packed clean install and three durable task sessions with reviewed commits `c0001`/`c0002` and only `c0002` published. The separately frozen source-derived companion suite passed `24/24` runs over eight deterministic cases covering text, geometry, image, table, chart, component, add, delete, and reorder. Exact component hashes and boundaries live in `evals/pptx-programmable-import/candidate.v1.json`. This closes the declared macOS three-sample acceptance, not arbitrary OOXML semantics; broader imported-object profiles remain partial, and Windows PowerPoint is tracked as a separate host lane rather than a portable completion gate. Repeated component candidates still require source-bound capabilities, and opaque or topology-bearing components do not become generally editable.

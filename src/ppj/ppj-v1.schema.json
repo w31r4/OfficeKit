@@ -1941,6 +1941,7 @@
               "fill",
               "stroke",
               "connectorType",
+              "bendAdjustment",
               "startArrow",
               "endArrow",
               "startArrowWidth",
@@ -7554,6 +7555,12 @@
           "properties": {
             "type": {
               "const": "connector"
+            },
+            "bendAdjustment": {
+              "type": "integer",
+              "minimum": -2147483648,
+              "maximum": 2147483647,
+              "description": "Optional native adj1 value for elbow/curved three-segment connectors, in DrawingML adjustment units (default midpoint 50000). Explicit zero and absence are distinct. Source change/removal requires setConnectorType; straight connectors cannot carry a supplied bend."
             },
             "connectorType": {
               "description": "Required native route family. Source-bound changes require setConnectorType and replace only the recognized canonical geometry while preserving endpoints, bindings and line state.",

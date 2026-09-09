@@ -2828,6 +2828,9 @@ message PresentationConnector {
   // has either a native target/site or a frame anchor, never both.
   PresentationConnectorFrameAnchor start_frame_anchor = 24;
   PresentationConnectorFrameAnchor end_frame_anchor = 25;
+  // Direct literal adj1 for bentConnector3/curvedConnector3; absent uses the
+  // native default, while explicit zero remains observable.
+  optional int32 bend_adjustment = 26;
 }
 
 message PresentationConnectorFrameAnchor {

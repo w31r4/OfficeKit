@@ -656,6 +656,69 @@ public sealed class PpjConnectorObjectAnchorTests
         Assert.Contains(rejected.Diagnostics, d => d.Code == "ppj.nativeRef.stale");
     }
 
+    [Fact]
+    public void BendAdjustmentAuthorsAndEditsWithoutLosingPresenceOrBindings()
+    {
+        var edge = Edge("edge", Anchor("target", "right"), Literal(400, 300));
+        edge["connectorType"] = "elbow";
+        edge["bendAdjustment"] = 25000;
+        var program = Program(Box("target", 100, 100, 80, 40), edge);
+        var authored = Compile(program);
+        Assert.Equal(25000, Find(authored, "edge").Connector.BendAdjustment);
+        var source = PptxCodecTests.RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var baseline = ByName(Projected(source), "edge");
+        Assert.Equal(25000, baseline["bendAdjustment"]!.GetValue<int>());
+        Assert.Equal(source, Compile(Projected(source), source: source).File.ToByteArray());
+        foreach (int? value in new int?[] { 0, -25000, null })
+        {
+            var request = Projected(source);
+            var requested = ByName(request, "edge");
+            if (value is { } number) requested["bendAdjustment"] = number;
+            else requested.Remove("bendAdjustment");
+            var candidate = Compile(request, source: source);
+            var fresh = ByName(Projected(candidate.File.ToByteArray()), "edge");
+            Assert.Equal(value, fresh["bendAdjustment"]?.GetValue<int>());
+            foreach (var property in new[] { "from", "to", "stroke", "endArrow", "connectorType" })
+                Assert.True(JsonNode.DeepEquals(baseline[property], fresh[property]), property);
+            using var document = PresentationDocument.Open(new MemoryStream(candidate.File.ToByteArray()), false);
+            var guides = document.PresentationPart!.SlideParts.Single().Slide.Descendants<A.ShapeGuide>().ToArray();
+            if (value is null) Assert.Empty(guides);
+            else Assert.Equal("val " + value.Value.ToString(System.Globalization.CultureInfo.InvariantCulture), Assert.Single(guides).Formula!.Value);
+            AssertSlideOnly(source, candidate.File.ToByteArray());
+        }
+        var switched = Projected(source);
+        ByName(switched, "edge")["connectorType"] = "straight";
+        var straight = Compile(switched, source: source);
+        Assert.Null(ByName(Projected(straight.File.ToByteArray()), "edge")["bendAdjustment"]);
+        AssertSlideOnly(source, straight.File.ToByteArray());
+        ByName(switched, "edge")["bendAdjustment"] = 0;
+        Assert.Empty(Compile(switched, source: source, success: false).File);
+        edge["connectorType"] = "curved";
+        edge.Remove("bendAdjustment");
+        var curve = Compile(program);
+        Assert.False(Find(curve, "edge").Connector.HasBendAdjustment);
+        Assert.Null(ByName(Projected(PptxCodecTests.RemoveEmbeddedPpj(curve.File.ToByteArray())), "edge")["bendAdjustment"]);
+        edge["bendAdjustment"] = 75000;
+        Assert.Equal(75000, ByName(Projected(PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray())), "edge")["bendAdjustment"]!.GetValue<int>());
+        edge["connectorType"] = "straight";
+        Assert.Empty(Compile(program, success: false).File);
+        foreach (var malformed in new[] { "formula", "rotation" })
+        {
+            using var stream = new MemoryStream();
+            stream.Write(source); stream.Position = 0;
+            using (var document = PresentationDocument.Open(stream, true))
+            {
+                var native = document.PresentationPart!.SlideParts.Single().Slide.Descendants<P.ConnectionShape>().Single();
+                if (malformed == "formula") native.Descendants<A.ShapeGuide>().Single().Formula = "*/ w 1 2";
+                else native.ShapeProperties!.Transform2D!.Rotation = 90 * 60000;
+            }
+            var opaqueSource = stream.ToArray();
+            var opaque = Projected(opaqueSource);
+            Assert.Equal("opaque", ByName(opaque, "edge")["type"]!.GetValue<string>());
+            Assert.Equal(opaqueSource, Compile(opaque, source: opaqueSource).File.ToByteArray());
+        }
+    }
+
     private static JsonObject Projected(byte[] source) => JsonNode.Parse(Project(source).PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
     private static JsonObject ByName(JsonObject program, string name)
     {

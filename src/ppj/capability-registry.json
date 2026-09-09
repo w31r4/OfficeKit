@@ -1071,10 +1071,10 @@
     },
     {
       "feature": "source-bound connector type",
-      "ppjPath": "pages[].elements[].connectorType where type is connector",
+      "ppjPath": "pages[].elements[].connectorType/bendAdjustment where type is connector",
       "behavior": "partial",
-      "sourceBound": "Editable modeled connectors issue setConnectorType for straight/elbow/curved changes. Existing canonical native geometry replacement preserves endpoint coordinates, frame-anchor/native-site state, arrows and line style, with target SlidePart-only changes and fresh reprojection. The field remains required.",
-      "reason": "PpjConnectorObjectAnchorTests verifies straight-to-elbow-to-curved-to-straight native prstGeom, per-source no-op, preserved endpoint/style/arrow values, changed-part proof and invalid/tampered-authority rejection. Unsupported imported guide graphs remain opaque. This exposes existing codec geometry replacement; obstacle avoidance, arbitrary bends and complete host routing remain outside the profile."
+      "sourceBound": "Editable modeled connectors issue setConnectorType for straight/elbow/curved changes. Existing canonical native geometry replacement preserves endpoint coordinates, frame-anchor/native-site state, arrows and line style, with target SlidePart-only changes and fresh reprojection. Optional signed int32 bendAdjustment retains direct adj1 values and absence on elbow/curved routes; the same authority permits independent change/removal. A switch to straight clears an unchanged bend, while an explicitly conflicting adjustment rejects. The connectorType field remains required.",
+      "reason": "PpjConnectorObjectAnchorTests verifies straight-to-elbow-to-curved-to-straight native prstGeom, per-source no-op, preserved endpoint/style/arrow values, changed-part proof and invalid/tampered-authority rejection. Unsupported imported guide graphs remain opaque. BendAdjustmentAuthorsAndEditsWithoutLosingPresenceOrBindings additionally verifies authored/fresh values and absence, original-source zero/negative/removal, native guide values and opaque formula/rotated-axis preservation. Nondefault bends remain unavailable in the internal painter with preview.scene.paint.connector-bend; computed guides, obstacle avoidance and complete host routing remain outside the profile."
     },
     {
       "feature": "independently rotated connector frames",

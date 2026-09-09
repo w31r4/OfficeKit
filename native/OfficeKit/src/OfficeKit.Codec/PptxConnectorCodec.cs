@@ -1,4 +1,5 @@
 using DocumentFormat.OpenXml;
+using System.Globalization;
 using OfficeKit.Artifact.Wire.V1;
 using A = DocumentFormat.OpenXml.Drawing;
 using P = DocumentFormat.OpenXml.Presentation;
@@ -21,7 +22,8 @@ internal static class PptxConnectorCodec
         var geometry = properties?.GetFirstChild<A.PresetGeometry>();
         var outline = properties?.GetFirstChild<A.Outline>();
         if (properties is null || transform is null || geometry is null || outline is null ||
-            !TryGeometryType(geometry, out var connectorType) ||
+            !TryGeometryType(geometry, out var connectorType, out var bendAdjustment) ||
+            connectorType != "straight" && (transform.Rotation?.Value ?? 0) % (180 * RotationUnitsPerDegree) != 0 ||
             !TryTransformEndpoints(transform, out var startX, out var startY, out var endX, out var endY) ||
             !PptxLineStyleCodec.TryRead(outline, out var lineStyle) ||
             // Some exporters emit a harmless shape-level fill and an empty
@@ -56,6 +58,7 @@ internal static class PptxConnectorCodec
             StartFrameAnchor = startAnchor,
             EndFrameAnchor = endAnchor,
         };
+        if (bendAdjustment is { } bend) connector.BendAdjustment = bend;
         connector.Accessibility = PptxNonVisualAccessibilityCodec.Read(
             source.NonVisualConnectionShapeProperties?.NonVisualDrawingProperties);
         PptxLineStyleCodec.CopyTo(lineStyle, connector);
@@ -74,7 +77,7 @@ internal static class PptxConnectorCodec
         PptxConnectorAnchorCodec.Apply(drawingProperties, semantic, nativeIdsByElementId);
         var properties = new P.ShapeProperties(
             ConnectorTransform(semantic),
-            CanonicalGeometry(semantic.ConnectorType),
+            CanonicalGeometry(semantic),
             PptxLineStyleCodec.Build(semantic));
         var nonVisual = new P.NonVisualDrawingProperties { Id = nativeId, Name = source.Name };
         PptxNonVisualAccessibilityCodec.ApplyAuthored(nonVisual, semantic.Accessibility);
@@ -103,10 +106,11 @@ internal static class PptxConnectorCodec
         properties.RemoveAllChildren<A.Transform2D>();
         properties.PrependChild(ConnectorTransform(requested.Connector));
         var geometry = properties.GetFirstChild<A.PresetGeometry>();
-        if (geometry is null || !TryGeometryType(geometry, out var existingType) || existingType != requested.Connector.ConnectorType)
+        if (geometry is null || !TryGeometryType(geometry, out var existingType, out var existingBend) || existingType != requested.Connector.ConnectorType ||
+            existingBend != (requested.Connector.HasBendAdjustment ? requested.Connector.BendAdjustment : (int?)null))
         {
             geometry?.Remove();
-            properties.InsertAfter(CanonicalGeometry(requested.Connector.ConnectorType), properties.Transform2D);
+            properties.InsertAfter(CanonicalGeometry(requested.Connector), properties.Transform2D);
         }
         var sourceOutline = properties.GetFirstChild<A.Outline>();
         var preserveSingleCompound = sourceOutline?.CompoundLineType?.Value.Equals(A.CompoundLineValues.Single) == true;
@@ -147,6 +151,8 @@ internal static class PptxConnectorCodec
             throw new CodecException("invalid_presentation_connector", $"Presentation connector {elementId} has invalid endpoints.");
         PptxNonVisualAccessibilityCodec.Validate(source.Accessibility, elementId, "connector");
         PptxLineStyleCodec.Validate(source, elementId);
+        if (source.ConnectorType == "straight" && source.HasBendAdjustment)
+            throw new CodecException("invalid_presentation_connector", "A straight connector cannot have a bend adjustment.");
         PptxConnectorAnchorCodec.Validate(source.StartFrameAnchor, source.StartTargetId, elementId, nativeIdsByElementId);
         PptxConnectorAnchorCodec.Validate(source.EndFrameAnchor, source.EndTargetId, elementId, nativeIdsByElementId);
         if (source.StartTargetId.Length == 0 && source.StartConnectionSiteIndex != 0 ||
@@ -159,46 +165,41 @@ internal static class PptxConnectorCodec
             throw new CodecException("invalid_presentation_connector", $"Presentation connector {elementId} references missing end target {source.EndTargetId}.");
     }
 
-    private static bool TryGeometryType(A.PresetGeometry geometry, out string connectorType)
+    private static bool TryGeometryType(A.PresetGeometry geometry, out string connectorType, out int? bendAdjustment)
     {
         connectorType = string.Empty;
+        bendAdjustment = null;
         var preset = geometry.Preset?.Value;
         if (preset is null || geometry.ExtendedAttributes.Any()) return false;
         if (preset.Value.Equals(A.ShapeTypeValues.Line) || preset.Value.Equals(A.ShapeTypeValues.StraightConnector1)) connectorType = "straight";
         else if (preset.Value.Equals(A.ShapeTypeValues.BentConnector3)) connectorType = "elbow";
         else if (preset.Value.Equals(A.ShapeTypeValues.CurvedConnector3)) connectorType = "curved";
         else return false;
-
         var lists = geometry.Elements<A.AdjustValueList>().ToArray();
         if (geometry.ChildElements.Any(child => child is not A.AdjustValueList) || lists.Length > 1) return false;
-        var guides = lists.SingleOrDefault()?.Elements<A.ShapeGuide>().ToArray() ?? [];
-        if (lists.SingleOrDefault()?.ChildElements.Any(child => child is not A.ShapeGuide) == true) return false;
-        if (connectorType == "straight") return guides.Length == 0;
-        // bentConnector3 commonly carries the canonical midpoint adjustment
-        // emitted by Google/SlidesCarnival. It changes the visual bend but
-        // not the connector endpoint contract; accepting this one bounded
-        // guide lets the typed connector preserve the source geometry while
-        // editing endpoints or line leaves. Other adjustment formulas remain
-        // source-owned and therefore opaque.
-        if (connectorType == "elbow") return guides.Length == 0 || IsCanonicalBentAdjustment(guides);
-        return guides.Length == 0 || guides.Length == 1 && guides[0].Name?.Value == "adj1" && guides[0].Formula?.Value == "val 50000" &&
-            !guides[0].ChildElements.Any() && !guides[0].ExtendedAttributes.Any();
+        var list = lists.SingleOrDefault();
+        if (list is null) return true;
+        if (list.GetAttributes().Count != 0 || list.ChildElements.Any(child => child is not A.ShapeGuide)) return false;
+        var guides = list.Elements<A.ShapeGuide>().ToArray();
+        if (guides.Length == 0) return true;
+        if (connectorType == "straight" || guides.Length != 1) return false;
+        var guide = guides[0];
+        var formula = guide.Formula?.Value;
+        if (guide.Name?.Value != "adj1" || guide.ChildElements.Count != 0 || guide.ExtendedAttributes.Any() ||
+            formula is null || !formula.StartsWith("val ", StringComparison.Ordinal) ||
+            !int.TryParse(formula.AsSpan(4), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var value) ||
+            formula != "val " + value.ToString(CultureInfo.InvariantCulture)) return false;
+        bendAdjustment = value;
+        return true;
     }
 
-    private static bool IsCanonicalBentAdjustment(IReadOnlyList<A.ShapeGuide> guides) =>
-        guides.Count == 1 && guides[0].Name?.Value == "adj1" && guides[0].Formula?.Value == "val 50000" &&
-        !guides[0].ChildElements.Any() && !guides[0].ExtendedAttributes.Any();
-
-    private static A.PresetGeometry CanonicalGeometry(string connectorType)
+    private static A.PresetGeometry CanonicalGeometry(PresentationConnector connector)
     {
         var adjustments = new A.AdjustValueList();
-        A.ShapeTypeValues preset;
-        if (connectorType == "curved")
-        {
-            preset = A.ShapeTypeValues.CurvedConnector3;
-            adjustments.Append(new A.ShapeGuide { Name = "adj1", Formula = "val 50000" });
-        }
-        else preset = connectorType == "elbow" ? A.ShapeTypeValues.BentConnector3 : A.ShapeTypeValues.StraightConnector1;
+        if (connector.HasBendAdjustment)
+            adjustments.Append(new A.ShapeGuide { Name = "adj1", Formula = "val " + connector.BendAdjustment.ToString(CultureInfo.InvariantCulture) });
+        var preset = connector.ConnectorType == "curved" ? A.ShapeTypeValues.CurvedConnector3 :
+            connector.ConnectorType == "elbow" ? A.ShapeTypeValues.BentConnector3 : A.ShapeTypeValues.StraightConnector1;
         return new A.PresetGeometry(adjustments) { Preset = preset };
     }
 

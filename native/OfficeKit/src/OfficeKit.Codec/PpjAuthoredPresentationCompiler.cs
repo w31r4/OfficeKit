@@ -1156,6 +1156,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         connector.StartArrowLength = OptionalString(raw, "startArrowLength") ?? string.Empty;
         connector.EndArrowWidth = OptionalString(raw, "endArrowWidth") ?? string.Empty;
         connector.EndArrowLength = OptionalString(raw, "endArrowLength") ?? string.Empty;
+        if (raw.TryGetProperty("bendAdjustment", out var bend)) connector.BendAdjustment = bend.GetInt32();
         ApplyAccessibility(connector, element.Accessibility);
         return connector;
     }

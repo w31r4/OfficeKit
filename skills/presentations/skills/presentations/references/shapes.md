@@ -160,8 +160,20 @@ coordinates fail with a diagnostic.
 On a fresh source projection, `setConnectorType` permits changing the required
 `connectorType` among `straight`, `elbow` and `curved`. The codec replaces its
 recognized native geometry family while retaining endpoints, bindings, arrows
-and line style. This does not calculate obstacle avoidance or expose custom
-bend guides; unsupported imported geometry remains source-owned.
+and line style.
+
+For `elbow` and `curved`, optional `bendAdjustment` exposes the native `adj1`
+literal: for example `connectorType: "elbow", bendAdjustment: 25000`. These are
+DrawingML adjustment units (default midpoint 50000), not points. Signed 32-bit
+integers, explicit zero and omission survive fresh projection. With
+`setConnectorType`, edit the value or remove the property to restore absence.
+Switching to `straight` clears an unchanged projected bend; supplying a changed
+bend with straight is rejected. Endpoints, bindings and arrow state remain intact.
+Formula guide graphs and nonstraight rotations outside 0/180-degree equivalents
+remain opaque because endpoint normalization cannot preserve their bend axis.
+This is manual adjustment, not obstacle avoidance. Nondefault internal preview
+routes remain unavailable with `preview.scene.paint.connector-bend`; production
+preview remains partial.
 
 `startArrow` and `endArrow` use `none`, `triangle`, `stealth`, `diamond`,
 `oval` or `open`. `open` maps to the native arrow shape and returns as `open`

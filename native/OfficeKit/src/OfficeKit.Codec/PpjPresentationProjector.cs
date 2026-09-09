@@ -1784,6 +1784,7 @@ internal static partial class PpjPresentationProjector
         if (connector.StartArrowLength.Length > 0) output["startArrowLength"] = connector.StartArrowLength;
         if (connector.EndArrowWidth.Length > 0) output["endArrowWidth"] = connector.EndArrowWidth;
         if (connector.EndArrowLength.Length > 0) output["endArrowLength"] = connector.EndArrowLength;
+        if (connector.HasBendAdjustment) output["bendAdjustment"] = connector.BendAdjustment;
         return output;
     }
 
@@ -3045,7 +3046,7 @@ internal static partial class PpjPresentationProjector
             case PresentationElement.ContentOneofCase.Connector when source.Editable:
                 output.Add(new("setStroke", ["stroke"]));
                 output.Add(new("setConnectorArrows", ["startArrow", "endArrow", "startArrowWidth", "startArrowLength", "endArrowWidth", "endArrowLength"]));
-                output.Add(new("setConnectorType", ["connectorType"]));
+                output.Add(new("setConnectorType", ["connectorType", "bendAdjustment"]));
                 if (element.Connector.StartTargetId.Length == 0 && element.Connector.EndTargetId.Length == 0)
                     output.Add(new("setConnectorEndpoints", ["from", "to"]));
                 if (element.Connector.StartFrameAnchor is null && element.Connector.EndFrameAnchor is null)
