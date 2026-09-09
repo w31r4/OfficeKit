@@ -381,6 +381,16 @@ chart text use the same field, with explicit title-run strike taking
 precedence over title defaults. Like ordinary text strike, this is a literal
 boolean/token-enum field, not a grammar token reference.
 
+`highlight` sets opaque text highlight paint, for example
+`{"highlight":"#FFFF00","color":"#112233"}`. It accepts the ordinary PPJ color
+syntax, including declared color tokens and tint/shade, and projects as an
+uppercase RGB hex color. Foreground paint and font properties stay independent.
+Omit highlight to remove it; a highlight-only style is valid. Chart and
+trendline paragraph/run/end styles share the field, while vector title runs
+override title defaults. Nonopaque colors, imported theme/transform highlight
+and unknown native graphs remain source-owned or fail closed. The field's
+native state is verified; host glyph appearance remains unverified.
+
 `kerning` sets a font-size threshold in points from 0 to 768, for example
 `{"kerning":12}`. The [DrawingML primer](https://download.microsoft.com/download/e/1/4/e14fb96f-83b8-4a2a-84db-7fa8acbe061a/Office%20Open%20XML%20Part%203%20-%20Primer.pdf)
 describes this as the minimum font size for kerning. Native precision is

@@ -93,7 +93,7 @@ internal static class XlsxChartTextStyleCodec
         !style.HasLanguage &&
         !style.HasStrike &&
         !style.HasBaselineThousandthPercent &&
-        !style.HasKerningHundredthPoints && !style.HasLetterSpacingHundredthPoints && !style.HasCapitalization &&
+        !style.HasHighlightRgb && !style.HasKerningHundredthPoints && !style.HasLetterSpacingHundredthPoints && !style.HasCapitalization &&
         !style.HasFontSizePoints &&
         !style.HasBold &&
         !style.HasItalic &&
@@ -210,6 +210,7 @@ internal static class XlsxChartTextStyleCodec
             style.HasCapitalization ? style.Capitalization : "default-capitalization",
             style.HasLetterSpacingHundredthPoints ? style.LetterSpacingHundredthPoints.ToString(CultureInfo.InvariantCulture) : "default-letter-spacing",
             style.HasKerningHundredthPoints ? style.KerningHundredthPoints.ToString(CultureInfo.InvariantCulture) : "default-kerning",
+            style.HasHighlightRgb ? style.HighlightRgb.ToUpperInvariant() : "default-highlight",
             style.HasBold ? style.Bold.ToString(CultureInfo.InvariantCulture) : "default-bold",
             style.HasItalic ? style.Italic.ToString(CultureInfo.InvariantCulture) : "default-italic",
             style.Alignment.Length > 0 ? style.Alignment : "default-alignment",
@@ -249,7 +250,7 @@ internal static class XlsxChartTextStyleCodec
     {
         if (style is null) return;
         if (!style.HasFontSizePoints && style.FontFamily.Length == 0 && style.FontFamilyEastAsia.Length == 0 && style.FontFamilyComplexScript.Length == 0 &&
-            !style.HasKerningHundredthPoints && !style.HasLetterSpacingHundredthPoints && !style.HasCapitalization && !style.HasBaselineThousandthPercent && !style.HasStrike && !style.HasLanguage && !style.HasBold && !style.HasItalic && style.Alignment.Length == 0 && style.Underline.Length == 0 && style.ColorRgb.Length == 0 && !style.HasOpacityThousandthPercent && style.Fill is null)
+            !style.HasHighlightRgb && !style.HasKerningHundredthPoints && !style.HasLetterSpacingHundredthPoints && !style.HasCapitalization && !style.HasBaselineThousandthPercent && !style.HasStrike && !style.HasLanguage && !style.HasBold && !style.HasItalic && style.Alignment.Length == 0 && style.Underline.Length == 0 && style.ColorRgb.Length == 0 && !style.HasOpacityThousandthPercent && style.Fill is null)
             throw Invalid(worksheetId, chartId, $"{field} must declare at least one bounded property.");
         if (style.HasFontSizePoints && (!double.IsFinite(style.FontSizePoints) || style.FontSizePoints < MinimumFontSizePoints || style.FontSizePoints > MaximumFontSizePoints))
             throw Invalid(worksheetId, chartId, $"{field}.font_size_points must be from 1 through 4000.");
@@ -260,6 +261,8 @@ internal static class XlsxChartTextStyleCodec
             throw Invalid(worksheetId, chartId, $"{field}.language must be a bounded language tag.");
         if (style.HasStrike && !StrikeValues.Contains(style.Strike))
             throw Invalid(worksheetId, chartId, $"{field}.strike must be noStrike, sngStrike or dblStrike.");
+        if (style.HasHighlightRgb && !IsHighlightRgb(style.HighlightRgb))
+            throw Invalid(worksheetId, chartId, $"{field}.highlight_rgb must be a six-digit RGB color.");
         if (style.HasKerningHundredthPoints && style.KerningHundredthPoints > 76_800)
             throw Invalid(worksheetId, chartId, $"{field}.kerning must be between 0pt and 768pt.");
         if (style.HasLetterSpacingHundredthPoints && style.LetterSpacingHundredthPoints is < -76_800 or > 76_800)
@@ -407,6 +410,11 @@ internal static class XlsxChartTextStyleCodec
             if (!XlsxChartSurfaceFillCodec.TryReadPaint(children[index++], out var fill) || fill is null) return false;
             ApplyParsedFill(style, fill);
         }
+        if (index < children.Length && children[index].Name == DrawingNs + "highlight")
+        {
+            if (!TryHighlight(children[index++], out var rgb)) return false;
+            style.HighlightRgb = rgb;
+        }
         if (index < children.Length && children[index].Name == DrawingNs + "latin")
         {
             if (!TryTypeface(children[index++], out var value)) return false;
@@ -424,7 +432,7 @@ internal static class XlsxChartTextStyleCodec
         }
         return index == children.Length &&
             (style.HasFontSizePoints || style.FontFamily.Length > 0 || style.FontFamilyEastAsia.Length > 0 || style.FontFamilyComplexScript.Length > 0 ||
-             style.HasKerningHundredthPoints || style.HasLetterSpacingHundredthPoints || style.HasCapitalization || style.HasBaselineThousandthPercent || style.HasStrike || style.HasLanguage || style.HasBold || style.HasItalic || style.Underline.Length > 0 || style.ColorRgb.Length > 0 || style.Fill is not null);
+             style.HasHighlightRgb || style.HasKerningHundredthPoints || style.HasLetterSpacingHundredthPoints || style.HasCapitalization || style.HasBaselineThousandthPercent || style.HasStrike || style.HasLanguage || style.HasBold || style.HasItalic || style.Underline.Length > 0 || style.ColorRgb.Length > 0 || style.Fill is not null);
     }
 
     private static void ApplyParsedFill(SpreadsheetChartTextStyleArtifact style, SpreadsheetChartSurfaceFill fill)
@@ -464,7 +472,7 @@ internal static class XlsxChartTextStyleCodec
 
     private static bool HasCharacterStyle(SpreadsheetChartTextStyleArtifact style) =>
         style.HasFontSizePoints || style.FontFamily.Length > 0 || style.FontFamilyEastAsia.Length > 0 || style.FontFamilyComplexScript.Length > 0 ||
-        style.HasKerningHundredthPoints || style.HasLetterSpacingHundredthPoints || style.HasCapitalization || style.HasBaselineThousandthPercent || style.HasStrike || style.HasLanguage || style.HasBold || style.HasItalic || style.Underline.Length > 0 || style.ColorRgb.Length > 0 || style.HasOpacityThousandthPercent || style.Fill is not null;
+        style.HasHighlightRgb || style.HasKerningHundredthPoints || style.HasLetterSpacingHundredthPoints || style.HasCapitalization || style.HasBaselineThousandthPercent || style.HasStrike || style.HasLanguage || style.HasBold || style.HasItalic || style.Underline.Length > 0 || style.ColorRgb.Length > 0 || style.HasOpacityThousandthPercent || style.Fill is not null;
 
     private static bool HasAnyStyle(SpreadsheetChartTextStyleArtifact style) => HasCharacterStyle(style) || style.Alignment.Length > 0;
 
@@ -490,6 +498,9 @@ internal static class XlsxChartTextStyleCodec
                 color.Add(new XElement(DrawingNs + "alpha", new XAttribute("val", style.OpacityThousandthPercent)));
             output.Add(new XElement(DrawingNs + "solidFill", color));
         }
+        if (style.HasHighlightRgb)
+            output.Add(new XElement(DrawingNs + "highlight",
+                new XElement(DrawingNs + "srgbClr", new XAttribute("val", style.HighlightRgb.ToUpperInvariant()))));
         if (style.FontFamily.Length > 0)
             output.Add(new XElement(DrawingNs + "latin", new XAttribute("typeface", style.FontFamily)));
         if (style.FontFamilyEastAsia.Length > 0)
@@ -508,6 +519,30 @@ internal static class XlsxChartTextStyleCodec
         if (source is "0" or "false") { value = false; return true; }
         value = false;
         return false;
+    }
+
+    internal static string HighlightRgb(string rgb, double alpha)
+    {
+        if (!IsHighlightRgb(rgb) || alpha != 1)
+            throw new CodecException("invalid_spreadsheet_chart", "Chart text highlight must resolve to opaque six-digit RGB.");
+        return rgb.ToUpperInvariant();
+    }
+
+    private static bool IsHighlightRgb(string rgb) => rgb.Length == 6 && rgb.All(Uri.IsHexDigit);
+
+    private static bool TryHighlight(XElement source, out string rgb)
+    {
+        rgb = string.Empty;
+        if (source.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration) ||
+            source.Nodes().Any(node => node is not XElement && (node is not XText text || !string.IsNullOrWhiteSpace(text.Value)))) return false;
+        var colors = source.Elements().ToArray();
+        if (colors.Length != 1 || colors[0].Name != DrawingNs + "srgbClr") return false;
+        var color = colors[0];
+        var attributes = color.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration).ToArray();
+        if (attributes.Length != 1 || attributes[0].Name != "val" || !IsHighlightRgb(attributes[0].Value) ||
+            color.Nodes().Any(node => node is not XText text || !string.IsNullOrWhiteSpace(text.Value))) return false;
+        rgb = attributes[0].Value.ToUpperInvariant();
+        return true;
     }
 
     internal static uint KerningHundredthPoints(double points)

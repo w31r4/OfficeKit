@@ -1584,6 +1584,7 @@ internal static partial class PpjPresentationProjector
         if (source.HasLetterSpacingHundredthPoints) output["letterSpacing"] = JsonValue.Create(source.LetterSpacingHundredthPoints / 100d);
         if (source.HasKerningHundredthPoints) output["kerning"] = JsonValue.Create(source.KerningHundredthPoints / 100d);
         if (source.HasCapitalization) output["capitalization"] = StringNode(source.Capitalization);
+        if (source.HasHighlightRgb) output["highlight"] = StringNode(Color(source.HighlightRgb));
         if (source.HasBold) output["bold"] = JsonValue.Create(source.Bold);
         if (source.HasItalic) output["italic"] = JsonValue.Create(source.Italic);
         if (source.Underline.Length > 0)

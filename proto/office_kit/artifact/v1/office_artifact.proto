@@ -4793,6 +4793,8 @@ message SpreadsheetChartTextStyleArtifact {
   optional sint32 letter_spacing_hundredth_points = 16;
   // Direct kerning threshold in hundredths of a point, 0..76800.
   optional uint32 kerning_hundredth_points = 17;
+  // Direct opaque character highlight as six RGB hex digits; omission removes it.
+  optional string highlight_rgb = 18;
 }
 
 enum SpreadsheetChartLineDashStyle {

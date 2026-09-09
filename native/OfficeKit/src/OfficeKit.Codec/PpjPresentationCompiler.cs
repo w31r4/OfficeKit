@@ -3611,6 +3611,13 @@ internal static class PpjSourceBoundPresentationCompiler
         if (source.TryGetProperty("letterSpacing", out var spacing)) output.LetterSpacingHundredthPoints = XlsxChartTextStyleCodec.LetterSpacingHundredthPoints(spacing.GetDouble());
         if (source.TryGetProperty("kerning", out var kerning)) output.KerningHundredthPoints = XlsxChartTextStyleCodec.KerningHundredthPoints(kerning.GetDouble());
         if (source.TryGetProperty("capitalization", out var capitalization)) output.Capitalization = capitalization.GetString()!;
+        if (source.TryGetProperty("highlight", out var highlight))
+        {
+            var resolved = grammarRoot is { } root
+                ? ResolveGrammarColorValue(root, highlight, path + ".highlight")
+                : ParseSourceBoundColor(highlight, path + ".highlight");
+            output.HighlightRgb = XlsxChartTextStyleCodec.HighlightRgb(resolved.Rgb, resolved.Alpha);
+        }
         if (source.TryGetProperty("bold", out var bold))
             output.Bold = grammarRoot is { } root
                 ? ResolveGrammarBooleanToken(root, bold, path + ".bold")

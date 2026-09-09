@@ -6257,6 +6257,10 @@
           "$ref": "#/$defs/textBaseline",
           "description": "Signed baseline percentage; native precision is 0.001%, rounded with ties to even. Explicit zero is preserved."
         },
+        "highlight": {
+          "$ref": "#/$defs/color",
+          "description": "Direct text highlight resolved to opaque RGB; color tokens and tint/shade are supported, nonopaque results are rejected."
+        },
         "kerning": {
           "$ref": "#/$defs/textKerning",
           "description": "Minimum font-size threshold for kerning in points; native precision is 0.01pt with ties-to-even rounding. Explicit zero is preserved independently of omission."

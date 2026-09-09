@@ -3305,6 +3305,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (source.TryGetProperty("letterSpacing", out var spacing)) output.LetterSpacingHundredthPoints = XlsxChartTextStyleCodec.LetterSpacingHundredthPoints(spacing.GetDouble());
         if (source.TryGetProperty("kerning", out var kerning)) output.KerningHundredthPoints = XlsxChartTextStyleCodec.KerningHundredthPoints(kerning.GetDouble());
         if (source.TryGetProperty("capitalization", out var capitalization)) output.Capitalization = capitalization.GetString()!;
+        if (source.TryGetProperty("highlight", out var highlight)) output.HighlightRgb = BuildChartHighlight(highlight, catalog);
         if (source.TryGetProperty("bold", out var bold)) output.Bold = catalog.BooleanToken(bold, "boolean", "chart text bold");
         if (source.TryGetProperty("italic", out var italic)) output.Italic = catalog.BooleanToken(italic, "boolean", "chart text italic");
         if (source.TryGetProperty("underline", out var underline)) output.Underline = NativeUnderline(underline.GetString()!);
@@ -3348,7 +3349,7 @@ internal static partial class PpjAuthoredPresentationCompiler
     }
 
     private static readonly string[] ChartTextStyleFields =
-    ["fontSize", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "language", "strike", "baseline", "capitalization", "letterSpacing", "kerning", "bold", "italic", "underline", "alignment", "fill", "color"];
+    ["fontSize", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "language", "strike", "baseline", "capitalization", "letterSpacing", "kerning", "highlight", "bold", "italic", "underline", "alignment", "fill", "color"];
 
     private static void ApplyChartTextStyleProperty(
         SpreadsheetChartTextStyleArtifact output,
@@ -3385,6 +3386,9 @@ internal static partial class PpjAuthoredPresentationCompiler
             case "kerning":
                 output.KerningHundredthPoints = XlsxChartTextStyleCodec.KerningHundredthPoints(value.GetDouble());
                 break;
+            case "highlight":
+                output.HighlightRgb = BuildChartHighlight(value, catalog);
+                break;
             case "capitalization":
                 output.Capitalization = value.GetString()!;
                 break;
@@ -3413,6 +3417,12 @@ internal static partial class PpjAuthoredPresentationCompiler
             default:
                 throw new InvalidOperationException($"Unknown chart text style field {field}.");
         }
+    }
+
+    private static string BuildChartHighlight(JsonElement value, Catalog catalog)
+    {
+        var resolved = catalog.Color(value);
+        return XlsxChartTextStyleCodec.HighlightRgb(resolved.Rgb, resolved.Alpha);
     }
 
     private static void ApplyChartTextFill(
