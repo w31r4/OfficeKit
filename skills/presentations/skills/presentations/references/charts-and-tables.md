@@ -381,6 +381,14 @@ chart text use the same field, with explicit title-run strike taking
 precedence over title defaults. Like ordinary text strike, this is a literal
 boolean/token-enum field, not a grammar token reference.
 
+`kerning` sets a font-size threshold in points from 0 to 768, for example
+`{"kerning":12}`. The [DrawingML primer](https://download.microsoft.com/download/e/1/4/e14fb96f-83b8-4a2a-84db-7fa8acbe061a/Office%20Open%20XML%20Part%203%20-%20Primer.pdf)
+describes this as the minimum font size for kerning. Native precision is
+0.01pt, with ties-to-even rounding. Explicit zero remains a direct threshold;
+omit the property to remove it. Chart and trendline rich styles share the
+field; vector labels retain it and explicit title-run kerning overrides
+chart defaults. Font pair metrics and actual host layout remain unverified.
+
 `letterSpacing` sets signed character spacing in points from -768 to 768,
 for example `{"letterSpacing":1.25}`. Native precision is 0.01pt; finer values
 round to the nearest hundredth, with ties to even. Explicit zero resets

@@ -2061,6 +2061,7 @@ internal static partial class PpjAuthoredPresentationCompiler
             if (!run.HasStrike && defaults.HasStrike) run.Strike = defaults.Strike;
             if (!run.HasFontBaselinePercent && defaults.HasBaselineThousandthPercent) run.FontBaselinePercent = defaults.BaselineThousandthPercent / 1000d;
             if (!run.HasFontSpacingPoints && defaults.HasLetterSpacingHundredthPoints) run.FontSpacingPoints = defaults.LetterSpacingHundredthPoints / 100d;
+            if (!run.HasFontKerningPoints && defaults.HasKerningHundredthPoints) run.FontKerningPoints = defaults.KerningHundredthPoints / 100d;
             if (!run.HasFontCaps && defaults.HasCapitalization) run.FontCaps = defaults.Capitalization;
             if (!run.HasBold && defaults.HasBold) run.Bold = defaults.Bold;
             if (!run.HasItalic && defaults.HasItalic) run.Italic = defaults.Italic;
@@ -2095,6 +2096,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (value.TryGetProperty("strike", out var strike)) run.Strike = NativeStrike(strike);
         if (value.TryGetProperty("baseline", out var baseline)) run.FontBaselinePercent = XlsxChartTextStyleCodec.BaselineThousandthPercent(baseline.GetDouble()) / 1000d;
         if (value.TryGetProperty("letterSpacing", out var spacing)) run.FontSpacingPoints = XlsxChartTextStyleCodec.LetterSpacingHundredthPoints(spacing.GetDouble()) / 100d;
+        if (value.TryGetProperty("kerning", out var kerning)) run.FontKerningPoints = XlsxChartTextStyleCodec.KerningHundredthPoints(kerning.GetDouble()) / 100d;
         if (value.TryGetProperty("capitalization", out var capitalization)) run.FontCaps = capitalization.GetString()!;
         if (value.TryGetProperty("bold", out var bold)) run.Bold = bold.GetBoolean();
         if (value.TryGetProperty("italic", out var italic)) run.Italic = italic.GetBoolean();

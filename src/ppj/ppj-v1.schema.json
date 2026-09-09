@@ -3051,9 +3051,7 @@
           "$ref": "#/$defs/textLetterSpacing"
         },
         "kerning": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 768
+          "$ref": "#/$defs/textKerning"
         },
         "baseline": {
           "$ref": "#/$defs/textBaseline"
@@ -6206,6 +6204,11 @@
         }
       }
     },
+    "textKerning": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 768
+    },
     "textLetterSpacing": {
       "type": "number",
       "minimum": -768,
@@ -6253,6 +6256,10 @@
         "baseline": {
           "$ref": "#/$defs/textBaseline",
           "description": "Signed baseline percentage; native precision is 0.001%, rounded with ties to even. Explicit zero is preserved."
+        },
+        "kerning": {
+          "$ref": "#/$defs/textKerning",
+          "description": "Minimum font-size threshold for kerning in points; native precision is 0.01pt with ties-to-even rounding. Explicit zero is preserved independently of omission."
         },
         "letterSpacing": {
           "$ref": "#/$defs/textLetterSpacing",

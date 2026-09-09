@@ -4791,6 +4791,8 @@ message SpreadsheetChartTextStyleArtifact {
   optional string capitalization = 15;
   // Direct character spacing in signed hundredths of a point, -76800..76800.
   optional sint32 letter_spacing_hundredth_points = 16;
+  // Direct kerning threshold in hundredths of a point, 0..76800.
+  optional uint32 kerning_hundredth_points = 17;
 }
 
 enum SpreadsheetChartLineDashStyle {

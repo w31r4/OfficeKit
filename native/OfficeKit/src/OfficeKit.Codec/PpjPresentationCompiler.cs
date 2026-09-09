@@ -3609,6 +3609,7 @@ internal static class PpjSourceBoundPresentationCompiler
         if (source.TryGetProperty("strike", out var strike)) output.Strike = PpjAuthoredPresentationCompiler.NativeStrike(strike);
         if (source.TryGetProperty("baseline", out var baseline)) output.BaselineThousandthPercent = XlsxChartTextStyleCodec.BaselineThousandthPercent(baseline.GetDouble());
         if (source.TryGetProperty("letterSpacing", out var spacing)) output.LetterSpacingHundredthPoints = XlsxChartTextStyleCodec.LetterSpacingHundredthPoints(spacing.GetDouble());
+        if (source.TryGetProperty("kerning", out var kerning)) output.KerningHundredthPoints = XlsxChartTextStyleCodec.KerningHundredthPoints(kerning.GetDouble());
         if (source.TryGetProperty("capitalization", out var capitalization)) output.Capitalization = capitalization.GetString()!;
         if (source.TryGetProperty("bold", out var bold))
             output.Bold = grammarRoot is { } root

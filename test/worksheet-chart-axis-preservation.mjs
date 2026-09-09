@@ -14,10 +14,10 @@ authoredSheet.charts.add("line", {
 });
 const source = wireWorksheetCharts(authoredSheet)[0];
 source.yAxis.logBase = 10;
-source.titleTextStyle = { fontSizePoints: 12, language: "en-US", strike: "noStrike", baselineThousandthPercent: 0, capitalization: "none", letterSpacingHundredthPoints: 0 };
+source.titleTextStyle = { fontSizePoints: 12, language: "en-US", strike: "noStrike", baselineThousandthPercent: 0, capitalization: "none", letterSpacingHundredthPoints: 0, kerningHundredthPoints: 0 };
 source.series[0].trendlines[0].label = { numberFormatCode: "0.00", numberFormatLink: 1,
   richText: { paragraphs: [{ runs: [
-    { content: { case: "text", value: "Fit " }, style: { bold: true, language: "zh-CN", strike: "dblStrike", baselineThousandthPercent: -25125, capitalization: "small", letterSpacingHundredthPoints: -238 } },
+    { content: { case: "text", value: "Fit " }, style: { bold: true, language: "zh-CN", strike: "dblStrike", baselineThousandthPercent: -25125, capitalization: "small", letterSpacingHundredthPoints: -238, kerningHundredthPoints: 1238 } },
     { content: { case: "lineBreak", value: true } },
     { content: { case: "text", value: "A" }, style: { bold: false } },
   ] }] },
@@ -72,4 +72,10 @@ assert.equal(edited.titleTextStyle.letterSpacingHundredthPoints, 0, "Unrelated e
 for (const letterSpacingHundredthPoints of [undefined, 0, -238, -76800, 76800]) {
   const message = create(SpreadsheetChartTextStyleArtifactSchema, { letterSpacingHundredthPoints });
   assert.equal(fromBinary(SpreadsheetChartTextStyleArtifactSchema, toBinary(SpreadsheetChartTextStyleArtifactSchema, message)).letterSpacingHundredthPoints, letterSpacingHundredthPoints);
+}
+
+assert.equal(edited.titleTextStyle.kerningHundredthPoints, 0, "Unrelated edits retain explicit zero kerning threshold");
+for (const kerningHundredthPoints of [undefined, 0, 1238, 76800]) {
+  const message = create(SpreadsheetChartTextStyleArtifactSchema, { kerningHundredthPoints });
+  assert.equal(fromBinary(SpreadsheetChartTextStyleArtifactSchema, toBinary(SpreadsheetChartTextStyleArtifactSchema, message)).kerningHundredthPoints, kerningHundredthPoints);
 }
