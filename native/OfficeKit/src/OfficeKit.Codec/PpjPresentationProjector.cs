@@ -1586,6 +1586,7 @@ internal static partial class PpjPresentationProjector
         if (source.HasCapitalization) output["capitalization"] = StringNode(source.Capitalization);
         if (source.SoftEdge is not null) output["softEdge"] = SoftEdge(source.SoftEdge);
         if (source.Glow is not null) output["glow"] = Glow(source.Glow);
+        if (source.InnerShadow is not null) output["innerShadow"] = ChartTextInnerShadow(source.InnerShadow);
         if (source.Shadow is not null) output["shadow"] = ChartTextShadow(source.Shadow);
         if (source.HasHighlightRgb) output["highlight"] = StringNode(Color(source.HighlightRgb));
         if (source.HasBold) output["bold"] = JsonValue.Create(source.Bold);
@@ -3261,6 +3262,15 @@ internal static partial class PpjPresentationProjector
         if (cap is "flat" or "round" or "square") output["cap"] = StringNode(cap);
         if (join is "miter" or "round" or "bevel") output["join"] = StringNode(join);
         if (opacity is not null) output["opacity"] = JsonValue.Create(opacity.Value);
+        return output;
+    }
+
+    private static JsonObject ChartTextInnerShadow(PresentationInnerShadow shadow)
+    {
+        var output = InnerShadow(shadow);
+        if (!shadow.HasBlurRadiusEmu) output.Remove("blur");
+        if (!shadow.HasDistanceEmu) output.Remove("distance");
+        if (!shadow.HasDirectionAngle60000) output.Remove("angle");
         return output;
     }
 

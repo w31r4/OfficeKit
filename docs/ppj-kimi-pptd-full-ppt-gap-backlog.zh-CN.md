@@ -692,6 +692,8 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-07 Chart、ChartML、嵌入工作簿和扩展图表
 
+**图表文字内阴影增量（2026-09-09）：** `chartTextStyle.innerShadow` 必填 `color`，可选 `blur`（0～1000 pt）、`distance`（0～100000 pt）、`angle`（-360～360 度）、`opacity`（数值或透明度 token）。省略属性保留原生缺省，显式零独立保存；省略整个字段只移除内阴影。主题色、grammar 颜色和透明度贯通标题、图例、轴、数据标签、趋势线富文本及 vector 默认/片段样式。原生顺序为 glow → innerShdw → outerShdw → softEdge。普通图表/组合图实验检查每步二次投影、独立删除/重建、原字节 no-op、文字和非目标 ZIP 保留；重复、乱序、超范围和未知后代继续保留原始内容。完整效果图、宿主显示和 F-07 整项仍待补。
+
 **图表文字柔化边缘增量（2026-09-09）：** `chartTextStyle.softEdge` 复用 `{ radius }`，半径为 0～1000 pt，按原生 EMU 精度保存；显式零与省略字段分别保留。标题、图例、轴、数据标签、趋势线富文本及 vector 文字共用字段，片段的零半径可覆盖标题默认值。原生按 glow → outerShdw → softEdge 排列，三种效果可分别修改、删除和重建。同时修正新建图表时标准主题阴影/发光颜色被资源引用校验提前拒绝的问题，错误类型的 grammar token 和不支持主题色的前景颜色仍会拒绝。普通图表/组合图实验检查每步二次投影、原字节 no-op、原文字及非目标 ZIP 保留。缺失半径、重复/乱序效果及未知后代继续保留原始内容；宿主显示和完整 F-07 仍待补。
 
 **图表文字发光增量（2026-09-09）：** `chartTextStyle.glow` 复用普通文字的 `{ color, radius, opacity? }`，半径为 0～1000 pt，保存显式零半径/透明度及透明度缺省。颜色和 opacity token、主题身份贯通标题、图例、轴、数据标签、趋势线富文本及 vector 文字。发光与外阴影可以共存并独立删除、恢复；原生按 glow → outerShdw 排列。普通图表/组合图最小实验检查同一效果列表的两个字段、原字节 no-op、二次投影、文字及非目标 ZIP 保留。缺少原生半径、重复/乱序效果及未知后代继续保留原始内容；宿主显示和完整 F-07 仍待补。

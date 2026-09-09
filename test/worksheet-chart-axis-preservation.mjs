@@ -14,10 +14,10 @@ authoredSheet.charts.add("line", {
 });
 const source = wireWorksheetCharts(authoredSheet)[0];
 source.yAxis.logBase = 10;
-source.titleTextStyle = { fontSizePoints: 12, language: "en-US", strike: "noStrike", baselineThousandthPercent: 0, capitalization: "none", letterSpacingHundredthPoints: 0, kerningHundredthPoints: 0, highlightRgb: "000000", shadow: { colorRgb: "112233", rotateWithShape: false, opacityThousandthPercent: 0 }, glow: { colorRgb: "556677", radiusEmu: 0n, opacityThousandthPercent: 0 }, softEdge: { radiusEmu: 0n } };
+source.titleTextStyle = { fontSizePoints: 12, language: "en-US", strike: "noStrike", baselineThousandthPercent: 0, capitalization: "none", letterSpacingHundredthPoints: 0, kerningHundredthPoints: 0, highlightRgb: "000000", shadow: { colorRgb: "112233", rotateWithShape: false, opacityThousandthPercent: 0 }, glow: { colorRgb: "556677", radiusEmu: 0n, opacityThousandthPercent: 0 }, softEdge: { radiusEmu: 0n }, innerShadow: { colorRgb: "AABBCC", blurRadiusEmu: 0n, distanceEmu: 0n, directionAngle60000: 0n, opacityThousandthPercent: 0 } };
 source.series[0].trendlines[0].label = { numberFormatCode: "0.00", numberFormatLink: 1,
   richText: { paragraphs: [{ runs: [
-    { content: { case: "text", value: "Fit " }, style: { bold: true, language: "zh-CN", strike: "dblStrike", baselineThousandthPercent: -25125, capitalization: "small", letterSpacingHundredthPoints: -238, kerningHundredthPoints: 1238, highlightRgb: "FFFF00", shadow: { colorScheme: "accent1" }, glow: { colorScheme: "accent2", radiusEmu: 12700n }, softEdge: { radiusEmu: 25400n } } },
+    { content: { case: "text", value: "Fit " }, style: { bold: true, language: "zh-CN", strike: "dblStrike", baselineThousandthPercent: -25125, capitalization: "small", letterSpacingHundredthPoints: -238, kerningHundredthPoints: 1238, highlightRgb: "FFFF00", shadow: { colorScheme: "accent1" }, glow: { colorScheme: "accent2", radiusEmu: 12700n }, softEdge: { radiusEmu: 25400n }, innerShadow: { colorScheme: "accent3" } } },
     { content: { case: "lineBreak", value: true } },
     { content: { case: "text", value: "A" }, style: { bold: false } },
   ] }] },
@@ -102,4 +102,10 @@ assert.deepEqual(edited.titleTextStyle.softEdge, source.titleTextStyle.softEdge,
 for (const softEdge of [undefined, { radiusEmu: 0n }, { radiusEmu: 12700n }]) {
   const message = create(SpreadsheetChartTextStyleArtifactSchema, { softEdge });
   assert.deepEqual(fromBinary(SpreadsheetChartTextStyleArtifactSchema, toBinary(SpreadsheetChartTextStyleArtifactSchema, message)).softEdge, message.softEdge);
+}
+
+assert.deepEqual(edited.titleTextStyle.innerShadow, source.titleTextStyle.innerShadow, "Unrelated edits retain inner shadow and explicit zero");
+for (const innerShadow of [undefined, { colorScheme: "accent1" }, { colorRgb: "000000", blurRadiusEmu: 0n, distanceEmu: 0n, directionAngle60000: 0n, opacityThousandthPercent: 0 }]) {
+  const message = create(SpreadsheetChartTextStyleArtifactSchema, { innerShadow });
+  assert.deepEqual(fromBinary(SpreadsheetChartTextStyleArtifactSchema, toBinary(SpreadsheetChartTextStyleArtifactSchema, message)).innerShadow, message.innerShadow);
 }

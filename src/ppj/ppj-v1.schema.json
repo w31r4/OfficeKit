@@ -6275,10 +6275,45 @@
         }
       }
     },
+    "chartTextInnerShadow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "color"
+      ],
+      "properties": {
+        "color": {
+          "$ref": "#/$defs/color"
+        },
+        "opacity": {
+          "$ref": "#/$defs/numberOrToken",
+          "description": "Inner-shadow opacity; a token reference must declare kind opacity."
+        },
+        "blur": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "distance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100000
+        },
+        "angle": {
+          "type": "number",
+          "minimum": -360,
+          "maximum": 360
+        }
+      }
+    },
     "chartTextStyle": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "innerShadow": {
+          "$ref": "#/$defs/chartTextInnerShadow",
+          "description": "Independent chart character inner shadow; omitted geometry and opacity retain native defaults."
+        },
         "softEdge": {
           "$ref": "#/$defs/softEdge",
           "description": "Direct soft-edge radius in points, independently editable beside glow and outer shadow; explicit zero is retained."

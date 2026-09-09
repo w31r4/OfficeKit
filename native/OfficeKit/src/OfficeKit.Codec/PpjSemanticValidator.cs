@@ -4055,6 +4055,7 @@ internal static class PpjSemanticValidator
         // or let it override a declared grammar token of the wrong kind.
         var value = path.ToString();
         return value.EndsWith(".shadow.color", StringComparison.Ordinal) ||
+               value.EndsWith(".innerShadow.color", StringComparison.Ordinal) ||
                value.EndsWith(".glow.color", StringComparison.Ordinal);
     }
 

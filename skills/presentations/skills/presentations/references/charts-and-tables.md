@@ -381,13 +381,24 @@ chart text use the same field, with explicit title-run strike taking
 precedence over title defaults. Like ordinary text strike, this is a literal
 boolean/token-enum field, not a grammar token reference.
 
+`innerShadow` sets a separate chart character inner shadow, for example
+`{"innerShadow":{"color":{"token":"accent1"},"blur":2,"distance":1,"angle":45}}`.
+Only color is required. Optional blur (0–1000 pt), distance (0–100000 pt),
+angle (-360–360 degrees) and opacity (0–1 or an opacity token) retain native
+presence: zero is explicit, omission keeps defaults. Direct theme colors retain
+their identity; declared color tokens use normal color resolution. Omit the whole
+field to remove only the inner shadow. Shared chart text owners and rich trendline
+styles use this field; explicit vector run effects override title defaults.
+The supported native order is glow, inner shadow, outer shadow, soft edge.
+Unknown or extended effects remain source-owned.
+
 `softEdge` sets chart text edge softening, for example
 `{"softEdge":{"radius":2}}`. Radius is a required number from 0 to 1000 pt,
 rounded to native EMU precision with ties to even. Explicit zero is retained;
 omit the field to remove it. It shares the chart and trendline paragraph/run/end
 style owners and propagates to vector text; explicit run radius zero overrides
 a nonzero title default. Known effects are stored in the order `glow`,
-`outerShdw`, `softEdge`, and each can be removed without erasing the others.
+`innerShdw`, `outerShdw`, `softEdge`, and each can be removed without erasing the others.
 Missing radius, duplicate/reordered effects and unknown descendants stay
 source-owned. Native round trips do not establish host edge appearance.
 

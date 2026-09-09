@@ -4801,6 +4801,7 @@ message SpreadsheetChartTextStyleArtifact {
   PresentationGlow glow = 20;
   // Direct final soft-edge effect; explicit zero radius differs from absence.
   PresentationSoftEdge soft_edge = 21;
+  PresentationInnerShadow inner_shadow = 22;
 }
 
 enum SpreadsheetChartLineDashStyle {
