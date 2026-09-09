@@ -381,6 +381,21 @@ chart text use the same field, with explicit title-run strike taking
 precedence over title defaults. Like ordinary text strike, this is a literal
 boolean/token-enum field, not a grammar token reference.
 
+`shadow` adds a direct outer shadow to chart text, for example
+`{"shadow":{"color":"#000000","blur":2,"distance":3,"angle":45,"opacity":0.25}}`.
+Only `color` is required. `blur` (0–1000 pt), `distance` (0–100000 pt),
+`angle` (-360–360 degrees), `opacity`, `alignment` and `rotateWithShape` are
+optional. Geometry uses native EMU/angle precision with ties-to-even rounding;
+angles normalize to a positive turn. Omission preserves native absence, while
+zero opacity/geometry and `rotateWithShape:false` remain explicit. Omit the
+whole shadow to remove it. RGB and grammar color tokens resolve their supported
+transforms; undeclared standard theme tokens keep theme identity and support
+alpha, with tint/shade rejected. Opacity accepts opacity tokens and overrides
+color alpha. Chart and trendline paragraph/run/end styles share this field;
+vector labels retain it and explicit run shadows override title defaults.
+Mixed/unknown effect graphs stay source-owned. This is native structure and
+round-trip support; host shadow appearance has not been verified.
+
 `highlight` sets opaque text highlight paint, for example
 `{"highlight":"#FFFF00","color":"#112233"}`. It accepts the ordinary PPJ color
 syntax, including declared color tokens and tint/shade, and projects as an

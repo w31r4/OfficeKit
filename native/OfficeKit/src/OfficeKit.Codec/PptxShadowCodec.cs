@@ -1,4 +1,5 @@
 using DocumentFormat.OpenXml;
+using System.Xml.Linq;
 using OfficeKit.Artifact.Wire.V1;
 using A = DocumentFormat.OpenXml.Drawing;
 
@@ -12,6 +13,38 @@ internal static class PptxShadowCodec
     {
         "tl", "t", "tr", "l", "ctr", "r", "bl", "b", "br",
     };
+
+    // Chart character effects own exactly one direct outer shadow. Reject
+    // unmodeled nodes before the typed reader can normalize them away.
+    internal static bool TryReadTextEffects(XElement effects, out PresentationShadow? shadow)
+    {
+        shadow = null;
+        XNamespace drawing = "http://schemas.openxmlformats.org/drawingml/2006/main";
+        if (effects.Name != drawing + "effectLst" ||
+            effects.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration) ||
+            effects.Elements().Count() != 1 || effects.Elements().Single().Name != drawing + "outerShdw" ||
+            effects.DescendantNodes().Any(node => node is not XElement && (node is not XText text || !string.IsNullOrWhiteSpace(text.Value))) ||
+            effects.Descendants(drawing + "alpha").Any(alpha => alpha.HasElements)) return false;
+        try
+        {
+            var outer = new A.OuterShadow(effects.Elements().Single().ToString(SaveOptions.DisableFormatting));
+            return TryReadOuterShadow(outer, out shadow) && shadow is not null &&
+                (!shadow.HasBlurRadiusEmu || shadow.BlurRadiusEmu <= 12_700_000) &&
+                (!shadow.HasDistanceEmu || shadow.DistanceEmu <= 1_270_000_000);
+        }
+        catch (Exception error) when (error is FormatException or OverflowException or ArgumentException or InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    internal static XElement TextEffectsElement(PresentationShadow shadow)
+    {
+        Validate(shadow, "chart-text", "chart text");
+        var properties = new A.RunProperties();
+        Apply(properties, shadow);
+        return XElement.Parse(properties.GetFirstChild<A.EffectList>()!.OuterXml);
+    }
 
     internal static bool TryRead(OpenXmlCompositeElement? properties, out PresentationShadow? shadow)
     {

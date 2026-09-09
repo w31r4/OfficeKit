@@ -4795,6 +4795,8 @@ message SpreadsheetChartTextStyleArtifact {
   optional uint32 kerning_hundredth_points = 17;
   // Direct opaque character highlight as six RGB hex digits; omission removes it.
   optional string highlight_rgb = 18;
+  // Direct character outer shadow, preserving native optional attributes.
+  PresentationShadow shadow = 19;
 }
 
 enum SpreadsheetChartLineDashStyle {

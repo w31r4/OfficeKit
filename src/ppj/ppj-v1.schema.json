@@ -6228,10 +6228,61 @@
         { "enum": ["noStrike", "sngStrike", "dblStrike"] }
       ]
     },
+    "chartTextShadow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "color"
+      ],
+      "properties": {
+        "color": {
+          "$ref": "#/$defs/color"
+        },
+        "opacity": {
+          "$ref": "#/$defs/numberOrToken",
+          "description": "Shadow opacity; a token reference must declare kind opacity."
+        },
+        "blur": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "distance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100000
+        },
+        "angle": {
+          "type": "number",
+          "minimum": -360,
+          "maximum": 360
+        },
+        "alignment": {
+          "enum": [
+            "tl",
+            "t",
+            "tr",
+            "l",
+            "ctr",
+            "r",
+            "bl",
+            "b",
+            "br"
+          ]
+        },
+        "rotateWithShape": {
+          "type": "boolean"
+        }
+      }
+    },
     "chartTextStyle": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "shadow": {
+          "$ref": "#/$defs/chartTextShadow",
+          "description": "Direct outer shadow; optional geometry, opacity and rotation preserve absence separately from zero/false."
+        },
         "fontSize": {
           "$ref": "#/$defs/positiveNumberOrToken"
         },

@@ -3305,6 +3305,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (source.TryGetProperty("letterSpacing", out var spacing)) output.LetterSpacingHundredthPoints = XlsxChartTextStyleCodec.LetterSpacingHundredthPoints(spacing.GetDouble());
         if (source.TryGetProperty("kerning", out var kerning)) output.KerningHundredthPoints = XlsxChartTextStyleCodec.KerningHundredthPoints(kerning.GetDouble());
         if (source.TryGetProperty("capitalization", out var capitalization)) output.Capitalization = capitalization.GetString()!;
+        if (source.TryGetProperty("shadow", out var shadow)) output.Shadow = BuildChartTextShadow(shadow, catalog);
         if (source.TryGetProperty("highlight", out var highlight)) output.HighlightRgb = BuildChartHighlight(highlight, catalog);
         if (source.TryGetProperty("bold", out var bold)) output.Bold = catalog.BooleanToken(bold, "boolean", "chart text bold");
         if (source.TryGetProperty("italic", out var italic)) output.Italic = catalog.BooleanToken(italic, "boolean", "chart text italic");
@@ -3349,7 +3350,7 @@ internal static partial class PpjAuthoredPresentationCompiler
     }
 
     private static readonly string[] ChartTextStyleFields =
-    ["fontSize", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "language", "strike", "baseline", "capitalization", "letterSpacing", "kerning", "highlight", "bold", "italic", "underline", "alignment", "fill", "color"];
+    ["fontSize", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "language", "strike", "baseline", "capitalization", "letterSpacing", "kerning", "highlight", "shadow", "bold", "italic", "underline", "alignment", "fill", "color"];
 
     private static void ApplyChartTextStyleProperty(
         SpreadsheetChartTextStyleArtifact output,
@@ -3386,6 +3387,9 @@ internal static partial class PpjAuthoredPresentationCompiler
             case "kerning":
                 output.KerningHundredthPoints = XlsxChartTextStyleCodec.KerningHundredthPoints(value.GetDouble());
                 break;
+            case "shadow":
+                output.Shadow = BuildChartTextShadow(value, catalog);
+                break;
             case "highlight":
                 output.HighlightRgb = BuildChartHighlight(value, catalog);
                 break;
@@ -3417,6 +3421,53 @@ internal static partial class PpjAuthoredPresentationCompiler
             default:
                 throw new InvalidOperationException($"Unknown chart text style field {field}.");
         }
+    }
+
+    private static PresentationShadow BuildChartTextShadow(JsonElement value, Catalog catalog) =>
+        BuildChartTextShadow(value, catalog.Color,
+            opacity => catalog.NumberToken(opacity, "opacity", "chart text shadow opacity"), catalog.HasGrammarToken);
+
+    internal static PresentationShadow BuildChartTextShadow(
+        JsonElement value,
+        Func<JsonElement, (string Rgb, double Alpha)> resolveColor,
+        Func<JsonElement, double> resolveOpacity,
+        Func<string, bool> declaredToken)
+    {
+        var color = value.GetProperty("color");
+        var output = new PresentationShadow();
+        var alpha = 1d;
+        if (color.ValueKind == JsonValueKind.Object && color.TryGetProperty("token", out var token) &&
+            !declaredToken(token.GetString()!) && PptxColor.TrySchemeToken(token.GetString()!, out var scheme))
+        {
+            if (color.TryGetProperty("tint", out _) || color.TryGetProperty("shade", out _))
+                throw new CodecException("invalid_presentation_shadow", "Chart text theme shadows do not support tint/shade transforms.");
+            output.ColorScheme = scheme;
+            if (color.TryGetProperty("alpha", out var colorAlpha)) alpha = colorAlpha.GetDouble();
+        }
+        else
+        {
+            var resolved = resolveColor(color);
+            output.ColorRgb = resolved.Rgb;
+            alpha = resolved.Alpha;
+        }
+        static double Bounded(double number, double min, double max)
+        {
+            if (!double.IsFinite(number) || number < min || number > max)
+                throw new CodecException("invalid_presentation_shadow", "Chart text shadow has an out-of-range number.");
+            return number;
+        }
+        if (value.TryGetProperty("blur", out var blur)) output.BlurRadiusEmu = Emu(Bounded(blur.GetDouble(), 0, 1000));
+        if (value.TryGetProperty("distance", out var distance)) output.DistanceEmu = Emu(Bounded(distance.GetDouble(), 0, 100000));
+        if (value.TryGetProperty("angle", out var angle))
+            output.DirectionAngle60000 = Angle(((Bounded(angle.GetDouble(), -360, 360) % 360) + 360) % 360) % 21_600_000;
+        if (value.TryGetProperty("opacity", out var opacity))
+            output.OpacityThousandthPercent = Opacity(Bounded(resolveOpacity(opacity), 0, 1));
+        else if (alpha != 1 || color.ValueKind == JsonValueKind.Object && color.TryGetProperty("alpha", out _))
+            output.OpacityThousandthPercent = Opacity(Bounded(alpha, 0, 1));
+        if (value.TryGetProperty("alignment", out var alignment)) output.Alignment = alignment.GetString()!;
+        if (value.TryGetProperty("rotateWithShape", out var rotate)) output.RotateWithShape = rotate.GetBoolean();
+        PptxShadowCodec.Validate(output, "chart-text", "chart text");
+        return output;
     }
 
     private static string BuildChartHighlight(JsonElement value, Catalog catalog)
@@ -4151,6 +4202,8 @@ internal static partial class PpjAuthoredPresentationCompiler
                     $"$.design.theme.accentTransforms.{role}.{operation}");
             return checked((int)Math.Round(degrees * 60_000d, MidpointRounding.AwayFromZero));
         }
+
+        internal bool HasGrammarToken(string name) => _grammarTokens.ContainsKey(name);
 
         internal (string Rgb, double Alpha) Color(JsonElement color)
         {

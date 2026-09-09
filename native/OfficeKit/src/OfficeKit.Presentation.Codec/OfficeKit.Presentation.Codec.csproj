@@ -11,7 +11,7 @@
   <ItemGroup>
     <Compile Include="../OfficeKit.Codec/Ppj*.cs" Link="%(Filename)%(Extension)" />
     <Compile Include="../OfficeKit.Codec/Pptx*.cs"
-             Exclude="../OfficeKit.Codec/PptxColor.cs;../OfficeKit.Codec/PptxGradientFillCodec.cs;../OfficeKit.Codec/PptxLanguageTag.cs"
+             Exclude="../OfficeKit.Codec/PptxColor.cs;../OfficeKit.Codec/PptxGradientFillCodec.cs;../OfficeKit.Codec/PptxLanguageTag.cs;../OfficeKit.Codec/PptxShadowCodec.cs"
              Link="%(Filename)%(Extension)" />
     <Compile Include="../OfficeKit.Codec/Properties/AssemblyInfo.cs" Link="Properties/AssemblyInfo.cs" />
   </ItemGroup>

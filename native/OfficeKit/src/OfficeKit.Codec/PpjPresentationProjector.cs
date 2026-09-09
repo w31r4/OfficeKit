@@ -1584,6 +1584,7 @@ internal static partial class PpjPresentationProjector
         if (source.HasLetterSpacingHundredthPoints) output["letterSpacing"] = JsonValue.Create(source.LetterSpacingHundredthPoints / 100d);
         if (source.HasKerningHundredthPoints) output["kerning"] = JsonValue.Create(source.KerningHundredthPoints / 100d);
         if (source.HasCapitalization) output["capitalization"] = StringNode(source.Capitalization);
+        if (source.Shadow is not null) output["shadow"] = ChartTextShadow(source.Shadow);
         if (source.HasHighlightRgb) output["highlight"] = StringNode(Color(source.HighlightRgb));
         if (source.HasBold) output["bold"] = JsonValue.Create(source.Bold);
         if (source.HasItalic) output["italic"] = JsonValue.Create(source.Italic);
@@ -3258,6 +3259,15 @@ internal static partial class PpjPresentationProjector
         if (cap is "flat" or "round" or "square") output["cap"] = StringNode(cap);
         if (join is "miter" or "round" or "bevel") output["join"] = StringNode(join);
         if (opacity is not null) output["opacity"] = JsonValue.Create(opacity.Value);
+        return output;
+    }
+
+    private static JsonObject ChartTextShadow(PresentationShadow shadow)
+    {
+        var output = Shadow(shadow, includeOpacity: shadow.HasOpacityThousandthPercent);
+        if (!shadow.HasBlurRadiusEmu) output.Remove("blur");
+        if (!shadow.HasDistanceEmu) output.Remove("distance");
+        if (!shadow.HasDirectionAngle60000) output.Remove("angle");
         return output;
     }
 
