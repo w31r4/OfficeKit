@@ -18,7 +18,7 @@ internal static class PpjSemanticValidator
         new Dictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal)
         {
             ["replaceText"] = Set("text", "visibleText"),
-            ["setTextParagraphStyle"] = Set("textStyles", "text.paragraphs[].style.alignment", "text.paragraphs[].style.tabStops", "text.paragraphs[].style.defaultText.bold", "text.paragraphs[].style.defaultText.italic", "text.paragraphs[].style.defaultText.size", "text.paragraphs[].style.defaultText.fontFamily", "text.paragraphs[].style.defaultText.fontFamilyEastAsia", "text.paragraphs[].style.defaultText.fontFamilyComplexScript", "text.paragraphs[].style.defaultText.language", "text.paragraphs[].style.defaultText.kerning", "text.paragraphs[].style.defaultText.letterSpacing"),
+            ["setTextParagraphStyle"] = Set("textStyles", "text.paragraphs[].style.alignment", "text.paragraphs[].style.tabStops", "text.paragraphs[].style.defaultText.bold", "text.paragraphs[].style.defaultText.italic", "text.paragraphs[].style.defaultText.size", "text.paragraphs[].style.defaultText.fontFamily", "text.paragraphs[].style.defaultText.fontFamilyEastAsia", "text.paragraphs[].style.defaultText.fontFamilyComplexScript", "text.paragraphs[].style.defaultText.language", "text.paragraphs[].style.defaultText.kerning", "text.paragraphs[].style.defaultText.letterSpacing", "text.paragraphs[].style.defaultText.baseline"),
             ["setFill"] = Set("fill"),
             ["setStroke"] = Set("stroke"),
             ["setConnectorEndpoints"] = Set("from", "to"),

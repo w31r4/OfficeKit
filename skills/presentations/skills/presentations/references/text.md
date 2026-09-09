@@ -92,6 +92,15 @@ restore it. Other defaults and direct run spacing stay unchanged. Unmodeled
 native spc survives unrelated scalar changes and rejects replacement.
 Preview typography remains partial.
 
+Use defaultText.baseline for direct baseline offset in percent (-400..400),
+for example baseline: 20 for 20 percent. Native precision is 0.001 percent
+with ties-to-even rounding through integer thousandths. Explicit zero remains
+present, including tiny negative values rounded to zero. Delete the field or
+its baseline-only defaultText/style wrapper to clear it, then assign a value
+to restore it. Other defaults and direct run baseline remain unchanged.
+Unmodeled source baseline survives unrelated scalar changes and rejects
+replacement; host text layout remains unverified.
+
 
 `textWarpPreset`, `textWarpAdjustments`, `flatTextZ`, `fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.

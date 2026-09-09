@@ -464,6 +464,17 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 ### F-03 文本、段落、列表、字段和 WordArt
 
 
+**段落默认基线偏移增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.defaultText.baseline`
+支持独立赋值、显式零、删除、恢复及单字段包装删除，单位为百分比，
+范围 -400–400%，原生精度 0.001%，中点向偶数舍入。接近零的负值按
+原生整数归一为显式零。直接 run 基线、其它默认样式、未知属性和
+非目标 XML/ZIP 保留；未建模原生 baseline 拒绝覆盖，随其它标量修改或删除保留。
+相关 **197/197 通过，0 跳过**，沿用已记录的整组默认样式基线失败排除项。
+资料、生成检查和 OpenSpec 已同步；字体实际排版仍需主机证据。
+
+
+
 **段落默认字符间距增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.defaultText.letterSpacing`
 支持独立赋值、显式零、删除、恢复及单字段包装删除，范围 -768–768pt，

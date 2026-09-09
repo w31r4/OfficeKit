@@ -2,6 +2,21 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ paragraph default baseline (2026-09-10): ordinary text/shape paragraphs
+support independent signed percentage assignment, explicit zero, deletion,
+baseline-only wrapper removal and restoration. Finite -400..400 percent
+values round through native integer thousandths with ties to even, retaining
+canonical explicit zero for tiny negative inputs. Direct run baseline, other
+defaults/effects, unknown attributes and non-target XML/ZIP content remain
+unchanged. Unmodeled native baseline rejects replacement and survives
+unrelated scalar assignment/removal; cleanup clears only modeled baseline.
+Related native tests pass 197/197, zero skipped (SDK 8.0.128), with the
+documented whole-default-style baseline exclusion unchanged. Unsupported-field
+rejection now uses capitalization. Schema, Help, registry, references,
+generated metadata, preview input/capability, portability/reference sync and
+strict OpenSpec pass. No wire change, NativeAOT rebuild or host typography
+acceptance.
+
 PPJ paragraph default letterSpacing (2026-09-10): ordinary text/shape
 paragraphs support independent signed spacing assignment, explicit zero,
 deletion, spacing-only wrapper removal and restoration. Finite -768..768pt
@@ -13,8 +28,8 @@ defaults/effects, unknown attributes and non-target XML/ZIP content remain
 unchanged. Unmodeled native spc rejects replacement and survives unrelated
 scalar assignment/removal; cleanup clears only modeled spacing. Related
 native tests pass 192/192, zero skipped (SDK 8.0.128), with the documented
-whole-default-style baseline exclusion unchanged. Unsupported-field rejection
-now uses baseline. Schema, Help, registry, references, generated metadata,
+whole-default-style baseline exclusion unchanged. That increment used baseline
+for unsupported-field rejection. Schema, Help, registry, references, generated metadata,
 preview input/capability, portability/reference sync and strict OpenSpec pass.
 No wire change, NativeAOT rebuild or host typography acceptance.
 
