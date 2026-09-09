@@ -189,6 +189,47 @@ public sealed class PpjCustomGeometryTextRectangleTests
         Assert.Equal(10000, Element(Project(PptxCodecTests.RemoveEmbeddedPpj(preset.File.ToByteArray())))["geometry"]!["adjustments"]![0]!.GetValue<int>());
     }
 
+    [Fact]
+    public void CustomGeometryPathExtrusionPreservesPresenceAndSourceEdits()
+    {
+        foreach (bool? initial in new bool?[] { null, false, true })
+        {
+            var program = Program();
+            var path = Element(program)["geometry"]!["paths"]![0]!.AsObject();
+            path["fill"] = false; path["stroke"] = true;
+            if (initial.HasValue) path["extrusionOk"] = initial.Value;
+            var authored = Compile(program);
+            var native = authored.PresentationProgram.PreviewScene.Presentation.Slides[0].Elements[0].Shape.CustomPaths[0];
+            Assert.Equal(initial.HasValue, native.HasExtrusionAllowed);
+            if (initial.HasValue) Assert.Equal(initial.Value, native.ExtrusionAllowed);
+            var source = PptxCodecTests.RemoveEmbeddedPpj(authored.File.ToByteArray());
+            var original = source.ToArray();
+            var projected = Project(source);
+            Assert.True(JsonNode.DeepEquals(path, Element(projected)["geometry"]!["paths"]![0]));
+            Assert.Equal(source, Compile(projected, source).File.ToByteArray());
+            foreach (var mode in new[] { "true", "false", "remove", "coordinate" })
+            {
+                var request = Project(source);
+                var requested = Element(request)["geometry"]!["paths"]![0]!.AsObject();
+                if (mode == "remove") requested.Remove("extrusionOk");
+                else if (mode == "coordinate") requested["commands"]![1]!["x"] = 90;
+                else requested["extrusionOk"] = mode == "true";
+                var candidate = Compile(request, source).File.ToByteArray();
+                var fresh = Element(Project(candidate));
+                Assert.True(JsonNode.DeepEquals(Element(request)["geometry"], fresh["geometry"]));
+                foreach (var field in new[] { "text", "frame" })
+                    Assert.True(JsonNode.DeepEquals(Element(request)[field], fresh[field]));
+                if (JsonNode.DeepEquals(Element(projected)["geometry"], Element(request)["geometry"]))
+                    Assert.Equal(source, candidate);
+                else AssertSlideOnly(source, candidate);
+            }
+            Assert.Equal(original, source);
+        }
+        var invalid = Program();
+        Element(invalid)["geometry"]!["paths"]![0]!["extrusionOk"] = "false";
+        Assert.Empty(Compile(invalid, null, false).File);
+    }
+
     private static JsonObject Program()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

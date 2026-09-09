@@ -37,6 +37,10 @@ const adjustedCustomShape = assessPpjPreviewInput(deck([{ type: "shape", id: "ad
   geometry: { kind: "custom", viewBox: frame, paths: [], adjustments: [{ name: "padding", formula: "val 127000" }] } }]));
 assert.ok(adjustedCustomShape.diagnostics.some(d => d.path.endsWith(".geometry.adjustments[0].formula") && d.status !== "supported"));
 
+const extrusionShape = assessPpjPreviewInput(deck([{ type: "shape", id: "extrusion", frame,
+  geometry: { kind: "custom", viewBox: frame, paths: [{ extrusionOk: false, commands: [{ op: "moveTo", x: 0, y: 0 }] }] } }]));
+assert.ok(extrusionShape.diagnostics.some(d => d.path.endsWith(".geometry.paths[0].extrusionOk") && d.status !== "supported"));
+
 const repeated = { pages: [{ id: "p1", elements: [text] }, { id: "p2", elements: [text] }] };
 const diagnostics = assessPpjPreviewInput(repeated).diagnostics.filter((d) => d.path.endsWith(".text") && d.reason === "preview.text.unassessed");
 assert.deepEqual(diagnostics.map((d) => d.pageId).sort(), ["p1", "p2"]);

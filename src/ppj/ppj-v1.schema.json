@@ -4378,6 +4378,10 @@
         "stroke": {
           "type": "boolean"
         },
+        "extrusionOk": {
+          "type": "boolean",
+          "description": "Optional native path extrusion eligibility; omission preserves absence. This flag does not author 3-D depth or appearance."
+        },
         "commands": {
           "type": "array",
           "minItems": 1,

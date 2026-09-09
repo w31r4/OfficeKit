@@ -510,6 +510,8 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 **优先级：P0；状态：部分完成。**
 
+**自定义路径 extrusionOk 增量（2026-09-10）：** `geometry.paths[].extrusionOk` 保留原生路径“允许拉伸”的可选布尔值；true、false 和省略分别往返。现有 paths 编辑权限支持增改删，修改坐标时保留该标志，修复 PPJ 投影及重写路径时的属性丢失。最小实验核对原源 no-op、非目标 ZIP 和其余 geometry/文字/frame 保留、非法类型拒绝；custom geometry/authored-preview 专项 67/67 通过。预览明确报告字段限制，3-D 深度/材质与宿主外观仍开放。
+
 **自定义形状 adjustment 增量（2026-09-10）：** `kind: custom` 的 `geometry.adjustments` 使用最多 256 项有序 `{name, formula}`，先于 guides 求值，共用名称与引用检查；preset 继续使用整数数组。已支持 authored、去嵌入投影和 source-bound 列表增改删，空列表投影为省略。最小实验验证 adjustment → guide → 文字矩形链路的 10→20 pt 实际求值、原源 no-op、协调删除、跨列表重名/前向/悬空引用拒绝，以及 paths/文字/frame/非目标 ZIP 保留；custom/preset geometry 与 authored-preview 专项 68/68 通过。handle/site、引用型 path 坐标和宿主交互仍开放，预览保留公式限制诊断。
 
 **自定义形状公式 guide 增量（2026-09-10）：** `geometry.guides` 承载有序 `{name, formula}` 列表，复用原生有界公式图；文字矩形可引用声明的 guide，顺序和引用通过 authored/去嵌入投影保留。`setGeometry` 支持列表增改删，删除仍被引用的 guide 会拒绝，可同时删除依赖矩形完成合法清理；空列表投影为省略。最小实验验证 `w/10→w/5` 的实际求值、原源 no-op、path XML/文字/frame 和非目标 ZIP 保留，相关专项 65/65 通过。handle/site 和引用型 path 坐标的 PPJ 整体表达仍开放；预览保留明确公式/布局诊断。

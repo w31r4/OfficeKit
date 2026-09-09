@@ -70,6 +70,12 @@ literal preset adjustments can be changed only when `nativeRef.capabilities`
 issues `setGeometry` for `geometry.adjustments`. Formula-valued or irregular
 native guides remain source-owned.
 
+Custom `geometry.paths[]` accepts optional boolean `extrusionOk` beside `fill`
+and `stroke`. True, false and omission remain distinct through export and fresh
+projection. Existing path-edit authority supports adding, changing or removing
+it, and coordinate edits retain it. This native eligibility flag supplies no
+3-D depth/material; preview reports the unrendered field explicitly.
+
 An imported literal custom geometry (paths with literal coordinates, without
 handles or connection sites) may issue `setGeometry`
 for `geometry.paths`, `geometry.textRectangle`, `geometry.guides` and

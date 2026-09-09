@@ -869,6 +869,7 @@ internal static partial class PpjPresentationProjector
             if (source.FillMode == PresentationCustomGeometryPath.Types.FillMode.Normal) path["fill"] = JsonValue.Create(true);
             else if (source.FillMode == PresentationCustomGeometryPath.Types.FillMode.None) path["fill"] = JsonValue.Create(false);
             if (source.HasStroke) path["stroke"] = JsonValue.Create(source.Stroke);
+            if (source.HasExtrusionAllowed) path["extrusionOk"] = JsonValue.Create(source.ExtrusionAllowed);
             paths.Add(path);
         }
         var output = new JsonObject

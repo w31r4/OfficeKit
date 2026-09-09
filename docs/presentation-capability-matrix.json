@@ -14,7 +14,7 @@
     "schemaDefinitions": 197,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 52,
+    "authoredCompilerBoundaries": 53,
     "nativeLeafKinds": 278,
     "helpApis": 151,
     "hostOnlyApis": 13
@@ -1130,6 +1130,14 @@
       "behavior": "partial",
       "sourceBound": "Source-free PPJ owns a bounded direct text soft edge for authored runs and paragraph default runs. A strict imported/source-bound profile now projects one direct rich-text run soft edge, optionally preceded by one valid outer shadow or full-span reflection, and issues the existing radius leaf; the matching paragraph defaultText owner issues textDefaultSoftEdgeRadiusEmu with a paragraph-index proof. Other text effect graphs remain source-preserved or fail closed.",
       "reason": "The profile reuses a 0..1000 point radius, lowering to a:softEdge after the bounded text glow, inner-shadow, outer-shadow and reflection owners. The source-bound run profile accepts only a direct soft edge, outer-shadow→soft-edge or full-span reflection→soft-edge, preserves the preceding owner proof and token-splices the selected run radius; the defaultText profile proves direct a:p/a:pPr/a:defRPr ownership and token-splices its softEdge/@rad, as covered by PpjSourceBoundTextSoftEdgeEditsDirectRunOwnerAndReprojects and its focused default-text extension. 3-D, WordArt and arbitrary effect lists remain outside this authored owner.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "custom path extrusion eligibility",
+      "ppjPath": "pages[].elements[].geometry.paths[].extrusionOk",
+      "behavior": "partial",
+      "sourceBound": "Supported custom paths preserve optional extrusionOk true/false/absence through shared authoring and fresh projection. Existing geometry.paths authority permits source addition/change/removal and preserves the flag during coordinate edits; topology guards remain unchanged.",
+      "reason": "CustomGeometryPathExtrusionPreservesPresenceAndSourceEdits verifies authored presence, original-source no-op and field lifecycle, unchanged commands/fill/stroke/text/frame and non-target ZIP members. Native ExtrusionAllowed maps to DrawingML extrusionOk. Preview input assessment explicitly diagnoses this metadata; the flag does not supply 3-D depth or appearance.",
       "visualStatus": "partial-or-opaque"
     },
     {

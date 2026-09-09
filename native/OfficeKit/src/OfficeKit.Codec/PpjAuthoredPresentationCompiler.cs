@@ -3680,6 +3680,7 @@ internal static partial class PpjAuthoredPresentationCompiler
                     ? PresentationCustomGeometryPath.Types.FillMode.Normal
                     : PresentationCustomGeometryPath.Types.FillMode.None;
             if (sourcePath.TryGetProperty("stroke", out var stroke)) path.Stroke = stroke.GetBoolean();
+            if (sourcePath.TryGetProperty("extrusionOk", out var extrusion)) path.ExtrusionAllowed = extrusion.GetBoolean();
             var hasCurrentPoint = false;
             var hasSubpathStart = false;
             foreach (var sourceCommand in sourcePath.GetProperty("commands").EnumerateArray())
