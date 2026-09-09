@@ -14,10 +14,10 @@ authoredSheet.charts.add("line", {
 });
 const source = wireWorksheetCharts(authoredSheet)[0];
 source.yAxis.logBase = 10;
-source.titleTextStyle = { fontSizePoints: 12, language: "en-US", strike: "noStrike", baselineThousandthPercent: 0, capitalization: "none" };
+source.titleTextStyle = { fontSizePoints: 12, language: "en-US", strike: "noStrike", baselineThousandthPercent: 0, capitalization: "none", letterSpacingHundredthPoints: 0 };
 source.series[0].trendlines[0].label = { numberFormatCode: "0.00", numberFormatLink: 1,
   richText: { paragraphs: [{ runs: [
-    { content: { case: "text", value: "Fit " }, style: { bold: true, language: "zh-CN", strike: "dblStrike", baselineThousandthPercent: -25125, capitalization: "small" } },
+    { content: { case: "text", value: "Fit " }, style: { bold: true, language: "zh-CN", strike: "dblStrike", baselineThousandthPercent: -25125, capitalization: "small", letterSpacingHundredthPoints: -238 } },
     { content: { case: "lineBreak", value: true } },
     { content: { case: "text", value: "A" }, style: { bold: false } },
   ] }] },
@@ -66,4 +66,10 @@ assert.equal(edited.titleTextStyle.capitalization, "none", "Unrelated edits reta
 for (const capitalization of [undefined, "none", "small", "all"]) {
   const message = create(SpreadsheetChartTextStyleArtifactSchema, { capitalization });
   assert.equal(fromBinary(SpreadsheetChartTextStyleArtifactSchema, toBinary(SpreadsheetChartTextStyleArtifactSchema, message)).capitalization, capitalization);
+}
+
+assert.equal(edited.titleTextStyle.letterSpacingHundredthPoints, 0, "Unrelated edits retain explicit spacing reset");
+for (const letterSpacingHundredthPoints of [undefined, 0, -238, -76800, 76800]) {
+  const message = create(SpreadsheetChartTextStyleArtifactSchema, { letterSpacingHundredthPoints });
+  assert.equal(fromBinary(SpreadsheetChartTextStyleArtifactSchema, toBinary(SpreadsheetChartTextStyleArtifactSchema, message)).letterSpacingHundredthPoints, letterSpacingHundredthPoints);
 }

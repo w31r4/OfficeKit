@@ -4789,6 +4789,8 @@ message SpreadsheetChartTextStyleArtifact {
   optional sint32 baseline_thousandth_percent = 14;
   // Direct character cap attribute; explicit none remains distinct from absence.
   optional string capitalization = 15;
+  // Direct character spacing in signed hundredths of a point, -76800..76800.
+  optional sint32 letter_spacing_hundredth_points = 16;
 }
 
 enum SpreadsheetChartLineDashStyle {

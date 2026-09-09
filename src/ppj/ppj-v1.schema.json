@@ -3048,9 +3048,7 @@
           "$ref": "#/$defs/languageTagOrToken"
         },
         "letterSpacing": {
-          "type": "number",
-          "minimum": -768,
-          "maximum": 768
+          "$ref": "#/$defs/textLetterSpacing"
         },
         "kerning": {
           "type": "number",
@@ -6208,6 +6206,11 @@
         }
       }
     },
+    "textLetterSpacing": {
+      "type": "number",
+      "minimum": -768,
+      "maximum": 768
+    },
     "textCapitalization": {
       "enum": ["none", "small", "all"]
     },
@@ -6250,6 +6253,10 @@
         "baseline": {
           "$ref": "#/$defs/textBaseline",
           "description": "Signed baseline percentage; native precision is 0.001%, rounded with ties to even. Explicit zero is preserved."
+        },
+        "letterSpacing": {
+          "$ref": "#/$defs/textLetterSpacing",
+          "description": "Signed character spacing in points; native precision is 0.01pt, rounded with ties to even. Explicit zero is preserved."
         },
         "capitalization": {
           "$ref": "#/$defs/textCapitalization",

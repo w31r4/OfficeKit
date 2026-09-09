@@ -93,7 +93,7 @@ internal static class XlsxChartTextStyleCodec
         !style.HasLanguage &&
         !style.HasStrike &&
         !style.HasBaselineThousandthPercent &&
-        !style.HasCapitalization &&
+        !style.HasLetterSpacingHundredthPoints && !style.HasCapitalization &&
         !style.HasFontSizePoints &&
         !style.HasBold &&
         !style.HasItalic &&
@@ -208,6 +208,7 @@ internal static class XlsxChartTextStyleCodec
             style.HasStrike ? "strike=" + style.Strike : "default-strike",
             style.HasBaselineThousandthPercent ? style.BaselineThousandthPercent.ToString(CultureInfo.InvariantCulture) : "default-baseline",
             style.HasCapitalization ? style.Capitalization : "default-capitalization",
+            style.HasLetterSpacingHundredthPoints ? style.LetterSpacingHundredthPoints.ToString(CultureInfo.InvariantCulture) : "default-letter-spacing",
             style.HasBold ? style.Bold.ToString(CultureInfo.InvariantCulture) : "default-bold",
             style.HasItalic ? style.Italic.ToString(CultureInfo.InvariantCulture) : "default-italic",
             style.Alignment.Length > 0 ? style.Alignment : "default-alignment",
@@ -247,7 +248,7 @@ internal static class XlsxChartTextStyleCodec
     {
         if (style is null) return;
         if (!style.HasFontSizePoints && style.FontFamily.Length == 0 && style.FontFamilyEastAsia.Length == 0 && style.FontFamilyComplexScript.Length == 0 &&
-            !style.HasCapitalization && !style.HasBaselineThousandthPercent && !style.HasStrike && !style.HasLanguage && !style.HasBold && !style.HasItalic && style.Alignment.Length == 0 && style.Underline.Length == 0 && style.ColorRgb.Length == 0 && !style.HasOpacityThousandthPercent && style.Fill is null)
+            !style.HasLetterSpacingHundredthPoints && !style.HasCapitalization && !style.HasBaselineThousandthPercent && !style.HasStrike && !style.HasLanguage && !style.HasBold && !style.HasItalic && style.Alignment.Length == 0 && style.Underline.Length == 0 && style.ColorRgb.Length == 0 && !style.HasOpacityThousandthPercent && style.Fill is null)
             throw Invalid(worksheetId, chartId, $"{field} must declare at least one bounded property.");
         if (style.HasFontSizePoints && (!double.IsFinite(style.FontSizePoints) || style.FontSizePoints < MinimumFontSizePoints || style.FontSizePoints > MaximumFontSizePoints))
             throw Invalid(worksheetId, chartId, $"{field}.font_size_points must be from 1 through 4000.");
@@ -258,6 +259,8 @@ internal static class XlsxChartTextStyleCodec
             throw Invalid(worksheetId, chartId, $"{field}.language must be a bounded language tag.");
         if (style.HasStrike && !StrikeValues.Contains(style.Strike))
             throw Invalid(worksheetId, chartId, $"{field}.strike must be noStrike, sngStrike or dblStrike.");
+        if (style.HasLetterSpacingHundredthPoints && style.LetterSpacingHundredthPoints is < -76_800 or > 76_800)
+            throw Invalid(worksheetId, chartId, $"{field}.letterSpacing must be between -768pt and 768pt.");
         if (style.HasCapitalization && !CapitalizationValues.Contains(style.Capitalization))
             throw Invalid(worksheetId, chartId, $"{field}.capitalization must be none, small or all.");
         if (style.HasBaselineThousandthPercent && style.BaselineThousandthPercent is < -400_000 or > 400_000)
@@ -341,9 +344,14 @@ internal static class XlsxChartTextStyleCodec
     internal static bool TryExactStyleProperties(XElement properties, out SpreadsheetChartTextStyleArtifact style)
     {
         style = new SpreadsheetChartTextStyleArtifact();
-        var allowedAttributes = new HashSet<XName> { "sz", "b", "i", "u", "lang", "strike", "baseline", "cap" };
+        var allowedAttributes = new HashSet<XName> { "sz", "b", "i", "u", "lang", "strike", "baseline", "cap", "spc" };
         var attributes = properties.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration).ToArray();
         if (attributes.Any(attribute => !allowedAttributes.Contains(attribute.Name))) return false;
+        if (properties.Attribute("spc") is { } spacing)
+        {
+            if (!int.TryParse(spacing.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) || value is < -76_800 or > 76_800) return false;
+            style.LetterSpacingHundredthPoints = value;
+        }
         if (properties.Attribute("cap") is { } capitalization)
         {
             if (!CapitalizationValues.Contains(capitalization.Value)) return false;
@@ -408,7 +416,7 @@ internal static class XlsxChartTextStyleCodec
         }
         return index == children.Length &&
             (style.HasFontSizePoints || style.FontFamily.Length > 0 || style.FontFamilyEastAsia.Length > 0 || style.FontFamilyComplexScript.Length > 0 ||
-             style.HasCapitalization || style.HasBaselineThousandthPercent || style.HasStrike || style.HasLanguage || style.HasBold || style.HasItalic || style.Underline.Length > 0 || style.ColorRgb.Length > 0 || style.Fill is not null);
+             style.HasLetterSpacingHundredthPoints || style.HasCapitalization || style.HasBaselineThousandthPercent || style.HasStrike || style.HasLanguage || style.HasBold || style.HasItalic || style.Underline.Length > 0 || style.ColorRgb.Length > 0 || style.Fill is not null);
     }
 
     private static void ApplyParsedFill(SpreadsheetChartTextStyleArtifact style, SpreadsheetChartSurfaceFill fill)
@@ -448,7 +456,7 @@ internal static class XlsxChartTextStyleCodec
 
     private static bool HasCharacterStyle(SpreadsheetChartTextStyleArtifact style) =>
         style.HasFontSizePoints || style.FontFamily.Length > 0 || style.FontFamilyEastAsia.Length > 0 || style.FontFamilyComplexScript.Length > 0 ||
-        style.HasCapitalization || style.HasBaselineThousandthPercent || style.HasStrike || style.HasLanguage || style.HasBold || style.HasItalic || style.Underline.Length > 0 || style.ColorRgb.Length > 0 || style.HasOpacityThousandthPercent || style.Fill is not null;
+        style.HasLetterSpacingHundredthPoints || style.HasCapitalization || style.HasBaselineThousandthPercent || style.HasStrike || style.HasLanguage || style.HasBold || style.HasItalic || style.Underline.Length > 0 || style.ColorRgb.Length > 0 || style.HasOpacityThousandthPercent || style.Fill is not null;
 
     private static bool HasAnyStyle(SpreadsheetChartTextStyleArtifact style) => HasCharacterStyle(style) || style.Alignment.Length > 0;
 
@@ -459,6 +467,7 @@ internal static class XlsxChartTextStyleCodec
         if (style.HasStrike) output.SetAttributeValue("strike", style.Strike);
         if (style.HasBaselineThousandthPercent) output.SetAttributeValue("baseline", style.BaselineThousandthPercent);
         if (style.HasCapitalization) output.SetAttributeValue("cap", style.Capitalization);
+        if (style.HasLetterSpacingHundredthPoints) output.SetAttributeValue("spc", style.LetterSpacingHundredthPoints);
         if (style.HasFontSizePoints) output.SetAttributeValue("sz", Size(style.FontSizePoints));
         if (style.HasBold) output.SetAttributeValue("b", style.Bold ? "1" : "0");
         if (style.HasItalic) output.SetAttributeValue("i", style.Italic ? "1" : "0");
@@ -490,6 +499,13 @@ internal static class XlsxChartTextStyleCodec
         if (source is "0" or "false") { value = false; return true; }
         value = false;
         return false;
+    }
+
+    internal static int LetterSpacingHundredthPoints(double points)
+    {
+        if (!double.IsFinite(points) || points is < -768 or > 768)
+            throw new CodecException("invalid_spreadsheet_chart", "Chart letter spacing must be finite and between -768pt and 768pt.");
+        return checked((int)Math.Round(points * 100, MidpointRounding.ToEven));
     }
 
     internal static int BaselineThousandthPercent(double percentage)

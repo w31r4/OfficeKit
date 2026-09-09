@@ -381,6 +381,14 @@ chart text use the same field, with explicit title-run strike taking
 precedence over title defaults. Like ordinary text strike, this is a literal
 boolean/token-enum field, not a grammar token reference.
 
+`letterSpacing` sets signed character spacing in points from -768 to 768,
+for example `{"letterSpacing":1.25}`. Native precision is 0.01pt; finer values
+round to the nearest hundredth, with ties to even. Explicit zero resets
+spacing, while omission removes the direct attribute. The field works in the
+same chart and trendline rich styles; vector labels retain it and explicit
+title-run spacing overrides chart defaults. Literal text stays unchanged;
+these values do not establish measured glyph positions or host layout.
+
 `capitalization` uses the ordinary text literals `none`, `small`, or `all`.
 For example, `{"capitalization":"all"}` stores a display style while preserving
 the original mixed-case text. Explicit `none` cancels capitalization; omission
