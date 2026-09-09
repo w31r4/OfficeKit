@@ -28,7 +28,7 @@ internal static class PptxShadowCodec
         try
         {
             var outer = new A.OuterShadow(effects.Elements().Single().ToString(SaveOptions.DisableFormatting));
-            return TryReadOuterShadow(outer, out shadow) && shadow is not null &&
+            return TryReadOuterShadow(outer, out shadow, allowTransforms: true) && shadow is not null &&
                 (!shadow.HasBlurRadiusEmu || shadow.BlurRadiusEmu <= 12_700_000) &&
                 (!shadow.HasDistanceEmu || shadow.DistanceEmu <= 1_270_000_000);
         }
@@ -59,10 +59,14 @@ internal static class PptxShadowCodec
     // Effect-list owners such as text glow may need to prove an outer shadow
     // sibling without treating the whole list as a shadow-only graph. Keep
     // that proof separate so shape/image classification remains strict.
-    internal static bool TryReadOuterShadow(A.OuterShadow outer, out PresentationShadow? shadow)
+    internal static bool TryReadOuterShadow(A.OuterShadow outer, out PresentationShadow? shadow, bool allowTransforms = false)
     {
         shadow = null;
-        if (!HasOnlyAttributes(outer, "blurRad", "dist", "dir", "algn", "rotWithShape") || outer.BlurRadius?.Value is < 0 || outer.Distance?.Value is < 0 ||
+        if (!HasOnlyAttributes(outer, allowTransforms
+                ? ["blurRad", "dist", "dir", "algn", "rotWithShape", "sx", "sy", "kx", "ky"]
+                : ["blurRad", "dist", "dir", "algn", "rotWithShape"]) || outer.BlurRadius?.Value is < 0 || outer.Distance?.Value is < 0 ||
+            outer.HorizontalSkew?.Value is <= -5_400_000 or >= 5_400_000 ||
+            outer.VerticalSkew?.Value is <= -5_400_000 or >= 5_400_000 ||
             outer.Direction?.Value is < 0 or >= 21_600_000 || outer.Alignment?.Value is { } alignment && !Alignments.Contains(AlignmentName(alignment)) ||
             outer.ChildElements.Count != 1) return false;
 
@@ -90,6 +94,10 @@ internal static class PptxShadowCodec
             ColorRgb = colorRgb,
         };
         if (!string.IsNullOrEmpty(colorScheme)) parsed.ColorScheme = colorScheme;
+        if (outer.HorizontalRatio?.Value is { } scaleX) parsed.ScaleXThousandthPercent = scaleX;
+        if (outer.VerticalRatio?.Value is { } scaleY) parsed.ScaleYThousandthPercent = scaleY;
+        if (outer.HorizontalSkew?.Value is { } skewX) parsed.SkewXAngle60000 = skewX;
+        if (outer.VerticalSkew?.Value is { } skewY) parsed.SkewYAngle60000 = skewY;
         if (outer.BlurRadius?.Value is { } blur) parsed.BlurRadiusEmu = blur;
         if (outer.Distance?.Value is { } distance) parsed.DistanceEmu = distance;
         if (outer.Direction?.Value is { } direction) parsed.DirectionAngle60000 = direction;
@@ -109,6 +117,10 @@ internal static class PptxShadowCodec
             : new A.RgbColorModelHex { Val = PptxColor.Normalize(shadow.ColorRgb) };
         if (shadow.HasOpacityThousandthPercent) color.Append(new A.Alpha { Val = checked((int)shadow.OpacityThousandthPercent) });
         var outer = new A.OuterShadow(color);
+        if (shadow.HasScaleXThousandthPercent) outer.HorizontalRatio = shadow.ScaleXThousandthPercent;
+        if (shadow.HasScaleYThousandthPercent) outer.VerticalRatio = shadow.ScaleYThousandthPercent;
+        if (shadow.HasSkewXAngle60000) outer.HorizontalSkew = shadow.SkewXAngle60000;
+        if (shadow.HasSkewYAngle60000) outer.VerticalSkew = shadow.SkewYAngle60000;
         if (shadow.HasBlurRadiusEmu) outer.BlurRadius = shadow.BlurRadiusEmu;
         if (shadow.HasDistanceEmu) outer.Distance = shadow.DistanceEmu;
         if (shadow.HasDirectionAngle60000) outer.Direction = shadow.DirectionAngle60000;
@@ -126,7 +138,9 @@ internal static class PptxShadowCodec
             throw new CodecException("invalid_presentation_shadow", $"Presentation {subject} {elementId} must use exactly one RGB or theme shadow color.");
         if (hasRgb) PptxColor.Normalize(shadow.ColorRgb);
         else PptxColor.NormalizeScheme(shadow.ColorScheme);
-        if (shadow.HasBlurRadiusEmu && shadow.BlurRadiusEmu < 0 || shadow.HasDistanceEmu && shadow.DistanceEmu < 0 ||
+        if (shadow.HasSkewXAngle60000 && shadow.SkewXAngle60000 is <= -5_400_000 or >= 5_400_000 ||
+            shadow.HasSkewYAngle60000 && shadow.SkewYAngle60000 is <= -5_400_000 or >= 5_400_000 ||
+            shadow.HasBlurRadiusEmu && shadow.BlurRadiusEmu < 0 || shadow.HasDistanceEmu && shadow.DistanceEmu < 0 ||
             shadow.HasDirectionAngle60000 && shadow.DirectionAngle60000 is < 0 or >= 21_600_000 ||
             shadow.HasOpacityThousandthPercent && shadow.OpacityThousandthPercent > 100_000 ||
             shadow.HasAlignment && !Alignments.Contains(shadow.Alignment))

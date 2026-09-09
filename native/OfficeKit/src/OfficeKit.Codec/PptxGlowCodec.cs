@@ -11,7 +11,10 @@ internal static class PptxGlowCodec
 {
     private const long MaxRadiusEmu = 12_700_000L;
 
-    internal static bool TryRead(OpenXmlCompositeElement? properties, out PresentationGlow? glow)
+    internal static bool TryRead(OpenXmlCompositeElement? properties, out PresentationGlow? glow) =>
+        TryReadCore(properties, out glow, allowShadowTransforms: false);
+
+    private static bool TryReadCore(OpenXmlCompositeElement? properties, out PresentationGlow? glow, bool allowShadowTransforms)
     {
         glow = null;
         var lists = properties?.Elements<A.EffectList>().ToArray() ?? [];
@@ -23,18 +26,18 @@ internal static class PptxGlowCodec
         var shadowElements = effects.OfType<A.OuterShadow>().ToArray();
         if (glowElements.Length == 0)
             return effects.Count == 1 && shadowElements.Length == 1 &&
-                   PptxShadowCodec.TryReadOuterShadow(shadowElements[0], out _);
+                   PptxShadowCodec.TryReadOuterShadow(shadowElements[0], out _, allowTransforms: allowShadowTransforms);
         if (glowElements.Length != 1 || shadowElements.Length > 1 ||
             effects.Count != glowElements.Length + shadowElements.Length ||
             !ReferenceEquals(effects[0], glowElements[0]) ||
             shadowElements.Length == 1 && !ReferenceEquals(effects[1], shadowElements[0]) ||
-            shadowElements.Length == 1 && !PptxShadowCodec.TryReadOuterShadow(shadowElements[0], out _))
+            shadowElements.Length == 1 && !PptxShadowCodec.TryReadOuterShadow(shadowElements[0], out _, allowTransforms: allowShadowTransforms))
             return false;
 
         return TryReadGlow(glowElements[0], out glow);
     }
 
-    internal static void Apply(OpenXmlCompositeElement properties, PresentationGlow? glow)
+    internal static void Apply(OpenXmlCompositeElement properties, PresentationGlow? glow, bool allowShadowTransforms = false)
     {
         var effectList = properties.GetFirstChild<A.EffectList>();
         if (glow is null)
@@ -58,7 +61,7 @@ internal static class PptxGlowCodec
             return;
         }
 
-        if (!TryRead(properties, out _) || effectList.ChildElements.Any(child => child is not A.Glow and not A.OuterShadow))
+        if (!TryReadCore(properties, out _, allowShadowTransforms) || effectList.ChildElements.Any(child => child is not A.Glow and not A.OuterShadow))
             throw new CodecException(
                 "unsupported_presentation_effects",
                 "Glow can only be combined with a proven bounded outer-shadow effect.");

@@ -3509,6 +3509,10 @@ internal static partial class PpjAuthoredPresentationCompiler
     {
         var paint = BuildChartEffectColor(value, resolveColor, resolveOpacity, declaredToken);
         var output = new PresentationShadow { ColorRgb = paint.Rgb };
+        if (value.TryGetProperty("scaleX", out var scaleX)) output.ScaleXThousandthPercent = checked((int)Math.Round(ChartEffectNumber(scaleX.GetDouble(), int.MinValue / 100000d, int.MaxValue / 100000d) * 100000d, MidpointRounding.ToEven));
+        if (value.TryGetProperty("scaleY", out var scaleY)) output.ScaleYThousandthPercent = checked((int)Math.Round(ChartEffectNumber(scaleY.GetDouble(), int.MinValue / 100000d, int.MaxValue / 100000d) * 100000d, MidpointRounding.ToEven));
+        if (value.TryGetProperty("skewX", out var skewX)) output.SkewXAngle60000 = Angle(ChartEffectNumber(skewX.GetDouble(), -90, 90));
+        if (value.TryGetProperty("skewY", out var skewY)) output.SkewYAngle60000 = Angle(ChartEffectNumber(skewY.GetDouble(), -90, 90));
         if (paint.Scheme is not null) output.ColorScheme = paint.Scheme;
         if (paint.Opacity is { } opacity) output.OpacityThousandthPercent = opacity;
         if (value.TryGetProperty("blur", out var blur)) output.BlurRadiusEmu = Emu(ChartEffectNumber(blur.GetDouble(), 0, 1000));

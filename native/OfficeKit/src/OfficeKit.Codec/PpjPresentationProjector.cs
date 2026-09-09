@@ -3298,6 +3298,10 @@ internal static partial class PpjPresentationProjector
     private static JsonObject ChartTextShadow(PresentationShadow shadow)
     {
         var output = Shadow(shadow, includeOpacity: shadow.HasOpacityThousandthPercent);
+        if (shadow.HasScaleXThousandthPercent) output["scaleX"] = JsonValue.Create(shadow.ScaleXThousandthPercent / 100000d);
+        if (shadow.HasScaleYThousandthPercent) output["scaleY"] = JsonValue.Create(shadow.ScaleYThousandthPercent / 100000d);
+        if (shadow.HasSkewXAngle60000) output["skewX"] = JsonValue.Create(shadow.SkewXAngle60000 / 60000d);
+        if (shadow.HasSkewYAngle60000) output["skewY"] = JsonValue.Create(shadow.SkewYAngle60000 / 60000d);
         if (!shadow.HasBlurRadiusEmu) output.Remove("blur");
         if (!shadow.HasDistanceEmu) output.Remove("distance");
         if (!shadow.HasDirectionAngle60000) output.Remove("angle");

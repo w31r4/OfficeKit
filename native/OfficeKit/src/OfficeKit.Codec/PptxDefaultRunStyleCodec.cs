@@ -224,7 +224,8 @@ internal static class PptxDefaultRunStyleCodec
         ApplyComplexScriptFont(target, source);
         ApplyFill(target, source);
         ApplyShadow(target, source);
-        PptxGlowCodec.Apply(target, source.Glow);
+        // ApplyShadow already proved the source owner before rebuilding it.
+        PptxGlowCodec.Apply(target, source.Glow, allowShadowTransforms: source.Shadow is not null);
         PptxInnerShadowCodec.Apply(target, source.InnerShadow);
         PptxReflectionCodec.Apply(target, source.Reflection);
         PptxSoftEdgeCodec.Apply(target, source.SoftEdge);

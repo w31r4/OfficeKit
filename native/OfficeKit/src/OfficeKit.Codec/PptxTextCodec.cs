@@ -761,7 +761,9 @@ internal static class PptxTextCodec
         {
             PptxShadowCodec.Apply(properties, null);
         }
-        PptxGlowCodec.Apply(properties, requested.Glow);
+        // A non-null shadow was just rebuilt from the requested native value;
+        // the original source owner was checked above with the strict reader.
+        PptxGlowCodec.Apply(properties, requested.Glow, allowShadowTransforms: requested.Shadow is not null);
         PptxInnerShadowCodec.Apply(properties, requested.InnerShadow);
         PptxReflectionCodec.Apply(properties, requested.Reflection);
         PptxSoftEdgeCodec.Apply(properties, requested.SoftEdge);

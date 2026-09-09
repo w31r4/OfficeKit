@@ -457,6 +457,14 @@ transforms; undeclared standard theme tokens keep theme identity and support
 alpha, with tint/shade rejected. Opacity accepts opacity tokens and overrides
 color alpha. Chart and trendline paragraph/run/end styles share this field;
 vector labels retain it and explicit run shadows override title defaults.
+Optional `scaleX/scaleY` use signed ratios in [-21474.83648,21474.83647],
+with 1 = original size and precision 0.00001. `skewX/skewY` use degrees
+strictly between -90 and 90, rounded to 1/60000 degree; values rounding
+to an excluded endpoint are rejected. For example,
+`{"shadow":{"color":"#000000","scaleX":1,"scaleY":-1,"skewX":0,"skewY":12.5}}`.
+Zero and negative transforms remain explicit. Remove each property to restore
+native absence; the whole-shadow override rule also covers transforms.
+Ordinary imported shadow owners retain their existing no-transform profile.
 Unrecognized effect graphs stay source-owned. This is native structure and
 round-trip support; host shadow appearance has not been verified.
 

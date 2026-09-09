@@ -120,7 +120,7 @@ public sealed partial class PptxCodecTests
             Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr spc='76801'/><a:t>Fit</a:t></a:r></a:p>"),
             Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr><a:effectLst/></a:rPr><a:t>Fit</a:t></a:r></a:p>"),
             Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr><a:effectLst><a:glow rad='12700001'><a:srgbClr val='FFFFFF'/></a:glow></a:effectLst></a:rPr><a:t>Fit</a:t></a:r></a:p>"),
-            Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr><a:effectLst><a:outerShdw sx='100000'><a:srgbClr val='FFFFFF'/></a:outerShdw></a:effectLst></a:rPr><a:t>Fit</a:t></a:r></a:p>"),
+            Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr><a:effectLst><a:outerShdw sx='2147483648'><a:srgbClr val='FFFFFF'/></a:outerShdw></a:effectLst></a:rPr><a:t>Fit</a:t></a:r></a:p>"),
             Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr><a:effectLst><a:outerShdw dir='21600000'><a:srgbClr val='FFFFFF'/></a:outerShdw></a:effectLst></a:rPr><a:t>Fit</a:t></a:r></a:p>"),
             Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr><a:effectLst><a:outerShdw blurRad='12700001'><a:srgbClr val='FFFFFF'/></a:outerShdw></a:effectLst></a:rPr><a:t>Fit</a:t></a:r></a:p>"),
             Rich("<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr><a:effectLst><a:outerShdw><a:schemeClr val='accent1'><a:tint val='50000'/></a:schemeClr></a:outerShdw></a:effectLst></a:rPr><a:t>Fit</a:t></a:r></a:p>"),

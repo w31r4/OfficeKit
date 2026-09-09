@@ -71,7 +71,7 @@ internal static class XlsxChartTextEffectsCodec
         var properties = new A.RunProperties();
         PptxShadowCodec.Validate(style.Shadow, "chart-text", "chart text");
         PptxShadowCodec.Apply(properties, style.Shadow);
-        PptxGlowCodec.Apply(properties, style.Glow);
+        PptxGlowCodec.Apply(properties, style.Glow, allowShadowTransforms: true);
         PptxInnerShadowCodec.Apply(properties, style.InnerShadow);
         PptxReflectionCodec.Apply(properties, style.Reflection);
         if (style.SoftEdge is not null)

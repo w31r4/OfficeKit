@@ -6235,6 +6235,30 @@
         "color"
       ],
       "properties": {
+        "scaleX": {
+          "type": "number",
+          "minimum": -21474.83648,
+          "maximum": 21474.83647,
+          "description": "Horizontal shadow scale ratio, 1 = original size; negative and zero retained, precision 0.00001."
+        },
+        "scaleY": {
+          "type": "number",
+          "minimum": -21474.83648,
+          "maximum": 21474.83647,
+          "description": "Vertical shadow scale ratio, 1 = original size; negative and zero retained, precision 0.00001."
+        },
+        "skewX": {
+          "type": "number",
+          "exclusiveMinimum": -90,
+          "exclusiveMaximum": 90,
+          "description": "Horizontal skew in degrees; rounded 1/60000-degree value must remain strictly between -90 and 90."
+        },
+        "skewY": {
+          "type": "number",
+          "exclusiveMinimum": -90,
+          "exclusiveMaximum": 90,
+          "description": "Vertical skew in degrees; rounded 1/60000-degree value must remain strictly between -90 and 90."
+        },
         "color": {
           "$ref": "#/$defs/color"
         },
