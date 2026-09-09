@@ -32,7 +32,7 @@ Simple PPJ text is a string. Mixed formatting uses `paragraphs[]` and `runs[]`.
 Do not put Markdown, HTML, CSS, or invented inline markup into a text string.
 Assign language and font roles explicitly for mixed-script runs.
 
-`forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
+`spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.
 Explicit `true`/`false` for upright and signed degrees/zero for rotation retain
 direct native values. Column direction uses `left-to-right` (explicit native false)
@@ -66,9 +66,12 @@ Delete the projected property to remove `anchorCtr`, independently of
 The anti-aliasing hint `forceAntiAlias` retains explicit true/false. Delete the
 projected property to remove direct `forceAA`, preserving other body state.
 Deletion requires the updated codec; the hint does not establish host rendering.
+The first/last paragraph-spacing hint `spaceFirstLastParagraph` retains true/false.
+Delete it to remove `spcFirstLastPara` with the updated codec while preserving
+actual paragraph spacing. Preview retains paragraph-layout limitations.
 On a fresh source PPJ, delete any of these properties to remove that native attribute and
 restore inherited/default behavior. You may remove a style object containing only
-`forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and/or `verticalOverflow`. If a table cell then projects as plain text, add the
+`spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and/or `verticalOverflow`. If a table cell then projects as plain text, add the
 body style through structured text while retaining its native paragraph/run topology.
 Keep other body properties and use the issued `setTextBodyStyle` or table-cell
 text-style capability; unsupported placeholder owners retain their source boundary.

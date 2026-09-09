@@ -200,7 +200,15 @@ internal static partial class PpjAuthoredPresentationCompiler
             current.NoForceAntiAlias = true;
         }
         if (style.TryGetProperty("spaceFirstLastParagraph", out _))
+        {
+            current.ClearNoSpaceFirstLastParagraph();
             current.SpaceFirstLastParagraph = requested.SpaceFirstLastParagraph;
+        }
+        else if (previousStyle is { ValueKind: JsonValueKind.Object } previousParagraphSpacing && previousParagraphSpacing.TryGetProperty("spaceFirstLastParagraph", out _))
+        {
+            current.ClearSpaceFirstLastParagraph();
+            current.NoSpaceFirstLastParagraph = true;
+        }
         if (style.TryGetProperty("compatibleLineSpacing", out _))
             current.CompatibleLineSpacing = requested.CompatibleLineSpacing;
         if (style.TryGetProperty("fromWordArt", out _))

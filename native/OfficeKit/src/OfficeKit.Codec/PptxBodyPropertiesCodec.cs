@@ -82,6 +82,8 @@ internal static class PptxBodyPropertiesCodec
             throw Invalid("Presentation no_anchor_center must be true and cannot coexist with anchor_center.");
         if (properties.HasNoForceAntiAlias && (!properties.NoForceAntiAlias || properties.HasForceAntiAlias))
             throw Invalid("Presentation no_force_anti_alias must be true and cannot coexist with force_anti_alias.");
+        if (properties.HasNoSpaceFirstLastParagraph && (!properties.NoSpaceFirstLastParagraph || properties.HasSpaceFirstLastParagraph))
+            throw Invalid("Presentation no_space_first_last_paragraph must be true and cannot coexist with space_first_last_paragraph.");
         ValidateInset(properties.LeftInsetCase, properties.LeftInsetEmu, PresentationTextBodyProperties.LeftInsetOneofCase.LeftInsetEmu, PresentationTextBodyProperties.LeftInsetOneofCase.NoLeftInset, properties.NoLeftInset, "left");
         ValidateInset(properties.TopInsetCase, properties.TopInsetEmu, PresentationTextBodyProperties.TopInsetOneofCase.TopInsetEmu, PresentationTextBodyProperties.TopInsetOneofCase.NoTopInset, properties.NoTopInset, "top");
         ValidateInset(properties.RightInsetCase, properties.RightInsetEmu, PresentationTextBodyProperties.RightInsetOneofCase.RightInsetEmu, PresentationTextBodyProperties.RightInsetOneofCase.NoRightInset, properties.NoRightInset, "right");
@@ -134,6 +136,7 @@ internal static class PptxBodyPropertiesCodec
          source.HasForceAntiAlias ||
          source.HasNoForceAntiAlias ||
          source.HasSpaceFirstLastParagraph ||
+         source.HasNoSpaceFirstLastParagraph ||
          source.HasCompatibleLineSpacing ||
          source.HasFromWordArt ||
          source.HasTextWarpPreset ||
@@ -149,6 +152,7 @@ internal static class PptxBodyPropertiesCodec
         if (source is null) return true;
         if (source.HasNoAnchorCenter && (!source.NoAnchorCenter || source.HasAnchorCenter)) return false;
         if (source.HasNoForceAntiAlias && (!source.NoForceAntiAlias || source.HasForceAntiAlias)) return false;
+        if (source.HasNoSpaceFirstLastParagraph && (!source.NoSpaceFirstLastParagraph || source.HasSpaceFirstLastParagraph)) return false;
         return (source.LeftInsetCase is PresentationTextBodyProperties.LeftInsetOneofCase.None or PresentationTextBodyProperties.LeftInsetOneofCase.LeftInsetEmu ||
                 source.LeftInsetCase == PresentationTextBodyProperties.LeftInsetOneofCase.NoLeftInset && source.NoLeftInset) &&
             (source.TopInsetCase is PresentationTextBodyProperties.TopInsetOneofCase.None or PresentationTextBodyProperties.TopInsetOneofCase.TopInsetEmu ||
@@ -276,6 +280,7 @@ internal static class PptxBodyPropertiesCodec
         if (properties.HasForceAntiAlias) native.ForceAntiAlias = properties.ForceAntiAlias;
         else if (properties.HasNoForceAntiAlias) native.ForceAntiAlias = null;
         if (properties.HasSpaceFirstLastParagraph) native.UseParagraphSpacing = properties.SpaceFirstLastParagraph;
+        else if (properties.HasNoSpaceFirstLastParagraph) native.UseParagraphSpacing = null;
         if (properties.HasCompatibleLineSpacing) native.CompatibleLineSpacing = properties.CompatibleLineSpacing;
         if (properties.HasFromWordArt) native.FromWordArt = properties.FromWordArt;
         if (properties.HasTextWarpPreset)

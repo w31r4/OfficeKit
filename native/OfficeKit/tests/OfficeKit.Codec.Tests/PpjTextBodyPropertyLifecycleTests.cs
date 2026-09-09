@@ -15,6 +15,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [Theory]
     [InlineData(32, 40)]
     [InlineData(33, 41)]
+    [InlineData(34, 42)]
     public void OptionalBooleanDeletionWireIntentIsUnambiguous(int setterNumber, int deleteNumber)
     {
         var setter = PresentationTextBodyProperties.Descriptor.FindFieldByNumber(setterNumber).Accessor;
@@ -532,9 +533,11 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [InlineData("shape", "upright")]
     [InlineData("shape", "anchorCenter")]
     [InlineData("shape", "forceAntiAlias")]
+    [InlineData("shape", "spaceFirstLastParagraph")]
     [InlineData("table", "upright")]
     [InlineData("table", "anchorCenter")]
     [InlineData("table", "forceAntiAlias")]
+    [InlineData("table", "spaceFirstLastParagraph")]
     public void BooleanBodyStyleCanBeRemovedWithExistingAuthority(string kind, string field)
     {
         var program = Program(kind);
@@ -569,7 +572,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         Assert.Empty(Compile(denied, source, success: false).File);
 
         var otherProgram = Program(kind);
-        Style(otherProgram, kind)["spaceFirstLastParagraph"] = true;
+        Style(otherProgram, kind)["compatibleLineSpacing"] = true;
         var otherSource = PptxCodecTests.RemoveEmbeddedPpj(Compile(otherProgram).File.ToByteArray());
         var otherEdit = Project(otherSource);
         StyleOwner(otherEdit).Remove(kind == "shape" ? "textStyle" : "style");
@@ -580,23 +583,35 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [InlineData("shape", "upright")]
     [InlineData("shape", "anchorCenter")]
     [InlineData("shape", "forceAntiAlias")]
+    [InlineData("shape", "spaceFirstLastParagraph")]
     [InlineData("text", "upright")]
     [InlineData("text", "anchorCenter")]
     [InlineData("text", "forceAntiAlias")]
+    [InlineData("text", "spaceFirstLastParagraph")]
     [InlineData("master", "upright")]
     [InlineData("master", "anchorCenter")]
     [InlineData("master", "forceAntiAlias")]
+    [InlineData("master", "spaceFirstLastParagraph")]
     [InlineData("layout", "upright")]
     [InlineData("layout", "anchorCenter")]
     [InlineData("layout", "forceAntiAlias")]
+    [InlineData("layout", "spaceFirstLastParagraph")]
     [InlineData("table", "upright")]
     [InlineData("table", "anchorCenter")]
     [InlineData("table", "forceAntiAlias")]
+    [InlineData("table", "spaceFirstLastParagraph")]
     public void BooleanBodySourceRemovalAndRestorationPreserveOtherState(string kind, string field)
     {
         var program = Program(kind);
         Style(program, kind)[field] = true;
-        if (field == "forceAntiAlias") Style(program, kind)["anchorCenter"] = false;
+        if (field is "forceAntiAlias" or "spaceFirstLastParagraph") Style(program, kind)["anchorCenter"] = false;
+        if (field == "spaceFirstLastParagraph")
+        {
+            var paragraphs = JsonNode.Parse("""[{"style":{"spaceBefore":7,"spaceAfter":9},"runs":[{"text":"Retain this text"}]}]""");
+            var owner = Style(program, kind).Parent!.AsObject();
+            if (kind == "table") owner["paragraphs"] = paragraphs;
+            else owner["text"] = new JsonObject { ["paragraphs"] = paragraphs };
+        }
         Style(program, kind)["verticalAlignment"] = "middle";
         var authored = Compile(program);
         var source = PptxCodecTests.RemoveEmbeddedPpj(authored.File.ToByteArray());
@@ -628,6 +643,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
 
     private static bool? BooleanBodyProperty(byte[] bytes, string kind, string field) =>
         field switch { "anchorCenter" => Body(bytes, kind).AnchorCenter?.Value,
+            "spaceFirstLastParagraph" => Body(bytes, kind).UseParagraphSpacing?.Value,
             "forceAntiAlias" => Body(bytes, kind).ForceAntiAlias?.Value, _ => Body(bytes, kind).UpRight?.Value };
 
     private static string[] BodyPropertyValues(string field) => field switch
@@ -803,6 +819,11 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         {
             Assert.Single(oldSlide.Descendants<A.BodyProperties>()).ForceAntiAlias = null;
             Assert.Single(newSlide.Descendants<A.BodyProperties>()).ForceAntiAlias = null;
+        }
+        else if (field == "spaceFirstLastParagraph")
+        {
+            Assert.Single(oldSlide.Descendants<A.BodyProperties>()).UseParagraphSpacing = null;
+            Assert.Single(newSlide.Descendants<A.BodyProperties>()).UseParagraphSpacing = null;
         }
         else if (field == "columnGap")
         {
