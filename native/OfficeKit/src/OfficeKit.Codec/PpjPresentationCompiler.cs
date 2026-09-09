@@ -5962,8 +5962,8 @@ internal static class PpjSourceBoundPresentationCompiler
         if (PropertyChanged(before.Raw, after.Raw, "errorBars"))
         {
             RequireCapability(capabilityOwner, "setChartSeriesAnalytics", path + ".errorBars");
-            // Custom plus/minus sources are retained natively but not projected
-            // into PPJ. Absence in JSON must not make that owner an empty slot.
+            // Formula-backed plus/minus sources are not projected as literals.
+            // Absence in JSON must not make that owner an empty slot.
             if (target.ErrorBars is not null && !before.Raw.TryGetProperty("errorBars", out _))
                 throw Unsupported(path + ".errorBars", "replacement of unprojected source error bars");
             target.ErrorBars = after.Raw.TryGetProperty("errorBars", out var newErrorBars)
@@ -6030,6 +6030,7 @@ internal static class PpjSourceBoundPresentationCompiler
                 : SpreadsheetChartErrorBarType.Both,
             ValueType = source.GetProperty("valueType").GetString() switch
             {
+                "custom" => SpreadsheetChartErrorBarValueType.Custom,
                 "fixed-value" => SpreadsheetChartErrorBarValueType.FixedValue,
                 "percentage" => SpreadsheetChartErrorBarValueType.Percentage,
                 "standard-deviation" => SpreadsheetChartErrorBarValueType.StandardDeviation,
@@ -6039,9 +6040,24 @@ internal static class PpjSourceBoundPresentationCompiler
             NoEndCap = source.TryGetProperty("noEndCap", out var noEndCap) && noEndCap.GetBoolean(),
         };
         if (source.TryGetProperty("value", out var value)) output.Value = value.GetDouble();
+        if (source.TryGetProperty("plus", out var plus)) output.Plus = SourceBoundChartErrorBarData(plus, path + ".plus", grammarRoot);
+        if (source.TryGetProperty("minus", out var minus)) output.Minus = SourceBoundChartErrorBarData(minus, path + ".minus", grammarRoot);
         if (source.TryGetProperty("stroke", out var stroke))
             output.Line = SourceBoundChartLine(stroke, path + ".stroke", grammarRoot);
         return output;
+    }
+
+    private static SpreadsheetChartErrorBarDataArtifact SourceBoundChartErrorBarData(JsonElement source, string path, JsonElement? grammarRoot)
+    {
+        var data = new SpreadsheetChartErrorBarDataArtifact();
+        data.Values.Add(source.GetProperty("values").EnumerateArray().Select(value => value.GetDouble()));
+        if (source.TryGetProperty("formatCode", out var format))
+        {
+            data.FormatCode = grammarRoot is { } root ? ResolveGrammarStringToken(root, format, path + ".formatCode") : format.GetString()!;
+            if (data.FormatCode.Length is < 1 or > 255 || data.FormatCode.Any(char.IsControl))
+                throw Unsupported(path + ".formatCode", "formatCode must contain 1 through 255 characters without controls");
+        }
+        return data;
     }
 
     private static SpreadsheetChartMarkerArtifact SourceBoundChartMarker(

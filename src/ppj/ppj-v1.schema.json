@@ -6940,8 +6940,15 @@
             "fixed-value",
             "percentage",
             "standard-deviation",
-            "standard-error"
+            "standard-error",
+            "custom"
           ]
+        },
+        "plus": {
+          "$ref": "#/$defs/chartErrorBarData"
+        },
+        "minus": {
+          "$ref": "#/$defs/chartErrorBarData"
         },
         "value": {
           "type": "number",
@@ -6953,6 +6960,28 @@
         },
         "stroke": {
           "$ref": "#/$defs/stroke"
+        }
+      }
+    },
+    "chartErrorBarData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["values"],
+      "properties": {
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1048576,
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "description": "One nonnegative error amount per series point, in point order."
+        },
+        "formatCode": {
+          "$ref": "#/$defs/stringOrToken",
+          "description": "Optional literal numeric-data format, 1 through 255 characters without controls; string grammar tokens are resolved before export."
         }
       }
     },

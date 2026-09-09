@@ -1360,6 +1360,7 @@ internal static partial class PpjPresentationProjector
             if (trendlines.Count > 0) output["trendlines"] = trendlines;
         }
         if (series.ErrorBars is { } errorBars &&
+            string.IsNullOrEmpty(errorBars.Plus?.Formula) && string.IsNullOrEmpty(errorBars.Minus?.Formula) &&
             ErrorBarDirection(errorBars.Direction) is { } direction &&
             ErrorBarType(errorBars.Type) is { } barType &&
             ErrorBarValueType(errorBars.ValueType) is { } valueType)
@@ -1371,6 +1372,8 @@ internal static partial class PpjPresentationProjector
                 ["valueType"] = StringNode(valueType),
             };
             if (errorBars.HasValue) projected["value"] = JsonValue.Create(errorBars.Value);
+            if (errorBars.Plus is not null) projected["plus"] = ProjectErrorBarData(errorBars.Plus);
+            if (errorBars.Minus is not null) projected["minus"] = ProjectErrorBarData(errorBars.Minus);
             if (errorBars.NoEndCap) projected["noEndCap"] = JsonValue.Create(true);
             if (errorBars.Line is not null && !string.IsNullOrEmpty(errorBars.Line.Color?.Rgb))
                 projected["stroke"] = ProjectChartLine(errorBars.Line);
@@ -1378,6 +1381,13 @@ internal static partial class PpjPresentationProjector
         }
         if (series.DataLabels is not null)
             output["dataLabels"] = ProjectSeriesDataLabels(series.DataLabels);
+    }
+
+    private static JsonObject ProjectErrorBarData(SpreadsheetChartErrorBarDataArtifact source)
+    {
+        var data = new JsonObject { ["values"] = new JsonArray(source.Values.Select(value => (JsonNode?)JsonValue.Create(value)).ToArray()) };
+        if (source.FormatCode.Length > 0) data["formatCode"] = StringNode(source.FormatCode);
+        return data;
     }
 
     private static JsonObject ProjectSeriesDataLabels(SpreadsheetChartSeriesDataLabelsArtifact source)
@@ -2929,8 +2939,8 @@ internal static partial class PpjPresentationProjector
                 // Trendlines and error bars are direct c:series children with
                 // bounded readers/writers of their own.  Keep them separate
                 // from paint. Trendlines own their ordered list, including
-                // insertion/removal; scalar error bars own their optional
-                // object. Unprojected custom sources remain protected.
+                // insertion/removal; local error bars own their optional
+                // object. Unprojected formula sources remain protected.
                 output.Add(new("setChartSeriesAnalytics", [
                     "chart.data.series[].trendlines",
                     "chart.data.series[].errorBars",
@@ -3390,6 +3400,7 @@ internal static partial class PpjPresentationProjector
 
     private static string? ErrorBarValueType(SpreadsheetChartErrorBarValueType value) => value switch
     {
+        SpreadsheetChartErrorBarValueType.Custom => "custom",
         SpreadsheetChartErrorBarValueType.FixedValue => "fixed-value",
         SpreadsheetChartErrorBarValueType.Percentage => "percentage",
         SpreadsheetChartErrorBarValueType.StandardDeviation => "standard-deviation",

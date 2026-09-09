@@ -1364,8 +1364,23 @@ internal static class PpjSemanticValidator
                 if (requiresValue != errorBars.TryGetProperty("value", out _))
                     diagnostics.Add(new(
                         "ppj.chart.errorBarValue",
-                        requiresValue ? $"{valueType} error bars require value." : "standard-error error bars do not accept value.",
+                        requiresValue ? $"{valueType} error bars require value." : $"{valueType} error bars do not accept value.",
                         seriesPath + ".errorBars.value"));
+                var sideType = errorBars.TryGetProperty("type", out var errorType) ? errorType.GetString() : "both";
+                foreach (var side in new[] { "plus", "minus" })
+                {
+                    var required = valueType == "custom" && (sideType == "both" || sideType == side);
+                    var present = errorBars.TryGetProperty(side, out var data);
+                    var dataPath = seriesPath + ".errorBars." + side;
+                    if (required != present)
+                        diagnostics.Add(new("ppj.chart.errorBarDataSide", required ? $"Custom error bars require {side} data." : $"{side} data is excluded by the error-bar mode or side.", dataPath));
+                    if (!present) continue;
+                    if (data.GetProperty("values").GetArrayLength() != series.Values.Count)
+                        diagnostics.Add(new("ppj.chart.errorBarDataLength", $"Error-bar data requires exactly {series.Values.Count} values.", dataPath + ".values"));
+                    if (data.TryGetProperty("formatCode", out var format) && format.ValueKind == JsonValueKind.String &&
+                        (format.GetString()!.Length is < 1 or > 255 || format.GetString()!.Any(char.IsControl)))
+                        diagnostics.Add(new("ppj.chart.errorBarDataFormat", "formatCode must contain 1 through 255 characters without controls.", dataPath + ".formatCode"));
+                }
             }
             if (series.Raw.TryGetProperty("dataLabels", out var dataLabels))
                 ValidateSeriesDataLabels(chart, series, dataLabels, seriesPath, diagnostics);

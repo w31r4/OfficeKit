@@ -194,7 +194,8 @@ try {
   // Presence edits must not silently claim that the local SVG draws error
   // bars. Codec/projection behavior is covered by PpjErrorBarsLifecycle.
   for (const chartType of ["column", "bar", "line", "combo"]) {
-    for (const errorBars of [undefined, { valueType: "fixed-value", value: 0 }, undefined]) {
+    for (const errorBars of [undefined, { valueType: "fixed-value", value: 0 },
+      { valueType: "custom", plus: { values: [0, 1] }, minus: { values: [1, 0] } }, undefined]) {
       const programJson = Buffer.from(JSON.stringify({ pages: [{ id: "chart-page", elements: [{
         id: "errors", type: "chart", chartType, frame: { x: 0, y: 0, width: 200, height: 150 },
         data: { categories: ["A", "B"], series: [{ chartType: "line", values: [1, 2], errorBars }] },

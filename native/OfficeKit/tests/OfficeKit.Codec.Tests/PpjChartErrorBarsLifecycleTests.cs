@@ -107,9 +107,9 @@ public sealed partial class PptxCodecTests
                         owner.Element(c + "errValType")!.SetAttributeValue("val", "cust");
                         owner.Element(c + "val")!.Remove();
                         foreach (var side in new[] { "plus", "minus" })
-                            owner.Add(new XElement(c + side, new XElement(c + "numLit",
+                            owner.Add(new XElement(c + side, new XElement(c + "numRef", new XElement(c + "f", "'Sheet1'!$D$2:$D$5"), new XElement(c + "numCache",
                                 new XElement(c + "formatCode", "0.0"), new XElement(c + "ptCount", new XAttribute("val", 4)),
-                                Enumerable.Range(0, 4).Select(index => new XElement(c + "pt", new XAttribute("idx", index), new XElement(c + "v", index + 1))))));
+                                Enumerable.Range(0, 4).Select(index => new XElement(c + "pt", new XAttribute("idx", index), new XElement(c + "v", index + 1)))))));
                         break;
                 }
                 return xml.ToString(SaveOptions.DisableFormatting);

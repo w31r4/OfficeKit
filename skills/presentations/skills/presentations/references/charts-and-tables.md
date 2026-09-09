@@ -466,7 +466,7 @@ For example, `"trendlines": [{ "type": "linear", "name": "Fit" },
 { "type": "polynomial", "order": 2, "name": "Curve" }]` requests two fits in
 that order.
 
-The same capability owns the optional scalar `errorBars` object. For example,
+The same capability owns the optional `errorBars` object. For example,
 `"errorBars": { "valueType": "fixed-value", "value": 2, "direction": "y", "type": "both" }`
 adds or replaces it. Remove the property to delete it; a later edit can add it
 again. Fixed-value, percentage and standard-deviation require a nonnegative
@@ -474,9 +474,31 @@ value (zero is retained); standard-error omits the value. Cap and direct stroke
 styling keep their existing rules. Each edit preserves trendlines, other series
 and package entries outside the target ChartPart.
 
-Custom error-bar data, formula/workbook synchronization, trendline labels,
+For per-point asymmetric error amounts, use literal custom data:
+
+```json
+{
+  "errorBars": {
+    "valueType": "custom",
+    "type": "both",
+    "plus": { "values": [0, 0.5, 1, 2], "formatCode": "0.0" },
+    "minus": { "values": [0.25, 1, 0, 3] }
+  }
+}
+```
+
+Each values array must match the series point count and contain nonnegative
+finite numbers; zero is an actual error amount. `both` is the default and
+requires both sides. For `type: "plus"` or `"minus"`, supply only that side.
+Custom mode omits scalar `value`; scalar modes omit the side objects. Optional
+formatCode accepts a string or string grammar token and resolves to 1–255
+characters without controls. Side data can be changed, removed when switching
+sides, or recreated; converting between local custom and scalar modes is also
+supported. Omitting the entire errorBars object deletes it.
+
+Formula-backed error-bar data, formula/workbook synchronization, trendline labels,
 extensions and complex ChartML remain source-owned and fail closed. An absent
-PPJ object does not authorize overwriting unprojected native custom data.
+PPJ object does not authorize overwriting unprojected native formula data.
 Local SVG preview reports `chart-error-bars-not-rendered` as partial; verify
 exported error-bar semantics through native inspection and fresh projection.
 
@@ -485,7 +507,7 @@ valid for older PPJ. Do not combine either legacy spelling with its structured
 form. On an imported source-bound chart, a `setChartData` capability owns only
 series names and values; it cannot be used to smuggle axis, marker, label,
 trendline, error-bar or paint changes. Use the separately issued
-`setChartSeriesAnalytics` capability for trendline-list edits and scalar
+`setChartSeriesAnalytics` capability for trendline-list edits and local
 error-bar addition, replacement or removal.
 
 Scatter and bubble charts use numeric channels rather than shared category

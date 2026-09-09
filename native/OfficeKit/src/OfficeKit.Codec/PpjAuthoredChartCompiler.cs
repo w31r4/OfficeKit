@@ -4378,8 +4378,23 @@ internal static partial class PpjAuthoredPresentationCompiler
             NoEndCap = source.TryGetProperty("noEndCap", out var noEndCap) && noEndCap.GetBoolean(),
         };
         if (source.TryGetProperty("value", out var value)) errorBars.Value = value.GetDouble();
+        if (source.TryGetProperty("plus", out var plus)) errorBars.Plus = BuildChartErrorBarData(plus, catalog);
+        if (source.TryGetProperty("minus", out var minus)) errorBars.Minus = BuildChartErrorBarData(minus, catalog);
         if (source.TryGetProperty("stroke", out var stroke)) errorBars.Line = BuildChartLine(stroke, catalog);
         return errorBars;
+    }
+
+    private static SpreadsheetChartErrorBarDataArtifact BuildChartErrorBarData(JsonElement source, Catalog catalog)
+    {
+        var data = new SpreadsheetChartErrorBarDataArtifact();
+        data.Values.Add(source.GetProperty("values").EnumerateArray().Select(value => value.GetDouble()));
+        if (source.TryGetProperty("formatCode", out var format))
+        {
+            data.FormatCode = catalog.StringToken(format, "string", "error-bar data formatCode");
+            if (data.FormatCode.Length is < 1 or > 255 || data.FormatCode.Any(char.IsControl))
+                throw Unsupported("errorBars", "formatCode must contain 1 through 255 characters without controls");
+        }
+        return data;
     }
 
     internal static SpreadsheetChartLineStyleArtifact BuildChartLine(JsonElement source, Catalog catalog)

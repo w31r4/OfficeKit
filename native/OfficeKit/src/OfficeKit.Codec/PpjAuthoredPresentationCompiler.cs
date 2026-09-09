@@ -3655,6 +3655,7 @@ internal static partial class PpjAuthoredPresentationCompiler
 
     private static SpreadsheetChartErrorBarValueType ErrorBarValueType(string value) => value switch
     {
+        "custom" => SpreadsheetChartErrorBarValueType.Custom,
         "fixed-value" => SpreadsheetChartErrorBarValueType.FixedValue,
         "percentage" => SpreadsheetChartErrorBarValueType.Percentage,
         "standard-deviation" => SpreadsheetChartErrorBarValueType.StandardDeviation,

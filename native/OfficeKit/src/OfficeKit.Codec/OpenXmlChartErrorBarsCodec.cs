@@ -87,8 +87,8 @@ internal static class OpenXmlChartErrorBarsCodec
         if (native.Length == 0)
         {
             if (target.ErrorBars is null) return;
-            if (target.ErrorBars.ValueType == SpreadsheetChartErrorBarValueType.Custom)
-                throw Topology(errorCode, subject, "custom error-bar insertion is outside the editable profile");
+            if (UsesFormula(target.ErrorBars))
+                throw Topology(errorCode, subject, "formula-backed error-bar insertion is outside the editable profile");
             var data = nativeSeries.Elements().FirstOrDefault(element => element.Name == ChartNs + "cat" || element.Name == ChartNs + "val");
             if (data is null) throw Topology(errorCode, subject, "error-bar insertion requires category or value data");
             data.AddBeforeSelf(Element(target.ErrorBars)!);
@@ -99,13 +99,16 @@ internal static class OpenXmlChartErrorBarsCodec
         if (!TryRead(native[0], target.Values.Count, out var original)) throw Topology(errorCode, subject, "error bars no longer match the editable profile");
         if (target.ErrorBars is null)
         {
-            if (original.ValueType == SpreadsheetChartErrorBarValueType.Custom)
-                throw Topology(errorCode, subject, "custom error-bar removal is outside the editable profile");
+            if (UsesFormula(original))
+                throw Topology(errorCode, subject, "formula-backed error-bar removal is outside the editable profile");
             native[0].Remove();
             return;
         }
         if (!Semantics(original).Equals(Semantics(target.ErrorBars), StringComparison.Ordinal)) native[0].ReplaceWith(Element(target.ErrorBars)!);
     }
+
+    private static bool UsesFormula(SpreadsheetChartErrorBarsArtifact errorBars) =>
+        !string.IsNullOrEmpty(errorBars.Plus?.Formula) || !string.IsNullOrEmpty(errorBars.Minus?.Formula);
 
     internal static string Semantics(SpreadsheetChartErrorBarsArtifact? errorBars)
     {
