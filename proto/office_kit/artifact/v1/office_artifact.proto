@@ -3508,6 +3508,9 @@ message PresentationTextBodyProperties {
   // Direct DrawingML flatTx z coordinate. The bounded PPJ profile preserves a
   // signed coordinate without claiming support for the surrounding 3D scene.
   optional int64 flat_text_z = 39;
+  // Source-edit intent only. Must be true when present and cannot coexist
+  // with anchor_center, including an explicit false setter.
+  optional bool no_anchor_center = 40;
 }
 
 message PresentationTextStyle {

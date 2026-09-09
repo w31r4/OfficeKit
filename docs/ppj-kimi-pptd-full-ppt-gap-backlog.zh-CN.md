@@ -463,6 +463,14 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+2026-09-10 增量：`anchorCenter` 已区分 true/false/省略；删除移除原生
+`anchorCtr`，保留 `verticalAlignment`。协议新增可选删除标记
+`no_anchor_center=40`，旧布尔字段 32 编码不变；拒绝 false 删除命令及设置/删除
+并存。新增 7 个共享生命周期场景和 1 个原生命令实验，相关原生 112/112、
+0 跳过；C#/JS 编码、proto:check 及字段资料检查通过。删除需要更新后的 codec，
+本轮未重建 NativeAOT，完整继承与宿主锚点排版仍待补齐。
+
+
 2026-09-10 增量：`autoFit` 与 `normalAutoFit` 已补齐源删除与恢复。
 显式 `none` 保留 `noAutofit`；删除模式及其关联 profile 才移除节点。
 保留 `shrink-text` 时，删除百分比只移除对应属性，删除 profile 保留空
@@ -735,6 +743,10 @@ schema、Help、registry、Skill 与预览限制已同步。完整继承和宿�
 **本轮继续拆出同一图片 owner 的 bottom bevel 枚举：** 已有 `shape3dBevelBottomPreset` 也绑定严格图片 owner 的 `p:pic/p:spPr/a:sp3d/a:bevelB/@prst`；新增 additive `PresentationImage.shape_3d_bevel_bottom_preset` source-bound 载体，`PpjSourceBoundPictureShape3dBevelBottomPresetLeafEditsAndReprojects` 验证 `angle` → `softRound` 的单 `bevelB/@prst` token splice、仅目标 SlidePart、图片关系/crop/mask/effect、bevel 尺寸与其它 3-D 状态保留、Open XML 和二次投影。未知属性、额外子节点、顶面 bevel、scene、颜色和复杂/扩展 3-D graph 仍 source-owned。
 
 ### F-06 Table、Cell Style 和 Table Layout
+
+2026-09-10：表格 `text.style.anchorCenter` 删除/布尔恢复、简单样式删除后
+紧凑文字恢复已进入共享回归，保留垂直对齐和固定文字拓扑；见 F-03 的 112/112。
+
 
 2026-09-10：表格 `text.style.autoFit/normalAutoFit` 模式和百分比删除恢复
 进入共享生命周期回归，包含删除后紧凑文字恢复；详见 F-03 的 104/104 专项。

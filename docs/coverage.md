@@ -2,6 +2,19 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ text-body `anchorCenter` lifecycle (2026-09-10): true/false/source absence
+are distinct across supported text/shape/master/layout/table owners. Seven
+shared boolean cases cover deletion/restoration, simple-style/compact table
+restoration, authority guards and exact source/non-target preservation; one
+native command test rejects false deletion and concurrent setters. Related
+native selection passes 112/112, zero skipped (SDK 8.0.128).
+Additive optional no_anchor_center field 40 preserves anchor_center field 32;
+native and JS encoding experiments verify old bool bytes and new marker.
+Regeneration and proto:check pass, as do scene wire, preview input/capability,
+maintenance/matrix, portability/reference sync and strict OpenSpec. Deletion
+requires the updated codec; NativeAOT was not rebuilt and host anchor layout
+was not accepted. Other-property rejection now uses forceAntiAlias.
+
 PPJ text-body `autoFit`/`normalAutoFit` lifecycle (2026-09-10): source deletion
 now removes canonical AutoFit choices or individual shrink-text percentages.
 Explicit none remains noAutofit; removing the percentage profile retains

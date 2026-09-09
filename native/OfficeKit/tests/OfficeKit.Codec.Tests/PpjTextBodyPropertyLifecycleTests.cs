@@ -12,6 +12,31 @@ namespace OfficeKit.Codec.Tests;
 
 public sealed class PpjTextBodyPropertyLifecycleTests
 {
+    [Fact]
+    public void AnchorCenterDeletionWireIntentIsUnambiguous()
+    {
+        foreach (var value in new[] { false, true })
+        {
+            var properties = new PresentationTextBodyProperties { AnchorCenter = value };
+            Assert.Equal(new byte[] { 0x80, 0x02, value ? (byte)1 : (byte)0 }, properties.ToByteArray());
+            PptxBodyPropertiesCodec.Validate(new PresentationTextBody { BodyProperties = properties });
+        }
+        var remove = PresentationTextBodyProperties.Parser.ParseFrom(new PresentationTextBodyProperties { NoAnchorCenter = true }.ToByteArray());
+        Assert.True(remove.HasNoAnchorCenter); Assert.True(remove.NoAnchorCenter); Assert.False(remove.HasAnchorCenter);
+        PptxBodyPropertiesCodec.Validate(new PresentationTextBody { BodyProperties = remove });
+        Assert.True(PptxBodyPropertiesCodec.SupportsBoundedDirectLayout(remove));
+        foreach (var invalid in new[]
+        {
+            new PresentationTextBodyProperties { NoAnchorCenter = false },
+            new PresentationTextBodyProperties { NoAnchorCenter = true, AnchorCenter = false },
+            new PresentationTextBodyProperties { NoAnchorCenter = true, AnchorCenter = true },
+        })
+        {
+            Assert.Throws<CodecException>(() => PptxBodyPropertiesCodec.Validate(new PresentationTextBody { BodyProperties = invalid }));
+            Assert.False(PptxBodyPropertiesCodec.SupportsBoundedDirectLayout(invalid));
+        }
+    }
+
     [Theory]
     [InlineData("shape", "columnDirection")]
     [InlineData("shape", "verticalText")]
@@ -500,34 +525,36 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     }
 
     [Theory]
-    [InlineData("shape")]
-    [InlineData("table")]
-    public void UprightOnlyStyleCanBeRemovedWithExistingAuthority(string kind)
+    [InlineData("shape", "upright")]
+    [InlineData("shape", "anchorCenter")]
+    [InlineData("table", "upright")]
+    [InlineData("table", "anchorCenter")]
+    public void BooleanBodyStyleCanBeRemovedWithExistingAuthority(string kind, string field)
     {
         var program = Program(kind);
-        Style(program, kind).Clear(); Style(program, kind)["upright"] = true;
+        Style(program, kind).Clear(); Style(program, kind)[field] = true;
         var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
         var request = Project(source);
-        Assert.Equal(new[] { "upright" }, Style(request, kind).Select(p => p.Key));
+        Assert.Equal(new[] { field }, Style(request, kind).Select(p => p.Key));
         JsonObject StyleOwner(JsonObject input) => (kind == "shape" ? input["pages"]![0]!["elements"]![0] :
             input["pages"]![0]!["elements"]![0]!["rows"]![0]!["cells"]![0]!["text"])!.AsObject();
         StyleOwner(request).Remove(kind == "shape" ? "textStyle" : "style");
         var deleted = Compile(request, source).File.ToByteArray();
-        Assert.Null(Body(deleted, kind).UpRight);
+        Assert.Null(BooleanBodyProperty(deleted, kind, field));
         var fresh = Project(deleted);
         if (kind == "shape") Assert.False(StyleOwner(fresh).ContainsKey("textStyle"));
         else
         {
             var cell = fresh["pages"]![0]!["elements"]![0]!["rows"]![0]!["cells"]![0]!;
             Assert.Equal("Retain this text", cell["text"]!.GetValue<string>());
-            cell["text"] = new JsonObject { ["style"] = new JsonObject { ["upright"] = false },
+            cell["text"] = new JsonObject { ["style"] = new JsonObject { [field] = false },
                 ["paragraphs"] = new JsonArray(new JsonObject { ["runs"] = new JsonArray(new JsonObject { ["text"] = "Retain this text" }) }) };
             var restored = Compile(fresh, deleted).File.ToByteArray();
-            Assert.False(Body(restored, kind).UpRight!.Value);
-            Assert.False(Style(Project(restored), kind)["upright"]!.GetValue<bool>());
-            AssertOnlyBodyPropertyChanged(deleted, restored, kind);
+            Assert.False(BooleanBodyProperty(restored, kind, field)!.Value);
+            Assert.False(Style(Project(restored), kind)[field]!.GetValue<bool>());
+            AssertOnlyBodyPropertyChanged(deleted, restored, kind, field);
         }
-        AssertOnlyBodyPropertyChanged(source, deleted, kind);
+        AssertOnlyBodyPropertyChanged(source, deleted, kind, field);
 
         var denied = Project(source);
         StyleOwner(denied).Remove(kind == "shape" ? "textStyle" : "style");
@@ -536,7 +563,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         Assert.Empty(Compile(denied, source, success: false).File);
 
         var otherProgram = Program(kind);
-        Style(otherProgram, kind)["anchorCenter"] = true;
+        Style(otherProgram, kind)["forceAntiAlias"] = true;
         var otherSource = PptxCodecTests.RemoveEmbeddedPpj(Compile(otherProgram).File.ToByteArray());
         var otherEdit = Project(otherSource);
         StyleOwner(otherEdit).Remove(kind == "shape" ? "textStyle" : "style");
@@ -544,42 +571,51 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     }
 
     [Theory]
-    [InlineData("shape")]
-    [InlineData("text")]
-    [InlineData("master")]
-    [InlineData("layout")]
-    [InlineData("table")]
-    public void UprightSourceRemovalAndRestorationPreserveOtherState(string kind)
+    [InlineData("shape", "upright")]
+    [InlineData("shape", "anchorCenter")]
+    [InlineData("text", "upright")]
+    [InlineData("text", "anchorCenter")]
+    [InlineData("master", "upright")]
+    [InlineData("master", "anchorCenter")]
+    [InlineData("layout", "upright")]
+    [InlineData("layout", "anchorCenter")]
+    [InlineData("table", "upright")]
+    [InlineData("table", "anchorCenter")]
+    public void BooleanBodySourceRemovalAndRestorationPreserveOtherState(string kind, string field)
     {
         var program = Program(kind);
+        Style(program, kind)[field] = true;
+        Style(program, kind)["verticalAlignment"] = "middle";
         var authored = Compile(program);
         var source = PptxCodecTests.RemoveEmbeddedPpj(authored.File.ToByteArray());
         var original = source.ToArray();
         var projected = Project(source);
-        Assert.True(Style(projected, kind)["upright"]!.GetValue<bool>());
+        Assert.True(Style(projected, kind)[field]!.GetValue<bool>());
         Assert.Equal(source, Compile(projected, source).File.ToByteArray());
-        var baseline = Body(source, kind);
-        Assert.True(baseline.UpRight!.Value);
+        Assert.True(BooleanBodyProperty(source, kind, field)!.Value);
         var request = Project(source);
-        Style(request, kind).Remove("upright");
+        Style(request, kind).Remove(field);
         var deleted = Compile(request, source).File.ToByteArray();
-        Assert.Null(Body(deleted, kind).UpRight);
-        Assert.False(Style(Project(deleted), kind).ContainsKey("upright"));
-        AssertOnlyBodyPropertyChanged(source, deleted, kind);
+        Assert.Null(BooleanBodyProperty(deleted, kind, field));
+        Assert.False(Style(Project(deleted), kind).ContainsKey(field));
+        AssertOnlyBodyPropertyChanged(source, deleted, kind, field);
         foreach (var value in new[] { false, true })
         {
             var restore = Project(deleted);
-            Style(restore, kind)["upright"] = value;
+            Style(restore, kind)[field] = value;
             var restored = Compile(restore, deleted).File.ToByteArray();
-            Assert.Equal(value, Body(restored, kind).UpRight!.Value);
-            Assert.Equal(value, Style(Project(restored), kind)["upright"]!.GetValue<bool>());
-            AssertOnlyBodyPropertyChanged(deleted, restored, kind);
+            Assert.Equal(value, BooleanBodyProperty(restored, kind, field)!.Value);
+            Assert.Equal(value, Style(Project(restored), kind)[field]!.GetValue<bool>());
+            AssertOnlyBodyPropertyChanged(deleted, restored, kind, field);
             var removeAgain = Project(restored);
-            Style(removeAgain, kind).Remove("upright");
-            Assert.Null(Body(Compile(removeAgain, restored).File.ToByteArray(), kind).UpRight);
+            Style(removeAgain, kind).Remove(field);
+            Assert.Null(BooleanBodyProperty(Compile(removeAgain, restored).File.ToByteArray(), kind, field));
         }
         Assert.Equal(original, source);
     }
+
+    private static bool? BooleanBodyProperty(byte[] bytes, string kind, string field) =>
+        field == "anchorCenter" ? Body(bytes, kind).AnchorCenter?.Value : Body(bytes, kind).UpRight?.Value;
 
     private static string[] BodyPropertyValues(string field) => field switch
     {
@@ -744,6 +780,11 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                 Assert.Single(oldSlide.Descendants<A.BodyProperties>()).RemoveAttribute(attribute, "");
                 Assert.Single(newSlide.Descendants<A.BodyProperties>()).RemoveAttribute(attribute, "");
             }
+        }
+        else if (field == "anchorCenter")
+        {
+            Assert.Single(oldSlide.Descendants<A.BodyProperties>()).AnchorCenter = null;
+            Assert.Single(newSlide.Descendants<A.BodyProperties>()).AnchorCenter = null;
         }
         else if (field == "columnGap")
         {

@@ -180,7 +180,15 @@ internal static partial class PpjAuthoredPresentationCompiler
         else if (previousStyle is { ValueKind: JsonValueKind.Object } previousAlignment && previousAlignment.TryGetProperty("verticalAlignment", out _))
             current.NoVerticalAnchor = true;
         if (style.TryGetProperty("anchorCenter", out _))
+        {
+            current.ClearNoAnchorCenter();
             current.AnchorCenter = requested.AnchorCenter;
+        }
+        else if (previousStyle is { ValueKind: JsonValueKind.Object } previousCenter && previousCenter.TryGetProperty("anchorCenter", out _))
+        {
+            current.ClearAnchorCenter();
+            current.NoAnchorCenter = true;
+        }
         if (style.TryGetProperty("forceAntiAlias", out _))
             current.ForceAntiAlias = requested.ForceAntiAlias;
         if (style.TryGetProperty("spaceFirstLastParagraph", out _))

@@ -78,6 +78,8 @@ internal static class PptxBodyPropertiesCodec
     {
         if (source.BodyProperties is null) return;
         var properties = source.BodyProperties;
+        if (properties.HasNoAnchorCenter && (!properties.NoAnchorCenter || properties.HasAnchorCenter))
+            throw Invalid("Presentation no_anchor_center must be true and cannot coexist with anchor_center.");
         ValidateInset(properties.LeftInsetCase, properties.LeftInsetEmu, PresentationTextBodyProperties.LeftInsetOneofCase.LeftInsetEmu, PresentationTextBodyProperties.LeftInsetOneofCase.NoLeftInset, properties.NoLeftInset, "left");
         ValidateInset(properties.TopInsetCase, properties.TopInsetEmu, PresentationTextBodyProperties.TopInsetOneofCase.TopInsetEmu, PresentationTextBodyProperties.TopInsetOneofCase.NoTopInset, properties.NoTopInset, "top");
         ValidateInset(properties.RightInsetCase, properties.RightInsetEmu, PresentationTextBodyProperties.RightInsetOneofCase.RightInsetEmu, PresentationTextBodyProperties.RightInsetOneofCase.NoRightInset, properties.NoRightInset, "right");
@@ -126,6 +128,7 @@ internal static class PptxBodyPropertiesCodec
          source.ColumnDirectionCase != PresentationTextBodyProperties.ColumnDirectionOneofCase.None ||
          source.UprightTextCase != PresentationTextBodyProperties.UprightTextOneofCase.None ||
          source.HasAnchorCenter ||
+         source.HasNoAnchorCenter ||
          source.HasForceAntiAlias ||
          source.HasSpaceFirstLastParagraph ||
          source.HasCompatibleLineSpacing ||
@@ -141,6 +144,7 @@ internal static class PptxBodyPropertiesCodec
     internal static bool SupportsBoundedDirectLayout(PresentationTextBodyProperties? source)
     {
         if (source is null) return true;
+        if (source.HasNoAnchorCenter && (!source.NoAnchorCenter || source.HasAnchorCenter)) return false;
         return (source.LeftInsetCase is PresentationTextBodyProperties.LeftInsetOneofCase.None or PresentationTextBodyProperties.LeftInsetOneofCase.LeftInsetEmu ||
                 source.LeftInsetCase == PresentationTextBodyProperties.LeftInsetOneofCase.NoLeftInset && source.NoLeftInset) &&
             (source.TopInsetCase is PresentationTextBodyProperties.TopInsetOneofCase.None or PresentationTextBodyProperties.TopInsetOneofCase.TopInsetEmu ||
@@ -264,6 +268,7 @@ internal static class PptxBodyPropertiesCodec
         if (properties.UprightTextCase == PresentationTextBodyProperties.UprightTextOneofCase.Upright) native.UpRight = properties.Upright;
         else if (properties.UprightTextCase == PresentationTextBodyProperties.UprightTextOneofCase.NoUpright) native.UpRight = null;
         if (properties.HasAnchorCenter) native.AnchorCenter = properties.AnchorCenter;
+        else if (properties.HasNoAnchorCenter) native.AnchorCenter = null;
         if (properties.HasForceAntiAlias) native.ForceAntiAlias = properties.ForceAntiAlias;
         if (properties.HasSpaceFirstLastParagraph) native.UseParagraphSpacing = properties.SpaceFirstLastParagraph;
         if (properties.HasCompatibleLineSpacing) native.CompatibleLineSpacing = properties.CompatibleLineSpacing;

@@ -32,7 +32,7 @@ Simple PPJ text is a string. Mixed formatting uses `paragraphs[]` and `runs[]`.
 Do not put Markdown, HTML, CSS, or invented inline markup into a text string.
 Assign language and font roles explicitly for mixed-script runs.
 
-`autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
+`anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.
 Explicit `true`/`false` for upright and signed degrees/zero for rotation retain
 direct native values. Column direction uses `left-to-right` (explicit native false)
@@ -60,9 +60,12 @@ With shrink-text retained, delete a `normalAutoFit` percentage to remove only th
 attribute, or remove the profile to remove both. Explicit fontScale 100 and
 lineSpacingReduction 0 remain values. Empty profiles and profiles without
 shrink-text remain invalid; preview retains host-reflow limitations.
+Anchor-center uses `anchorCenter: true/false`; both retain a direct value.
+Delete the projected property to remove `anchorCtr`, independently of
+`verticalAlignment`. This deletion requires the updated codec.
 On a fresh source PPJ, delete any of these properties to remove that native attribute and
 restore inherited/default behavior. You may remove a style object containing only
-`autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and/or `verticalOverflow`. If a table cell then projects as plain text, add the
+`anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and/or `verticalOverflow`. If a table cell then projects as plain text, add the
 body style through structured text while retaining its native paragraph/run topology.
 Keep other body properties and use the issued `setTextBodyStyle` or table-cell
 text-style capability; unsupported placeholder owners retain their source boundary.

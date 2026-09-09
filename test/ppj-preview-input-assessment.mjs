@@ -52,6 +52,8 @@ for (const style of [{ autoFit: "none" }, { autoFit: "shrink-text", normalAutoFi
   assert.ok(autoFitText.diagnostics.some(d => d.path.includes(".style.autoFit") && d.status !== "supported"));
   if (style.normalAutoFit) assert.ok(autoFitText.diagnostics.some(d => d.path.includes(".style.normalAutoFit") && d.status !== "supported"));
 }
+const falseAnchorCenterText = assessPpjPreviewInput(deck([{ ...text, style: { anchorCenter: false } }]));
+assert.ok(falseAnchorCenterText.diagnostics.some(d => d.path.endsWith(".style.anchorCenter") && d.status !== "supported"));
 const singleColumnText = assessPpjPreviewInput(deck([{ ...text, style: { columns: 1 } }]));
 assert.ok(singleColumnText.diagnostics.some(d => d.path.endsWith(".style.columns") && d.status !== "supported"));
 const rotatedText = assessPpjPreviewInput(deck([{ ...text, style: { rotation: 0 } }]));

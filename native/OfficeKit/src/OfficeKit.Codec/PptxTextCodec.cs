@@ -301,6 +301,11 @@ internal static class PptxTextCodec
     private static void NormalizeBodyPropertiesEditIntent(PresentationTextBody body)
     {
         if (body.BodyProperties is not { } properties) return;
+        if (properties.HasNoAnchorCenter)
+        {
+            properties.ClearAnchorCenter();
+            properties.ClearNoAnchorCenter();
+        }
         if (properties.LeftInsetCase == PresentationTextBodyProperties.LeftInsetOneofCase.NoLeftInset) properties.ClearLeftInset();
         if (properties.TopInsetCase == PresentationTextBodyProperties.TopInsetOneofCase.NoTopInset) properties.ClearTopInset();
         if (properties.RightInsetCase == PresentationTextBodyProperties.RightInsetOneofCase.NoRightInset) properties.ClearRightInset();
