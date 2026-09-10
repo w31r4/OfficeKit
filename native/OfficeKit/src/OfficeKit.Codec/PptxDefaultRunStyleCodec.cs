@@ -57,7 +57,7 @@ internal static class PptxDefaultRunStyleCodec
                 style.GradientFill = gradient;
             }
         }
-        if (TryReadEffect<A.OuterShadow, PresentationShadow>(properties, PptxShadowCodec.TryRead, out var shadow) && shadow is not null) style.Shadow = shadow;
+        if (TryReadEffect<A.OuterShadow, PresentationShadow>(properties, TryReadShadow, out var shadow) && shadow is not null) style.Shadow = shadow;
         if (TryReadEffect<A.Glow, PresentationGlow>(properties, PptxGlowCodec.TryRead, out var glow) && glow is not null) style.Glow = glow;
         if (TryReadEffect<A.InnerShadow, PresentationInnerShadow>(properties, TryReadInnerShadow, out var innerShadow) && innerShadow is not null) style.InnerShadow = innerShadow;
         if (TryReadEffect<A.Reflection, PresentationReflection>(properties, TryReadReflection, out var reflection) && reflection is not null) style.Reflection = reflection;
@@ -123,6 +123,8 @@ internal static class PptxDefaultRunStyleCodec
         var afterWithoutScalars = after.Clone();
         beforeWithoutScalars.Reflection = null;
         afterWithoutScalars.Reflection = null;
+        beforeWithoutScalars.Shadow = null;
+        afterWithoutScalars.Shadow = null;
         beforeWithoutScalars.ClearBold(); beforeWithoutScalars.ClearItalic(); beforeWithoutScalars.ClearFontSizePoints(); beforeWithoutScalars.ClearFontFamily(); beforeWithoutScalars.ClearFontFamilyEastAsia(); beforeWithoutScalars.ClearFontFamilyComplexScript(); beforeWithoutScalars.ClearLanguage(); beforeWithoutScalars.ClearFontKerningPoints(); beforeWithoutScalars.ClearFontSpacingPoints(); beforeWithoutScalars.ClearFontBaselinePercent(); beforeWithoutScalars.ClearFontCaps(); beforeWithoutScalars.ClearStrike(); beforeWithoutScalars.ClearUnderline(); beforeWithoutScalars.ClearHighlight(); beforeWithoutScalars.ClearColor(); beforeWithoutScalars.ClearColorOpacityThousandthPercent(); beforeWithoutScalars.GradientFill = null; beforeWithoutScalars.Glow = null; beforeWithoutScalars.InnerShadow = null;
         afterWithoutScalars.ClearBold(); afterWithoutScalars.ClearItalic(); afterWithoutScalars.ClearFontSizePoints(); afterWithoutScalars.ClearFontFamily(); afterWithoutScalars.ClearFontFamilyEastAsia(); afterWithoutScalars.ClearFontFamilyComplexScript(); afterWithoutScalars.ClearLanguage(); afterWithoutScalars.ClearFontKerningPoints(); afterWithoutScalars.ClearFontSpacingPoints(); afterWithoutScalars.ClearFontBaselinePercent(); afterWithoutScalars.ClearFontCaps(); afterWithoutScalars.ClearStrike(); afterWithoutScalars.ClearUnderline(); afterWithoutScalars.ClearHighlight(); afterWithoutScalars.ClearColor(); afterWithoutScalars.ClearColorOpacityThousandthPercent(); afterWithoutScalars.GradientFill = null; afterWithoutScalars.Glow = null; afterWithoutScalars.InnerShadow = null;
         if (beforeWithoutScalars.Equals(afterWithoutScalars))
@@ -198,6 +200,8 @@ internal static class PptxDefaultRunStyleCodec
             if (!Equals(before.Glow, after.Glow)) ApplyDirectGlow(properties, after.Glow);
             if (!Equals(before.Reflection?.ToByteString(), after.Reflection?.ToByteString()))
                 ApplyDirectReflection(properties, after.Reflection);
+            if (!Equals(before.Shadow?.ToByteString(), after.Shadow?.ToByteString()))
+                ApplyDirectShadow(properties, after.Shadow);
             if (!Equals(before.InnerShadow, after.InnerShadow) ||
                 before.InnerShadow?.HasBlurRadiusEmu != after.InnerShadow?.HasBlurRadiusEmu ||
                 before.InnerShadow?.HasDistanceEmu != after.InnerShadow?.HasDistanceEmu ||
@@ -358,6 +362,24 @@ internal static class PptxDefaultRunStyleCodec
 
     private static void ApplyDirectReflection(A.DefaultRunProperties target, PresentationReflection? source) =>
         ApplyDirectEffect<A.Reflection, PresentationReflection>(target, source, TryReadReflection, PptxReflectionCodec.Apply);
+
+    private static bool TryReadShadow(OpenXmlCompositeElement? source, out PresentationShadow? shadow)
+    {
+        shadow = null;
+        var native = source?.GetFirstChild<A.EffectList>()?.GetFirstChild<A.OuterShadow>();
+        if (native is null) return true;
+        if (!PptxShadowCodec.TryReadOuterShadow(native, out shadow, allowTransforms: true) ||
+            shadow is not null && (shadow.HasBlurRadiusEmu && shadow.BlurRadiusEmu > 12_700_000 ||
+                shadow.HasDistanceEmu && shadow.DistanceEmu > 1_270_000_000))
+        {
+            shadow = null;
+            return false;
+        }
+        return true;
+    }
+
+    private static void ApplyDirectShadow(A.DefaultRunProperties target, PresentationShadow? source) =>
+        ApplyDirectEffect<A.OuterShadow, PresentationShadow>(target, source, TryReadShadow, PptxShadowCodec.Apply);
 
     private static void ApplyDirectEffect<TNative, TValue>(
         A.DefaultRunProperties target, TValue? source, EffectReader<TValue> read,
@@ -548,7 +570,8 @@ internal static class PptxDefaultRunStyleCodec
         if (complexScriptFonts.Length == 1 && ModeledComplexScriptFont(complexScriptFonts[0])) complexScriptFonts[0].Remove();
         var colors = ColorChoices(target).ToArray();
         if (colors.Length == 1 && ModeledFill(colors[0])) colors[0].Remove();
-        if (PptxShadowCodec.TryRead(target, out var shadow) && shadow is not null) PptxShadowCodec.Apply(target, null);
+        if (TryReadEffect<A.OuterShadow, PresentationShadow>(target, TryReadShadow, out var shadow) && shadow is not null)
+            ApplyDirectShadow(target, null);
         if (TryReadEffect<A.Glow, PresentationGlow>(target, PptxGlowCodec.TryRead, out var glow) && glow is not null)
             ApplyDirectGlow(target, null);
         if (TryReadEffect<A.InnerShadow, PresentationInnerShadow>(target, TryReadInnerShadow, out var innerShadow) && innerShadow is not null)

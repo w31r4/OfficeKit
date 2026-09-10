@@ -463,6 +463,19 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**段落默认文字外阴影增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.defaultText.shadow` 已接通全部 11 个值：color 必填，
+opacity、blur、distance、angle、alignment、rotateWithShape、scaleX/Y 和
+skewX/Y 可独立省略。支持赋值、删除、恢复和单效果包装删除，保留缺省、零、
+一和 false；长度、角度、比例与透明度按原生精度保存。RGB/RGBA、简单主题色、
+grammar 同名颜色优先和 tint/shade 均有回投影证据。只修改目标外阴影，保留
+其它效果、列表属性、直接 run、相邻段落和非目标 XML/ZIP；重复节点、DAG、
+非法几何及未建模颜色内容随无关标量编辑保留，拒绝覆盖。聚焦原生检查
+**23/23 通过**，相关回归 **354/354 通过，0 跳过**，沿用整组默认样式的
+已记录基线排除项。Help、schema、生成资料、预览诊断、可移植性、reference-sync
+和 OpenSpec 检查通过；未重建 NativeAOT，外阴影预览仍为 partial，完整 F-03
+和宿主显示继续开放。
+
 **段落默认文字反射增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.defaultText.reflection` 已接通全部 14 个可选值：
 blur、distance、angle、start/endOpacity、start/endPosition、fadeAngle、

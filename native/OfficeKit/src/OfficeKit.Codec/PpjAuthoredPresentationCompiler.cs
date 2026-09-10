@@ -2532,7 +2532,10 @@ internal static partial class PpjAuthoredPresentationCompiler
                 throw new CodecException("ppj.text.paintConflict", "PPJ text style cannot declare both color and gradient.");
             output.GradientFill = BuildGradientFill(gradient, color => catalog.Color(color));
         }
-        if (value.TryGetProperty("shadow", out var shadow)) output.Shadow = BuildShadow(shadow, catalog);
+        if (value.TryGetProperty("shadow", out var shadow))
+            output.Shadow = paragraphDefaults
+                ? BuildParagraphShadow(shadow, catalog.Color, opacity => catalog.NumberToken(opacity, "opacity", "paragraph default shadow opacity"), catalog.HasGrammarToken)
+                : BuildShadow(shadow, catalog);
         if (value.TryGetProperty("glow", out var glow))
             output.Glow = paragraphDefaults
                 ? BuildParagraphGlow(glow, catalog.Color, opacity => catalog.NumberToken(opacity, "opacity", "paragraph default glow opacity"), catalog.HasGrammarToken)
@@ -4955,6 +4958,22 @@ internal static partial class PpjAuthoredPresentationCompiler
         var transformed = color.ValueKind == JsonValueKind.Object &&
             (color.TryGetProperty("tint", out _) || color.TryGetProperty("shade", out _));
         var shadow = BuildChartTextInnerShadow(value, resolveColor, resolveOpacity, name => transformed || declaredToken(name));
+        if (!shadow.HasOpacityThousandthPercent && color.ValueKind == JsonValueKind.String &&
+            color.GetString()!.TrimStart('#').Length == 8)
+            shadow.OpacityThousandthPercent = 100_000;
+        return shadow;
+    }
+
+    internal static PresentationShadow BuildParagraphShadow(
+        JsonElement value,
+        Func<JsonElement, (string Rgb, double Alpha)> resolveColor,
+        Func<JsonElement, double> resolveOpacity,
+        Func<string, bool> declaredToken)
+    {
+        var color = value.GetProperty("color");
+        var transformed = color.ValueKind == JsonValueKind.Object &&
+            (color.TryGetProperty("tint", out _) || color.TryGetProperty("shade", out _));
+        var shadow = BuildChartTextShadow(value, resolveColor, resolveOpacity, name => transformed || declaredToken(name));
         if (!shadow.HasOpacityThousandthPercent && color.ValueKind == JsonValueKind.String &&
             color.GetString()!.TrimStart('#').Length == 8)
             shadow.OpacityThousandthPercent = 100_000;

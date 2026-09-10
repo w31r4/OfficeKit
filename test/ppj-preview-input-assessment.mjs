@@ -67,6 +67,12 @@ const reflectionDefaults = assessPpjPreviewInput(deck([{ ...text, text: { paragr
   { style: { defaultText: { reflection } }, runs: [{ text: "Reflection defaults" }] }] } }]));
 for (const field of Object.keys(reflection))
   assert.ok(reflectionDefaults.diagnostics.some(d => d.path.endsWith(".style.defaultText.reflection." + field) && d.status !== "supported"));
+const paragraphShadow = { color: "#112233", opacity: 0, blur: 0, distance: 0, angle: 0,
+  scaleX: 0, scaleY: -1, skewX: 0, skewY: 0, alignment: "ctr", rotateWithShape: false };
+const shadowDefaults = assessPpjPreviewInput(deck([{ ...text, text: { paragraphs: [
+  { style: { defaultText: { shadow: paragraphShadow } }, runs: [{ text: "Shadow defaults" }] }] } }]));
+for (const field of Object.keys(paragraphShadow))
+  assert.ok(shadowDefaults.diagnostics.some(d => d.path.endsWith(".style.defaultText.shadow." + field) && d.status !== "supported"));
 for (const field of ["bold", "italic", "size", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "language", "kerning", "letterSpacing", "baseline", "capitalization", "strike", "underline", "highlight", "color", "gradient", "glow", "innerShadow"]) {
   const defaults = assessPpjPreviewInput(deck([{ ...text, text: { paragraphs: [{ style: { defaultText: { [field]: field === "innerShadow" ? { color: "#112233", blur: 0, distance: 0, angle: 0, opacity: 0 } : field === "glow" ? { color: "#112233", radius: 0, opacity: 0 } : field === "gradient" ? { kind: "linear", angle: 45, stops: [{ offset: 0, color: "#112233", opacity: 0 }, { offset: 1, color: "#FFFFFF", opacity: 1 }] } : ["highlight", "color"].includes(field) ? "#FFFF00" : field.startsWith("fontFamily") ? "Georgia" : ["size", "kerning", "letterSpacing", "baseline"].includes(field) ? 18.25 : field === "language" ? "fr-FR" : ["capitalization", "underline"].includes(field) ? "none" : false } }, runs: [{ text: "Default style" }] }] } }]));
   if (field === "gradient") {
