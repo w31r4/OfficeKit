@@ -28,7 +28,6 @@ internal static class PptxParagraphPropertiesCodec
     internal static bool Supports(A.TextParagraphPropertiesType? source) =>
         PptxTextCodec.SupportsTabStops(source) &&
         PptxParagraphLayoutCodec.Supports(source) &&
-        PptxParagraphSpacingCodec.Supports(source) &&
         PptxDefaultRunStyleCodec.Supports(source);
 
     internal static void Validate(PresentationTextParagraph source, bool requireLevel)

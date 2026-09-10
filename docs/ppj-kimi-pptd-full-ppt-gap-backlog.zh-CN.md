@@ -463,6 +463,19 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**行距增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.lineSpacing`（正数，至多 1584pt）和
+`lineSpacingMultiplier`（正数，至多 132 倍）已接通赋值、单位切换、删除、
+恢复和单行距 style 包装删除。同一 style 只选一种行距单位，高优先级样式
+同时决定单位和值；点值按百分之一 pt、倍数按十万分之一取偶数舍入，舍入后
+为零则拒绝。删除字段清除直接行距，切换单位要求两个字段权限。写回保留
+段前/段后间距、原始数值写法、run、相邻段落和非目标 XML/ZIP；重复节点、
+未知属性/子内容及缺失、零或非法原生值随无关标量编辑保留，拒绝覆盖。
+三种间距共用原始 PPTX 实验，最小实验 **12/12 通过**，相关回归
+**344/344 通过，0 跳过**，沿用整组默认样式的已记录基线排除项。
+Help、schema、生成资料、预览诊断、可移植性、reference-sync 和 OpenSpec
+检查通过。未重建 NativeAOT，预览仍为 partial；完整 F-03 和宿主布局继续开放。
+
 **段后间距增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.spaceAfter`（0–1584pt）和 `spaceAfterMultiplier`
 （0–132 倍）已接通赋值、单位切换、删除、恢复和单间距 style 包装删除。

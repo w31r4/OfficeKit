@@ -15,9 +15,11 @@ internal static class PptxParagraphSpacingCodec
 
     internal static void Read(PresentationTextParagraph target, A.TextParagraphPropertiesType? source)
     {
-        ReadSlot(source?.GetFirstChild<A.LineSpacing>(), false,
-            points => target.LineSpacingPoints = points,
-            multiplier => target.LineSpacingMultiplier = multiplier);
+        var line = source?.Elements<A.LineSpacing>().Take(2).ToArray() ?? [];
+        if (line.Length == 1)
+            ReadSlot(line[0], false,
+                points => target.LineSpacingPoints = points,
+                multiplier => target.LineSpacingMultiplier = multiplier);
         var before = source?.Elements<A.SpaceBefore>().Take(2).ToArray() ?? [];
         if (before.Length == 1)
             ReadSlot(before[0], true,
@@ -29,11 +31,6 @@ internal static class PptxParagraphSpacingCodec
                 points => target.SpaceAfterPoints = points,
                 multiplier => target.SpaceAfterMultiplier = multiplier);
     }
-
-    // Before/after replacement is checked locally. Unmodeled source slots
-    // can remain untouched during an unrelated paragraph edit.
-    internal static bool Supports(A.TextParagraphPropertiesType? source) =>
-        source is null || SupportsSingle(source.Elements<A.LineSpacing>(), false);
 
     internal static void Validate(PresentationTextParagraph source)
     {
@@ -132,12 +129,6 @@ internal static class PptxParagraphSpacingCodec
         else if (source.FirstChild is A.SpacingPercent) setMultiplier(value / 100_000d);
     }
 
-    private static bool SupportsSingle<T>(IEnumerable<T> source, bool allowZero) where T : A.TextSpacingType
-    {
-        var slots = source.ToArray();
-        return slots.Length <= 1 && (slots.Length == 0 || SupportsSlot(slots[0], allowZero));
-    }
-
     private static bool SupportsSlot(A.TextSpacingType? source, bool allowZero)
     {
         if (source is null) return true;
@@ -187,6 +178,7 @@ internal static class PptxParagraphSpacingCodec
             if (replacement is not null) target.InsertBefore(replacement, slots[0]);
             slots[0].Remove();
         }
+        else if (replacement is A.LineSpacing) target.PrependChild(replacement);
         else if (replacement is A.SpaceBefore)
         {
             if (target.GetFirstChild<A.LineSpacing>() is { } preceding) target.InsertAfter(replacement, preceding);

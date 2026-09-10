@@ -1938,6 +1938,8 @@
               "text.paragraphs[].style.spaceBeforeMultiplier",
               "text.paragraphs[].style.spaceAfter",
               "text.paragraphs[].style.spaceAfterMultiplier",
+              "text.paragraphs[].style.lineSpacing",
+              "text.paragraphs[].style.lineSpacingMultiplier",
             "text.paragraphs[].style.defaultText.bold",
             "text.paragraphs[].style.defaultText.italic",
             "text.paragraphs[].style.defaultText.size",
@@ -3272,12 +3274,14 @@
         "lineSpacing": {
           "type": "number",
           "exclusiveMinimum": 0,
-          "maximum": 1000
+          "maximum": 1584,
+          "description": "Direct line spacing in positive points, rounded to hundredths with ties to even; values that round to zero reject. Mutually exclusive with lineSpacingMultiplier; a higher-priority style selects both unit and value. Ordinary source-bound text/shape owners support assignment, unit switching, removal/restoration and spacing-only style-wrapper removal. Each changed unit requires its exact field authority; edits preserve before/after spacing and other native state."
         },
         "lineSpacingMultiplier": {
           "type": "number",
           "exclusiveMinimum": 0,
-          "maximum": 1000
+          "maximum": 132,
+          "description": "Direct line spacing as a positive multiplier (1 = 100%), rounded to 1/100000 with ties to even; values that round to zero reject. Mutually exclusive with lineSpacing; higher-priority styles select both unit and value. Source-bound lifecycle matches lineSpacing and requires this field authority. Omission removes the direct line-spacing slot."
         },
         "tabStops": {
           "type": "array",
@@ -3331,6 +3335,14 @@
             "required": [
               "spaceAfter",
               "spaceAfterMultiplier"
+            ]
+          }
+        },
+        {
+          "not": {
+            "required": [
+              "lineSpacing",
+              "lineSpacingMultiplier"
             ]
           }
         }

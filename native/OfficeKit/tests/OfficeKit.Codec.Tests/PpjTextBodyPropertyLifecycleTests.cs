@@ -304,7 +304,7 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
         fields.Remove(fields.Single(f => f!.GetValue<string>() == "text.paragraphs[].style.defaultText." + field));
         Assert.Empty(Compile(denied, source, success: false).File);
         var unsupported = Project(source);
-        FirstTextParagraph(unsupported)["style"]!["lineSpacing"] = 8;
+        FirstTextParagraph(unsupported)["style"]!["indent"] = 8;
         Assert.Empty(Compile(unsupported, source, success: false).File);
         if (field == "glow")
             foreach (var invalid in new[] { "null", "false", "{}", """{"radius":-1,"color":"#112233"}""", """{"radius":1000.001,"color":"#112233"}""", """{"radius":2,"color":"#112233","opacity":1.1}""", """{"radius":2,"color":{"token":"missing"}}""", """{"radius":2,"color":"#112233","opacity":{"token":"paint"}}""" })
@@ -2428,13 +2428,14 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
                     paragraphProperties.Remove();
             }
         }
-        else if (field is "paragraph.spaceBefore" or "paragraph.spaceAfter")
+        else if (field is "paragraph.spaceBefore" or "paragraph.spaceAfter" or "paragraph.lineSpacing")
         {
             foreach (var owner in new[] { oldSlide, newSlide })
             {
                 var properties = owner.Descendants<A.Paragraph>().First().ParagraphProperties;
                 if (field == "paragraph.spaceBefore") properties?.GetFirstChild<A.SpaceBefore>()?.Remove();
-                else properties?.GetFirstChild<A.SpaceAfter>()?.Remove();
+                else if (field == "paragraph.spaceAfter") properties?.GetFirstChild<A.SpaceAfter>()?.Remove();
+                else properties?.GetFirstChild<A.LineSpacing>()?.Remove();
                 if (properties is not null && properties.GetAttributes().Count == 0 && properties.ChildElements.Count == 0)
                     properties.Remove();
             }

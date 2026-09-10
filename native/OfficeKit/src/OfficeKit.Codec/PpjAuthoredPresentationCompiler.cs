@@ -2734,10 +2734,16 @@ internal static partial class PpjAuthoredPresentationCompiler
             else if (hasMultiplier) target.SpaceAfterMultiplier = Math.Round(multiplier.GetDouble() * 100_000) / 100_000d;
             if (hasPoints || hasMultiplier) break;
         }
-        if (FirstProperty(direct, inline, middle, named, "lineSpacing") is { } spacing)
-            target.LineSpacingPoints = spacing.GetDouble();
-        if (FirstProperty(direct, inline, middle, named, "lineSpacingMultiplier") is { } spacingMultiplier)
-            target.LineSpacingMultiplier = spacingMultiplier.GetDouble();
+        foreach (var layer in new[] { direct, inline, middle, named })
+        {
+            if (layer is not { ValueKind: JsonValueKind.Object } paragraph) continue;
+            var hasPoints = paragraph.TryGetProperty("lineSpacing", out var spacing);
+            var hasMultiplier = paragraph.TryGetProperty("lineSpacingMultiplier", out var multiplier);
+            if (hasPoints && hasMultiplier) throw Unsupported("paragraph", "lineSpacing and lineSpacingMultiplier are mutually exclusive");
+            if (hasPoints) target.LineSpacingPoints = Math.Round(spacing.GetDouble() * 100) / 100d;
+            else if (hasMultiplier) target.LineSpacingMultiplier = Math.Round(multiplier.GetDouble() * 100_000) / 100_000d;
+            if (hasPoints || hasMultiplier) break;
+        }
         if (FirstProperty(direct, inline, middle, named, "tabStops") is { } tabStops)
         {
             if (tabStops.ValueKind != JsonValueKind.Array)
@@ -4296,7 +4302,7 @@ internal static partial class PpjAuthoredPresentationCompiler
             if (source is not { ValueKind: JsonValueKind.Object } value) continue;
             merged ??= new Dictionary<string, JsonElement>(StringComparer.Ordinal);
             if (mergeParagraphSpacing)
-                foreach (var slot in new[] { "spaceBefore", "spaceAfter" })
+                foreach (var slot in new[] { "spaceBefore", "spaceAfter", "lineSpacing" })
                     if (value.TryGetProperty(slot, out _) || value.TryGetProperty(slot + "Multiplier", out _))
                     {
                         merged.Remove(slot);

@@ -45,6 +45,14 @@ both field authorities. Edits preserve other spacing, source spelling, runs
 and neighboring paragraphs. Unmodeled source spacing stays preserved and
 rejects replacement. Preview spacing remains partial.
 
+Use `text.paragraphs[].style.lineSpacing` for positive points up to 1584,
+or `lineSpacingMultiplier` for a positive multiplier up to 132. Select one
+unit per style. These fields follow the same unit precedence, source-bound
+assignment, switching, removal/restoration and preservation rules as spacing
+before/after. Values round to native precision; those rounding to zero reject.
+Remove the field or its spacing-only style to clear direct line spacing.
+Preview line layout remains partial.
+
 For an ordinary imported text box or shape,
 `text.paragraphs[].style.defaultText.bold` and `.italic` edit independent paragraph defaults.
 True and false remain explicit; delete the field (or its flag-only

@@ -16,6 +16,7 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
 
     private static void CheckParagraphSpacingLifecycle(string kind, string slot)
     {
+        var otherSlots = new[] { "spaceBefore", "spaceAfter", "lineSpacing" }.Where(value => value != slot).ToArray();
         foreach (var mixed in new[] { false, true })
         {
             var program = Program(kind);
@@ -28,7 +29,7 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
             if (mixed)
             {
                 var style = FirstTextParagraph(program)["style"]!;
-                style[slot == "spaceBefore" ? "spaceAfter" : "spaceBefore"] = 9; style["lineSpacingMultiplier"] = 1.25;
+                style[otherSlots[0]] = 9; style[otherSlots[1] + "Multiplier"] = 1.25;
                 style["defaultText"] = JsonNode.Parse("""{"italic":true,"shadow":{"color":"#112233","scaleY":-0.5}}""");
             }
             var authored = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
@@ -41,8 +42,8 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
                 if (mixed)
                 {
                     var properties = paragraphs[0].ParagraphProperties!;
-                    NativeSpacing(properties, slot == "spaceBefore" ? "spaceAfter" : "spaceBefore")!.FirstChild!.SetAttribute(new OpenXmlAttribute("val", "", "+0900"));
-                    properties.GetFirstChild<A.LineSpacing>()!.FirstChild!.SetAttribute(new OpenXmlAttribute("val", "", "+0125000"));
+                    NativeSpacing(properties, otherSlots[0])!.FirstChild!.SetAttribute(new OpenXmlAttribute("val", "", "+0900"));
+                    NativeSpacing(properties, otherSlots[1])!.FirstChild!.SetAttribute(new OpenXmlAttribute("val", "", "+0125000"));
                     properties.SetAttribute(new OpenXmlAttribute("future", "keep", "urn:officekit:test", "retained"));
                     properties.InnerXml += """<future:content xmlns:future="urn:officekit:test" value="retain"/>""";
                 }
@@ -51,8 +52,10 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
             Assert.Equal(source, Compile(Project(source), source).File.ToByteArray());
             foreach (var (field, value, expected) in new[]
             {
-                (slot, 0d, 0d), (slot, 1.125, 1.12), (slot, 1584d, 1584d),
-                (slot + "Multiplier", 0d, 0d), (slot + "Multiplier", 1.234567, 1.23457), (slot + "Multiplier", 132d, 132d),
+                (slot, slot == "lineSpacing" ? 0.006 : 0d, slot == "lineSpacing" ? 0.01 : 0d),
+                (slot, 1.125, 1.12), (slot, 1584d, 1584d),
+                (slot + "Multiplier", slot == "lineSpacing" ? 0.000006 : 0d, slot == "lineSpacing" ? 0.00001 : 0d),
+                (slot + "Multiplier", 1.234567, 1.23457), (slot + "Multiplier", 132d, 132d),
             })
             {
                 var request = Project(source); SetSpacing(slot, request, field, value);
@@ -92,7 +95,9 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
             }
             foreach (var invalid in new[] { """{"spaceBefore":null}""", """{"spaceBefore":false}""", """{"spaceBefore":-0.0001}""",
                 """{"spaceBefore":1584.0001}""", """{"spaceBeforeMultiplier":-0.000001}""", """{"spaceBeforeMultiplier":132.000001}""",
-                """{"spaceBefore":{"token":"spacing"}}""", """{"spaceBefore":1,"spaceBeforeMultiplier":1}""" })
+                """{"spaceBefore":{"token":"spacing"}}""", """{"spaceBefore":1,"spaceBeforeMultiplier":1}""" }
+                .Concat(slot == "lineSpacing" ? new[] { """{"spaceBefore":0}""", """{"spaceBeforeMultiplier":0}""",
+                    """{"spaceBefore":0.005}""", """{"spaceBeforeMultiplier":0.000005}""" } : Array.Empty<string>()))
             {
                 var request = Project(source); SetSpacing(slot, request, null, 0);
                 foreach (var (key, value) in JsonNode.Parse(invalid)!.AsObject()) FirstTextParagraph(request)["style"]![key.Replace("spaceBefore", slot, StringComparison.Ordinal)] = value?.DeepClone();
@@ -130,7 +135,8 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
             """);
         SetSpacing(slot, program, slot, 7);
         var authored = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
-        foreach (var profile in new[] { "duplicate-slot", "duplicate-child", "mixed-units", "missing-value", "negative", "large-points", "large-multiplier", "invalid", "attribute", "child-attribute", "nested-child" })
+        foreach (var profile in new[] { "duplicate-slot", "duplicate-child", "mixed-units", "missing-value", "negative", "large-points", "large-multiplier", "invalid", "attribute", "child-attribute", "nested-child" }
+            .Concat(slot == "lineSpacing" ? new[] { "zero-points", "zero-multiplier" } : Array.Empty<string>()))
         {
             using var stream = new MemoryStream(); stream.Write(authored);
             using (var document = PresentationDocument.Open(stream, true))
@@ -142,6 +148,8 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
                 else if (profile == "mixed-units") before.Append(new A.SpacingPercent { Val = 50000 });
                 else if (profile == "missing-value") points.Val = null;
                 else if (profile == "negative") points.Val = -1;
+                else if (profile == "zero-points") points.Val = 0;
+                else if (profile == "zero-multiplier") { points.Remove(); before.Append(new A.SpacingPercent { Val = 0 }); }
                 else if (profile == "large-points") points.Val = 158401;
                 else if (profile == "large-multiplier") { points.Remove(); before.Append(new A.SpacingPercent { Val = 13_200_001 }); }
                 else if (profile == "invalid") points.SetAttribute(new OpenXmlAttribute("val", "", "invalid"));
@@ -168,8 +176,13 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
         }
     }
 
-    private static A.TextSpacingType? NativeSpacing(A.TextParagraphPropertiesType? properties, string slot) =>
-        slot == "spaceBefore" ? properties?.GetFirstChild<A.SpaceBefore>() : properties?.GetFirstChild<A.SpaceAfter>();
+    private static A.TextSpacingType? NativeSpacing(A.TextParagraphPropertiesType? properties, string slot) => slot switch
+    {
+        "spaceBefore" => properties?.GetFirstChild<A.SpaceBefore>(),
+        "spaceAfter" => properties?.GetFirstChild<A.SpaceAfter>(),
+        "lineSpacing" => properties?.GetFirstChild<A.LineSpacing>(),
+        _ => throw new ArgumentOutOfRangeException(nameof(slot)),
+    };
 
     private static void SetSpacing(string slot, JsonObject program, string? field, double value)
     {
