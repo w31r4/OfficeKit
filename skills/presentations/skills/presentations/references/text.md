@@ -176,6 +176,17 @@ remain. Unknown, malformed or duplicate native sizes stay source-owned and
 reject replacement. Direct point-size character preview retains glyph/layout
 limits; relative and follow-text sizing diagnose unavailable.
 
+Use `text.paragraphs[].style.rightIndent` for the physical right paragraph
+inset in points, from 0 through 4032. It rounds to the nearest EMU with ties to
+even. Direction does not swap it with `indent`; hanging indent and text-box
+insets remain independent. Explicit zero retains a direct override.
+Ordinary imported text/shape paragraphs support add, set, remove and restore
+under exact rightIndent authority. Delete the field or its rightIndent-only
+style wrapper to clear the direct right margin. Other properties, numeric
+spelling, runs, neighbors and package content remain. Invalid source right
+margins stay preserved and reject replacement. Preview reports the unresolved
+right-indent layout; review actual host line wrapping separately.
+
 Use `text.paragraphs[].style.direction` for the paragraph's writing direction:
 `"left-to-right"` or `"right-to-left"`. Explicit LTR, RTL and absence remain
 distinct. Direction is independent of paragraph alignment, column order and

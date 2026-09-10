@@ -2232,6 +2232,8 @@ internal static partial class PpjPresentationProjector
                 paragraphStyle["alignment"] = StringNode(alignment);
             if (source.LeftMarginCase == PresentationTextParagraph.LeftMarginOneofCase.MarginLeftEmu)
                 paragraphStyle["indent"] = JsonValue.Create(Points(source.MarginLeftEmu));
+            if (source.RightMarginCase == PresentationTextParagraph.RightMarginOneofCase.MarginRightEmu)
+                paragraphStyle["rightIndent"] = JsonValue.Create(Points(source.MarginRightEmu));
             if (source.IndentationCase == PresentationTextParagraph.IndentationOneofCase.IndentEmu)
                 paragraphStyle["hanging"] = JsonValue.Create(-Points(source.IndentEmu));
             if (source.LineSpacingCase == PresentationTextParagraph.LineSpacingOneofCase.LineSpacingPoints)
@@ -2985,6 +2987,7 @@ internal static partial class PpjPresentationProjector
                             "text.paragraphs[].style.lineSpacing",
                             "text.paragraphs[].style.lineSpacingMultiplier",
                             "text.paragraphs[].style.indent",
+                            "text.paragraphs[].style.rightIndent",
                             "text.paragraphs[].style.hanging",
                             "text.paragraphs[].style.defaultText.bold",
                             "text.paragraphs[].style.defaultText.italic",

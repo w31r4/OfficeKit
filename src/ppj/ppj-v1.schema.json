@@ -1955,6 +1955,7 @@
               "text.paragraphs[].style.lineSpacing",
               "text.paragraphs[].style.lineSpacingMultiplier",
               "text.paragraphs[].style.indent",
+              "text.paragraphs[].style.rightIndent",
               "text.paragraphs[].style.hanging",
             "text.paragraphs[].style.defaultText.bold",
             "text.paragraphs[].style.defaultText.italic",
@@ -3351,6 +3352,12 @@
             "right-to-left"
           ],
           "description": "Direct paragraph writing direction, independent of alignment, column order and vertical text. Explicit LTR/RTL and absence remain distinct. Ordinary source-bound text/shape owners support add/set/remove/restore and direction-only style removal under exact direction authority; deletion clears the recognized direct native attribute. Preserve other paragraphs, runs, source boolean spelling and unrelated XML/ZIP. Unknown native direction stays source-owned and rejects replacement. Bidirectional preview layout remains partial."
+        },
+        "rightIndent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 4032,
+          "description": "Physical right paragraph inset in points, rounded to the nearest EMU with ties to even. Independent of paragraph direction, left indent, hanging indent and text-box insets. Explicit zero differs from absence. Ordinary source-bound text/shape owners support add/set/remove/restore and rightIndent-only style removal under exact rightIndent authority; deletion clears the modeled direct attribute. Preserve other paragraph state, native numeric spelling, runs, neighbors and unrelated XML/ZIP. Unknown/out-of-range native margins stay source-owned and reject replacement. Right-indent preview layout remains partial."
         }
       },
       "allOf": [

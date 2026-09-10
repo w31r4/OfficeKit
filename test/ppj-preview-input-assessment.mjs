@@ -95,6 +95,20 @@ for (const alignment of ["left", "center", "right", "justify", "distributed", "j
     assert.match(painted.pages[0].svg, /Paragraph alignment/);
   }
 }
+for (const rightIndent of [0, 24]) {
+  const input = deck([{ ...text, text: { paragraphs: [
+    { style: { rightIndent }, runs: [{ text: "Right paragraph inset" }] }] } }]);
+  assert.ok(assessPpjPreviewInput(input).diagnostics.some(d =>
+    d.path.endsWith(".style.rightIndent") && d.status !== "supported"));
+  const receipt = previewSceneFixture(input, [{ id: "p1", elements: [nativeElement("text", "shape", {
+    ...emuFrame(1, 2, 100, 60), geometry: "textbox", text: "Right paragraph inset",
+    textBody: { paragraphs: [{ rightMargin: { case: "marginRightEmu", value: BigInt(rightIndent * 12700) },
+      runs: [{ content: { case: "text", value: "Right paragraph inset" } }] }] },
+  })] }], ["$.pages[0].elements[0]"]);
+  const painted = paintPpjSceneSvg(receipt);
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" &&
+    d.scenePath.endsWith(".marginRightEmu") && d.status === "partial"));
+}
 for (const direction of ["left-to-right", "right-to-left"]) {
   const input = deck([{ ...text, text: { paragraphs: [
     { style: { direction }, runs: [{ text: "مرحبا Office" }] }] } }]);

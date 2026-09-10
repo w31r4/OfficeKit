@@ -58,6 +58,7 @@ internal static class PptxParagraphPropertiesCodec
     internal static bool HasModeledProperties(PresentationTextParagraph source) =>
         source.HasAlignment || source.HasRightToLeft ||
         source.LeftMarginCase != PresentationTextParagraph.LeftMarginOneofCase.None ||
+        source.RightMarginCase != PresentationTextParagraph.RightMarginOneofCase.None ||
         source.IndentationCase != PresentationTextParagraph.IndentationOneofCase.None ||
         source.LineSpacingCase != PresentationTextParagraph.LineSpacingOneofCase.None ||
         source.SpaceBeforeCase != PresentationTextParagraph.SpaceBeforeOneofCase.None ||

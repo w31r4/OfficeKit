@@ -13,6 +13,7 @@ internal static class PptxParagraphLayoutCodec
     internal static void Read(PresentationTextParagraph target, A.TextParagraphPropertiesType? source)
     {
         if (TryMargin(source, out var margin)) target.MarginLeftEmu = margin;
+        if (TryRightMargin(source, out var rightMargin)) target.MarginRightEmu = rightMargin;
         if (TryIndent(source, out var indent)) target.IndentEmu = indent;
     }
 
@@ -32,6 +33,20 @@ internal static class PptxParagraphLayoutCodec
                 throw Invalid("Presentation paragraph contains an unknown left-margin case.");
         }
 
+        switch (source.RightMarginCase)
+        {
+            case PresentationTextParagraph.RightMarginOneofCase.None:
+                break;
+            case PresentationTextParagraph.RightMarginOneofCase.MarginRightEmu:
+                if (!ValidMargin(source.MarginRightEmu)) throw Invalid($"Presentation paragraph right margin must be from 0 through {MaxCoordinateEmu} EMUs.");
+                break;
+            case PresentationTextParagraph.RightMarginOneofCase.NoMarginRight:
+                if (!source.NoMarginRight) throw Invalid("Presentation no_margin_right must be true when selected.");
+                break;
+            default:
+                throw Invalid("Presentation paragraph contains an unknown right-margin case.");
+        }
+
         switch (source.IndentationCase)
         {
             case PresentationTextParagraph.IndentationOneofCase.None:
@@ -49,12 +64,15 @@ internal static class PptxParagraphLayoutCodec
 
     internal static bool HasAuthoredLayout(PresentationTextParagraph source) =>
         source.LeftMarginCase == PresentationTextParagraph.LeftMarginOneofCase.MarginLeftEmu ||
+        source.RightMarginCase == PresentationTextParagraph.RightMarginOneofCase.MarginRightEmu ||
         source.IndentationCase == PresentationTextParagraph.IndentationOneofCase.IndentEmu;
 
     internal static void Append(A.TextParagraphPropertiesType target, PresentationTextParagraph source)
     {
         if (source.LeftMarginCase == PresentationTextParagraph.LeftMarginOneofCase.MarginLeftEmu)
             target.LeftMargin = checked((int)source.MarginLeftEmu);
+        if (source.RightMarginCase == PresentationTextParagraph.RightMarginOneofCase.MarginRightEmu)
+            target.RightMargin = checked((int)source.MarginRightEmu);
         if (source.IndentationCase == PresentationTextParagraph.IndentationOneofCase.IndentEmu)
             target.Indent = checked((int)source.IndentEmu);
     }
@@ -71,6 +89,16 @@ internal static class PptxParagraphLayoutCodec
             }
             else target.LeftMargin = null;
         }
+        if (source.RightMarginCase != PresentationTextParagraph.RightMarginOneofCase.None)
+        {
+            var modeled = TryRightMargin(target, out var margin);
+            if (target.RightMargin is not null && !modeled) throw Unsupported("right margin");
+            if (source.RightMarginCase == PresentationTextParagraph.RightMarginOneofCase.MarginRightEmu)
+            {
+                if (!modeled || margin != source.MarginRightEmu) target.RightMargin = checked((int)source.MarginRightEmu);
+            }
+            else target.RightMargin = null;
+        }
         if (source.IndentationCase != PresentationTextParagraph.IndentationOneofCase.None)
         {
             var modeled = TryIndent(target, out var indent);
@@ -86,11 +114,16 @@ internal static class PptxParagraphLayoutCodec
     internal static void Scrub(A.TextParagraphPropertiesType target)
     {
         if (TryMargin(target, out _)) target.LeftMargin = null;
+        if (TryRightMargin(target, out _)) target.RightMargin = null;
         if (TryIndent(target, out _)) target.Indent = null;
     }
 
     private static bool TryMargin(A.TextParagraphPropertiesType? source, out long value) =>
         long.TryParse(source?.GetAttributes().FirstOrDefault(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "marL").Value,
+            NumberStyles.Integer, CultureInfo.InvariantCulture, out value) && ValidMargin(value);
+
+    private static bool TryRightMargin(A.TextParagraphPropertiesType? source, out long value) =>
+        long.TryParse(source?.GetAttributes().FirstOrDefault(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "marR").Value,
             NumberStyles.Integer, CultureInfo.InvariantCulture, out value) && ValidMargin(value);
 
     private static bool TryIndent(A.TextParagraphPropertiesType? source, out long value) =>

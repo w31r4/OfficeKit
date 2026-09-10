@@ -2719,6 +2719,13 @@ internal static partial class PpjAuthoredPresentationCompiler
             target.Level = checked((uint)level.GetInt32());
         if (FirstProperty(direct, inline, middle, named, "indent") is { } indent)
             target.MarginLeftEmu = Emu(indent.GetDouble());
+        if (FirstProperty(direct, inline, middle, named, "rightIndent") is { } rightIndent)
+        {
+            var points = rightIndent.GetDouble();
+            if (!double.IsFinite(points) || points < 0 || points > 4032)
+                throw Unsupported("paragraph", "rightIndent must be from 0 through 4032 points");
+            target.MarginRightEmu = Emu(points);
+        }
         if (FirstProperty(direct, inline, middle, named, "hanging") is { } hanging)
             target.IndentEmu = -Emu(hanging.GetDouble());
         foreach (var layer in new[] { direct, inline, middle, named })

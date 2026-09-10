@@ -1251,7 +1251,7 @@ internal static class PptxCodec
                         oleOfficePackageReplacement = PptxOleOfficePackageCodec.PrepareReplacement(original.Opaque, requested.Opaque, assetCatalog, limits);
                         diagramTextReplacement = PptxDiagramTextCodec.PrepareReplacement(slidePart, sourceElement, original.Opaque, requested.Opaque);
                     }
-                    if (!HasParagraphTabStopRemovalIntent(requested) && SemanticHash(requested).Equals(elementBinding.SemanticSha256, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!HasParagraphTabStopRemovalIntent(requested) && !HasParagraphRightMarginRemovalIntent(requested) && SemanticHash(requested).Equals(elementBinding.SemanticSha256, StringComparison.OrdinalIgnoreCase)) continue;
                     var stateChanged = PptxElementStateCodec.StateChanged(original, requested);
                     var contentChanged = !PptxElementStateCodec.EqualExceptState(original, requested);
                     if (stateChanged)
@@ -2763,6 +2763,16 @@ internal static class PptxCodec
         _ => false,
     };
 
+    // A right-margin removal also requires native validation when projection
+    // omitted the source attribute. Do not accept unknown state as a no-op.
+    private static bool HasParagraphRightMarginRemovalIntent(PresentationElement element) => element.ContentCase switch
+    {
+        PresentationElement.ContentOneofCase.Shape => element.Shape.TextBody?.Paragraphs.Any(paragraph =>
+            paragraph.RightMarginCase == PresentationTextParagraph.RightMarginOneofCase.NoMarginRight) == true,
+        PresentationElement.ContentOneofCase.Group => element.Group.Children.Any(HasParagraphRightMarginRemovalIntent),
+        _ => false,
+    };
+
     private static bool ContainsAutomaticFields(PresentationElement element) => element.ContentCase switch
     {
         PresentationElement.ContentOneofCase.Shape => ContainsAutomaticFields(element.Shape.TextBody),
@@ -3085,7 +3095,7 @@ internal static class PptxCodec
                     "presentation_element_binding_mismatch",
                     $"Presentation slide {slideIndex + 1} {location} child {requestedIndex + 1} does not match its owner-local source binding.",
                     PartPath(slideContext.Owner));
-            if (!HasParagraphTabStopRemovalIntent(requestedChild) && SemanticHash(requestedChild).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase)) continue;
+            if (!HasParagraphTabStopRemovalIntent(requestedChild) && !HasParagraphRightMarginRemovalIntent(requestedChild) && SemanticHash(requestedChild).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase)) continue;
             var stateChanged = PptxElementStateCodec.StateChanged(originalChild, requestedChild);
             var contentChanged = !PptxElementStateCodec.EqualExceptState(originalChild, requestedChild);
             if (stateChanged)
@@ -4416,7 +4426,7 @@ internal static class PptxCodec
                     throw new CodecException("presentation_postwrite_topology_changed", $"PPTX slide {slideIndex + 1} retained element {elementIndex + 1} has an invalid source index.", PartPath(outputSlide));
                 var beforeElement = before[sourceElementIndex];
                 var afterElement = after[elementIndex];
-                var changed = HasParagraphTabStopRemovalIntent(request) || !SemanticHash(request).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase);
+                var changed = HasParagraphTabStopRemovalIntent(request) || HasParagraphRightMarginRemovalIntent(request) || !SemanticHash(request).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase);
                 if (!changed)
                 {
                     if (!HashElement(beforeElement).Equals(HashElement(afterElement), StringComparison.OrdinalIgnoreCase))
@@ -4664,7 +4674,7 @@ internal static class PptxCodec
             var sourceIndex = requestedSourceOrder[index];
             var beforeChild = beforeChildren[sourceIndex];
             var afterChild = afterChildren[index];
-            var changed = HasParagraphTabStopRemovalIntent(child) || !SemanticHash(child).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase);
+            var changed = HasParagraphTabStopRemovalIntent(child) || HasParagraphRightMarginRemovalIntent(child) || !SemanticHash(child).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase);
             if (!changed)
             {
                 if (!HashElement(beforeChild).Equals(HashElement(afterChild), StringComparison.OrdinalIgnoreCase))
@@ -5350,7 +5360,7 @@ internal static class PptxCodec
             {
                 var binding = requested.Source!;
                 AssertElementBinding(requested.Id, binding, sourceElements[elementIndex], original, strictDeletionPlan, zOrderPlan, target.TargetIndex, elementIndex, source.Part);
-                if (HasParagraphTabStopRemovalIntent(requested) || !SemanticHash(requested).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase))
+                if (HasParagraphTabStopRemovalIntent(requested) || HasParagraphRightMarginRemovalIntent(requested) || !SemanticHash(requested).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase))
                     throw new CodecException("presentation_slide_clone_mismatch", $"Presentation clone {target.TargetIndex + 1} element {elementIndex + 1} is not an unchanged source element.", PartPath(source.Part));
                 continue;
             }

@@ -12059,6 +12059,7 @@ public sealed partial class PptxCodecTests
         var shape = imported.Artifact.Presentation.Slides[0].Elements[0].Shape;
         Assert.Equal(new uint[] { 0, 2 }, shape.TextBody.ListStyles.Select(style => style.Level));
         first = shape.TextBody.ListStyles.Single(style => style.Level == 0);
+        Assert.Equal(381_000, first.MarginRightEmu);
         Assert.Equal("accent1", first.BulletColorScheme);
         Assert.Equal(18, first.DefaultRunProperties.FontSizePoints);
         Assert.Equal("tx1", first.DefaultRunProperties.ColorScheme);
@@ -12106,7 +12107,9 @@ public sealed partial class PptxCodecTests
         {
             var list = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.ListStyle>().Single();
             var retainedUnknown = list.GetFirstChild<A.Level1ParagraphProperties>()!;
-            Assert.Equal(381_000, retainedUnknown.RightMargin!.Value);
+            Assert.Null(retainedUnknown.RightMargin);
+            Assert.Equal("keep", retainedUnknown.GetFirstChild<A.ExtensionList>()!
+                .GetFirstChild<A.Extension>()!.FirstChild!.GetAttribute("value", "").Value);
             Assert.Null(retainedUnknown.LeftMargin);
             Assert.Null(retainedUnknown.GetFirstChild<A.CharacterBullet>());
             Assert.Null(list.GetFirstChild<A.Level9ParagraphProperties>());
@@ -13328,7 +13331,13 @@ public sealed partial class PptxCodecTests
         using (var presentation = PresentationDocument.Open(stream, true, new OpenSettings { AutoSave = true }))
         {
             var list = presentation.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.ListStyle>().Single();
-            list.GetFirstChild<A.Level1ParagraphProperties>()!.RightMargin = 381_000;
+            var properties = list.GetFirstChild<A.Level1ParagraphProperties>()!;
+            properties.RightMargin = 381_000;
+            properties.Append(new A.ExtensionList(new A.Extension
+            {
+                Uri = "urn:officekit:test:list-style",
+                InnerXml = """<future:retained xmlns:future="urn:officekit:test" value="keep"/>""",
+            }));
         }
         return stream.ToArray();
     }

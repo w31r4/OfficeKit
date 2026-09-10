@@ -293,6 +293,7 @@ internal static class PptxTextCodec
     {
         if (paragraph.HasNoTabStops) paragraph.ClearNoTabStops();
         if (paragraph.LeftMarginCase == PresentationTextParagraph.LeftMarginOneofCase.NoMarginLeft) paragraph.ClearLeftMargin();
+        if (paragraph.RightMarginCase == PresentationTextParagraph.RightMarginOneofCase.NoMarginRight) paragraph.ClearRightMargin();
         if (paragraph.IndentationCase == PresentationTextParagraph.IndentationOneofCase.NoIndent) paragraph.ClearIndentation();
         if (paragraph.LineSpacingCase == PresentationTextParagraph.LineSpacingOneofCase.NoLineSpacing) paragraph.ClearLineSpacing();
         if (paragraph.SpaceBeforeCase == PresentationTextParagraph.SpaceBeforeOneofCase.NoSpaceBefore) paragraph.ClearSpaceBefore();

@@ -463,6 +463,21 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**段落右缩进增量（2026-09-10）：**
+新增 `text.paragraphs[].style.rightIndent`，以点表达物理右侧缩进，
+范围 0–4032，按 EMU 精度、最近偶数舍入。它对应直接 `a:pPr/@marR`，
+与方向、左缩进 `indent`、悬挂缩进及文本框内边距分别独立。
+显式零与缺省保留区别；普通文本框和形状支持新增、赋值、删除和恢复，
+删除字段或只含右缩进的样式对象会清除直接属性。每次修改要求该字段
+自身权限，并保持原数值写法、其他段落属性、run、相邻段落及非目标
+XML/ZIP。无效或超限原生右缩进保留并拒绝覆盖，独立样式修改可继续。
+最小实验 **6/6**、相关回归 **25/25** 通过；同时修复协议层删除未知
+右缩进时被误判为无操作的问题。协议、预览诊断、资料同步和严格
+OpenSpec 检查通过，详细记录见
+`openspec/changes/ppj-paragraph-right-indent-lifecycle/tasks.md`。
+预览保留明确的右缩进布局 partial 诊断；本轮交付源码与生成绑定，
+未重建 NativeAOT。继承和宿主自动换行仍有缺口，F-03 继续开放。
+
 **段落书写方向增量（2026-09-10）：**
 新增 `text.paragraphs[].style.direction`，取值 `left-to-right` 或
 `right-to-left`，对应直接 `a:pPr/@rtl`。显式 LTR、RTL 与缺省分别保留；

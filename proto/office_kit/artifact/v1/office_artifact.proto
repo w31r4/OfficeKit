@@ -3676,6 +3676,12 @@ message PresentationTextParagraph {
   // (true) and absence. Unset clears a modeled direct source attribute;
   // unrecognized source tokens remain preserved rather than being replaced.
   optional bool right_to_left = 34;
+  // Direct physical right paragraph margin in EMUs. Unset preserves source
+  // state; the explicit removal choice clears only a modeled direct margin.
+  oneof right_margin {
+    int64 margin_right_emu = 35;
+    bool no_margin_right = 36;
+  }
 }
 
 message PresentationPictureBullet {
