@@ -1,3 +1,4 @@
+using System.Globalization;
 using OfficeKit.Artifact.Wire.V1;
 using A = DocumentFormat.OpenXml.Drawing;
 
@@ -14,7 +15,7 @@ internal static class PptxParagraphPropertiesCodec
         PptxPartContext? slideContext,
         bool readLevel)
     {
-        if (readLevel && source?.Level is not null) target.Level = checked((uint)source.Level.Value);
+        if (readLevel && TryLevel(source, out var level)) target.Level = level;
         if (AlignmentName(source) is { Length: > 0 } name)
             target.Alignment = name;
         PptxParagraphLayoutCodec.Read(target, source);
@@ -90,7 +91,17 @@ internal static class PptxParagraphPropertiesCodec
         PptxPartContext slideContext,
         bool includeLevel)
     {
-        if (includeLevel) target.Level = source.HasLevel ? checked((int)source.Level) : null;
+        if (includeLevel)
+        {
+            var modeled = TryLevel(target, out var level);
+            if (source.HasLevel)
+            {
+                if (!modeled && target.GetAttributes().Any(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "lvl"))
+                    throw new CodecException("unsupported_presentation_edit", "Source-preserving PPTX export cannot replace an unmodeled paragraph level.");
+                if (!modeled || level != source.Level) target.Level = checked((int)source.Level);
+            }
+            else if (modeled) target.Level = null;
+        }
         var alignment = AlignmentName(target);
         if (source.HasAlignment)
         {
@@ -109,7 +120,7 @@ internal static class PptxParagraphPropertiesCodec
 
     internal static void Scrub(A.TextParagraphPropertiesType target, PptxPartContext? slideContext, bool includeLevel)
     {
-        if (includeLevel) target.Level = null;
+        if (includeLevel && TryLevel(target, out _)) target.Level = null;
         if (AlignmentName(target).Length > 0) target.Alignment = null;
         PptxParagraphLayoutCodec.Scrub(target);
         PptxParagraphSpacingCodec.Scrub(target);
@@ -118,6 +129,10 @@ internal static class PptxParagraphPropertiesCodec
         PptxBulletStyleCodec.Scrub(target);
         target.GetFirstChild<A.TabStopList>()?.Remove();
     }
+
+    private static bool TryLevel(A.TextParagraphPropertiesType? source, out uint level) =>
+        uint.TryParse(source?.GetAttributes().FirstOrDefault(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "lvl").Value,
+            NumberStyles.Integer, CultureInfo.InvariantCulture, out level) && level <= 8;
 
     // Classify raw tokens before accessing SDK enum values: malformed values
     // must remain source-owned instead of aborting projection or unrelated edits.

@@ -1933,6 +1933,7 @@
             "enum": [
               "text",
             "text.paragraphs[].style.alignment",
+            "text.paragraphs[].style.level",
             "text.paragraphs[].style.tabStops",
               "text.paragraphs[].style.spaceBefore",
               "text.paragraphs[].style.spaceBeforeMultiplier",
@@ -3322,7 +3323,8 @@
         "level": {
           "type": "integer",
           "minimum": 0,
-          "maximum": 8
+          "maximum": 8,
+          "description": "Direct paragraph level, zero-based from 0 through 8. Ordinary source-bound text/shape owners support independent assignment, explicit zero, removal/restoration and level-only style removal under this exact field authority. Omission clears native lvl while zero retains it. Only changed paragraphs are patched; other paragraph state, source spelling, runs, neighbors and non-target XML/ZIP are preserved. Invalid native levels survive no-op and unrelated scalar edits but reject replacement. Inherited list layout remains partial."
         },
         "bullet": {
           "$ref": "#/$defs/bullet"

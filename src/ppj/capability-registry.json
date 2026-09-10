@@ -1030,6 +1030,13 @@
       "reason": "PpjParagraphAlignmentLifecycleTests verifies all seven values, authored precedence, exact authority, source lifecycle and non-target XML/ZIP preservation for ordinary text/shape owners. Raw source tokens are classified before SDK enum access. Bounded table cells retain both new modes and source editing; authored master text defaults round-trip them. Other table/placeholder inheritance and host text metrics retain separate boundaries."
     },
     {
+      "feature": "source-bound paragraph level",
+      "ppjPath": "pages[].elements[].text.paragraphs[].style.level",
+      "behavior": "partial",
+      "sourceBound": "Direct paragraph level is a zero-based integer from 0 through 8. Ordinary source-bound text/shape owners support independent assignment, explicit zero, removal/restoration and level-only style removal under the exact text.paragraphs[].style.level authority. Omission clears native lvl while zero retains it. Only changed paragraphs are patched, preserving alignment, indentation, spacing, bullets, other native attributes/content, raw spelling, runs, neighbors and non-target XML/ZIP. Invalid or out-of-range native levels survive no-op and unrelated scalar edits but reject replacement. Inherited list layout and preview remain partial.",
+      "reason": "PpjParagraphLevelLifecycleTests verifies authored precedence, explicit zero, bounds, exact authority, source lifecycle and unchanged XML/ZIP for text/shape owners. List/master level identifiers keep their existing contracts; this direct field does not rebuild inheritance or establish host reflow fidelity."
+    },
+    {
       "feature": "source-bound paragraph tab stops",
       "ppjPath": "pages[].elements[].text.paragraphs[].style.tabStops and noTabStops",
       "behavior": "partial",

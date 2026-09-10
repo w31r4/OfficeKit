@@ -2428,7 +2428,7 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
                     paragraphProperties.Remove();
             }
         }
-        else if (field is "paragraph.spaceBefore" or "paragraph.spaceAfter" or "paragraph.lineSpacing" or "paragraph.indent" or "paragraph.hanging" or "paragraph.alignment")
+        else if (field is "paragraph.spaceBefore" or "paragraph.spaceAfter" or "paragraph.lineSpacing" or "paragraph.indent" or "paragraph.hanging" or "paragraph.alignment" or "paragraph.level")
         {
             foreach (var owner in new[] { oldSlide, newSlide })
             {
@@ -2438,7 +2438,8 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
                 else if (field == "paragraph.lineSpacing") properties?.GetFirstChild<A.LineSpacing>()?.Remove();
                 else if (properties is not null)
                 {
-                    if (field == "paragraph.alignment") properties.Alignment = null;
+                    if (field == "paragraph.level") properties.Level = null;
+                    else if (field == "paragraph.alignment") properties.Alignment = null;
                     else if (field == "paragraph.indent") properties.LeftMargin = null;
                     else properties.Indent = null;
                 }

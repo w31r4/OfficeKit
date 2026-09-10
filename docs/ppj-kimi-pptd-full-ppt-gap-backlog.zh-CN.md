@@ -463,6 +463,18 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**段落层级增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.level` 已接通独立赋值、显式零、删除、恢复和
+单字段 style 包装删除，范围沿用 0–8 的整数。直接值优先于 authored
+owner 默认值；删除清除原生 `lvl`，显式零仍保留属性。编辑要求 level 的
+精确字段权限，只改变化段落，保留对齐、缩进、间距、项目符号、原始数值
+写法、其它属性、run、相邻段落和非目标 XML/ZIP。非法或越界原生层级
+随 no-op 和无关标量赋值/删除保留，拒绝覆盖；修复了其导致投影失败的问题。
+最小实验 **3/3 通过**，包含该实验的段落、列表和母版回归
+**31/31 通过，0 跳过**。Help、schema、生成资料、预览诊断、可移植性、
+reference-sync 和 OpenSpec 检查通过。未重建 NativeAOT；继承列表布局和
+预览仍为 partial，完整 F-03 继续开放。
+
 **补齐段落对齐枚举（2026-09-10）：** `text.paragraphs[].style.alignment`
 新增 `justifyLow` 和 `thaiDistributed`，分别写为原生 `justLow` 和
 `thaiDist`，至此可表达 DrawingML 的七种段落对齐。沿用精确字段权限、

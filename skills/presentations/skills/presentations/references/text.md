@@ -82,6 +82,16 @@ style wrapper to clear it. Edits preserve runs, neighbors and other paragraph
 state. Unknown or invalid native alignment survives no-op and unrelated edits
 but rejects replacement. Preview text layout remains partial.
 
+Use `text.paragraphs[].style.level` for the direct, zero-based paragraph level
+(an integer from 0 through 8). Ordinary imported text/shape paragraphs support
+assignment, explicit zero, removal and restoration under the exact level field
+authority. Remove the field or a level-only style wrapper to clear native `lvl`;
+zero retains a direct value. A direct authored value overrides the owner default.
+Edits preserve other paragraph properties, bullets, raw source spelling, runs and
+neighbors. Invalid native levels remain preserved during unrelated edits and
+reject replacement. List/master level identities remain separate; inherited
+list layout and preview are partial.
+
 For an ordinary imported text box or shape,
 `text.paragraphs[].style.defaultText.bold` and `.italic` edit independent paragraph defaults.
 True and false remain explicit; delete the field (or its flag-only

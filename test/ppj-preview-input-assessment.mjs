@@ -95,6 +95,19 @@ for (const alignment of ["left", "center", "right", "justify", "distributed", "j
     assert.match(painted.pages[0].svg, /Paragraph alignment/);
   }
 }
+for (const level of [0, 8]) {
+  const input = deck([{ ...text, text: { paragraphs: [
+    { style: { level }, runs: [{ text: "Paragraph level" }] }] } }]);
+  const paragraph = assessPpjPreviewInput(input);
+  assert.ok(paragraph.diagnostics.some(d => d.path.endsWith(".style.level") && d.status !== "supported"));
+  const receipt = previewSceneFixture(input, [{ id: "p1", elements: [nativeElement("text", "shape", {
+    ...emuFrame(1, 2, 100, 60), geometry: "textbox", text: "Paragraph level",
+    textBody: { paragraphs: [{ level, runs: [{ content: { case: "text", value: "Paragraph level" } }] }] },
+  })] }], ["$.pages[0].elements[0]"]);
+  const painted = paintPpjSceneSvg(receipt);
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && d.scenePath.endsWith(".level") && d.status === "partial"));
+  assert.match(painted.pages[0].svg, /Paragraph level/);
+}
 for (const field of ["spaceBefore", "spaceBeforeMultiplier", "spaceAfter", "spaceAfterMultiplier", "lineSpacing", "lineSpacingMultiplier", "indent", "hanging"]) {
   const spacing = assessPpjPreviewInput(deck([{ ...text, text: { paragraphs: [
     { style: { [field]: field.startsWith("lineSpacing") ? 1 : 0 }, runs: [{ text: "Paragraph spacing" }] }] } }]));
