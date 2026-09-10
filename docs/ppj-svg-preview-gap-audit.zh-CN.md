@@ -1,5 +1,13 @@
 # OfficeKit 本地 PPT 预览渲染器差距审计
 
+倍数段前/段后进展（2026-09-10）：内部 painter 按首/末行有效逻辑高度消费原生 multiplier，保留显式零及字体度量限制。HIDS0u 报告十个真实作者/源 no-op/源清零编辑案例通过像素对照、重新投影和非目标部件保留；合成混排/default 覆盖反例也通过。沿用 c8b0d324 包，整套仍有四项变换删除失败；正式入口与完整 G-02 未完成，见[当前差距 G-02](ppj-preview-current-gaps.zh-CN.md#g-02文字和形状)。
+
+倍数行距进展（2026-09-10）：内部 painter 开始消费原生 `lineSpacingMultiplier`，保留简化字体度量限制。新增合成反例先失败后通过；沿用 c8b0d324 包的 0PGFXu 报告验证七个作者/源 no-op/源编辑案例、24/36/48px 墨迹间距、重新投影与非目标部件保留。Presentation 4/4 和生成检查通过；整套仍因四项变换删除失败退出 1，正式路由及完整目标未完成。范围和证据见[当前差距 G-02](ppj-preview-current-gaps.zh-CN.md#g-02文字和形状)。
+
+显式端点误报修复（2026-09-10）：native profile 只有在同一 owner 的全部连接线实际画出路线、完成外层变换且纯坐标端点逐项匹配时，才解除对应 from/to 的旧事实错误。合成不匹配、隐藏、未支持路线、多 owner 与对象锚点反例保留失败；GjnuAZ 六个真实作者/源候选案例验证解除、缺捕获恢复、缺 registry 拒绝及其他诊断保留。沿用 c8b0d324 新包；Presentation 4/4 与生成检查通过，整套仍有四项源删除失败。4.1 和正式接入仍开放，见[当前差距 G-11/G-12](ppj-preview-current-gaps.zh-CN.md#g-11g-12已有检查和发布契约不是绘制完成)。
+
+原生基线与文字源编辑更新（2026-09-10）：冻结 c8b0d324 的 3847 个 Git blob 核对一致，仓库命令重建独立包 `tmp/preview-current-native-iv6UMg/runtime`。真实 vAmZ1g 的六项 anchor/底边距源修改与删除通过 XML 存在性、重新投影、仅目标 slide 变化及独立作者文字像素对照；旧包 IcwdcL 的三项删除失败由新包补足。托管 scene+margin 52/52、body 枚举生命周期 30/30、Presentation 4/4 通过。四项 frame 变换删除仍在新包复现，整套退出 1；未替换安装包、未重做双构建或人类验收。后续使用新包回归，精确摘要和边界见[当前差距第 3.5 节](ppj-preview-current-gaps.zh-CN.md#35-更新原生回归基线与文字源编辑2026-09-10)。
+
 显式文字锚定进展（2026-09-10）：内部 top/center/bottom 按现有逻辑文字块高度与上下 inset 定位，显式零底边距保留；未知锚定及无法确定的居中/底部溢出明确失败。九项合成正例、三项反例和 6r8OMm 的 12 项作者/去快照源 no-op 像素回归通过；原源不变，Presentation 4/4 通过。行高仍为简化 review 度量，完整文字布局和源属性编辑/删除未验收；整套仍有四项变换删除失败，见[当前差距 G-02](ppj-preview-current-gaps.zh-CN.md#g-02文字和形状)。
 
 文本框边距证据修正（2026-09-10）：bodyProperties 改为逐原生字段检查，已绘制的 left/right/top inset 不再整体误报，bottom inset 等仍保留具体限制。PgPOma 的四项作者像素对照验证右 inset 对右对齐/居中的 -30/-15px 位移和墨迹不变；六项合成案例通过。未提升完整文本布局支持，四项源删除失败仍保留，见[当前差距 G-02](ppj-preview-current-gaps.zh-CN.md#g-02文字和形状)。

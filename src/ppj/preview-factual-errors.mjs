@@ -3,7 +3,7 @@ import { previewDiagnostic } from "./preview-diagnostics.mjs";
 // These conditions describe the current SVG drawing branches. Removing a
 // limitation requires a drawing regression, not a weaker diagnostic severity.
 export function previewFactualErrors(element, { path, pageId, id }, support,
-  { hiddenOwnerPaths = new Set(), resolvedTransformPaths = new Set(), resolvedGroupCoordinates = false } = {}) {
+  { hiddenOwnerPaths = new Set(), resolvedTransformPaths = new Set(), resolvedGroupCoordinates = false, resolvedConnectorPaths = new Set() } = {}) {
   const diagnostics = [];
   const add = (name, suffix, value) => {
     const rule = support.factual[name];
@@ -19,7 +19,7 @@ export function previewFactualErrors(element, { path, pageId, id }, support,
     if (element.text || geometry && (geometry.kind !== "preset" || geometry.preset !== "rect")) add("shapeGeometry", ".geometry", geometry);
   }
   if (element.type === "connector") {
-    for (const key of ["from", "to"]) if (element[key] !== undefined) add("connector", `.${key}`, element[key]);
+    for (const key of ["from", "to"]) if (element[key] !== undefined && !resolvedConnectorPaths.has(`${path}.${key}`)) add("connector", `.${key}`, element[key]);
   }
   if (element.hidden === true && !hiddenOwnerPaths.has(path)) add("visibility", ".hidden", true);
   if (Number.isFinite(element.frame?.rotation) && element.frame.rotation % 360 !== 0

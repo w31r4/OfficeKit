@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { create, clone, toBinary } from "@bufbuild/protobuf";
-import { PresentationPreviewSceneSchema, PresentationElementSchema, PresentationTextParagraphSchema,
+import { PresentationPreviewSceneSchema, PresentationElementSchema, PresentationTextParagraphSchema, PresentationTextRunSchema,
   PresentationCustomGeometryPathSchema, SpreadsheetChartMarkerArtifactSchema,
   SpreadsheetChartSeriesArtifactSchema, SpreadsheetChartPointStyleArtifactSchema,
   SpreadsheetChartSurfaceFillSchema, SpreadsheetChartAxisArtifactSchema } from "../src/generated/office_kit/artifact/v1/office_artifact_pb.js";
@@ -175,6 +175,30 @@ for (const options of [{ requestedWidth: 80 }, { hidden: true }, { nativeWidth: 
   assert.ok(result.diagnostics.some(d => d.reason === groupReason), "mismatch, hidden and failed group retain old factual rule");
   assert.equal(result.reliability.status, "failed");
 }
+function connectorProfileFixture({ requestedX = 100, type = "straight", hidden = false, extraOwner = false, bound = false } = {}) {
+  return fixture(scene => {
+    scene.presentation.slides[0].elements = [child("edge", "connector", {
+      connectorType: type, startXEmu: emu(100), startYEmu: emu(100), endXEmu: emu(200), endYEmu: emu(150),
+      lineRgb: "CC5500", lineWidthEmu: emu(2),
+    }, hidden)];
+    if (extraOwner) scene.presentation.slides[0].elements.push(child("other", "shape", { ...frame(0, 0, 10, 10), geometry: "rect" }));
+  }, { pages: [{ id: "page", elements: [{ id: "edge", type: "connector", connectorType: type,
+    from: bound ? { element: "target", anchor: "center" } : { x: requestedX, y: 100 }, to: { x: 200, y: 150 } }] }] },
+  bindings => { for (const binding of bindings) binding.programPath = "$.pages[0].elements[0]"; });
+}
+const connectorReason = "preview.fact.connector-endpoints-ignored";
+for (const type of ["straight", "elbow"]) {
+  const input = connectorProfileFixture({ type }), original = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const result = paintPpjSceneSvg(input, { assessInput: true });
+  assert.ok(!result.diagnostics.some(d => d.reason === connectorReason), "actually painted direct endpoints retire only their old factual error");
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+for (const options of [{ requestedX: 99 }, { hidden: true }, { type: "curved" }, { extraOwner: true }, { bound: true }]) {
+  const result = paintPpjSceneSvg(connectorProfileFixture(options), { assessInput: true });
+  assert.ok(result.diagnostics.some(d => d.reason === connectorReason && d.path.endsWith(".from")));
+  if (options.requestedX || options.bound) assert.ok(!result.diagnostics.some(d => d.reason === connectorReason && d.path.endsWith(".to")), "endpoint evidence is field-specific");
+  assert.equal(result.reliability.status, "failed");
+}
 const attributed = fixture(scene => {
   scene.presentation.futureReviewField = "unmodeled global state";
   scene.presentation.slides[0].elements = ["generated-a", "generated-b"].map(id => child(id, "shape", {
@@ -310,8 +334,68 @@ const zeroParagraph = paintPpjSceneSvg(fixture(scene => {
   p.spaceAfter = { case: "spaceAfterPoints", value: 0 };
   p.lineSpacing = { case: "lineSpacingMultiplier", value: 2 };
 }));
+for (const multiplier of [0, .5, 1, 2]) {
+  const input = fixture(scene => {
+    const body = scene.presentation.slides[0].elements[0].content.value.textBody;
+    const p = body.paragraphs[0];
+    p.spaceBefore = { case: "spaceBeforeMultiplier", value: multiplier };
+    p.spaceAfter = { case: "spaceAfterMultiplier", value: multiplier };
+    body.paragraphs.push(clone(PresentationTextParagraphSchema, p));
+  });
+  const original = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const painted = paintPpjSceneSvg(input);
+  const ys = [...painted.pages[0].svg.matchAll(/<text x="110" y="([^"]+)"/g)].map(m => Number(m[1]));
+  assert.equal(ys.length, 4);
+  assert.ok(Math.abs(ys[0] - (59.6 + 19.2 * multiplier)) < 1e-9);
+  assert.ok(Math.abs(ys[2] - ys[1] - (19.2 + 38.4 * multiplier)) < 1e-9);
+  assert.ok(!painted.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && /\.(spaceBeforeMultiplier|spaceAfterMultiplier)$/.test(d.scenePath)));
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+for (const field of ["spaceBefore", "spaceAfter"]) for (const value of [-1, Infinity]) {
+  const painted = paintPpjSceneSvg(fixture(scene => {
+    scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0][field] = { case: `${field}Multiplier`, value };
+  }));
+  assert.equal(painted.reliability.status, "failed");
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.paragraph-spacing" && d.scenePath.endsWith(`${field}Multiplier`)));
+}
+const mixedParagraphSpacing = paintPpjSceneSvg(fixture(scene => {
+  const body = scene.presentation.slides[0].elements[0].content.value.textBody;
+  const p = body.paragraphs[0], first = clone(PresentationTextRunSchema, p.runs[0]);
+  first.content = { case: "text", value: "H" };
+  first.fontSizePoints = 20;
+  const last = clone(PresentationTextRunSchema, first);
+  last.content.value = "\nH";
+  last.fontSizePoints = 10;
+  p.runs = [first, last];
+  p.defaultRunStyle.value.fontSizePoints = 80;
+  p.spaceBefore = { case: "spaceBeforeMultiplier", value: 1 };
+  p.spaceAfter = { case: "spaceAfterMultiplier", value: 1 };
+  body.paragraphs.push(clone(PresentationTextParagraphSchema, p));
+}));
+const mixedYs = [...mixedParagraphSpacing.pages[0].svg.matchAll(/<text x="110" y="([^"]+)"/g)].map(m => Number(m[1]));
+for (const [i, expected] of [87.6, 101.6, 159.6, 173.6].entries())
+  assert.ok(Math.abs(mixedYs[i] - expected) < 1e-9, "Before/after spacing uses first/last effective line, not overridden 80pt default");
 assert.match(zeroParagraph.pages[0].svg, /<text x="110" y="59.6"/);
-assert.ok(zeroParagraph.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && d.scenePath.endsWith("lineSpacingMultiplier")));
+assert.match(zeroParagraph.pages[0].svg, /<text x="110" y="98"/);
+assert.ok(!zeroParagraph.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && d.scenePath.endsWith("lineSpacingMultiplier")));
+for (const multiplier of [.5, 1, 1.5, 2]) {
+  const input = fixture(scene => {
+    scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0].lineSpacing = { case: "lineSpacingMultiplier", value: multiplier };
+  });
+  const original = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const result = paintPpjSceneSvg(input);
+  const ys = [...result.pages[0].svg.matchAll(/<text x="110" y="([^"]+)"/g)].map(m => Number(m[1]));
+  assert.ok(Math.abs(ys[1] - ys[0] - 19.2 * multiplier) < 1e-9);
+  assert.ok(result.diagnostics.some(d => d.reason === "preview.scene.paint.text-layout"));
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+for (const value of [-1, 0, Infinity]) {
+  const result = paintPpjSceneSvg(fixture(scene => {
+    scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0].lineSpacing = { case: "lineSpacingMultiplier", value };
+  }));
+  assert.equal(result.reliability.status, "failed");
+  assert.ok(result.diagnostics.some(d => d.reason === "preview.scene.paint.paragraph-spacing" && d.scenePath.endsWith("lineSpacingMultiplier")));
+}
 for (const value of [-1, 0, Infinity]) {
   const result = paintPpjSceneSvg(fixture(scene => {
     scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0].lineSpacing = { case: "lineSpacingPoints", value };

@@ -49,6 +49,7 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
   const hiddenOwnerPaths = new Set();
   const paintedOwnerTransforms = new Map();
   const paintedOwnerGroups = new Map();
+  const paintedOwnerConnectors = new Map();
   if (rendererProfile === "native-scene-svg") {
     const mapping = registry.previewScene?.factualMappings?.visibility;
     if (mapping?.handler !== "all-owner-nodes-hidden" || mapping.test !== "test/ppj-preview-scene-native.mjs")
@@ -59,6 +60,9 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
     const groupMapping = registry.previewScene?.factualMappings?.groupCoordinates;
     if (groupMapping?.handler !== "all-owner-group-frames-painted" || groupMapping.test !== "test/ppj-preview-scene-native.mjs")
       throw new Error("Missing verified native group coordinate mapping in the preview registry");
+    const connectorMapping = registry.previewScene?.factualMappings?.connectorEndpoints;
+    if (connectorMapping?.handler !== "all-owner-direct-endpoints-painted" || connectorMapping.test !== "test/ppj-preview-scene-native.mjs")
+      throw new Error("Missing verified native connector endpoint mapping in the preview registry");
     const scene = readPpjPreviewReceiptScene(sceneReceipt ?? {});
     if (scenePaint?.renderer !== "officekit-native-scene-svg-internal" || scenePaint.scene !== scene ||
         scenePaint.sceneEvidence?.sha256 !== scene.sha256 || !Array.isArray(scenePaint.hiddenScenePaths) || !Array.isArray(scenePaint.transformedScenePaths) ||
@@ -69,12 +73,14 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
     const hidden = new Set(scenePaint.hiddenScenePaths), nativeHidden = new Set(), owners = new Map();
     const transformed = new Set(scenePaint.transformedScenePaths), nativeTransforms = new Map();
     const nativeGroups = new Map();
+    const nativeConnectors = new Map(), connectors = new Set(scenePaint.connectorScenePaths ?? []);
     function visitNative(elements, prefix) {
       elements.forEach((element, index) => {
         const address = `${prefix}[${index}]`;
         const native = element.content.value;
         nativeTransforms.set(address, native?.transform ?? native?.frameTransform);
         if (element.content.case === "group") nativeGroups.set(address, native);
+        if (element.content.case === "connector") nativeConnectors.set(address, native);
         if (element.hidden === true) nativeHidden.add(address);
         if (element.content.case === "group") visitNative(element.content.value.children, `${address}.group.children`);
         if (element.content.case === "diagram" && element.content.value.drawing)
@@ -94,6 +100,9 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
     for (const [path, bindings] of owners)
       if (bindings.every(binding => transformed.has(binding.scenePath) && nativeGroups.has(binding.scenePath)))
         paintedOwnerGroups.set(path, bindings.map(binding => nativeGroups.get(binding.scenePath)));
+    for (const [path, bindings] of owners)
+      if (bindings.every(binding => transformed.has(binding.scenePath) && connectors.has(binding.scenePath) && nativeConnectors.has(binding.scenePath)))
+        paintedOwnerConnectors.set(path, bindings.map(binding => nativeConnectors.get(binding.scenePath)));
   }
   const rules = new Map(Object.values(support.fields).map((rule) => [previewSchemaAt(schema, rule.schemaRef), rule]));
   const metadata = new Set(Object.values(support.metadata).map((rule) => previewSchemaAt(schema, rule.schemaRef)));
@@ -217,8 +226,19 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
         return Number.isSafeInteger(Number(outer)) && Number.isSafeInteger(Number(inner)) &&
           Number(outer) / 12700 === element.frame?.[field] && Number(inner) / 12700 === element.childFrame?.[field];
       }));
+    const resolvedConnectorPaths = new Set(), connectors = paintedOwnerConnectors.get(path);
+    if (element?.type === "connector") for (const [field, prefix] of [["from", "start"], ["to", "end"]]) {
+      const endpoint = element[field];
+      // Literal parent-space coordinates only: no object-anchor solver or
+      // generated topology is recreated by the diagnostic layer.
+      if (object(endpoint) && Object.keys(endpoint).every(key => key === "x" || key === "y") && connectors?.length &&
+          connectors.every(connector => !connector[`${prefix}TargetId`] && ["x", "y"].every(axis => {
+            const value = connector[`${prefix}${axis.toUpperCase()}Emu`];
+            return Number.isSafeInteger(Number(value)) && Number(value) / 12700 === endpoint[axis];
+          }))) resolvedConnectorPaths.add(`${path}.${field}`);
+    }
     context.diagnostics.push(...previewFactualErrors(element, { path, pageId, id }, support,
-      { hiddenOwnerPaths, resolvedTransformPaths, resolvedGroupCoordinates }));
+      { hiddenOwnerPaths, resolvedTransformPaths, resolvedGroupCoordinates, resolvedConnectorPaths }));
     const type = object(element) && Object.hasOwn(support.types, element.type) ? support.types[element.type] : undefined;
     if (!provenImage) emit(context, previewPath(path, "type"), element?.type, type, type ? {} : { status: "opaque", reason: "preview.element.unknown" });
     if (element?.type === "image" && !assets.get(element.asset)?.data?.byteLength) {

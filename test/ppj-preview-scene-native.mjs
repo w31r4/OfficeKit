@@ -329,9 +329,9 @@ try {
           const fresh = await projectPptxToPpj(candidate.file, { sourceUri: "text-anchor-candidate.pptx", assetRootUri: "assets" });
           await writeFile(path.join(artifacts, `text-anchor-${operation}.reprojected.ppj`), fresh.programJson, { flag: "wx" });
           const actualStyle = styleOf(JSON.parse(Buffer.from(fresh.programJson).toString("utf8")));
-          assert.equal(Object.hasOwn(actualStyle, "verticalAlignment"), Object.hasOwn(requestedStyle, "verticalAlignment"));
+          assert.equal(Object.hasOwn(actualStyle, "verticalAlignment"), Object.hasOwn(requestedStyle, "verticalAlignment"), `${operation}: anchor presence must match request`);
           assert.equal(actualStyle.verticalAlignment, requestedStyle.verticalAlignment);
-          assert.equal(Object.hasOwn(actualStyle.margins, "bottom"), Object.hasOwn(requestedStyle.margins, "bottom"));
+          assert.equal(Object.hasOwn(actualStyle.margins, "bottom"), Object.hasOwn(requestedStyle.margins, "bottom"), `${operation}: bottom inset presence must match request`);
           assert.equal(actualStyle.margins.bottom, requestedStyle.margins.bottom);
           const properties = candidate.previewScene.presentation.slides[0].elements[0].content.value.textBody.bodyProperties;
           assert.equal(properties.anchor.case, requestedStyle.verticalAlignment === undefined ? undefined : "verticalAnchor");
@@ -672,6 +672,158 @@ try {
     assert.equal(starts.length, 3);
     return { ys, xs, starts, lefts };
   }
+  const multiplierCases = [];
+  for (const multiplier of [1, 1.5, 2]) {
+    const program = structuredClone(paragraphProgram);
+    program.pages[0].elements[0].text.paragraphs = [{ style: { lineSpacingMultiplier: multiplier },
+      runs: [{ text: "HH\nHH\nHH", style: { size: 20, color: "#000000" } }] }];
+    const originalProgram = JSON.stringify(program);
+    const equivalent = structuredClone(program);
+    equivalent.pages[0].elements[0].text.paragraphs[0].style = { lineSpacing: 24 * multiplier };
+    const expected = await paragraphPixels(`multiplier-${multiplier}-point-reference`, await compileFormat(equivalent));
+    const authored = await compileFormat(program);
+    const source = await withoutAuthoredSnapshot(authored.file), sourceHash = sha256(source);
+    const projected = await projectPptxToPpj(source, { sourceUri: "multiplier.pptx", assetRootUri: "assets" });
+    const input = { program: projected.programJson, source, assets: projected.assets };
+    const noop = await compilePpjWorkspace(input, { includePreviewScene: true });
+    assert.deepEqual(noop.file, source);
+    for (const [origin, receipt] of [["authored", authored], ["source", noop]]) {
+      const p = receipt.previewScene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0];
+      assert.deepEqual(p.lineSpacing, { case: "lineSpacingMultiplier", value: multiplier });
+      const observed = await paragraphPixels(`multiplier-${multiplier}-${origin}`, receipt);
+      assert.deepEqual(observed, expected);
+      assert.equal(observed.starts[1] - observed.starts[0], 24 * multiplier);
+      assert.equal(observed.starts[2] - observed.starts[1], 24 * multiplier);
+      multiplierCases.push({ multiplier, origin, pixels: observed, candidateSha256: sha256(receipt.file) });
+    }
+    if (multiplier === 1) {
+      const edited = JSON.parse(new TextDecoder().decode(projected.programJson));
+      const leaf = edited.pages[0].elements[0].nativeRef.leaves.find(item => item.kind === "paragraphLineSpacingMultiplier");
+      assert.ok(leaf, "Source must issue multiplier editing capability");
+      leaf.value = 2;
+      const candidate = await compilePpjWorkspace({ ...input, program: Buffer.from(JSON.stringify(edited)) }, { includePreviewScene: true });
+      equivalent.pages[0].elements[0].text.paragraphs[0].style.lineSpacing = 48;
+      assert.deepEqual(await paragraphPixels("multiplier-source-edited", candidate),
+        await paragraphPixels("multiplier-edited-point-reference", await compileFormat(equivalent)));
+      const fresh = await projectPptxToPpj(candidate.file, { sourceUri: "multiplier-edited.pptx", assetRootUri: "assets" });
+      assert.equal(JSON.parse(new TextDecoder().decode(fresh.programJson)).pages[0].elements[0].text.paragraphs[0].style.lineSpacingMultiplier, 2);
+      const before = await JSZip.loadAsync(source), after = await JSZip.loadAsync(candidate.file), changed = [];
+      assert.deepEqual(Object.keys(after.files).sort(), Object.keys(before.files).sort());
+      for (const name of Object.keys(before.files)) if (!before.files[name].dir &&
+        !Buffer.from(await before.file(name).async("uint8array")).equals(Buffer.from(await after.file(name).async("uint8array")))) changed.push(name);
+      assert.deepEqual(changed, ["ppt/slides/slide1.xml"]);
+      multiplierCases.push({ multiplier: 2, origin: "source-edit", reprojection: true, changedParts: changed, candidateSha256: sha256(candidate.file) });
+    }
+    assert.equal(sha256(source), sourceHash);
+    assert.equal(JSON.stringify(program), originalProgram);
+  }
+  const paragraphMultiplierCases = [];
+  for (const size of [10, 20]) for (const multiplier of [0, .5]) {
+    const program = structuredClone(paragraphProgram);
+    program.pages[0].elements[0].text.paragraphs = Array.from({ length: 3 }, () => ({
+      style: { spaceBeforeMultiplier: multiplier, spaceAfterMultiplier: multiplier },
+      runs: [{ text: "HH", style: { size, color: "#000000" } }],
+    }));
+    const originalProgram = JSON.stringify(program), equivalent = structuredClone(program);
+    for (const p of equivalent.pages[0].elements[0].text.paragraphs)
+      p.style = { spaceBefore: size * 1.2 * multiplier, spaceAfter: size * 1.2 * multiplier };
+    const expected = await paragraphPixels(`paragraph-multiplier-${size}-${multiplier}-reference`, await compileFormat(equivalent));
+    const authored = await compileFormat(program), source = await withoutAuthoredSnapshot(authored.file), sourceHash = sha256(source);
+    const projection = await projectPptxToPpj(source, { sourceUri: "paragraph-multiplier.pptx", assetRootUri: "assets" });
+    const input = { program: projection.programJson, source, assets: projection.assets };
+    const noop = await compilePpjWorkspace(input, { includePreviewScene: true });
+    assert.deepEqual(noop.file, source);
+    for (const [origin, receipt] of [["authored", authored], ["source", noop]]) {
+      const paragraphs = receipt.previewScene.presentation.slides[0].elements[0].content.value.textBody.paragraphs;
+      for (const p of paragraphs) for (const field of ["spaceBefore", "spaceAfter"])
+        assert.deepEqual(p[field], { case: `${field}Multiplier`, value: multiplier });
+      const pixels = await paragraphPixels(`paragraph-multiplier-${size}-${multiplier}-${origin}`, receipt);
+      assert.deepEqual(pixels, expected);
+      assert.equal(pixels.starts[1] - pixels.starts[0], size * 1.2 * (1 + 2 * multiplier));
+      paragraphMultiplierCases.push({ size, multiplier, origin, pixels, candidateSha256: sha256(receipt.file) });
+    }
+    if (multiplier === .5) {
+      const edited = JSON.parse(new TextDecoder().decode(projection.programJson));
+      for (const kind of ["paragraphSpaceBeforeMultiplier", "paragraphSpaceAfterMultiplier"]) {
+        const leaves = edited.pages[0].elements[0].nativeRef.leaves.filter(leaf => leaf.kind === kind);
+        assert.equal(leaves.length, 3);
+        for (const leaf of leaves) leaf.value = 0;
+      }
+      const candidate = await compilePpjWorkspace({ ...input, program: Buffer.from(JSON.stringify(edited)) }, { includePreviewScene: true });
+      for (const p of equivalent.pages[0].elements[0].text.paragraphs) p.style = { spaceBefore: 0, spaceAfter: 0 };
+      assert.deepEqual(await paragraphPixels(`paragraph-multiplier-${size}-source-zero`, candidate),
+        await paragraphPixels(`paragraph-multiplier-${size}-zero-reference`, await compileFormat(equivalent)));
+      const fresh = await projectPptxToPpj(candidate.file, { sourceUri: "paragraph-multiplier-zero.pptx", assetRootUri: "assets" });
+      for (const p of JSON.parse(new TextDecoder().decode(fresh.programJson)).pages[0].elements[0].text.paragraphs) {
+        assert.equal(p.style.spaceBeforeMultiplier, 0);
+        assert.equal(p.style.spaceAfterMultiplier, 0);
+      }
+      const before = await JSZip.loadAsync(source), after = await JSZip.loadAsync(candidate.file), changed = [];
+      assert.deepEqual(Object.keys(after.files).sort(), Object.keys(before.files).sort());
+      for (const name of Object.keys(before.files)) if (!before.files[name].dir &&
+        !Buffer.from(await before.file(name).async("uint8array")).equals(Buffer.from(await after.file(name).async("uint8array")))) changed.push(name);
+      assert.deepEqual(changed, ["ppt/slides/slide1.xml"]);
+      paragraphMultiplierCases.push({ size, multiplier: 0, origin: "source-edit", reprojection: true, changedParts: changed });
+    }
+    assert.equal(sha256(source), sourceHash);
+    assert.equal(JSON.stringify(program), originalProgram);
+  }
+  const spacingDeletionCases = [], spacingDeletionFailures = [];
+  const spacingDeletionProgram = structuredClone(paragraphProgram);
+  spacingDeletionProgram.pages[0].elements[0].text.paragraphs[0].style = {
+    lineSpacingMultiplier: 1.5, spaceBeforeMultiplier: .5, spaceAfterMultiplier: .5,
+  };
+  const spacingDeletionAuthored = await compileFormat(spacingDeletionProgram);
+  const spacingDeletionSource = await withoutAuthoredSnapshot(spacingDeletionAuthored.file);
+  const spacingDeletionHash = sha256(spacingDeletionSource), spacingDeletionZip = await JSZip.loadAsync(spacingDeletionSource);
+  await writeFile(path.join(artifacts, "spacing-delete-source.pptx"), spacingDeletionSource, { flag: "wx" });
+  const spacingFields = [["lineSpacingMultiplier", "lineSpacing", "lnSpc", 1.5],
+    ["spaceBeforeMultiplier", "spaceBefore", "spcBef", .5], ["spaceAfterMultiplier", "spaceAfter", "spcAft", .5]];
+  for (let mask = 1; mask < 8; mask++) {
+    try {
+      const projected = await projectPptxToPpj(spacingDeletionSource, { sourceUri: "spacing-delete.pptx", assetRootUri: "assets" });
+      const request = JSON.parse(Buffer.from(projected.programJson).toString("utf8")), expected = structuredClone(spacingDeletionProgram);
+      const style = request.pages[0].elements[0].text.paragraphs[0].style;
+      for (const [index, [field, , , value]] of spacingFields.entries()) {
+        assert.equal(style[field], value);
+        if (mask & (1 << index)) {
+          delete style[field];
+          delete expected.pages[0].elements[0].text.paragraphs[0].style[field];
+        }
+      }
+      const requestBytes = Buffer.from(JSON.stringify(request)), requestHash = sha256(requestBytes);
+      await writeFile(path.join(artifacts, `spacing-delete-${mask}.request.ppj`), requestBytes, { flag: "wx" });
+      const candidate = await compilePpjWorkspace({ program: requestBytes, source: spacingDeletionSource, assets: projected.assets }, { includePreviewScene: true });
+      await writeFile(path.join(artifacts, `spacing-delete-${mask}.pptx`), candidate.file, { flag: "wx" });
+      const fresh = await projectPptxToPpj(candidate.file, { sourceUri: "spacing-deleted.pptx", assetRootUri: "assets" });
+      await writeFile(path.join(artifacts, `spacing-delete-${mask}.reprojected.ppj`), fresh.programJson, { flag: "wx" });
+      const actualStyle = JSON.parse(Buffer.from(fresh.programJson).toString("utf8")).pages[0].elements[0].text.paragraphs[0].style ?? {};
+      const native = candidate.previewScene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0];
+      const zip = await JSZip.loadAsync(candidate.file), xml = await zip.file("ppt/slides/slide1.xml").async("string");
+      for (const [index, [field, slot, tag, value]] of spacingFields.entries()) {
+        const deleted = Boolean(mask & (1 << index));
+        assert.equal(Object.hasOwn(actualStyle, field), !deleted, `${field}: deletion must be absent, not an explicit default`);
+        assert.equal(actualStyle[field], deleted ? undefined : value);
+        assert.equal(native[slot].case, deleted ? undefined : field);
+        assert.equal(native[slot].value, deleted ? undefined : value);
+        assert.equal(new RegExp(`<a:${tag}\\b`).test(xml), !deleted, `${tag}: XML presence must match request`);
+      }
+      assert.deepEqual(Object.keys(zip.files).sort(), Object.keys(spacingDeletionZip.files).sort());
+      const changed = [];
+      for (const name of Object.keys(spacingDeletionZip.files)) if (!spacingDeletionZip.files[name].dir &&
+        !Buffer.from(await spacingDeletionZip.file(name).async("uint8array")).equals(Buffer.from(await zip.file(name).async("uint8array")))) changed.push(name);
+      assert.deepEqual(changed, ["ppt/slides/slide1.xml"]);
+      const pixels = await paragraphPixels(`spacing-delete-${mask}`, candidate);
+      assert.deepEqual(pixels, await paragraphPixels(`spacing-delete-${mask}-reference`, await compileFormat(expected)));
+      assert.equal(sha256(requestBytes), requestHash);
+      assert.equal(sha256(spacingDeletionSource), spacingDeletionHash);
+      spacingDeletionCases.push({ mask, actualStyle, pixels, changedParts: changed, candidateSha256: sha256(candidate.file) });
+    } catch (error) {
+      spacingDeletionFailures.push({ mask, message: error.message, code: error.code ?? null });
+      console.error(`Spacing deletion ${mask} failed: ${error.message}`);
+    }
+  }
+  assert.equal(sha256(spacingDeletionSource), spacingDeletionHash);
   const paragraphAuthored = await compileFormat(paragraphProgram);
   const paragraphPixelsBefore = await paragraphPixels("paragraph-authored", paragraphAuthored);
   assert.ok(Math.abs(paragraphPixelsBefore.ys[1] - paragraphPixelsBefore.ys[0] - 40) < 1e-9);
@@ -1536,11 +1688,37 @@ try {
   // path without substituting for the required object-anchor cases below.
   const literalEdge = { id: "literal-edge", type: "connector", connectorType: "straight", frame: { x: 510, y: 120, width: 240, height: 200 },
     from: { x: 750, y: 320 }, to: { x: 510, y: 120 }, stroke: { color: "#114477", width: 2 }, endArrow: "triangle" };
+  const connectorProfileCases = [];
+  const connectorRegistry = JSON.parse(await readFile(new URL("../src/ppj/capability-registry.json", import.meta.url)));
+  function assertDirectEndpointProfile(receipt, painted) {
+    const reason = "preview.fact.connector-endpoints-ignored";
+    const program = JSON.parse(Buffer.from(receipt.programJson).toString("utf8"));
+    const before = sha256(receipt.file), canonical = assessPpjPreviewInput(program);
+    const options = { rendererProfile: "native-scene-svg", sceneReceipt: receipt, scenePaint: painted };
+    const actual = assessPpjPreviewInput(program, options);
+    assert.equal(canonical.diagnostics.filter(d => d.reason === reason).length, 2);
+    assert.ok(!actual.diagnostics.some(d => d.reason === reason));
+    const missing = assessPpjPreviewInput(program, { ...options, scenePaint: { ...painted, connectorScenePaths: [] } });
+    assert.equal(missing.diagnostics.filter(d => d.reason === reason).length, 2, "receipt alone is not actual route evidence");
+    for (const diagnostic of canonical.diagnostics.filter(d => d.reason !== reason))
+      assert.ok(actual.diagnostics.some(d => d.reason === diagnostic.reason && d.path === diagnostic.path && d.severity === diagnostic.severity), "unrelated limitations must survive");
+    const registry = structuredClone(connectorRegistry);
+    delete registry.previewScene.factualMappings.connectorEndpoints;
+    assert.throws(() => assessPpjPreviewInput(program, { ...options, registry }), /connector endpoint mapping/);
+    const combined = paintPpjSceneSvg(receipt, { assessInput: true });
+    assert.ok(!combined.diagnostics.some(d => d.reason === reason));
+    for (const diagnostic of painted.diagnostics)
+      assert.ok(combined.diagnostics.some(d => d.reason === diagnostic.reason && d.scenePath === diagnostic.scenePath));
+    assert.equal(sha256(receipt.file), before);
+    connectorProfileCases.push({ origin: receipt.previewScene.origin, sceneSha256: receipt.previewScene.sha256,
+      candidateSha256: before, routeCaptures: painted.connectorScenePaths.length, retiredEndpoints: 2 });
+  }
   function assertLiteralEdge(receipt, painted) {
     const edge = createPpjSceneView(receipt).pages[0].nodes.find(n => n.kind === "connector");
     assert.deepEqual(edge.endpoints, { start: { x: 750, y: 320 }, end: { x: 510, y: 120 } });
     assert.ok(painted.pages[0].svg.includes('data-officekit-connector="straight" d="M 750 320 L 510 120"'));
     assert.ok(painted.pages[0].svg.includes('data-officekit-arrow="end" data-officekit-arrow-kind="triangle" transform="translate(510 120) rotate(-'));
+    assertDirectEndpointProfile(receipt, painted);
   }
   const literalProgram = structuredClone(pairBase);
   const cropProgram = structuredClone(pairBase);
@@ -1661,6 +1839,7 @@ try {
     assert.ok(!painted.diagnostics.some(d => d.reason === "preview.scene.paint.connector-bend"));
     const pixel = await sharp(Buffer.from(painted.pages[0].svg)).extract({ left: mid, top: 220, width: 1, height: 1 }).removeAlpha().raw().toBuffer();
     assert.deepEqual([...pixel], [17, 68, 119]);
+    assertDirectEndpointProfile(receipt, painted);
   }
   await assertBend(bendAuthored, 25000, "bend-authored");
   const bendSource = await withoutAuthoredSnapshot(bendAuthored.file), bendOriginal = bendSource.slice();
@@ -2048,7 +2227,7 @@ try {
   for (const descriptor of descriptors) assert.equal(sha256(await readFile(descriptor.executablePath)),
     descriptor.manifest.files.find(file => file.path === descriptor.manifest.profiles[descriptor.profile].executable).sha256,
     "Executed package identity must still match its validated manifest");
-  const report = { status: relationFailures.length || diagramFailures.length || transformProfileFailures.length || nestedPairFailures.length || datasetPairFailures.length || stylePairFailures.length ? "failed" : "passed", scope: "PPJ NativeAOT wire/view and internal SVG foundations; not production scene routing or complete paint coverage",
+  const report = { status: relationFailures.length || diagramFailures.length || transformProfileFailures.length || nestedPairFailures.length || datasetPairFailures.length || stylePairFailures.length || textAnchorFailures.length || spacingDeletionFailures.length ? "failed" : "passed", scope: "PPJ NativeAOT wire/view and internal SVG foundations; not production scene routing or complete paint coverage",
     performance: { file: "performance.json", cases: performanceCases.map(c => ({ name: c.name, samples: c.samples.length })),
       sha256: sha256(await readFile(path.join(artifacts, "performance.json"))),
       scope: "warm size/time plus isolated native RSS/high-water; retained-object release and full 5.3/G-16 remain unverified" },
@@ -2056,6 +2235,9 @@ try {
     datasetPairFailures,
     nestedPairFailures,
     transformProfileFailures,
+    textAnchorFailures,
+    spacingDeletionFailures,
+    spacingDeletions: { expectedCount: 7, cases: spacingDeletionCases },
     diagramFailures: diagramFailures.map(error => error.message),
     recordedAt: new Date().toISOString(),
     javascript: javascriptAtStart,
@@ -2078,7 +2260,8 @@ try {
     internalPainting: { artifacts, pairedComponent: 1,
       smallTextBaseline: { authoredAndSource: true, actualGlyphPixels: true, noDefaultSizeInflation: true, sourceNoop: true },
       textInsets: { authoredCases: 4, rightAlignedShift: -30, centeredShift: -15, identicalInkCount: true, fieldDiagnostics: true },
-      textAnchors: { cases: textAnchorCases, actualGlyphPixels: true, sourceNoop: true, approximateLineMetrics: true },
+      textAnchors: { cases: textAnchorCases, edits: textAnchorEdits, expectedEditCount: 6,
+        actualGlyphPixels: true, sourceNoop: true, approximateLineMetrics: true },
       styleGrammarPair: { fixture: "test/fixtures/presentation/preview-style-grammar-equivalence.json", status: stylePairFailures.length ? "failed" : "passed",
         ...(stylePairFailures.length ? {} : { visualPayloadBytesEqual: true, completeRasterEqual: true, sceneOnOffCandidateEqual: true,
           explicitFalseOverride: true, originalOwners: true, missingAndZero: true, resolvedColorPixels: true }) },
@@ -2092,7 +2275,7 @@ try {
           multiSeries: true, originalOwners: true, missingAndZero: true }) },
       customArcPath, generatedBezierPaths: paths, sourceTextEdit: true, directedAnchorCases, requiredDirectedAnchorCases: 2,
       textFormats: { baselinePixels: true, decorationPixels: true, signedSpacingPixels: true, sourceNoop: true, sourceEditReprojection: true, changedParts: formatChangedParts },
-      paragraphSpacing: { authored: true, sourceNoop: true, pixels: true, marginAndHangingPixels: true, zeroSpacingEdit: true, reprojection: true, changedParts: paragraphChangedParts },
+      paragraphSpacing: { authored: true, sourceNoop: true, pixels: true, marginAndHangingPixels: true, zeroSpacingEdit: true, reprojection: true, changedParts: paragraphChangedParts, multiplierCases, paragraphMultiplierCases },
       shapeOutline: { authored: true, sourceNoop: true, dashPixels: true, sourceEditReprojection: true, changedParts: outlineChangedParts },
       diagramCache: { authoredPixels: true, sourceNoop: true, candidateText: true, reprojection: true, changedParts: diagramChangedParts,
         ownership: { source: diagramOldGraph.targets, candidate: diagramNewGraph.targets, outsideGraphPreserved: diagramFailures.length === 0 },
@@ -2103,6 +2286,7 @@ try {
       imageBorder: { authoredAndSourceEdit: true, rgbPixels: true, reprojection: true, nonTargetPreserved: true },
       imageMasks: { presets: ["ellipse", "diamond", "roundRect"], roundRectZeroEdit: true, customPath: true, authoredAndSourceEdit: true, cropCombinedPixels: true, reprojection: true },
       explicitCoordinateConnector: true, elbowBend: { authored: 25000, edited: 75000, sourceNoop: true, pixels: true, reprojection: true, changedParts: bendChangedParts },
+      connectorProfile: { cases: connectorProfileCases, directEndpointsOnly: true, missingCaptureRetainsFailure: true },
       sourceConnectorPreserved: true, mergedTablePixels: true, sourceTableMoveReprojection: true },
     nativeLine: { authored: true, sourceNoop: true, preservedAcrossTableEdit: true, sourceValueEditReprojection: true,
       multiSeriesMissing: true, markerAndGapPixels: true, unclippedMarkerOutlinePixels: true, changedParts: chartChangedParts,
@@ -2116,6 +2300,10 @@ try {
   if (stylePairFailures.length) throw new AggregateError(stylePairFailures.map(f => new Error(`${f.name}: ${f.message}`)), "Style/grammar equivalence failed; independent checks executed, not a passing integration.");
   if (datasetPairFailures.length) throw new AggregateError(datasetPairFailures.map(f => new Error(`${f.name}: ${f.message}`)), "Dataset equivalence failed; independent checks executed, not a passing integration.");
   if (nestedPairFailures.length) throw new AggregateError(nestedPairFailures.map(f => new Error(`${f.name}: ${f.message}`)), "Nested repeat equivalence failed; independent checks executed, not a passing integration.");
+  if (spacingDeletionFailures.length) throw new AggregateError(spacingDeletionFailures.map(f => new Error(`${f.mask}: ${f.message}`)), "Paragraph spacing deletion regressions failed; independent checks executed, not a passing integration.");
+  assert.equal(spacingDeletionCases.length, 7);
+  if (textAnchorFailures.length) throw new AggregateError(textAnchorFailures.map(f => new Error(`${f.operation}: ${f.message}`)), "Text anchor source regressions failed; independent checks executed, not a passing integration.");
+  assert.equal(textAnchorEdits.length, 6, "all required text anchor edits must execute");
   if (transformProfileFailures.length) throw new AggregateError(transformProfileFailures.map(f => new Error(`${f.name}/${f.stage}: ${f.message}`)), "Transform source regressions failed; independent checks executed, not a passing integration.");
   if (diagramFailures.length) throw new AggregateError(diagramFailures, "Diagram source-edit part preservation needs ownership audit; independent regressions executed, not a passing integration.");
   if (relationFailures.length) throw new AggregateError(relationFailures.map(f => f.error), "Authored object-anchor regressions failed; independent table/source checks executed, not a passing integration.");

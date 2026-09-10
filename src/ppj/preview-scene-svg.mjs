@@ -172,6 +172,7 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
   const visitedNodes = new Set();
   const hiddenScenePaths = new Set();
   const transformedScenePaths = new Set();
+  const connectorScenePaths = new Set();
   let imageMaskSequence = 0;
   const limit = (node, field, reason = "preview.scene.paint.unmapped", value, status = "partial") => {
     diagnostics.push(Object.freeze({ ...previewDiagnostic({
@@ -220,7 +221,7 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
       const prefix = `${ownerField}.textBody.paragraphs[${pi}].`;
       const leftAligned = !paragraph.alignment || paragraph.alignment === "left";
       if (body) {
-        unused(PresentationTextParagraphSchema, paragraph, ["runs", "alignment", "defaultRunProperties", "lineSpacingPoints", "spaceBeforePoints", "spaceAfterPoints", "marginLeftEmu", ...(leftAligned ? ["indentEmu"] : [])], node, prefix);
+        unused(PresentationTextParagraphSchema, paragraph, ["runs", "alignment", "defaultRunProperties", "lineSpacingPoints", "lineSpacingMultiplier", "spaceBeforePoints", "spaceBeforeMultiplier", "spaceAfterPoints", "spaceAfterMultiplier", "marginLeftEmu", ...(leftAligned ? ["indentEmu"] : [])], node, prefix);
         if (defaults.$typeName) unused(PresentationTextStyleSchema, defaults,
           ["fontSizePoints", "fontFamily", "bold", "italic", "colorRgb", "colorOpacityThousandthPercent", "underline", "strike", "fontBaselinePercent", "fontSpacingPoints"], node, `${prefix}defaultRunProperties.`);
       }
@@ -240,9 +241,11 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
         return value;
       };
       const lineSpacing = pointSpacing("lineSpacing", "lineSpacingPoints");
-      const spaceBefore = pointSpacing("spaceBefore", "spaceBeforePoints") ?? 0;
-      const spaceAfter = pointSpacing("spaceAfter", "spaceAfterPoints") ?? 0;
-      y += spaceBefore;
+      const lineMultiplier = pointSpacing("lineSpacing", "lineSpacingMultiplier") ?? 1;
+      const spaceBefore = pointSpacing("spaceBefore", "spaceBeforePoints");
+      const spaceAfter = pointSpacing("spaceAfter", "spaceAfterPoints");
+      const beforeMultiplier = pointSpacing("spaceBefore", "spaceBeforeMultiplier") ?? 0;
+      const afterMultiplier = pointSpacing("spaceAfter", "spaceAfterMultiplier") ?? 0;
       const lines = [[]];
       for (const [ri, run] of paragraph.runs.entries()) {
         const rp = `${prefix}runs[${ri}].`;
@@ -277,13 +280,19 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
           lines.at(-1).push({ size, shift, spacing, style, decoration: decorations.join(" ") || "none", segment });
         });
       }
+      const lineSize = line => line.length ? Math.max(...line.map(run => run.size))
+        : sceneFontPoints(defaults.fontSizePoints ?? fallback.fontSizePoints ?? 18);
+      // Use the adjacent line's logical height, not an overridden paragraph
+      // default or the paragraph's total height. Host font metrics stay limited.
+      y += spaceBefore ?? lineSize(lines[0]) * 1.2 * beforeMultiplier;
       let previousSize = 0;
       const paragraphSvg = lines.map((line, index) => {
         // Each run already resolved its own inheritance above. A default that
         // every run overrides must not enlarge this line's baseline advance.
-        const size = line.length ? Math.max(...line.map(run => run.size))
-          : sceneFontPoints(defaults.fontSizePoints ?? fallback.fontSizePoints ?? 18);
-        y += index === 0 ? size : lineSpacing ?? previousSize * .2 + size;
+        const size = lineSize(line);
+        // Multiplier applies to the existing logical line advance. Exact
+        // font-derived line metrics remain covered by text-layout diagnostics.
+        y += index === 0 ? size : lineSpacing ?? (previousSize * .2 + size) * lineMultiplier;
         previousSize = size;
         let previousShift = 0;
         const spans = line.map(run => {
@@ -296,7 +305,7 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
         const svg = `<text x="${n(x + (index === 0 ? firstLineIndent : 0))}" y="${n(y)}" text-anchor="${align === "center" ? "middle" : align === "right" ? "end" : "start"}" xml:space="preserve">${spans}</text>`;
         return svg;
       }).join("");
-      y += previousSize * .2 + spaceAfter;
+      y += previousSize * .2 + (spaceAfter ?? previousSize * 1.2 * afterMultiplier);
       return paragraphSvg;
     }).join("");
     if (!anchored) return paintedText;
@@ -461,7 +470,9 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
       limit(node, `connector.${name}Arrow`, "preview.scene.paint.arrow-metrics", "Direction, kind and relative size mapped; host contour metrics remain approximate.");
       return `<g data-officekit-arrow="${name}" data-officekit-arrow-kind="${esc(kind)}" transform="translate(${n(p.x)} ${n(p.y)}) rotate(${n(angle)})" fill="${color}" opacity="${n(opacity)}">${head}</g>`;
     };
-    return `<g data-officekit-start-target="${esc(s.startTargetId)}" data-officekit-start-site="${s.startConnectionSiteIndex}" data-officekit-end-target="${esc(s.endTargetId)}" data-officekit-end-site="${s.endConnectionSiteIndex}"><path data-officekit-connector="${esc(s.connectorType)}" d="${route}" fill="none" ${paint}/>${endpoint("start", start, points.slice(1))}${endpoint("end", end, points.slice(0, -1).reverse())}</g>`;
+    const svg = `<g data-officekit-start-target="${esc(s.startTargetId)}" data-officekit-start-site="${s.startConnectionSiteIndex}" data-officekit-end-target="${esc(s.endTargetId)}" data-officekit-end-site="${s.endConnectionSiteIndex}"><path data-officekit-connector="${esc(s.connectorType)}" d="${route}" fill="none" ${paint}/>${endpoint("start", start, points.slice(1))}${endpoint("end", end, points.slice(0, -1).reverse())}</g>`;
+    connectorScenePaths.add(node.scenePath);
+    return svg;
   }
   function table(node) {
     const s = node.native, f = node.frame;
@@ -1164,7 +1175,8 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
   const paintIdentity = { renderer: "officekit-native-scene-svg-internal", scene: view.scene,
     sceneEvidence: ppjPreviewSceneIdentity(view.scene),
     hiddenScenePaths: Object.freeze([...hiddenScenePaths]),
-    transformedScenePaths: Object.freeze([...transformedScenePaths]) };
+    transformedScenePaths: Object.freeze([...transformedScenePaths]),
+    connectorScenePaths: Object.freeze([...connectorScenePaths]) };
   let inputAssessment;
   if (assessInput) {
     const program = JSON.parse(new TextDecoder().decode(receipt.programJson));
