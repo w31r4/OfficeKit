@@ -2394,6 +2394,8 @@ internal static partial class PpjPresentationProjector
             bullet["startAt"] = JsonValue.Create(checked((int)paragraph.AutoNumber.StartAt));
         if (paragraph.BulletFontCase == PresentationTextParagraph.BulletFontOneofCase.BulletFontFamily)
             bullet["fontFamily"] = StringNode(paragraph.BulletFontFamily);
+        else if (paragraph.BulletFontCase == PresentationTextParagraph.BulletFontOneofCase.BulletFontFollowText)
+            bullet["fontFollowText"] = JsonValue.Create(true);
         if (paragraph.BulletColorCase == PresentationTextParagraph.BulletColorOneofCase.BulletColorRgb)
             bullet["color"] = TextColor(
                 paragraph.BulletColorRgb,
@@ -2959,6 +2961,8 @@ internal static partial class PpjPresentationProjector
                             "text.paragraphs[].style.level",
                             "text.paragraphs[].style.bullet.startAt",
                             "text.paragraphs[].style.bullet.character",
+                            "text.paragraphs[].style.bullet.fontFamily",
+                            "text.paragraphs[].style.bullet.fontFollowText",
                             "text.paragraphs[].style.bullet.scheme",
                             "text.paragraphs[].style.bullet.format",
                             "text.paragraphs[].style.tabStops",

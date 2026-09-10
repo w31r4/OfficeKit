@@ -136,6 +136,18 @@ marker kind and has a separate boundary. Preview can paint the direct font/RGB/
 point-size/hanging-indent profile, with explicit glyph/layout limits; unresolved
 bullet styling is unavailable.
 
+For character, numbered or picture markers, choose `bullet.fontFamily: "Georgia"`
+or `bullet.fontFollowText: true`. They are mutually exclusive; absence clears
+the direct font declaration, while `true` explicitly selects the text font.
+Family names contain 1–255 XML-compatible Unicode scalars and non-whitespace
+content. Ordinary imported text/shape markers support add, set, switch, remove
+and restore. Every changed font property needs its exact
+`text.paragraphs[].style.bullet.<field>` authority; switching requires both the
+removed and added property. Other marker styling, runs, neighbors and package
+content remain. Unknown/duplicate native font choices are preserved and reject
+replacement. Direct character-font preview keeps layout limits; follow-text
+font resolution is unavailable in preview and must be reviewed in the host.
+
 For an ordinary imported text box or shape,
 `text.paragraphs[].style.defaultText.bold` and `.italic` edit independent paragraph defaults.
 True and false remain explicit; delete the field (or its flag-only

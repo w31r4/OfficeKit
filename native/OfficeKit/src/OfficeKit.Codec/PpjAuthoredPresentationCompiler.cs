@@ -2786,7 +2786,13 @@ internal static partial class PpjAuthoredPresentationCompiler
                 else
                     throw Unsupported("text", "picture bullet requires an asset or uri");
             }
-            if (bullet.TryGetProperty("fontFamily", out var bulletFont)) target.BulletFontFamily = bulletFont.GetString()!;
+            if (bullet.TryGetProperty("fontFamily", out var bulletFont))
+            {
+                if (bullet.TryGetProperty("fontFollowText", out _))
+                    throw Unsupported("paragraph", "bullet fontFamily and fontFollowText are mutually exclusive");
+                target.BulletFontFamily = bulletFont.GetString()!;
+            }
+            if (bullet.TryGetProperty("fontFollowText", out var bulletFontFollowText)) target.BulletFontFollowText = bulletFontFollowText.GetBoolean();
             if (bullet.TryGetProperty("color", out var bulletColor))
             {
                 var color = catalog.Color(bulletColor);

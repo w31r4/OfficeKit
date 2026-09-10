@@ -1,3 +1,5 @@
+using System.Text;
+using System.Xml;
 using DocumentFormat.OpenXml;
 using OfficeKit.Artifact.Wire.V1;
 using A = DocumentFormat.OpenXml.Drawing;
@@ -5,7 +7,8 @@ using A = DocumentFormat.OpenXml.Drawing;
 namespace OfficeKit.Codec;
 
 // Owns the three independent direct DrawingML marker-style choices. Unset wire
-// choices leave unknown or inherited source styling untouched.
+// choices preserve unknown source styling. An absent font choice clears a
+// modeled direct declaration; inherited font resolution remains host-owned.
 internal static class PptxBulletStyleCodec
 {
     private const double MaxSizePoints = 768;
@@ -66,8 +69,8 @@ internal static class PptxBulletStyleCodec
             case PresentationTextParagraph.BulletFontOneofCase.None:
                 break;
             case PresentationTextParagraph.BulletFontOneofCase.BulletFontFamily:
-                if (string.IsNullOrWhiteSpace(paragraph.BulletFontFamily) || paragraph.BulletFontFamily.Length > 255)
-                    throw Invalid("Presentation bullet font family must contain 1 through 255 characters.");
+                if (!ValidFontFamily(paragraph.BulletFontFamily))
+                    throw Invalid("Presentation bullet font family must contain 1 through 255 XML-compatible Unicode scalars and non-whitespace content.");
                 break;
             case PresentationTextParagraph.BulletFontOneofCase.BulletFontFollowText:
                 if (!paragraph.BulletFontFollowText) throw Invalid("Presentation bullet_font_follow_text must be true when selected.");
@@ -132,9 +135,36 @@ internal static class PptxBulletStyleCodec
 
     internal static void Apply(A.TextParagraphPropertiesType target, PresentationTextParagraph source)
     {
-        ApplyChoice(target, source.BulletColorCase != PresentationTextParagraph.BulletColorOneofCase.None, ColorChoices, ModeledColor, () => BuildColor(source), "color");
-        ApplyChoice(target, source.BulletSizeCase != PresentationTextParagraph.BulletSizeOneofCase.None, SizeChoices, ModeledSize, () => BuildSize(source), "size");
-        ApplyChoice(target, source.BulletFontCase != PresentationTextParagraph.BulletFontOneofCase.None, FontChoices, ModeledFont, () => BuildFont(source), "font");
+        ApplyChoice(target, source, source.BulletColorCase != PresentationTextParagraph.BulletColorOneofCase.None, ColorChoices, ModeledColor, BuildColor, "color");
+        ApplyChoice(target, source, source.BulletSizeCase != PresentationTextParagraph.BulletSizeOneofCase.None, SizeChoices, ModeledSize, BuildSize, "size");
+        ApplyFont(target, source);
+    }
+
+    private static void ApplyFont(A.TextParagraphPropertiesType target, PresentationTextParagraph source)
+    {
+        var existing = FontChoices(target).ToArray();
+        var requested = source.BulletFontCase != PresentationTextParagraph.BulletFontOneofCase.None;
+        if (existing.Length > 1 || existing.Any(choice => !ModeledFont(choice)))
+        {
+            if (requested)
+                throw new CodecException("unsupported_presentation_edit", "Source-preserving PPTX export cannot replace an unmodeled or malformed bullet font.");
+            return;
+        }
+        if (!requested)
+        {
+            foreach (var choice in existing) choice.Remove();
+            return;
+        }
+        if (existing.FirstOrDefault() is A.BulletFont font &&
+            source.BulletFontCase == PresentationTextParagraph.BulletFontOneofCase.BulletFontFamily)
+        {
+            if (font.Typeface!.Value != source.BulletFontFamily) font.Typeface = source.BulletFontFamily;
+            return;
+        }
+        if (existing.FirstOrDefault() is A.BulletFontText &&
+            source.BulletFontCase == PresentationTextParagraph.BulletFontOneofCase.BulletFontFollowText) return;
+        foreach (var choice in existing) choice.Remove();
+        target.AddChild(BuildFont(source), true);
     }
 
     internal static void Scrub(A.TextParagraphPropertiesType target)
@@ -146,18 +176,27 @@ internal static class PptxBulletStyleCodec
 
     private static void ApplyChoice(
         A.TextParagraphPropertiesType target,
+        PresentationTextParagraph source,
         bool requested,
         Func<A.TextParagraphPropertiesType, IEnumerable<OpenXmlElement>> choices,
         Func<OpenXmlElement, bool> modeled,
-        Func<OpenXmlElement> build,
+        Func<PresentationTextParagraph, OpenXmlElement> build,
         string kind)
     {
         if (!requested) return;
         var existing = choices(target).ToArray();
         if (existing.Length > 1 || existing.Any(choice => !modeled(choice)))
             throw new CodecException("unsupported_presentation_edit", $"Source-preserving PPTX export cannot replace an unmodeled or malformed bullet {kind}.");
+        var replacement = build(source);
+        if (existing.Length == 1)
+        {
+            var previous = new PresentationTextParagraph();
+            Read(previous, target);
+            // Compare modeled meaning without normalizing an unchanged source node.
+            if (build(previous).OuterXml == replacement.OuterXml) return;
+        }
         foreach (var choice in existing) choice.Remove();
-        target.AddChild(build(), true);
+        target.AddChild(replacement, true);
     }
 
     private static void ScrubChoice(
@@ -210,10 +249,21 @@ internal static class PptxBulletStyleCodec
 
     private static bool ModeledFont(OpenXmlElement source) => source switch
     {
-        A.BulletFont font => SimpleAttribute(font, "typeface") && !string.IsNullOrWhiteSpace(font.Typeface?.Value) && font.Typeface.Value.Length <= 255,
+        A.BulletFont font => SimpleAttribute(font, "typeface") && font.GetAttributes()[0].NamespaceUri.Length == 0 && ValidFontFamily(font.Typeface?.Value),
         A.BulletFontText follow => Empty(follow),
         _ => false,
     };
+
+    private static bool ValidFontFamily(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        try
+        {
+            XmlConvert.VerifyXmlChars(value);
+            return value.EnumerateRunes().Count() <= 255;
+        }
+        catch (XmlException) { return false; }
+    }
 
     private static bool ModeledColor(OpenXmlElement source) => source switch
     {

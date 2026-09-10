@@ -1936,6 +1936,8 @@
             "text.paragraphs[].style.level",
             "text.paragraphs[].style.bullet.startAt",
             "text.paragraphs[].style.bullet.character",
+            "text.paragraphs[].style.bullet.fontFamily",
+            "text.paragraphs[].style.bullet.fontFollowText",
             "text.paragraphs[].style.bullet.scheme",
             "text.paragraphs[].style.bullet.format",
             "text.paragraphs[].style.tabStops",
@@ -3396,7 +3398,9 @@
             "fontFamily": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 256
+              "maxLength": 255,
+              "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\uFFFE\\uFFFF]+$",
+              "description": "Direct marker typeface: 1–255 XML-compatible Unicode scalars, with non-whitespace content. Mutually exclusive with fontFollowText. Existing source-bound ordinary text/shape markers support add/set/switch/remove/restore under exact fontFamily and fontFollowText authority for each changed property. Removal clears the direct declaration; inherited font and preview layout remain partial."
             },
             "color": {
               "$ref": "#/$defs/color"
@@ -3410,8 +3414,31 @@
               "type": "number",
               "exclusiveMinimum": 0,
               "maximum": 1000
+            },
+            "fontFollowText": {
+              "const": true,
+              "description": "Explicitly use the text font for this marker; distinct from no direct font declaration. Mutually exclusive with fontFamily. Source-bound add/switch/remove/restore requires exact authority for each changed font property. Follow-text preview font/layout is unresolved and diagnosed."
             }
-          }
+          },
+          "allOf": [
+            {
+              "oneOf": [
+                {
+                  "properties": {
+                    "fontFollowText": false
+                  }
+                },
+                {
+                  "required": [
+                    "fontFollowText"
+                  ],
+                  "properties": {
+                    "fontFamily": false
+                  }
+                }
+              ]
+            }
+          ]
         },
         {
           "type": "object",
@@ -3443,7 +3470,9 @@
             "fontFamily": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 256
+              "maxLength": 255,
+              "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\uFFFE\\uFFFF]+$",
+              "description": "Direct marker typeface: 1–255 XML-compatible Unicode scalars, with non-whitespace content. Mutually exclusive with fontFollowText. Existing source-bound ordinary text/shape markers support add/set/switch/remove/restore under exact fontFamily and fontFollowText authority for each changed property. Removal clears the direct declaration; inherited font and preview layout remain partial."
             },
             "color": {
               "$ref": "#/$defs/color"
@@ -3457,8 +3486,31 @@
               "type": "number",
               "exclusiveMinimum": 0,
               "maximum": 1000
+            },
+            "fontFollowText": {
+              "const": true,
+              "description": "Explicitly use the text font for this marker; distinct from no direct font declaration. Mutually exclusive with fontFamily. Source-bound add/switch/remove/restore requires exact authority for each changed font property. Follow-text preview font/layout is unresolved and diagnosed."
             }
-          }
+          },
+          "allOf": [
+            {
+              "oneOf": [
+                {
+                  "properties": {
+                    "fontFollowText": false
+                  }
+                },
+                {
+                  "required": [
+                    "fontFollowText"
+                  ],
+                  "properties": {
+                    "fontFamily": false
+                  }
+                }
+              ]
+            }
+          ]
         },
         {
           "type": "object",
@@ -3527,7 +3579,9 @@
             "fontFamily": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 256
+              "maxLength": 255,
+              "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\uFFFE\\uFFFF]+$",
+              "description": "Direct marker typeface: 1–255 XML-compatible Unicode scalars, with non-whitespace content. Mutually exclusive with fontFollowText. Existing source-bound ordinary text/shape markers support add/set/switch/remove/restore under exact fontFamily and fontFollowText authority for each changed property. Removal clears the direct declaration; inherited font and preview layout remain partial."
             },
             "color": {
               "$ref": "#/$defs/color"
@@ -3541,8 +3595,31 @@
               "type": "number",
               "exclusiveMinimum": 0,
               "maximum": 1000
+            },
+            "fontFollowText": {
+              "const": true,
+              "description": "Explicitly use the text font for this marker; distinct from no direct font declaration. Mutually exclusive with fontFamily. Source-bound add/switch/remove/restore requires exact authority for each changed font property. Follow-text preview font/layout is unresolved and diagnosed."
             }
-          }
+          },
+          "allOf": [
+            {
+              "oneOf": [
+                {
+                  "properties": {
+                    "fontFollowText": false
+                  }
+                },
+                {
+                  "required": [
+                    "fontFollowText"
+                  ],
+                  "properties": {
+                    "fontFamily": false
+                  }
+                }
+              ]
+            }
+          ]
         },
         {
           "type": "object",
@@ -3577,7 +3654,9 @@
             "fontFamily": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 256
+              "maxLength": 255,
+              "pattern": "^(?=[\\s\\S]*\\S)[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\uFFFE\\uFFFF]+$",
+              "description": "Direct marker typeface: 1–255 XML-compatible Unicode scalars, with non-whitespace content. Mutually exclusive with fontFollowText. Existing source-bound ordinary text/shape markers support add/set/switch/remove/restore under exact fontFamily and fontFollowText authority for each changed property. Removal clears the direct declaration; inherited font and preview layout remain partial."
             },
             "color": {
               "$ref": "#/$defs/color"
@@ -3591,8 +3670,31 @@
               "type": "number",
               "exclusiveMinimum": 0,
               "maximum": 1000
+            },
+            "fontFollowText": {
+              "const": true,
+              "description": "Explicitly use the text font for this marker; distinct from no direct font declaration. Mutually exclusive with fontFamily. Source-bound add/switch/remove/restore requires exact authority for each changed font property. Follow-text preview font/layout is unresolved and diagnosed."
             }
-          }
+          },
+          "allOf": [
+            {
+              "oneOf": [
+                {
+                  "properties": {
+                    "fontFollowText": false
+                  }
+                },
+                {
+                  "required": [
+                    "fontFollowText"
+                  ],
+                  "properties": {
+                    "fontFamily": false
+                  }
+                }
+              ]
+            }
+          ]
         }
       ]
     },

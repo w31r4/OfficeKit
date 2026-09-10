@@ -14,7 +14,7 @@
     "schemaDefinitions": 199,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 69,
+    "authoredCompilerBoundaries": 70,
     "nativeLeafKinds": 278,
     "helpApis": 151,
     "hostOnlyApis": 13
@@ -1121,6 +1121,14 @@
       "behavior": "partial",
       "sourceBound": "A character marker requires one XML-compatible Unicode scalar, including supplementary-plane symbols. Existing source-bound text/shape character paragraphs support replacement/restoration with exact character field authority while preserving marker attributes, bullet font/color/size, paragraph state, runs, neighbors and non-target XML/ZIP. No-op retains source bytes. Missing/empty/multiple/invalid scalars and marker-kind conversion reject; parseable unmodeled or ambiguous source markers remain preserved during unrelated edits and reject replacement. Preview retains the existing bounded direct-style character profile with explicit layout/font limits.",
       "reason": "PpjBulletCharacterLifecycleTests verifies ordinary, supplementary and escaped-XML symbols through authoring and source edits, exact authority and non-target preservation. Native validation rejects lone UTF-16 surrogates and XML-incompatible values before serialization; raw JSON surrogate escapes are rejected without a candidate. Preview tests retain the character and explicit text-layout limits, and diagnose unresolved bullet font styling.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound bullet font",
+      "ppjPath": "pages[].elements[].text.paragraphs[].style.bullet.fontFamily and fontFollowText",
+      "behavior": "partial",
+      "sourceBound": "Character, numbered and picture markers use an optional mutually exclusive family/follow-text font choice. Families contain 1–255 XML-compatible Unicode scalars with non-whitespace content. Ordinary source-bound text/shape owners support add/set/switch/remove/restore with exact authority for every changed property, including both sides of a switch. Absence removes a modeled direct font declaration; explicit follow-text remains distinct. Equivalent choices retain source XML; other marker styling, runs, neighbors and non-target XML/ZIP remain unchanged. Unknown, malformed or duplicate font declarations stay source-owned and reject replacement. Inherited font/glyph layout remains partial.",
+      "reason": "PpjBulletFontLifecycleTests verifies authoring and fresh native projection, text/shape source lifecycle for character/number/picture markers, exact authority, Unicode/XML validation and unknown-source preservation. The picture fixture covers authored external URI and imported embedded media. Font-only edits retain lowercase RGB and signed/padded size spelling through the shared style writer. Preview tests retain direct character-font painting and explicit unavailable follow-text font/layout diagnostics. Shared paragraph/list/table/master paths have focused regression coverage.",
       "visualStatus": "partial-or-opaque"
     },
     {
