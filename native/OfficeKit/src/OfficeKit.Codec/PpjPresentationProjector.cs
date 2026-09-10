@@ -2975,6 +2975,7 @@ internal static partial class PpjPresentationProjector
                             "text.paragraphs[].style.defaultText.innerShadow",
                             "text.paragraphs[].style.defaultText.reflection",
                             "text.paragraphs[].style.defaultText.shadow",
+                            "text.paragraphs[].style.defaultText.softEdge",
                         ]));
                         if (PptxBodyPropertiesCodec.SupportsBoundedDirectLayout(element.Shape.TextBody?.BodyProperties))
                         {

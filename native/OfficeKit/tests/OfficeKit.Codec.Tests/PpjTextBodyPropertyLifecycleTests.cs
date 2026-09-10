@@ -304,7 +304,7 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
         fields.Remove(fields.Single(f => f!.GetValue<string>() == "text.paragraphs[].style.defaultText." + field));
         Assert.Empty(Compile(denied, source, success: false).File);
         var unsupported = Project(source);
-        FirstTextParagraph(unsupported)["style"]!["defaultText"]!["softEdge"] = JsonNode.Parse("""{"radius":3}""");
+        FirstTextParagraph(unsupported)["style"]!["spaceBefore"] = 8;
         Assert.Empty(Compile(unsupported, source, success: false).File);
         if (field == "glow")
             foreach (var invalid in new[] { "null", "false", "{}", """{"radius":-1,"color":"#112233"}""", """{"radius":1000.001,"color":"#112233"}""", """{"radius":2,"color":"#112233","opacity":1.1}""", """{"radius":2,"color":{"token":"missing"}}""", """{"radius":2,"color":"#112233","opacity":{"token":"paint"}}""" })
@@ -1402,6 +1402,8 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
             "innerShadow" => NativeDefaultInnerShadow(defaults),
             "reflection" => NativeDefaultReflection(defaults),
             "shadow" => NativeDefaultShadow(defaults),
+            "softEdge" => defaults?.GetFirstChild<A.EffectList>()?.GetFirstChild<A.SoftEdge>() is { } softEdge
+                ? new JsonObject { ["radius"] = Math.Round(softEdge.Radius!.Value / 12700d, 6, MidpointRounding.AwayFromZero) } : null,
             "highlight" => defaults?.GetFirstChild<A.Highlight>() is { } highlight
                 ? highlight.GetFirstChild<A.SchemeColor>() is { } scheme
                     ? new JsonObject { ["token"] = scheme.Val!.InnerText }
@@ -2405,12 +2407,13 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
                     else if (field == "paragraphDefault.highlight") defaults.GetFirstChild<A.Highlight>()?.Remove();
                     else if (field == "paragraphDefault.color") defaults.GetFirstChild<A.SolidFill>()?.Remove();
                     else if (field == "paragraphDefault.gradient") defaults.GetFirstChild<A.GradientFill>()?.Remove();
-                    else if (field is "paragraphDefault.glow" or "paragraphDefault.innerShadow" or "paragraphDefault.reflection" or "paragraphDefault.shadow")
+                    else if (field is "paragraphDefault.glow" or "paragraphDefault.innerShadow" or "paragraphDefault.reflection" or "paragraphDefault.shadow" or "paragraphDefault.softEdge")
                     {
                         var list = defaults.GetFirstChild<A.EffectList>();
                         if (field == "paragraphDefault.glow") list?.GetFirstChild<A.Glow>()?.Remove();
                         else if (field == "paragraphDefault.innerShadow") list?.GetFirstChild<A.InnerShadow>()?.Remove();
                         else if (field == "paragraphDefault.reflection") list?.GetFirstChild<A.Reflection>()?.Remove();
+                        else if (field == "paragraphDefault.softEdge") list?.GetFirstChild<A.SoftEdge>()?.Remove();
                         else list?.GetFirstChild<A.OuterShadow>()?.Remove();
                         if (list is not null && list.ChildElements.Count == 0 && list.GetAttributes().Count == 0) list.Remove();
                     }

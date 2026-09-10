@@ -125,6 +125,8 @@ internal static class PptxDefaultRunStyleCodec
         afterWithoutScalars.Reflection = null;
         beforeWithoutScalars.Shadow = null;
         afterWithoutScalars.Shadow = null;
+        beforeWithoutScalars.SoftEdge = null;
+        afterWithoutScalars.SoftEdge = null;
         beforeWithoutScalars.ClearBold(); beforeWithoutScalars.ClearItalic(); beforeWithoutScalars.ClearFontSizePoints(); beforeWithoutScalars.ClearFontFamily(); beforeWithoutScalars.ClearFontFamilyEastAsia(); beforeWithoutScalars.ClearFontFamilyComplexScript(); beforeWithoutScalars.ClearLanguage(); beforeWithoutScalars.ClearFontKerningPoints(); beforeWithoutScalars.ClearFontSpacingPoints(); beforeWithoutScalars.ClearFontBaselinePercent(); beforeWithoutScalars.ClearFontCaps(); beforeWithoutScalars.ClearStrike(); beforeWithoutScalars.ClearUnderline(); beforeWithoutScalars.ClearHighlight(); beforeWithoutScalars.ClearColor(); beforeWithoutScalars.ClearColorOpacityThousandthPercent(); beforeWithoutScalars.GradientFill = null; beforeWithoutScalars.Glow = null; beforeWithoutScalars.InnerShadow = null;
         afterWithoutScalars.ClearBold(); afterWithoutScalars.ClearItalic(); afterWithoutScalars.ClearFontSizePoints(); afterWithoutScalars.ClearFontFamily(); afterWithoutScalars.ClearFontFamilyEastAsia(); afterWithoutScalars.ClearFontFamilyComplexScript(); afterWithoutScalars.ClearLanguage(); afterWithoutScalars.ClearFontKerningPoints(); afterWithoutScalars.ClearFontSpacingPoints(); afterWithoutScalars.ClearFontBaselinePercent(); afterWithoutScalars.ClearFontCaps(); afterWithoutScalars.ClearStrike(); afterWithoutScalars.ClearUnderline(); afterWithoutScalars.ClearHighlight(); afterWithoutScalars.ClearColor(); afterWithoutScalars.ClearColorOpacityThousandthPercent(); afterWithoutScalars.GradientFill = null; afterWithoutScalars.Glow = null; afterWithoutScalars.InnerShadow = null;
         if (beforeWithoutScalars.Equals(afterWithoutScalars))
@@ -202,6 +204,8 @@ internal static class PptxDefaultRunStyleCodec
                 ApplyDirectReflection(properties, after.Reflection);
             if (!Equals(before.Shadow?.ToByteString(), after.Shadow?.ToByteString()))
                 ApplyDirectShadow(properties, after.Shadow);
+            if (!Equals(before.SoftEdge, after.SoftEdge))
+                ApplyDirectSoftEdge(properties, after.SoftEdge);
             if (!Equals(before.InnerShadow, after.InnerShadow) ||
                 before.InnerShadow?.HasBlurRadiusEmu != after.InnerShadow?.HasBlurRadiusEmu ||
                 before.InnerShadow?.HasDistanceEmu != after.InnerShadow?.HasDistanceEmu ||
@@ -381,6 +385,9 @@ internal static class PptxDefaultRunStyleCodec
     private static void ApplyDirectShadow(A.DefaultRunProperties target, PresentationShadow? source) =>
         ApplyDirectEffect<A.OuterShadow, PresentationShadow>(target, source, TryReadShadow, PptxShadowCodec.Apply);
 
+    private static void ApplyDirectSoftEdge(A.DefaultRunProperties target, PresentationSoftEdge? source) =>
+        ApplyDirectEffect<A.SoftEdge, PresentationSoftEdge>(target, source, PptxSoftEdgeCodec.TryRead, PptxSoftEdgeCodec.Apply);
+
     private static void ApplyDirectEffect<TNative, TValue>(
         A.DefaultRunProperties target, TValue? source, EffectReader<TValue> read,
         Action<OpenXmlCompositeElement, TValue?> write)
@@ -404,6 +411,15 @@ internal static class PptxDefaultRunStyleCodec
         {
             list!.InsertBefore(effect, existing);
             existing.Remove();
+        }
+        else if (list is not null && effect is A.SoftEdge)
+        {
+            // AddChild can put a missing final effect before known siblings
+            // when the source list also contains an unknown extension node.
+            var previous = list.ChildElements.LastOrDefault(child => child.NamespaceUri == list.NamespaceUri &&
+                child.LocalName is "blur" or "fillOverlay" or "glow" or "innerShdw" or "prstShdw" or "outerShdw" or "reflection");
+            if (previous is not null) list.InsertAfter(effect, previous);
+            else list.PrependChild(effect);
         }
         else if (list is not null) list.AddChild(effect, true);
         else target.AddChild(new A.EffectList(effect), true);
@@ -578,6 +594,8 @@ internal static class PptxDefaultRunStyleCodec
             ApplyDirectInnerShadow(target, null);
         if (TryReadEffect<A.Reflection, PresentationReflection>(target, TryReadReflection, out var reflection) && reflection is not null)
             ApplyDirectReflection(target, null);
+        if (TryReadEffect<A.SoftEdge, PresentationSoftEdge>(target, PptxSoftEdgeCodec.TryRead, out var softEdge) && softEdge is not null)
+            ApplyDirectSoftEdge(target, null);
     }
 
     private static IEnumerable<OpenXmlElement> ColorChoices(A.DefaultRunProperties source) =>

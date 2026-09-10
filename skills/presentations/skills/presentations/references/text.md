@@ -224,6 +224,15 @@ runs. Invalid/unknown source shadow content, duplicates and DAGs remain
 source-owned and reject replacement. Ordinary run/shape/image syntax keeps its
 required geometry. Preview is partial; host appearance needs separate evidence.
 
+Use `defaultText.softEdge: { radius }` for paragraph default soft edges. Radius
+is required, finite and within 0..1000pt, rounded to the nearest EMU with ties
+to even. Zero retains the effect; remove the field or its single-effect
+defaultText/style wrapper to clear it, then assign to restore it. Edits preserve
+other effects and list attributes, direct runs and neighboring paragraphs.
+Missing/invalid native radius, unknown attributes/children, duplicate effects or
+lists and effect DAGs remain source-owned and reject replacement. Preview is
+partial; verify host appearance separately.
+
 
 `textWarpPreset`, `textWarpAdjustments`, `flatTextZ`, `fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.

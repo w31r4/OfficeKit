@@ -463,6 +463,18 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**段落默认柔化边缘增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.defaultText.softEdge` 已接通赋值、删除、恢复和
+单效果包装删除。沿用 `{ radius }`，半径为 0–1000pt，按最近 EMU 舍入，
+中点取偶数；显式零保留效果。只修改目标段落的 `a:softEdge`，保留其它效果、
+列表属性、直接 run、相邻段落和非目标 XML/ZIP。非法或缺失半径、未知属性/
+子内容、重复节点和 DAG 随无关标量编辑保留，拒绝覆盖。最小原生实验
+**3/3 通过**，相关回归 **360/360 通过，0 跳过**，沿用整组默认样式的已记录
+基线排除项。实验修复了未知效果共存时恢复节点的顺序，以及负原生半径被 SDK
+读成零的问题。Help、schema、生成资料、预览诊断、可移植性、reference-sync
+和 OpenSpec 检查通过；未重建 NativeAOT，预览仍为 partial，完整 F-03 和
+宿主显示继续开放。
+
 **段落默认文字外阴影增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.defaultText.shadow` 已接通全部 11 个值：color 必填，
 opacity、blur、distance、angle、alignment、rotateWithShape、scaleX/Y 和

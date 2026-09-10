@@ -1,4 +1,5 @@
 using DocumentFormat.OpenXml;
+using System.Globalization;
 using OfficeKit.Artifact.Wire.V1;
 using A = DocumentFormat.OpenXml.Drawing;
 
@@ -22,7 +23,8 @@ internal static class PptxSoftEdgeValueCodec
     {
         softEdge = null;
         if (!HasOnlyAttributes(source, "rad") || source.ChildElements.Count != 0 ||
-            source.Radius?.Value is not { } radius || radius > MaxRadiusEmu)
+            !uint.TryParse(source.Radius?.InnerText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var radius) ||
+            radius > MaxRadiusEmu)
             return false;
         softEdge = new PresentationSoftEdge { RadiusEmu = radius };
         return true;
