@@ -52,7 +52,7 @@ internal static class PpjNativeLeafProjection
         "textBodyVerticalOverflow", "textBodyHorizontalOverflow",
         "textBodyWarpPreset", "customGeometryGuideFormula", "customGeometryAdjustmentFormula", "textFieldType", "tableTextFieldType",
         "fontFamilyEastAsia", "fontFamilyComplexScript", "fontLanguage", "fontUnderline", "fontStrike", "fontColorScheme", "textGlowColorScheme", "textDefaultGlowColorScheme", "textInnerShadowColorScheme", "textDefaultInnerShadowColorScheme", "shapeGlowColorScheme", "imageGlowColorScheme", "shapeInnerShadowColorScheme", "imageInnerShadowColorScheme",
-        "fontCaps", "fontHighlightScheme", "fillScheme", "shadowAlignment", "imageShadowAlignment", "imageShadowColorScheme", "textDefaultShadowAlignment", "shadowColorScheme", "textDefaultShadowColorScheme", "lineScheme", "lineStyle", "lineCap", "lineJoin",
+        "fontCaps", "fontHighlightScheme", "fillScheme", "shadowAlignment", "imageShadowAlignment", "imageShadowColorScheme", "textDefaultShadowAlignment", "textDefaultReflectionAlignment", "shadowColorScheme", "textDefaultShadowColorScheme", "lineScheme", "lineStyle", "lineCap", "lineJoin",
         "lineStartArrow", "lineEndArrow", "lineStartArrowWidth", "lineStartArrowLength", "lineEndArrowWidth", "lineEndArrowLength", "imageMaskPreset", "shape3dPresetMaterial", "shape3dBevelTopPreset", "shape3dBevelBottomPreset", "shape3dSceneCameraPreset", "shape3dSceneLightRigPreset", "shape3dSceneLightRigDirection", "shape3dContourColorScheme", "shape3dExtrusionColorScheme", "chartDataCategory",
     };
 
@@ -1538,6 +1538,10 @@ internal static class PpjNativeLeafProjection
                 paragraph.DefaultRunProperties.Reflection is { HasSkewYAngle60000: true } reflectionSkewY)
                 AddScaled(add, "textDefaultReflectionSkewY",
                     reflectionSkewY.SkewYAngle60000 / 60_000d, 60_000, nativeIndex);
+            if (paragraph.DefaultRunStyleCase == PresentationTextParagraph.DefaultRunStyleOneofCase.DefaultRunProperties &&
+                paragraph.DefaultRunProperties.Reflection is { HasAlignment: true } reflectionAlignment)
+                add("textDefaultReflectionAlignment", reflectionAlignment.Alignment,
+                    JsonValue.Create(reflectionAlignment.Alignment), nativeIndex, 0);
 
             foreach (var run in paragraph.Runs)
             {
