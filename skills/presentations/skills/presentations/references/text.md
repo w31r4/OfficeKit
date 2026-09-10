@@ -53,6 +53,15 @@ before/after. Values round to native precision; those rounding to zero reject.
 Remove the field or its spacing-only style to clear direct line spacing.
 Preview line layout remains partial.
 
+Use `text.paragraphs[].style.indent` for the paragraph's left margin in
+points (0..4032), independently of `hanging`. Values round to the nearest
+EMU with ties to even. Ordinary imported text/shape paragraphs support
+assignment, explicit zero and removal/restoration with the exact indent
+field authority. Remove the field or its indent-only style to clear the
+direct margin. Edits preserve hanging, spacing, runs and neighboring
+paragraphs; unmodeled source margins remain preserved and reject replacement.
+Preview indentation remains partial.
+
 For an ordinary imported text box or shape,
 `text.paragraphs[].style.defaultText.bold` and `.italic` edit independent paragraph defaults.
 True and false remain explicit; delete the field (or its flag-only

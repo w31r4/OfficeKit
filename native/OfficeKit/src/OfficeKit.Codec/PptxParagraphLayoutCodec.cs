@@ -1,3 +1,4 @@
+using System.Globalization;
 using OfficeKit.Artifact.Wire.V1;
 using A = DocumentFormat.OpenXml.Drawing;
 
@@ -11,13 +12,12 @@ internal static class PptxParagraphLayoutCodec
 
     internal static void Read(PresentationTextParagraph target, A.TextParagraphPropertiesType? source)
     {
-        if (source?.LeftMargin?.Value is { } margin && ValidMargin(margin)) target.MarginLeftEmu = margin;
+        if (TryMargin(source, out var margin)) target.MarginLeftEmu = margin;
         if (source?.Indent?.Value is { } indent && ValidIndent(indent)) target.IndentEmu = indent;
     }
 
     internal static bool Supports(A.TextParagraphPropertiesType? source) =>
         source is null ||
-        (source.LeftMargin is null || ValidMargin(source.LeftMargin.Value)) &&
         (source.Indent is null || ValidIndent(source.Indent.Value));
 
     internal static void Validate(PresentationTextParagraph source)
@@ -67,25 +67,34 @@ internal static class PptxParagraphLayoutCodec
     {
         if (source.LeftMarginCase != PresentationTextParagraph.LeftMarginOneofCase.None)
         {
-            if (target.LeftMargin is not null && !ValidMargin(target.LeftMargin.Value)) throw Unsupported("left margin");
-            target.LeftMargin = source.LeftMarginCase == PresentationTextParagraph.LeftMarginOneofCase.MarginLeftEmu
-                ? checked((int)source.MarginLeftEmu)
-                : null;
+            var modeled = TryMargin(target, out var margin);
+            if (target.LeftMargin is not null && !modeled) throw Unsupported("left margin");
+            if (source.LeftMarginCase == PresentationTextParagraph.LeftMarginOneofCase.MarginLeftEmu)
+            {
+                if (!modeled || margin != source.MarginLeftEmu) target.LeftMargin = checked((int)source.MarginLeftEmu);
+            }
+            else target.LeftMargin = null;
         }
         if (source.IndentationCase != PresentationTextParagraph.IndentationOneofCase.None)
         {
             if (target.Indent is not null && !ValidIndent(target.Indent.Value)) throw Unsupported("indent");
-            target.Indent = source.IndentationCase == PresentationTextParagraph.IndentationOneofCase.IndentEmu
-                ? checked((int)source.IndentEmu)
-                : null;
+            if (source.IndentationCase == PresentationTextParagraph.IndentationOneofCase.IndentEmu)
+            {
+                if (target.Indent?.Value != source.IndentEmu) target.Indent = checked((int)source.IndentEmu);
+            }
+            else target.Indent = null;
         }
     }
 
     internal static void Scrub(A.TextParagraphPropertiesType target)
     {
-        if (target.LeftMargin?.Value is { } margin && ValidMargin(margin)) target.LeftMargin = null;
+        if (TryMargin(target, out _)) target.LeftMargin = null;
         if (target.Indent?.Value is { } indent && ValidIndent(indent)) target.Indent = null;
     }
+
+    private static bool TryMargin(A.TextParagraphPropertiesType? source, out long value) =>
+        long.TryParse(source?.GetAttributes().FirstOrDefault(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "marL").Value,
+            NumberStyles.Integer, CultureInfo.InvariantCulture, out value) && ValidMargin(value);
 
     private static bool ValidMargin(long value) => value is >= 0 and <= MaxCoordinateEmu;
     private static bool ValidIndent(long value) => value is >= -MaxCoordinateEmu and <= MaxCoordinateEmu;

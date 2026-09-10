@@ -14,7 +14,7 @@
     "schemaDefinitions": 199,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 62,
+    "authoredCompilerBoundaries": 63,
     "nativeLeafKinds": 278,
     "helpApis": 151,
     "hostOnlyApis": 13
@@ -1065,6 +1065,14 @@
       "behavior": "partial",
       "sourceBound": "Paragraph lineSpacing (positive, at most 1584pt) and lineSpacingMultiplier (positive, at most 132) are mutually exclusive forms of one direct line-spacing slot. Points round to hundredths and multipliers to 1/100000 with ties to even; values that round to zero reject. The highest-priority paragraph style selects the unit and value. Ordinary source-bound text/shape paragraphs support assignment, unit switching, removal/restoration and spacing-only style-wrapper removal. Every changed unit field requires its exact setTextParagraphStyle authority. Before/after spacing, native spelling, runs, neighboring paragraphs and non-target XML/ZIP are preserved. Unmodeled native line spacing, including zero, survives unrelated scalar edits and rejects replacement. Preview remains partial.",
       "reason": "Fixed paragraph/run topology and direct spacing units are preserved. PpjParagraphLineSpacingLifecycleTests covers native XML/ZIP and reprojection; table spacing, placeholder inheritance and host layout retain their separate boundaries.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound paragraph indent",
+      "ppjPath": "pages[].elements[].text.paragraphs[].style.indent",
+      "behavior": "partial",
+      "sourceBound": "Paragraph indent is the direct nonnegative left margin (native marL), independent of hanging indent. It accepts finite 0..4032pt values and rounds to the nearest EMU with ties to even. Ordinary source-bound text/shape paragraphs support assignment, explicit zero, removal/restoration and indent-only style-wrapper removal under their exact text.paragraphs[].style.indent authority. Only changed paragraphs are patched. Hanging indent, spacing, unchanged native numeric spelling, other paragraph attributes/content, direct runs, neighboring paragraphs and non-target XML/ZIP are preserved. Invalid, negative or out-of-range native left margins survive no-op and unrelated scalar edits but reject replacement. Preview remains partial.",
+      "reason": "Fixed paragraph/run topology and direct left-margin presence are preserved. PpjParagraphIndentLifecycleTests verifies native XML/ZIP, rounding, style priority and fresh projection; hanging lifecycle, table/placeholder inheritance and host layout retain separate boundaries.",
       "visualStatus": "partial-or-opaque"
     },
     {

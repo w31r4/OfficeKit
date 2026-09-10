@@ -463,6 +463,18 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**段落左缩进增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.indent` 已接通赋值、显式零、删除、恢复和单字段
+style 包装删除。该字段对应原生 `marL`，范围为 0–4032pt，按最近 EMU
+取偶数舍入，与 `hanging` 独立；每次编辑要求 indent 的精确字段权限。
+只改目标段落的左缩进，保留悬挂缩进、其它段落属性、三类间距、原始数值
+写法、run、相邻段落和非目标 XML/ZIP。原生值按属性文本校验；负值、越界、
+非整数等非法左缩进随 no-op 和无关标量编辑保留，拒绝覆盖。最小实验
+**3/3 通过**，相关回归 **347/347 通过，0 跳过**，沿用整组默认样式的
+已记录基线排除项。Help、schema、生成资料、预览诊断、可移植性、
+reference-sync 和 OpenSpec 检查通过。未重建 NativeAOT，预览仍为 partial；
+`hanging` 的完整生命周期、完整 F-03 和宿主布局继续开放。
+
 **行距增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.lineSpacing`（正数，至多 1584pt）和
 `lineSpacingMultiplier`（正数，至多 132 倍）已接通赋值、单位切换、删除、

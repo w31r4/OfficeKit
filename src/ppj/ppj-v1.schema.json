@@ -1940,6 +1940,7 @@
               "text.paragraphs[].style.spaceAfterMultiplier",
               "text.paragraphs[].style.lineSpacing",
               "text.paragraphs[].style.lineSpacingMultiplier",
+              "text.paragraphs[].style.indent",
             "text.paragraphs[].style.defaultText.bold",
             "text.paragraphs[].style.defaultText.italic",
             "text.paragraphs[].style.defaultText.size",
@@ -3239,8 +3240,9 @@
         },
         "indent": {
           "type": "number",
-          "minimum": -100000,
-          "maximum": 100000
+          "minimum": 0,
+          "maximum": 4032,
+          "description": "Direct nonnegative paragraph left margin in points (native marL), independent of hanging. Values round to the nearest EMU with ties to even. Ordinary source-bound text/shape owners support assignment, explicit zero, removal/restoration and indent-only style-wrapper removal under this exact field authority. Only changed paragraphs are patched; other native state is preserved. Unmodeled native left margins survive unrelated scalar edits and reject replacement."
         },
         "hanging": {
           "type": "number",
