@@ -26,7 +26,7 @@ namespace OfficeKit.Codec.Tests;
 public sealed partial class PptxCodecTests
 {
     [Fact]
-    public void UnsupportedGradientPercentageCoordinatesRemainOpaque()
+    public void CenteredGradientPercentageCoordinatesAreModeledAndOthersRemainOpaque()
     {
         var rectangle = new A.FillToRectangle();
         foreach (var name in new[] { "l", "t", "r", "b" })
@@ -37,7 +37,14 @@ public sealed partial class PptxCodecTests
                 new A.GradientStop(new A.RgbColorModelHex { Val = "FF9900" }) { Position = 100_000 }),
             new A.PathGradientFill(rectangle) { Path = A.PathShadeValues.Circle });
 
-        Assert.False(PptxGradientFillCodec.TryRead(gradient, out var semantic));
+        var original = gradient.OuterXml;
+        Assert.True(PptxGradientFillCodec.TryRead(gradient, out var semantic));
+        Assert.Equal(PresentationGradientFill.Types.Kind.Radial, semantic.Kind);
+        Assert.Equal(new uint[] { 0, 100_000 }, semantic.Stops.Select(stop => stop.PositionThousandthPercent));
+        Assert.Equal(original, gradient.OuterXml);
+
+        rectangle.SetAttribute(new OpenXmlAttribute("l", string.Empty, "25%"));
+        Assert.False(PptxGradientFillCodec.TryRead(gradient, out semantic));
         Assert.Empty(semantic.Stops);
     }
 

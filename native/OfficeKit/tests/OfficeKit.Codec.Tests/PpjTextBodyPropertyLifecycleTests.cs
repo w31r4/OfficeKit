@@ -73,11 +73,15 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [InlineData("text", true, "color")]
     [InlineData("shape", false, "color")]
     [InlineData("shape", true, "color")]
+    [InlineData("text", false, "gradient")]
+    [InlineData("text", true, "gradient")]
+    [InlineData("shape", false, "gradient")]
+    [InlineData("shape", true, "gradient")]
     public void ParagraphDefaultScalarPresencePreservesOtherState(string kind, bool otherDefaults, string field)
     {
         var program = Program(kind);
         var isFont = field is "fontFamily" or "fontFamilyEastAsia" or "fontFamilyComplexScript";
-        var initial = field switch
+        JsonNode? initial = field switch
         {
             "size" => JsonValue.Create(18.25),
             "kerning" => JsonValue.Create(12.25),
@@ -88,6 +92,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             "underline" => JsonValue.Create("sng"),
             "highlight" => JsonValue.Create("#FFFF00"),
             "color" => JsonValue.Create("#224466"),
+            "gradient" => JsonNode.Parse(DefaultGradientJson),
             "language" => JsonValue.Create("en-US"),
             "fontFamily" => JsonValue.Create("Arial"),
             "fontFamilyEastAsia" => JsonValue.Create("SimSun"),
@@ -117,12 +122,21 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                 new JsonObject { ["style"] = new JsonObject { ["defaultText"] = new JsonObject { ["bold"] = false } },
                     ["runs"] = new JsonArray(new JsonObject { ["text"] = "Second paragraph" }) })
         };
+        if (field == "gradient")
+            program["pages"]![0]!["elements"]![0]!["text"]!["paragraphs"]![1]!["style"]!["defaultText"]!["gradient"] = initial.DeepClone();
         var authored = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
         using var stream = new MemoryStream(); stream.Write(authored);
         using (var doc = PresentationDocument.Open(stream, true))
         {
             var nativeDefaults = Owner(doc, kind).Descendants<A.DefaultRunProperties>().First();
             nativeDefaults.Dirty = false;
+            if (field == "gradient")
+            {
+                var neighbor = Owner(doc, kind).Descendants<A.DefaultRunProperties>().Skip(1).First().GetFirstChild<A.GradientFill>()!;
+                neighbor.Append(new A.TileRectangle());
+                neighbor.GetFirstChild<A.GradientStopList>()!.Elements<A.GradientStop>().First()
+                    .GetFirstChild<A.RgbColorModelHex>()!.Append(new A.Alpha { Val = 12345 });
+            }
             if (field == "language") nativeDefaults.SetAttribute(new OpenXmlAttribute("altLang", "", "ja-JP"));
             // Authored fontFamily also supplies an East Asian fallback. Make
             // this source-only fixture genuinely Latin-only for wrapper removal.
@@ -133,7 +147,8 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         var source = stream.ToArray(); var original = source.ToArray();
         var projected = Project(source);
         Assert.Equal(source, Compile(projected, source).File.ToByteArray());
-        Assert.Equal(initialJson, ParagraphDefaultScalar(source, kind, field)?.ToJsonString());
+        if (field == "gradient") Assert.True(JsonNode.DeepEquals(initial, ParagraphDefaultScalar(source, kind, field)));
+        else Assert.Equal(initialJson, ParagraphDefaultScalar(source, kind, field)?.ToJsonString());
         foreach (var mode in otherDefaults ? new[] { "field" } : new[] { "field", "defaultText", "style" })
         {
             var request = Project(source); var paragraph = FirstTextParagraph(request);
@@ -146,6 +161,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             AssertOnlyBodyPropertyChanged(source, deleted, kind, "paragraphDefault." + field);
             foreach (var value in field switch
             {
+                "gradient" => DefaultGradientCases().Select(c => c.Input).ToArray(),
                 "size" => new[] { "1", "18.25", "18.256", "18.125", "768" },
                 "kerning" => new[] { "0", "0.001", "0.01", "12.25", "12.256", "12.125", "768" },
                 "letterSpacing" => new[] { "-768", "-1.256", "-1.125", "-0.001", "0", "0.01", "1.125", "1.256", "768" },
@@ -168,8 +184,8 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             })
             {
                 var restore = Project(deleted); var restoredParagraph = FirstTextParagraph(restore);
-                if (field is "highlight" or "color")
-                    restore["design"]!["grammar"]!["tokens"] = JsonNode.Parse("""{"mark":{"kind":"color","value":"#000000"}}""");
+                if (field is "highlight" or "color" or "gradient")
+                    restore["design"]!["grammar"]!["tokens"] = JsonNode.Parse("""{"mark":{"kind":"color","value":"#000000"},"accent1":{"kind":"color","value":"#000000"}}""");
                 restoredParagraph["style"] ??= new JsonObject();
                 restoredParagraph["style"]!["defaultText"] ??= new JsonObject();
                 restoredParagraph["style"]!["defaultText"]![field] = JsonNode.Parse(value);
@@ -188,11 +204,18 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                 if (field == "color")
                     expected = JsonValue.Create(value.StartsWith("{", StringComparison.Ordinal) ? "#808080"
                         : JsonNode.Parse(value)!.GetValue<string>().ToUpperInvariant())!.ToJsonString();
-                Assert.Equal(expected, ParagraphDefaultScalar(restored, kind, field)?.ToJsonString());
+                if (field == "gradient")
+                {
+                    expected = DefaultGradientCases().Single(c => c.Input == value).Expected;
+                    Assert.True(JsonNode.DeepEquals(JsonNode.Parse(expected), ParagraphDefaultScalar(restored, kind, field)));
+                }
+                else Assert.Equal(expected, ParagraphDefaultScalar(restored, kind, field)?.ToJsonString());
                 var expectedProjection = field == "underline"
                     ? JsonValue.Create(JsonNode.Parse(expected)!.GetValue<string>() switch
                     { "sng" => "single", "dbl" => "double", var token => token })!.ToJsonString() : expected;
-                Assert.Equal(expectedProjection, FirstTextParagraph(Project(restored))["style"]!["defaultText"]![field]!.ToJsonString());
+                if (field == "gradient")
+                    Assert.True(JsonNode.DeepEquals(JsonNode.Parse(expectedProjection), FirstTextParagraph(Project(restored))["style"]!["defaultText"]![field]));
+                else Assert.Equal(expectedProjection, FirstTextParagraph(Project(restored))["style"]!["defaultText"]![field]!.ToJsonString());
                 AssertOnlyBodyPropertyChanged(deleted, restored, kind, "paragraphDefault." + field);
             }
         }
@@ -228,6 +251,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         }
         var denied = Project(source);
         FirstTextParagraph(denied)["style"]!["defaultText"]![field] = isFont ? JsonValue.Create("Georgia")
+            : field == "gradient" ? JsonNode.Parse(DefaultGradientCases().First().Input)
             : field == "color" ? JsonValue.Create("#FF0000")
             : field == "highlight" ? JsonValue.Create("#112233")
             : field == "underline" ? JsonValue.Create("double")
@@ -318,10 +342,31 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             {
                 var request = Project(source);
                 var gradientDefaults = FirstTextParagraph(request)["style"]!["defaultText"]!.AsObject();
-                if (!retainColor) gradientDefaults.Remove("color");
+                if (!retainColor)
+                {
+                    gradientDefaults.Remove("color");
+                    RemoveDefaultFieldAuthority(request, "gradient");
+                }
                 gradientDefaults["gradient"] = JsonNode.Parse("""{"kind":"linear","angle":0,"stops":[{"offset":0,"color":"#000000"},{"offset":1,"color":"#FFFFFF"}]}""");
                 Assert.Empty(Compile(request, source, success: false).File);
             }
+        if (field == "gradient")
+        {
+            foreach (var invalid in new[] {
+                """{"stops":[]}""", """{"kind":"radial","angle":0,"stops":[{"offset":0,"color":"#112233"},{"offset":1,"color":"#FFFFFF"}]}""",
+                """{"angle":361,"stops":[{"offset":0,"color":"#112233"},{"offset":1,"color":"#FFFFFF"}]}""",
+                """{"stops":[{"offset":0.8,"color":"#112233"},{"offset":0.2,"color":"#FFFFFF"}]}""",
+                """{"stops":[{"offset":0,"color":"#112233","opacity":1.01},{"offset":1,"color":"#FFFFFF"}]}""",
+                """{"stops":[{"offset":0,"color":{"token":"missing"}},{"offset":1,"color":"#FFFFFF"}]}""", "false", "null" })
+            {
+                var request = Project(source);
+                FirstTextParagraph(request)["style"]!["defaultText"]![field] = JsonNode.Parse(invalid);
+                Assert.Empty(Compile(request, source, success: false).File);
+            }
+            var conflict = Project(source);
+            FirstTextParagraph(conflict)["style"]!["defaultText"]!["color"] = "#112233";
+            Assert.Empty(Compile(conflict, source, success: false).File);
+        }
         if (field == "language")
             foreach (var invalid in new[] { "", "en_US", " en-US", "en-US ", "a", "en-" + string.Join("-", Enumerable.Repeat("abcdefgh", 6)) + "-abcdefg" })
             {
@@ -842,6 +887,147 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         Assert.Equal(original, source);
     }
 
+    [Theory]
+    [InlineData("text")]
+    [InlineData("shape")]
+    public void ParagraphDefaultGradientAndColorSwitchWithBothAuthorities(string kind)
+    {
+        var program = Program(kind);
+        program["pages"]![0]!["elements"]![0]!["text"] = JsonNode.Parse("""
+            {"paragraphs":[{"style":{"defaultText":{"color":"#112233","bold":true}},"runs":[{"text":"Retain text","style":{"color":"#AABBCC80"}}]}]}
+            """);
+        var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
+        var original = source.ToArray();
+        var request = Project(source);
+        var defaults = FirstTextParagraph(request)["style"]!["defaultText"]!.AsObject();
+        defaults.Remove("color"); defaults["gradient"] = JsonNode.Parse(DefaultGradientJson);
+        foreach (var field in new[] { "color", "gradient" })
+        {
+            var denied = request.DeepClone().AsObject(); RemoveDefaultFieldAuthority(denied, field);
+            Assert.Empty(Compile(denied, source, success: false).File);
+        }
+        var gradient = Compile(request, source).File.ToByteArray();
+        Assert.Null(ParagraphDefaultScalar(gradient, kind, "color"));
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(DefaultGradientJson), ParagraphDefaultScalar(gradient, kind, "gradient")));
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(DefaultGradientJson), FirstTextParagraph(Project(gradient))["style"]!["defaultText"]!["gradient"]));
+        AssertOnlyBodyPropertyChanged(source, gradient, kind, "paragraphDefault.paint");
+        var restore = Project(gradient);
+        var restoredDefaults = FirstTextParagraph(restore)["style"]!["defaultText"]!.AsObject();
+        restoredDefaults.Remove("gradient"); restoredDefaults["color"] = "#FF000080";
+        foreach (var field in new[] { "color", "gradient" })
+        {
+            var denied = restore.DeepClone().AsObject(); RemoveDefaultFieldAuthority(denied, field);
+            Assert.Empty(Compile(denied, gradient, success: false).File);
+        }
+        var color = Compile(restore, gradient).File.ToByteArray();
+        Assert.Null(ParagraphDefaultScalar(color, kind, "gradient"));
+        Assert.Equal("#FF000080", ParagraphDefaultScalar(color, kind, "color")!.GetValue<string>());
+        Assert.Equal("#FF000080", FirstTextParagraph(Project(color))["style"]!["defaultText"]!["color"]!.GetValue<string>());
+        AssertOnlyBodyPropertyChanged(gradient, color, kind, "paragraphDefault.paint");
+
+        using var stream = new MemoryStream(); stream.Write(source);
+        using (var document = PresentationDocument.Open(stream, true))
+        {
+            var fill = Owner(document, kind).Descendants<A.DefaultRunProperties>().First().GetFirstChild<A.SolidFill>()!;
+            fill.RemoveAllChildren();
+            fill.Append(new A.SchemeColor(new A.LuminanceModulation { Val = 50000 }) { Val = A.SchemeColorValues.Accent1 });
+        }
+        var transformed = stream.ToArray();
+        var incompatible = Project(transformed);
+        var changed = FirstTextParagraph(incompatible)["style"]!["defaultText"]!.AsObject();
+        changed.Remove("color"); changed["gradient"] = JsonNode.Parse(DefaultGradientJson);
+        Assert.Empty(Compile(incompatible, transformed, success: false).File);
+        Assert.Equal(original, source);
+    }
+
+    [Theory]
+    [InlineData("scaled")]
+    [InlineData("theme")]
+    [InlineData("duplicate")]
+    [InlineData("unknown-element")]
+    public void ParagraphDefaultGradientRetainsUnmodeledSourcePaint(string profile)
+    {
+        var program = Program("text");
+        program["pages"]![0]!["elements"]![0]!["text"] = JsonNode.Parse("""
+            {"paragraphs":[{"style":{"defaultText":{"bold":true}},"runs":[{"text":"Retain source text"}]}]}
+            """);
+        FirstTextParagraph(program)["style"]!["defaultText"]!["gradient"] = JsonNode.Parse(DefaultGradientJson);
+        var authored = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
+        using var stream = new MemoryStream(); stream.Write(authored);
+        using (var document = PresentationDocument.Open(stream, true))
+        {
+            var defaults = Owner(document, "text").Descendants<A.DefaultRunProperties>().First();
+            var fill = defaults.GetFirstChild<A.GradientFill>()!;
+            if (profile == "scaled") fill.GetFirstChild<A.LinearGradientFill>()!.Scaled = true;
+            else if (profile == "duplicate") defaults.Append(fill.CloneNode(true));
+            else
+            {
+                var stop = fill.GetFirstChild<A.GradientStopList>()!.Elements<A.GradientStop>().First();
+                if (profile == "theme")
+                {
+                    stop.RemoveAllChildren();
+                    stop.Append(new A.SchemeColor { Val = A.SchemeColorValues.Accent1 });
+                }
+                else stop.GetFirstChild<A.RgbColorModelHex>()!.InnerXml =
+                    """<future:color xmlns:future="urn:officekit:test" value="retain"/>""";
+            }
+        }
+        var source = stream.ToArray(); var original = source.ToArray();
+        Assert.Equal(source, Compile(Project(source), source).File.ToByteArray());
+        foreach (var field in new[] { "gradient", "color" })
+        {
+            var replace = Project(source);
+            FirstTextParagraph(replace)["style"]!["defaultText"]![field] = field == "gradient" ? JsonNode.Parse(DefaultGradientJson) : JsonValue.Create("#FF0000");
+            Assert.Empty(Compile(replace, source, success: false).File);
+        }
+        foreach (var remove in new[] { false, true })
+        {
+            var request = Project(source);
+            var defaults = FirstTextParagraph(request)["style"]!["defaultText"]!.AsObject();
+            if (remove) defaults.Remove("bold"); else defaults["bold"] = false;
+            var candidate = Compile(request, source).File.ToByteArray();
+            AssertOnlyBodyPropertyChanged(source, candidate, "text", "paragraphDefault.bold");
+        }
+        Assert.Equal(original, source);
+    }
+
+    private const string DefaultGradientJson = """{"kind":"linear","angle":30,"stops":[{"offset":0,"color":"#112233"},{"offset":1,"color":"#AABBCC","opacity":1}]}""";
+
+    private static (string Input, string Expected)[] DefaultGradientCases() => new[]
+    {
+        ("""{"kind":"linear","angle":-90,"stops":[{"offset":0,"color":"#000000","opacity":0},{"offset":0,"color":"#FF0000","opacity":1},{"offset":1,"color":"#FFFFFF"}]}""",
+         """{"kind":"linear","angle":270,"stops":[{"offset":0,"color":"#000000","opacity":0},{"offset":0,"color":"#FF0000","opacity":1},{"offset":1,"color":"#FFFFFF"}]}"""),
+        ("""{"kind":"radial","stops":[{"offset":0,"color":"#00000080"},{"offset":0.5,"color":{"token":"accent1"}},{"offset":1,"color":{"token":"mark","tint":1,"shade":0.5}}]}""",
+         """{"kind":"radial","stops":[{"offset":0,"color":"#000000","opacity":0.50196},{"offset":0.5,"color":"#000000"},{"offset":1,"color":"#808080"}]}"""),
+        ("""{"angle":359.999999,"stops":[{"offset":0.123456,"color":"#112233"},{"offset":1,"color":"#AABBCC","opacity":0.123456}]}""",
+         """{"kind":"linear","angle":0,"stops":[{"offset":0.12346,"color":"#112233"},{"offset":1,"color":"#AABBCC","opacity":0.12346}]}"""),
+    };
+
+    private static void RemoveDefaultFieldAuthority(JsonObject program, string field)
+    {
+        var fields = program["pages"]![0]!["elements"]![0]!["nativeRef"]!["capabilities"]!.AsArray()
+            .Single(c => c!["operation"]!.GetValue<string>() == "setTextParagraphStyle")!["fields"]!.AsArray();
+        fields.Remove(fields.Single(f => f!.GetValue<string>() == "text.paragraphs[].style.defaultText." + field));
+    }
+
+    private static JsonNode? NativeDefaultGradient(A.DefaultRunProperties? defaults)
+    {
+        var gradient = defaults?.GetFirstChild<A.GradientFill>();
+        if (gradient is null) return null;
+        var linear = gradient.GetFirstChild<A.LinearGradientFill>();
+        var stops = new JsonArray();
+        foreach (var stop in gradient.GetFirstChild<A.GradientStopList>()!.Elements<A.GradientStop>())
+        {
+            var color = stop.GetFirstChild<A.RgbColorModelHex>()!;
+            var value = new JsonObject { ["offset"] = stop.Position!.Value / 100000d, ["color"] = "#" + color.Val!.Value };
+            if (color.GetFirstChild<A.Alpha>() is { } alpha) value["opacity"] = alpha.Val!.Value / 100000d;
+            stops.Add(value);
+        }
+        var output = new JsonObject { ["kind"] = linear is null ? "radial" : "linear", ["stops"] = stops };
+        if (linear is not null) output["angle"] = linear.Angle!.Value / 60000d;
+        return output;
+    }
+
     private static JsonNode? NativeDefaultColor(A.DefaultRunProperties? defaults)
     {
         var color = defaults?.GetFirstChild<A.SolidFill>()?.FirstChild;
@@ -879,6 +1065,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             "strike" => defaults?.Strike is { } strike ? JsonValue.Create(strike.InnerText) : null,
             "underline" => defaults?.Underline is { } underline ? JsonValue.Create(underline.InnerText) : null,
             "color" => NativeDefaultColor(defaults),
+            "gradient" => NativeDefaultGradient(defaults),
             "highlight" => defaults?.GetFirstChild<A.Highlight>() is { } highlight
                 ? highlight.GetFirstChild<A.SchemeColor>() is { } scheme
                     ? new JsonObject { ["token"] = scheme.Val!.InnerText }
@@ -1881,6 +2068,12 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                     else if (field == "paragraphDefault.underline") defaults.Underline = null;
                     else if (field == "paragraphDefault.highlight") defaults.GetFirstChild<A.Highlight>()?.Remove();
                     else if (field == "paragraphDefault.color") defaults.GetFirstChild<A.SolidFill>()?.Remove();
+                    else if (field == "paragraphDefault.gradient") defaults.GetFirstChild<A.GradientFill>()?.Remove();
+                    else if (field == "paragraphDefault.paint")
+                    {
+                        defaults.GetFirstChild<A.SolidFill>()?.Remove();
+                        defaults.GetFirstChild<A.GradientFill>()?.Remove();
+                    }
                     if (defaults.GetAttributes().Count == 0 && defaults.ChildElements.Count == 0) defaults.Remove();
                 }
                 if (paragraphProperties is not null && paragraphProperties.GetAttributes().Count == 0 && paragraphProperties.ChildElements.Count == 0)

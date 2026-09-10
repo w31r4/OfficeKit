@@ -2970,6 +2970,7 @@ internal static partial class PpjPresentationProjector
                             "text.paragraphs[].style.defaultText.underline",
                             "text.paragraphs[].style.defaultText.highlight",
                             "text.paragraphs[].style.defaultText.color",
+                            "text.paragraphs[].style.defaultText.gradient",
                         ]));
                         if (PptxBodyPropertiesCodec.SupportsBoundedDirectLayout(element.Shape.TextBody?.BodyProperties))
                         {

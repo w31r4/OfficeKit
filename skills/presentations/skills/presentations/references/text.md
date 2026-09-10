@@ -150,8 +150,23 @@ tint/shade resolve to RGB. Editing one paragraph preserves neighboring native
 alpha precision, theme bindings and direct run paint. Source luminance
 transforms, duplicate fills and unmodeled paint remain source-owned; unrelated
 scalar edits preserve them, replacement rejects, and projected transformed
-colors also reject deletion. Gradient editing, placeholder inheritance and
-host rendering need their own evidence.
+colors also reject deletion. Placeholder inheritance and host rendering
+need their own evidence.
+
+
+Use defaultText.gradient for linear or centered radial text gradients with
+2..16 ordered stops; equal offsets retain sharp transitions. Omitted kind
+means linear. Offsets and opacity use 1/100000 precision, and linear angles
+wrap after rounding to 1/60000 degree. Stop opacity 0/1 stays explicit.
+Color tokens resolve to RGB; declared grammar stop colors take precedence
+during source edits. Delete the field or its gradient-only defaultText/style
+wrapper to remove the direct gradient, then assign to restore it.
+To switch paint, remove color and assign gradient (or the reverse); both
+fields need source-edit authority. Other paragraphs retain exact source
+decorations and alpha precision. Unmodeled scaling, theme-stop graphs,
+duplicate fills and unknown nested content survive unrelated scalar edits
+and reject replacement. Local text-gradient preview and host rendering
+remain partial and require separate visual evidence.
 
 
 `textWarpPreset`, `textWarpAdjustments`, `flatTextZ`, `fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,

@@ -4869,7 +4869,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         {
             var degrees = OptionalDouble(fill, "angle") ?? 0;
             var normalized = ((degrees % 360) + 360) % 360;
-            output.Angle60000 = Angle(normalized);
+            output.Angle60000 = Angle(normalized) % (360 * 60_000);
         }
         else if (fill.TryGetProperty("angle", out _))
         {
@@ -4884,7 +4884,7 @@ internal static partial class PpjAuthoredPresentationCompiler
                 ColorRgb = color.Rgb,
             };
             var alpha = OptionalDouble(item, "opacity") ?? color.Alpha;
-            if (alpha < 1) stop.OpacityThousandthPercent = Opacity(alpha);
+            if (item.TryGetProperty("opacity", out _) || alpha < 1) stop.OpacityThousandthPercent = Opacity(alpha);
             output.Stops.Add(stop);
         }
         PptxGradientFillCodec.Validate(output, "PPJ gradient");

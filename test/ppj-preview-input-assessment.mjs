@@ -60,9 +60,12 @@ const falseParagraphSpacingText = assessPpjPreviewInput(deck([{ ...text, style: 
 assert.ok(falseParagraphSpacingText.diagnostics.some(d => d.path.endsWith(".style.spaceFirstLastParagraph") && d.status !== "supported"));
 const falseCompatibleSpacingText = assessPpjPreviewInput(deck([{ ...text, style: { compatibleLineSpacing: false } }]));
 assert.ok(falseCompatibleSpacingText.diagnostics.some(d => d.path.endsWith(".style.compatibleLineSpacing") && d.status !== "supported"));
-for (const field of ["bold", "italic", "size", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "language", "kerning", "letterSpacing", "baseline", "capitalization", "strike", "underline", "highlight", "color"]) {
-  const defaults = assessPpjPreviewInput(deck([{ ...text, text: { paragraphs: [{ style: { defaultText: { [field]: ["highlight", "color"].includes(field) ? "#FFFF00" : field.startsWith("fontFamily") ? "Georgia" : ["size", "kerning", "letterSpacing", "baseline"].includes(field) ? 18.25 : field === "language" ? "fr-FR" : ["capitalization", "underline"].includes(field) ? "none" : false } }, runs: [{ text: "Default style" }] }] } }]));
-  assert.ok(defaults.diagnostics.some(d => d.path.endsWith(".style.defaultText." + field) && d.status !== "supported"));
+for (const field of ["bold", "italic", "size", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "language", "kerning", "letterSpacing", "baseline", "capitalization", "strike", "underline", "highlight", "color", "gradient"]) {
+  const defaults = assessPpjPreviewInput(deck([{ ...text, text: { paragraphs: [{ style: { defaultText: { [field]: field === "gradient" ? { kind: "linear", angle: 45, stops: [{ offset: 0, color: "#112233", opacity: 0 }, { offset: 1, color: "#FFFFFF", opacity: 1 }] } : ["highlight", "color"].includes(field) ? "#FFFF00" : field.startsWith("fontFamily") ? "Georgia" : ["size", "kerning", "letterSpacing", "baseline"].includes(field) ? 18.25 : field === "language" ? "fr-FR" : ["capitalization", "underline"].includes(field) ? "none" : false } }, runs: [{ text: "Default style" }] }] } }]));
+  if (field === "gradient") {
+    for (const leaf of ["angle", "kind", "stops[0].offset", "stops[0].color", "stops[0].opacity", "stops[1].opacity"])
+      assert.ok(defaults.diagnostics.some(d => d.path.endsWith(".style.defaultText.gradient." + leaf) && d.status !== "supported"));
+  } else assert.ok(defaults.diagnostics.some(d => d.path.endsWith(".style.defaultText." + field) && d.status !== "supported"));
 }
 const explicitNoWarp = assessPpjPreviewInput(deck([{ ...text, style: { textWarpPreset: "textNoShape", textWarpAdjustments: [] } }]));
 assert.ok(explicitNoWarp.diagnostics.some(d => d.path.endsWith(".style.textWarpPreset") && d.status !== "supported"));

@@ -464,6 +464,18 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 ### F-03 文本、段落、列表、字段和 WordArt
 
 
+**段落默认文字渐变增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.defaultText.gradient` 支持线性/居中径向渐变、
+删除、恢复和单字段包装删除。2–16 个有序色标允许重复位置；RGBA/token
+解析为 RGB 与色标透明度，显式 opacity 0/1 保留，角度在原生舍入后归一化。
+源编辑中 grammar 同名颜色优先。纯色与渐变切换须同时拥有两个字段的权限。
+修改一段保留其它段的 tileRect、alpha 精度、run 颜色和非目标 XML/ZIP。
+不支持的缩放、主题色标、重复填充和未知子内容随无关标量编辑保留，拒绝覆盖。
+相关 **248/248 通过，0 跳过**，沿用整组默认样式基线排除项；补强颜色 token
+碰撞用例后，4 个生命周期用例再次通过。旧百分比径向渐变测试已按现有读取器
+校正为“居中 50% 支持、非居中 25% 拒绝”。资料与 OpenSpec 同步，
+文字渐变预览仍为 partial；完整 F-03 和宿主显示继续开放。
+
 **段落默认文字颜色增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.defaultText.color` 支持 RGB/RGBA、颜色 token、
 删除、恢复和单字段包装删除。显式 alpha 0/1 与缺省分别保留；简单源主题色

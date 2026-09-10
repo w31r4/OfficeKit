@@ -103,7 +103,7 @@ internal static class PptxDefaultRunStyleCodec
             var clearing = new PresentationTextParagraph();
             Read(clearing, target);
             if (clearing.DefaultRunProperties is { ColorCase: not PresentationTextStyle.ColorOneofCase.None })
-                ValidateDirectColorEdit(properties);
+                ValidateDirectFillEdit(properties);
             ClearModeled(properties);
             RemoveIfEmpty(properties);
             return;
@@ -119,8 +119,8 @@ internal static class PptxDefaultRunStyleCodec
         var after = source.DefaultRunProperties;
         var beforeWithoutScalars = before.Clone();
         var afterWithoutScalars = after.Clone();
-        beforeWithoutScalars.ClearBold(); beforeWithoutScalars.ClearItalic(); beforeWithoutScalars.ClearFontSizePoints(); beforeWithoutScalars.ClearFontFamily(); beforeWithoutScalars.ClearFontFamilyEastAsia(); beforeWithoutScalars.ClearFontFamilyComplexScript(); beforeWithoutScalars.ClearLanguage(); beforeWithoutScalars.ClearFontKerningPoints(); beforeWithoutScalars.ClearFontSpacingPoints(); beforeWithoutScalars.ClearFontBaselinePercent(); beforeWithoutScalars.ClearFontCaps(); beforeWithoutScalars.ClearStrike(); beforeWithoutScalars.ClearUnderline(); beforeWithoutScalars.ClearHighlight(); beforeWithoutScalars.ClearColor(); beforeWithoutScalars.ClearColorOpacityThousandthPercent();
-        afterWithoutScalars.ClearBold(); afterWithoutScalars.ClearItalic(); afterWithoutScalars.ClearFontSizePoints(); afterWithoutScalars.ClearFontFamily(); afterWithoutScalars.ClearFontFamilyEastAsia(); afterWithoutScalars.ClearFontFamilyComplexScript(); afterWithoutScalars.ClearLanguage(); afterWithoutScalars.ClearFontKerningPoints(); afterWithoutScalars.ClearFontSpacingPoints(); afterWithoutScalars.ClearFontBaselinePercent(); afterWithoutScalars.ClearFontCaps(); afterWithoutScalars.ClearStrike(); afterWithoutScalars.ClearUnderline(); afterWithoutScalars.ClearHighlight(); afterWithoutScalars.ClearColor(); afterWithoutScalars.ClearColorOpacityThousandthPercent();
+        beforeWithoutScalars.ClearBold(); beforeWithoutScalars.ClearItalic(); beforeWithoutScalars.ClearFontSizePoints(); beforeWithoutScalars.ClearFontFamily(); beforeWithoutScalars.ClearFontFamilyEastAsia(); beforeWithoutScalars.ClearFontFamilyComplexScript(); beforeWithoutScalars.ClearLanguage(); beforeWithoutScalars.ClearFontKerningPoints(); beforeWithoutScalars.ClearFontSpacingPoints(); beforeWithoutScalars.ClearFontBaselinePercent(); beforeWithoutScalars.ClearFontCaps(); beforeWithoutScalars.ClearStrike(); beforeWithoutScalars.ClearUnderline(); beforeWithoutScalars.ClearHighlight(); beforeWithoutScalars.ClearColor(); beforeWithoutScalars.ClearColorOpacityThousandthPercent(); beforeWithoutScalars.GradientFill = null;
+        afterWithoutScalars.ClearBold(); afterWithoutScalars.ClearItalic(); afterWithoutScalars.ClearFontSizePoints(); afterWithoutScalars.ClearFontFamily(); afterWithoutScalars.ClearFontFamilyEastAsia(); afterWithoutScalars.ClearFontFamilyComplexScript(); afterWithoutScalars.ClearLanguage(); afterWithoutScalars.ClearFontKerningPoints(); afterWithoutScalars.ClearFontSpacingPoints(); afterWithoutScalars.ClearFontBaselinePercent(); afterWithoutScalars.ClearFontCaps(); afterWithoutScalars.ClearStrike(); afterWithoutScalars.ClearUnderline(); afterWithoutScalars.ClearHighlight(); afterWithoutScalars.ClearColor(); afterWithoutScalars.ClearColorOpacityThousandthPercent(); afterWithoutScalars.GradientFill = null;
         if (beforeWithoutScalars.Equals(afterWithoutScalars))
         {
             // Patch changed scalars without rebuilding unrelated font/fill/effect
@@ -185,9 +185,10 @@ internal static class PptxDefaultRunStyleCodec
                 ApplyHighlight(properties, after);
             if (before.ColorCase != after.ColorCase || before.ColorRgb != after.ColorRgb || before.ColorScheme != after.ColorScheme ||
                 before.HasColorOpacityThousandthPercent != after.HasColorOpacityThousandthPercent ||
-                before.ColorOpacityThousandthPercent != after.ColorOpacityThousandthPercent)
+                before.ColorOpacityThousandthPercent != after.ColorOpacityThousandthPercent ||
+                !Equals(before.GradientFill, after.GradientFill))
             {
-                ValidateDirectColorEdit(properties);
+                ValidateDirectFillEdit(properties);
                 ApplyFill(properties, after);
             }
             if (before.HasLanguage != after.HasLanguage || before.Language != after.Language)
@@ -359,12 +360,12 @@ internal static class PptxDefaultRunStyleCodec
         }
     }
 
-    private static void ValidateDirectColorEdit(A.DefaultRunProperties target)
+    private static void ValidateDirectFillEdit(A.DefaultRunProperties target)
     {
         var colors = ColorChoices(target).ToArray();
-        if (colors.Length > 1 || colors.Any(color => color is not A.SolidFill fill ||
-            !ModeledFill(fill) || fill.ChildElements[0].ChildElements.Any(child => child is not A.Alpha)))
-            throw Unsupported("Source-preserving PPTX export cannot replace or delete default-run color with unmodeled paint or transforms.");
+        if (colors.Length > 1 || colors.Any(color => !ModeledFill(color) ||
+            color is A.SolidFill fill && fill.ChildElements[0].ChildElements.Any(child => child is not A.Alpha)))
+            throw Unsupported("Source-preserving PPTX export cannot replace or delete default-run fill with unmodeled paint or transforms.");
     }
 
     private static void ApplyFill(A.DefaultRunProperties target, PresentationTextStyle source)

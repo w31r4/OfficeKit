@@ -5,6 +5,29 @@ This document describes the supported OfficeKit boundary. It is not a promise th
 
 
 
+PPJ paragraph default gradient (2026-09-10): ordinary text/shape paragraphs
+support independent linear/centered-radial gradient assignment, deletion,
+gradient-only wrapper removal and restoration. Ordered duplicate stops,
+RGB/token colors and explicit stop opacity 0/1 retain their meanings.
+The authored builder now retains opacity 1 and wraps angles after rounding.
+Source-bound grammar colors take precedence over same-name theme colors.
+Color/gradient transitions require both changed-field authorities.
+Only changed paragraphs are rewritten; neighboring tile decorations/alpha
+precision, direct run paint and non-target XML/ZIP remain unchanged.
+Unsupported scaling, theme stops, duplicate fills and unknown nested
+elements survive no-op/unrelated scalar edits and reject replacement.
+
+Native related tests pass 248/248, zero skipped (SDK 8.0.128), retaining the
+documented whole-default-style baseline exclusion. This includes ten new
+gradient cases. The grammar-collision fixture was then strengthened and its
+four lifecycle cases passed again. The stale percentage-radial test now
+matches the reader introduced in 27e138a4: centered 50% is modeled without
+rewriting source XML, while a noncentered 25% coordinate remains opaque.
+Schema/Help/registry/references and focused preview diagnostics are updated.
+Generated metadata, portability/reference sync and strict OpenSpec checks pass.
+Text-gradient preview remains partial. No wire change, NativeAOT rebuild or
+PowerPoint host acceptance.
+
 PPJ paragraph default color (2026-09-10): ordinary text/shape paragraphs
 support independent RGB/RGBA/token assignment, deletion, color-only wrapper
 removal and restoration. Explicit direct alpha zero/one retains presence;
