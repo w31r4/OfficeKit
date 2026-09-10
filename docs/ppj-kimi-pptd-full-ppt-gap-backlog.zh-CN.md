@@ -1198,7 +1198,17 @@ strict owner 上新增 `textDefaultShadowSkewY`，对应
 `endPos` 可变、双端可变、异常 token 和复杂 effect graph 继续 source-owned。
 本轮不宣称 PowerPoint 宿主反射显示。
 
-**仍缺：** 完整 PowerPoint field (`p:fld`) 语义、字段刷新/宿主求值、日期/页码/作者自动字段的完整类型目录、复杂 WordArt transform、除 authored、direct rich-text run（含本轮 startPosition）及 strict `defaultText` 已覆盖的 glow、outer shadow、inner shadow、reflection、soft-edge leaves 外的完整文本 effect、`defaultText` 的其它 source-bound effect leaf、所有语言/脚本/字体回退组合、rich text 的未知扩展和复杂列表拓扑；文本容器 bodyPr 当前已覆盖 direct vertical alignment/wrap/inset/columns/column gap-direction/vertical text、rotation、horizontal/vertical overflow、upright、anchorCenter、有限 auto-fit 及 canonical `normalAutoFit` 百分比，继承、显式删除、effect/extension graph 和自动 reflow 仍 source-owned；`run.break` 只承诺已有 line-break inline 的固定拓扑保留，不提供自动换行或段落重排；表格字段 profile 仍只允许修改已有字段的缓存 display text，字段 ID/type、字段关系和复杂字段图继续 source-owned；普通文本/形状字段新增的静态 type-token 叶子也只覆盖直接 `a:fld/@type`，不扩展表格字段或自动字段求值；当前 typed field 只承诺固定可回读值，不伪装成 PowerPoint 自动计算。
+**直接 rich-text reflection endPosition 增量（2026-09-11）：**
+新增 `text.paragraphs[].runs[].style.reflection.endPosition` 对应的
+`textReflectionEndPosition` native leaf。对直接 `a:rPr/a:effectLst/a:reflection`，
+只有显式规范整数 `endPos` 且 `stPos` 缺省或为 `0` 时才投影；编辑只替换
+所属 SlidePart 的 `reflection/@endPos`，保留其它效果、run 拓扑和非目标 ZIP，
+二次投影恢复 0..1 值。`PpjSourceBoundTextReflectionEndPositionEditsCanonicalTokenAndReprojects`
+覆盖 `80000` → `65000`、0.8 → 0.65、Open XML 校验和只改 slide part；
+`stPos` 可变、双端可变、异常 token 和复杂 effect graph 继续 source-owned。
+本轮不宣称 PowerPoint 宿主反射显示。
+
+**仍缺：** 完整 PowerPoint field (`p:fld`) 语义、字段刷新/宿主求值、日期/页码/作者自动字段的完整类型目录、复杂 WordArt transform、除 authored、direct rich-text run（含 startPosition/endPosition）及 strict `defaultText` 已覆盖的 glow、outer shadow、inner shadow、reflection、soft-edge leaves 外的完整文本 effect、`defaultText` 的其它 source-bound effect leaf、所有语言/脚本/字体回退组合、rich text 的未知扩展和复杂列表拓扑；文本容器 bodyPr 当前已覆盖 direct vertical alignment/wrap/inset/columns/column gap-direction/vertical text、rotation、horizontal/vertical overflow、upright、anchorCenter、有限 auto-fit 及 canonical `normalAutoFit` 百分比，继承、显式删除、effect/extension graph 和自动 reflow 仍 source-owned；`run.break` 只承诺已有 line-break inline 的固定拓扑保留，不提供自动换行或段落重排；表格字段 profile 仍只允许修改已有字段的缓存 display text，字段 ID/type、字段关系和复杂字段图继续 source-owned；普通文本/形状字段新增的静态 type-token 叶子也只覆盖直接 `a:fld/@type`，不扩展表格字段或自动字段求值；当前 typed field 只承诺固定可回读值，不伪装成 PowerPoint 自动计算。
 
 **待实现与验收：** 新增字段前先定义静态值、自动值和宿主计算的边界；静态 display 的 source-bound 编辑已由 `PpjTextFieldAuthorsAndProjectsAsTypedRun` 覆盖，field 的 ID/type 变更仍 fail closed；authoring 必须二次导入恢复；第三方 field/WordArt 未识别时保持原文，不能转成普通字符串；文本布局报告必须与实际字体、边距和 AutoFit 证据绑定。
 

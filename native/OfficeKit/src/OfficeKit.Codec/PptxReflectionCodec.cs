@@ -5,8 +5,8 @@ using A = DocumentFormat.OpenXml.Drawing;
 namespace OfficeKit.Codec;
 
 // Direct DrawingML reflection values. Charts, direct rich-text runs and the
-// bounded paragraph-default start-position profile opt into variable
-// positions; ordinary imported proofs retain their full-span profile.
+// bounded paragraph-default endpoint profiles opt into variable positions;
+// ordinary imported proofs retain their full-span profile.
 // Transforms remain opt-in per caller.
 internal static class PptxReflectionCodec
 {

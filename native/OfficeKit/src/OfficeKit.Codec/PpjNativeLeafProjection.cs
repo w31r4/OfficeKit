@@ -148,6 +148,7 @@ internal static class PpjNativeLeafProjection
             ["imageReflectionDirectionDegrees"] = 60_000,
             ["textInnerShadowDirectionDegrees"] = 60_000,
             ["textReflectionStartPosition"] = 100_000,
+            ["textReflectionEndPosition"] = 100_000,
             ["textReflectionDirectionDegrees"] = 60_000,
         };
 
@@ -1668,6 +1669,10 @@ internal static class PpjNativeLeafProjection
             (!reflection.HasEndPositionThousandthPercent || reflection.EndPositionThousandthPercent == 100_000))
             AddScaled(add, "textReflectionStartPosition",
                 reflection.StartPositionThousandthPercent / 100_000d, 100_000, runIndex);
+        if (reflection.HasEndPositionThousandthPercent &&
+            (!reflection.HasStartPositionThousandthPercent || reflection.StartPositionThousandthPercent == 0))
+            AddScaled(add, "textReflectionEndPosition",
+                reflection.EndPositionThousandthPercent / 100_000d, 100_000, runIndex);
         var fullSpan = (!reflection.HasStartPositionThousandthPercent || reflection.StartPositionThousandthPercent == 0) &&
                        (!reflection.HasEndPositionThousandthPercent || reflection.EndPositionThousandthPercent == 100_000);
         if (!fullSpan)

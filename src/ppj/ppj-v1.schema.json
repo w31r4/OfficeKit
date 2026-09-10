@@ -2253,6 +2253,7 @@
             "textReflectionDistanceEmu",
             "textDefaultReflectionDistanceEmu",
             "textReflectionStartPosition",
+            "textReflectionEndPosition",
             "textReflectionDirectionDegrees",
             "textDefaultReflectionDirectionDegrees",
             "textDefaultReflectionFadeAngleDegrees",

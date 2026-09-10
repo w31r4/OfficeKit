@@ -115,13 +115,15 @@ public sealed partial class PptxCodecTests
         Assert.Equal(12, reflection["distance"]!.GetValue<double>());
         Assert.Equal(45.5, reflection["angle"]!.GetValue<double>());
         Assert.Equal(0, reflection["startPosition"]!.GetValue<double>(), precision: 6);
+        Assert.Equal(1, reflection["endPosition"]!.GetValue<double>(), precision: 6);
 
         var reflectionLeaves = projectedElement["nativeRef"]!["leaves"]!.AsArray()
             .Select(leaf => leaf!.AsObject())
             .Where(leaf => leaf["kind"]!.GetValue<string>().StartsWith("textReflection", StringComparison.Ordinal))
             .ToArray();
-        Assert.Equal(6, reflectionLeaves.Length);
+        Assert.Equal(7, reflectionLeaves.Length);
         Assert.Equal(0, reflectionLeaves.Single(leaf => leaf["kind"]!.GetValue<string>() == "textReflectionStartPosition")["value"]!.GetValue<double>(), precision: 6);
+        Assert.Equal(1, reflectionLeaves.Single(leaf => leaf["kind"]!.GetValue<string>() == "textReflectionEndPosition")["value"]!.GetValue<double>(), precision: 6);
         Assert.Equal(63_500, reflectionLeaves.Single(leaf => leaf["kind"]!.GetValue<string>() == "textReflectionBlurRadiusEmu")["value"]!.GetValue<long>());
         Assert.Equal(42_000, reflectionLeaves.Single(leaf => leaf["kind"]!.GetValue<string>() == "textReflectionStartOpacityThousandthPercent")["value"]!.GetValue<long>());
         Assert.Equal(8_000, reflectionLeaves.Single(leaf => leaf["kind"]!.GetValue<string>() == "textReflectionEndOpacityThousandthPercent")["value"]!.GetValue<long>());
@@ -330,13 +332,155 @@ public sealed partial class PptxCodecTests
         var reprojectedElement = reprojectedProgram["pages"]![0]!["elements"]![0]!.AsObject();
         var reprojectedReflection = reprojectedElement["text"]!["paragraphs"]![0]!["runs"]![0]!["style"]!["reflection"]!;
         Assert.Equal(0.35, reprojectedReflection["startPosition"]!.GetValue<double>(), precision: 6);
+        Assert.Equal(1, reprojectedReflection["endPosition"]!.GetValue<double>(), precision: 6);
         Assert.Equal(0.35, reprojectedElement["nativeRef"]!["leaves"]!.AsArray()
             .Select(leaf => leaf!.AsObject())
             .Single(leaf => leaf["kind"]!.GetValue<string>() == "textReflectionStartPosition")["value"]!.GetValue<double>(), precision: 6);
     }
 
     [Fact]
-    public void PpjSourceBoundTextReflectionLeavesStayOpaqueOutsideFullSpanProfile()
+    public void PpjSourceBoundTextReflectionEndPositionEditsCanonicalTokenAndReprojects()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "examples",
+            "ppj",
+            "minimum.ppj")))!.AsObject();
+        program["pages"]![0]!["elements"]![0]!["text"] = new JsonObject
+        {
+            ["paragraphs"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["runs"] = new JsonArray
+                    {
+                        new JsonObject
+                        {
+                            ["text"] = "Variable reflection end",
+                            ["style"] = new JsonObject
+                            {
+                                ["reflection"] = new JsonObject
+                                {
+                                    ["blur"] = 5,
+                                    ["startOpacity"] = 0.42,
+                                    ["endOpacity"] = 0.08,
+                                    ["distance"] = 12,
+                                    ["angle"] = 45.5,
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+
+        var variableEnd = authored.File.ToByteArray();
+        using (var stream = new MemoryStream())
+        {
+            stream.Write(variableEnd);
+            stream.Position = 0;
+            using (var package = PresentationDocument.Open(stream, true))
+            {
+                var nativeReflection = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.Reflection>().Single();
+                nativeReflection.StartPosition = 0;
+                nativeReflection.EndPosition = 80_000;
+            }
+            variableEnd = stream.ToArray();
+        }
+
+        var source = RemoveEmbeddedPpj(variableEnd);
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/text-reflection-end-position.pptx",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var projectedProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedElement = projectedProgram["pages"]![0]!["elements"]![0]!.AsObject();
+        var reflection = projectedElement["text"]!["paragraphs"]![0]!["runs"]![0]!["style"]!["reflection"]!.AsObject();
+        Assert.Equal(0.8, reflection["endPosition"]!.GetValue<double>(), precision: 6);
+        var reflectionLeaves = projectedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Select(leaf => leaf!.AsObject())
+            .Where(leaf => leaf["kind"]!.GetValue<string>().StartsWith("textReflection", StringComparison.Ordinal))
+            .ToArray();
+        var endLeaf = Assert.Single(reflectionLeaves);
+        Assert.Equal("textReflectionEndPosition", endLeaf["kind"]!.GetValue<string>());
+        Assert.Equal(0.8, endLeaf["value"]!.GetValue<double>(), precision: 6);
+
+        endLeaf["value"] = 0.65;
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(projectedProgram.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var native = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.Reflection>().Single();
+            Assert.Equal(0, native.StartPosition!.Value);
+            Assert.Equal(65_000, native.EndPosition!.Value);
+        }
+
+        var editedBytes = edited.File.ToByteArray();
+        foreach (var path in ZipPartPaths(source).Where(path => !path.Equals("ppt/slides/slide1.xml", StringComparison.OrdinalIgnoreCase)))
+            Assert.Equal(ZipBytes(source, path), ZipBytes(editedBytes, path));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/edited/text-reflection-end-position.pptx",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var reprojectedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var reprojectedElement = reprojectedProgram["pages"]![0]!["elements"]![0]!.AsObject();
+        var reprojectedReflection = reprojectedElement["text"]!["paragraphs"]![0]!["runs"]![0]!["style"]!["reflection"]!;
+        Assert.Equal(0.65, reprojectedReflection["endPosition"]!.GetValue<double>(), precision: 6);
+        Assert.Equal(0.65, reprojectedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Select(leaf => leaf!.AsObject())
+            .Single(leaf => leaf["kind"]!.GetValue<string>() == "textReflectionEndPosition")["value"]!.GetValue<double>(), precision: 6);
+    }
+
+    [Fact]
+    public void PpjSourceBoundTextReflectionLeavesStayOpaqueOutsideOneVariableEndpointProfile()
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
         while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
@@ -414,6 +558,7 @@ public sealed partial class PptxCodecTests
             using (var package = PresentationDocument.Open(stream, true))
             {
                 var reflection = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.Reflection>().Single();
+                reflection.StartPosition = 1_000;
                 reflection.EndPosition = 99_000;
             }
             nonFullSpan = stream.ToArray();
