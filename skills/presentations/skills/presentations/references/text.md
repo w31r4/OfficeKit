@@ -142,6 +142,18 @@ for edits and byte-identical no-op. Host highlight geometry and placeholder
 inheritance need separate evidence.
 
 
+Use defaultText.color for RGB/RGBA or a color token. Delete it or its color-only
+defaultText/style wrapper to remove the direct fill, then assign to restore.
+Explicit direct alpha 0 and 1 retain presence. Plain imported theme tokens keep
+their native scheme binding; declared grammar colors take precedence and
+tint/shade resolve to RGB. Editing one paragraph preserves neighboring native
+alpha precision, theme bindings and direct run paint. Source luminance
+transforms, duplicate fills and unmodeled paint remain source-owned; unrelated
+scalar edits preserve them, replacement rejects, and projected transformed
+colors also reject deletion. Gradient editing, placeholder inheritance and
+host rendering need their own evidence.
+
+
 `textWarpPreset`, `textWarpAdjustments`, `flatTextZ`, `fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.
 Explicit `true`/`false` for upright and signed degrees/zero for rotation retain

@@ -2969,6 +2969,7 @@ internal static partial class PpjPresentationProjector
                             "text.paragraphs[].style.defaultText.strike",
                             "text.paragraphs[].style.defaultText.underline",
                             "text.paragraphs[].style.defaultText.highlight",
+                            "text.paragraphs[].style.defaultText.color",
                         ]));
                         if (PptxBodyPropertiesCodec.SupportsBoundedDirectLayout(element.Shape.TextBody?.BodyProperties))
                         {

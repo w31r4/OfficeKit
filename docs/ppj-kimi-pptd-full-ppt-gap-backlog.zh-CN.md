@@ -464,6 +464,17 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 ### F-03 文本、段落、列表、字段和 WordArt
 
 
+**段落默认文字颜色增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.defaultText.color` 支持 RGB/RGBA、颜色 token、
+删除、恢复和单字段包装删除。显式 alpha 0/1 与缺省分别保留；简单源主题色
+保持 scheme 绑定，显式 grammar 同名颜色优先。只改目标段落，保留其它段落
+原生 alpha 精度、主题绑定、run 颜色和非目标 XML/ZIP。源亮度变换、重复填充
+和未建模颜色随无关标量编辑保留，拒绝覆盖；已投影的变换颜色也拒绝删除。
+渐变冲突与渐变修改保留独立边界。既有相关回归 228 项通过；颜色 9 项最初
+有 2 项 JSON 属性顺序断言错误，修正并补充渐变反例后 **9/9 通过，0 跳过**。
+沿用整组默认样式的已记录基线排除项。资料、生成检查与 OpenSpec 已同步；
+渐变生命周期、宿主显示和完整 F-03 继续开放。
+
 **段落默认高亮增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.defaultText.highlight`
 支持不透明 RGB、颜色 token、删除、恢复和单字段包装删除。直接原生主题色

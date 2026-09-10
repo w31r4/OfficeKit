@@ -69,6 +69,10 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [InlineData("text", true, "highlight")]
     [InlineData("shape", false, "highlight")]
     [InlineData("shape", true, "highlight")]
+    [InlineData("text", false, "color")]
+    [InlineData("text", true, "color")]
+    [InlineData("shape", false, "color")]
+    [InlineData("shape", true, "color")]
     public void ParagraphDefaultScalarPresencePreservesOtherState(string kind, bool otherDefaults, string field)
     {
         var program = Program(kind);
@@ -83,6 +87,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             "strike" => JsonValue.Create("sngStrike"),
             "underline" => JsonValue.Create("sng"),
             "highlight" => JsonValue.Create("#FFFF00"),
+            "color" => JsonValue.Create("#224466"),
             "language" => JsonValue.Create("en-US"),
             "fontFamily" => JsonValue.Create("Arial"),
             "fontFamilyEastAsia" => JsonValue.Create("SimSun"),
@@ -107,7 +112,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         {
             ["paragraphs"] = new JsonArray(
                 new JsonObject { ["style"] = paragraphStyle, ["runs"] = new JsonArray(
-                    new JsonObject { ["text"] = "Retain ", ["style"] = new JsonObject { ["bold"] = false, ["fontFamily"] = "Courier New", ["language"] = "de-DE", ["kerning"] = 8, ["letterSpacing"] = 2, ["baseline"] = 5, ["capitalization"] = "none", ["strike"] = "noStrike", ["underline"] = "none", ["highlight"] = "#00FF00" } },
+                    new JsonObject { ["text"] = "Retain ", ["style"] = new JsonObject { ["bold"] = false, ["fontFamily"] = "Courier New", ["language"] = "de-DE", ["kerning"] = 8, ["letterSpacing"] = 2, ["baseline"] = 5, ["capitalization"] = "none", ["strike"] = "noStrike", ["underline"] = "none", ["highlight"] = "#00FF00", ["color"] = "#33445580" } },
                     new JsonObject { ["text"] = "these runs", ["style"] = new JsonObject { ["italic"] = false } }) },
                 new JsonObject { ["style"] = new JsonObject { ["defaultText"] = new JsonObject { ["bold"] = false } },
                     ["runs"] = new JsonArray(new JsonObject { ["text"] = "Second paragraph" }) })
@@ -145,6 +150,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                 "kerning" => new[] { "0", "0.001", "0.01", "12.25", "12.256", "12.125", "768" },
                 "letterSpacing" => new[] { "-768", "-1.256", "-1.125", "-0.001", "0", "0.01", "1.125", "1.256", "768" },
                 "baseline" => new[] { "-400", "-12.3456", "-12.3445", "-0.0001", "0", "0.001", "12.3445", "12.3456", "400" },
+                "color" => new[] { "\"#000000\"", "\"#ff00ff\"", "\"#11223300\"", "\"#11223380\"", "\"#112233ff\"", """{"token":"mark","tint":1,"shade":0.5}""" },
                 "highlight" => new[] { "\"#000000\"", "\"#ff00ff\"", "\"#ffffffff\"", """{"token":"mark","tint":1,"shade":0.5}""" },
                 "underline" => new[] { "none", "single", "double", "words", "sng", "dbl", "heavy", "dotted", "dottedHeavy", "dash", "dashHeavy", "dashLong", "dashLongHeavy", "dotDash", "dotDashHeavy", "dotDotDash", "dotDotDashHeavy", "wavy", "wavyHeavy", "wavyDbl" }
                     .Select(underline => JsonValue.Create(underline)!.ToJsonString()).ToArray(),
@@ -162,7 +168,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             })
             {
                 var restore = Project(deleted); var restoredParagraph = FirstTextParagraph(restore);
-                if (field == "highlight")
+                if (field is "highlight" or "color")
                     restore["design"]!["grammar"]!["tokens"] = JsonNode.Parse("""{"mark":{"kind":"color","value":"#000000"}}""");
                 restoredParagraph["style"] ??= new JsonObject();
                 restoredParagraph["style"]!["defaultText"] ??= new JsonObject();
@@ -179,6 +185,9 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                 if (field == "highlight")
                     expected = JsonValue.Create(value.StartsWith("{", StringComparison.Ordinal) ? "#808080"
                         : JsonNode.Parse(value)!.GetValue<string>()[..7].ToUpperInvariant())!.ToJsonString();
+                if (field == "color")
+                    expected = JsonValue.Create(value.StartsWith("{", StringComparison.Ordinal) ? "#808080"
+                        : JsonNode.Parse(value)!.GetValue<string>().ToUpperInvariant())!.ToJsonString();
                 Assert.Equal(expected, ParagraphDefaultScalar(restored, kind, field)?.ToJsonString());
                 var expectedProjection = field == "underline"
                     ? JsonValue.Create(JsonNode.Parse(expected)!.GetValue<string>() switch
@@ -219,6 +228,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         }
         var denied = Project(source);
         FirstTextParagraph(denied)["style"]!["defaultText"]![field] = isFont ? JsonValue.Create("Georgia")
+            : field == "color" ? JsonValue.Create("#FF0000")
             : field == "highlight" ? JsonValue.Create("#112233")
             : field == "underline" ? JsonValue.Create("double")
             : field == "strike" ? JsonValue.Create("dblStrike")
@@ -231,7 +241,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         fields.Remove(fields.Single(f => f!.GetValue<string>() == "text.paragraphs[].style.defaultText." + field));
         Assert.Empty(Compile(denied, source, success: false).File);
         var unsupported = Project(source);
-        FirstTextParagraph(unsupported)["style"]!["defaultText"]!["color"] = "#112233";
+        FirstTextParagraph(unsupported)["style"]!["defaultText"]!["glow"] = JsonNode.Parse("""{"radius":2,"color":"#112233"}""");
         Assert.Empty(Compile(unsupported, source, success: false).File);
         if (field == "size")
             foreach (var invalid in new[] { 0d, -1d, 768.01, 0.001, 0.01, 0.99 })
@@ -294,6 +304,22 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             {
                 var request = Project(source);
                 FirstTextParagraph(request)["style"]!["defaultText"]![field] = JsonNode.Parse(invalid);
+                Assert.Empty(Compile(request, source, success: false).File);
+            }
+        if (field == "color")
+            foreach (var invalid in new[] { "\"#GGGGGG\"", "\"none\"", "false", "null", """{"token":"missing"}""" })
+            {
+                var request = Project(source);
+                FirstTextParagraph(request)["style"]!["defaultText"]![field] = JsonNode.Parse(invalid);
+                Assert.Empty(Compile(request, source, success: false).File);
+            }
+        if (field == "color")
+            foreach (var retainColor in new[] { true, false })
+            {
+                var request = Project(source);
+                var gradientDefaults = FirstTextParagraph(request)["style"]!["defaultText"]!.AsObject();
+                if (!retainColor) gradientDefaults.Remove("color");
+                gradientDefaults["gradient"] = JsonNode.Parse("""{"kind":"linear","angle":0,"stops":[{"offset":0,"color":"#000000"},{"offset":1,"color":"#FFFFFF"}]}""");
                 Assert.Empty(Compile(request, source, success: false).File);
             }
         if (field == "language")
@@ -661,6 +687,68 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     }
 
     [Theory]
+    [InlineData("text")]
+    [InlineData("shape")]
+    public void ParagraphDefaultColorRetainsThemeAndNeighborParagraph(string kind)
+    {
+        var program = Program(kind);
+        program["pages"]![0]!["elements"]![0]!["text"] = JsonNode.Parse("""
+            {"paragraphs":[{"style":{"defaultText":{"color":"#FFFF00","bold":true}},"runs":[{"text":"First"}]},
+            {"style":{"defaultText":{"color":"#FF0000"}},"runs":[{"text":"Second"}]},
+            {"style":{"defaultText":{"color":"#112233"}},"runs":[{"text":"Third"}]}]}
+            """);
+        var authored = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
+        using var stream = new MemoryStream(); stream.Write(authored);
+        using (var doc = PresentationDocument.Open(stream, true))
+        {
+            var defaults = Owner(doc, kind).Descendants<A.DefaultRunProperties>().ToArray();
+            for (var i = 0; i < 2; i++)
+            {
+                defaults[i].GetFirstChild<A.SolidFill>()!.Remove();
+                defaults[i].AddChild(new A.SolidFill(new A.SchemeColor
+                { Val = i == 0 ? A.SchemeColorValues.Accent1 : A.SchemeColorValues.Accent2 }), true);
+            }
+            defaults[1].GetFirstChild<A.SolidFill>()!.GetFirstChild<A.SchemeColor>()!.Append(new A.Alpha { Val = 42000 });
+            defaults[2].GetFirstChild<A.SolidFill>()!.GetFirstChild<A.RgbColorModelHex>()!.Append(new A.Alpha { Val = 42000 });
+        }
+        var source = stream.ToArray(); var original = source.ToArray();
+        var projected = Project(source);
+        Assert.Equal("accent1", FirstTextParagraph(projected)["style"]!["defaultText"]!["color"]!["token"]!.GetValue<string>());
+        Assert.Equal(source, Compile(projected, source).File.ToByteArray());
+        foreach (var input in new[] { """{"token":"accent3"}""", """{"token":"accent3","alpha":0}""", """{"token":"accent3","alpha":1}""", """{"token":"accent3","alpha":0.12345}""", "\"#005500\"", """{"token":"accent1","tint":1,"shade":0.5}""" })
+        {
+            var request = Project(source);
+            FirstTextParagraph(request)["style"]!["defaultText"]!["color"] = JsonNode.Parse(input);
+            var candidate = Compile(request, source).File.ToByteArray();
+            var expected = input.Contains("tint", StringComparison.Ordinal) ? "\"#808080\"" : input;
+            Assert.True(JsonNode.DeepEquals(JsonNode.Parse(expected), ParagraphDefaultScalar(candidate, kind, "color")));
+            Assert.True(JsonNode.DeepEquals(JsonNode.Parse(expected), FirstTextParagraph(Project(candidate))["style"]!["defaultText"]!["color"]));
+            AssertOnlyBodyPropertyChanged(source, candidate, kind, "paragraphDefault.color");
+        }
+        var remove = Project(source); FirstTextParagraph(remove)["style"]!["defaultText"]!.AsObject().Remove("color");
+        var removed = Compile(remove, source).File.ToByteArray();
+        Assert.Null(ParagraphDefaultScalar(removed, kind, "color"));
+        Assert.Null(FirstTextParagraph(Project(removed))["style"]?["defaultText"]?["color"]);
+        AssertOnlyBodyPropertyChanged(source, removed, kind, "paragraphDefault.color");
+        var restore = Project(removed);
+        FirstTextParagraph(restore)["style"]!["defaultText"]!["color"] = JsonNode.Parse("""{"token":"accent1"}""");
+        var restored = Compile(restore, removed).File.ToByteArray();
+        Assert.Equal("""{"token":"accent1"}""", ParagraphDefaultScalar(restored, kind, "color")!.ToJsonString());
+        AssertOnlyBodyPropertyChanged(removed, restored, kind, "paragraphDefault.color");
+        var shadowed = Project(source);
+        shadowed["design"]!["grammar"]!["tokens"] = JsonNode.Parse("""{"accent3":{"kind":"color","value":"#abcdef"}}""");
+        FirstTextParagraph(shadowed)["style"]!["defaultText"]!["color"] = JsonNode.Parse("""{"token":"accent3"}""");
+        var shadowedBytes = Compile(shadowed, source).File.ToByteArray();
+        Assert.Equal("#ABCDEF", ParagraphDefaultScalar(shadowedBytes, kind, "color")!.GetValue<string>());
+        AssertOnlyBodyPropertyChanged(source, shadowedBytes, kind, "paragraphDefault.color");
+        shadowed["design"]!["grammar"]!["tokens"]!["accent3"]!["value"] = "#ABCDEF80";
+        var translucent = Compile(shadowed, source).File.ToByteArray();
+        Assert.Equal("#ABCDEF80", ParagraphDefaultScalar(translucent, kind, "color")!.GetValue<string>());
+        AssertOnlyBodyPropertyChanged(source, translucent, kind, "paragraphDefault.color");
+        Assert.Equal(original, source);
+    }
+
+    [Theory]
     [InlineData("alpha")]
     [InlineData("duplicate")]
     [InlineData("hidden-content")]
@@ -706,6 +794,70 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         Assert.Equal(original, source);
     }
 
+    [Theory]
+    [InlineData("luminance")]
+    [InlineData("duplicate")]
+    [InlineData("no-fill")]
+    public void ParagraphDefaultColorRetainsSourceOwnedPaint(string profile)
+    {
+        var program = Program("text");
+        program["pages"]![0]!["elements"]![0]!["text"] = JsonNode.Parse("""
+            {"paragraphs":[{"style":{"defaultText":{"color":"#FFFF00","bold":true}},"runs":[{"text":"Retain source paint"}]}]}
+            """);
+        var authored = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
+        using var stream = new MemoryStream(); stream.Write(authored);
+        using (var doc = PresentationDocument.Open(stream, true))
+        {
+            var defaults = Owner(doc, "text").Descendants<A.DefaultRunProperties>().First();
+            var fill = defaults.GetFirstChild<A.SolidFill>()!;
+            if (profile == "duplicate") defaults.Append(fill.CloneNode(true));
+            else
+            {
+                fill.Remove();
+                if (profile == "no-fill") defaults.AddChild(new A.NoFill(), true);
+                else defaults.AddChild(new A.SolidFill(new A.SchemeColor(new A.LuminanceModulation { Val = 50000 })
+                    { Val = A.SchemeColorValues.Accent1 }), true);
+            }
+        }
+        var source = stream.ToArray(); var original = source.ToArray();
+        var projected = Project(source);
+        Assert.Equal(source, Compile(projected, source).File.ToByteArray());
+        FirstTextParagraph(projected)["style"]!["defaultText"]!["color"] = "#112233";
+        Assert.Empty(Compile(projected, source, success: false).File);
+        if (profile == "luminance")
+            foreach (var wrapper in new[] { false, true })
+            {
+                var request = Project(source);
+                if (wrapper) FirstTextParagraph(request).Remove("style");
+                else FirstTextParagraph(request)["style"]!["defaultText"]!.AsObject().Remove("color");
+                Assert.Empty(Compile(request, source, success: false).File);
+            }
+        foreach (var remove in new[] { false, true })
+        {
+            var request = Project(source); var defaults = FirstTextParagraph(request)["style"]!["defaultText"]!.AsObject();
+            if (remove) defaults.Remove("bold"); else defaults["bold"] = false;
+            var candidate = Compile(request, source).File.ToByteArray();
+            AssertOnlyBodyPropertyChanged(source, candidate, "text", "paragraphDefault.bold");
+        }
+        Assert.Equal(original, source);
+    }
+
+    private static JsonNode? NativeDefaultColor(A.DefaultRunProperties? defaults)
+    {
+        var color = defaults?.GetFirstChild<A.SolidFill>()?.FirstChild;
+        if (color is null) return null;
+        var alpha = color.GetFirstChild<A.Alpha>()?.Val?.Value;
+        if (color is A.SchemeColor scheme)
+        {
+            var output = new JsonObject { ["token"] = scheme.Val!.InnerText };
+            if (alpha is { } value) output["alpha"] = value / 100000d;
+            return output;
+        }
+        var rgb = "#" + ((A.RgbColorModelHex)color).Val!.InnerText.ToUpperInvariant();
+        if (alpha is { } opacity) rgb += ((int)Math.Round(opacity / 100000d * 255)).ToString("X2");
+        return JsonValue.Create(rgb);
+    }
+
     private static JsonObject FirstTextParagraph(JsonObject program) =>
         program["pages"]![0]!["elements"]![0]!["text"]!["paragraphs"]![0]!.AsObject();
 
@@ -726,6 +878,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             "capitalization" => defaults?.Capital is { } caps ? JsonValue.Create(caps.InnerText) : null,
             "strike" => defaults?.Strike is { } strike ? JsonValue.Create(strike.InnerText) : null,
             "underline" => defaults?.Underline is { } underline ? JsonValue.Create(underline.InnerText) : null,
+            "color" => NativeDefaultColor(defaults),
             "highlight" => defaults?.GetFirstChild<A.Highlight>() is { } highlight
                 ? highlight.GetFirstChild<A.SchemeColor>() is { } scheme
                     ? new JsonObject { ["token"] = scheme.Val!.InnerText }
@@ -1727,6 +1880,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                     else if (field == "paragraphDefault.strike") defaults.Strike = null;
                     else if (field == "paragraphDefault.underline") defaults.Underline = null;
                     else if (field == "paragraphDefault.highlight") defaults.GetFirstChild<A.Highlight>()?.Remove();
+                    else if (field == "paragraphDefault.color") defaults.GetFirstChild<A.SolidFill>()?.Remove();
                     if (defaults.GetAttributes().Count == 0 && defaults.ChildElements.Count == 0) defaults.Remove();
                 }
                 if (paragraphProperties is not null && paragraphProperties.GetAttributes().Count == 0 && paragraphProperties.ChildElements.Count == 0)

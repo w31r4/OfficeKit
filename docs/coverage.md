@@ -5,6 +5,25 @@ This document describes the supported OfficeKit boundary. It is not a promise th
 
 
 
+PPJ paragraph default color (2026-09-10): ordinary text/shape paragraphs
+support independent RGB/RGBA/token assignment, deletion, color-only wrapper
+removal and restoration. Explicit direct alpha zero/one retains presence;
+simple source theme tokens retain scheme identity unless a grammar color
+overrides them. Per-paragraph updates preserve neighboring native alpha
+precision, theme bindings, direct run paint and non-target XML/ZIP.
+Source luminance transforms, duplicate fills and unmodeled paint remain
+source-owned: unrelated scalar edits preserve them and replacement rejects.
+Projected transformed colors also reject deletion. Gradient conflicts and
+gradient mutation reject under this field's authority.
+
+The 228 existing related native cases passed. The first nine color cases
+had two assertion failures from JSON property ordering; after comparing JSON
+content and adding color/gradient negatives, all nine color cases pass with
+zero skips (SDK 8.0.128). The documented whole-default-style baseline exclusion
+is unchanged. Schema/Help/registry/references, generated metadata, preview
+input/capability, portability/reference sync and strict OpenSpec pass.
+No wire change, NativeAOT rebuild or host acceptance for this field.
+
 PPJ paragraph default highlight (2026-09-10): ordinary text/shape paragraphs
 support independent opaque RGB/color-token assignment, deletion, highlight-only
 wrapper removal and restoration. Simple native scheme highlights now project
