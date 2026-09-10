@@ -232,6 +232,6 @@ internal static class PptxTextDecoration
         }
     }
 
-    private static bool HasUnderlineEffects(A.TextCharacterPropertiesType source) =>
+    internal static bool HasUnderlineEffects(A.TextCharacterPropertiesType source) =>
         source.ChildElements.Any(child => child.LocalName is "uFillTx" or "uFill" or "uLnTx" or "uLn");
 }

@@ -3,6 +3,23 @@
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
 
+
+PPJ paragraph default underline (2026-09-10): ordinary text/shape paragraphs
+support every existing underline token and single/double aliases, explicit
+none, deletion, underline-only wrapper removal and restoration. Native XML
+uses sng/dbl; fresh PPJ uses single/double. Cancellation and omission remain
+distinct. Original text, direct run underline, other defaults/effects, unknown
+attributes and non-target XML/ZIP content remain unchanged. Unknown source u
+tokens and underline effect children (also without u) reject replacement and
+survive no-op/unrelated scalar assignment/removal. Focused source fixtures
+exercise unknown tokens and uFillTx with/without u. Related native tests pass
+214/214, zero skipped (SDK 8.0.128), retaining the documented whole-default-style
+baseline exclusion. Initial four failures were incorrect PPJ alias expectations;
+the test now checks native and projected representations separately.
+Unsupported-field rejection now uses color. Schema/Help/registry/references,
+generated metadata, preview input/capability, portability/reference sync and
+strict OpenSpec pass. No wire change, NativeAOT rebuild or host glyph acceptance.
+
 PPJ paragraph default strike (2026-09-10): ordinary text/shape paragraphs
 support independent true/false and noStrike/sngStrike/dblStrike assignment,
 explicit cancellation, deletion, strike-only wrapper removal and restoration.
@@ -12,8 +29,8 @@ unknown attributes and non-target XML/ZIP content remain unchanged.
 Unmodeled native strike rejects replacement and survives no-op and unrelated
 scalar assignment/removal. Related native tests pass 207/207, zero skipped
 (SDK 8.0.128), with the documented whole-default-style baseline exclusion
-unchanged. Unsupported-field rejection now uses the valid underline token
-single. Schema, Help, registry, references, generated metadata, preview
+unchanged. Unsupported-field rejection used underline=single in that increment
+(now color). Schema, Help, registry, references, generated metadata, preview
 input/capability, portability/reference sync and strict OpenSpec pass.
 No wire change, NativeAOT rebuild or host glyph acceptance.
 

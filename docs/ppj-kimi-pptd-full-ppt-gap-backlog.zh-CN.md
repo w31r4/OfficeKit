@@ -464,6 +464,19 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 ### F-03 文本、段落、列表、字段和 WordArt
 
 
+**段落默认下划线增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.defaultText.underline`
+支持现有全部下划线枚举、single/double 别名、显式 none、删除、恢复和
+单字段包装删除。原生 sng/dbl 二次投影为 PPJ single/double，none 与缺省
+分别保留。原文字、run 下划线、其它默认样式和非目标 XML/ZIP 保留。
+未知 u 值及下划线填充/线条子节点拒绝覆盖，并随无关标量修改或删除保留；
+实验包含 uFillTx 有无 u 属性的两种源文件。
+相关 **214/214 通过，0 跳过**，沿用整组默认样式的已记录基线排除项。
+资料、生成检查和 OpenSpec 已同步；独立下划线效果、宿主字形和完整 F-03
+继续开放。
+
+
+
 **段落默认删除线增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.defaultText.strike`
 支持 true/false、noStrike/sngStrike/dblStrike、显式取消、删除、

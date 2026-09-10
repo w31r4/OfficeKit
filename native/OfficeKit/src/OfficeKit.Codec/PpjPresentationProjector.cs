@@ -2965,6 +2965,7 @@ internal static partial class PpjPresentationProjector
                             "text.paragraphs[].style.defaultText.baseline",
                             "text.paragraphs[].style.defaultText.capitalization",
                             "text.paragraphs[].style.defaultText.strike",
+                            "text.paragraphs[].style.defaultText.underline",
                         ]));
                         if (PptxBodyPropertiesCodec.SupportsBoundedDirectLayout(element.Shape.TextBody?.BodyProperties))
                         {

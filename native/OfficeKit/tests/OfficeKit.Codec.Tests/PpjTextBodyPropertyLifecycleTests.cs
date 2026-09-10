@@ -61,6 +61,10 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [InlineData("text", true, "strike")]
     [InlineData("shape", false, "strike")]
     [InlineData("shape", true, "strike")]
+    [InlineData("text", false, "underline")]
+    [InlineData("text", true, "underline")]
+    [InlineData("shape", false, "underline")]
+    [InlineData("shape", true, "underline")]
     public void ParagraphDefaultScalarPresencePreservesOtherState(string kind, bool otherDefaults, string field)
     {
         var program = Program(kind);
@@ -73,6 +77,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             "baseline" => JsonValue.Create(-12.5),
             "capitalization" => JsonValue.Create("all"),
             "strike" => JsonValue.Create("sngStrike"),
+            "underline" => JsonValue.Create("sng"),
             "language" => JsonValue.Create("en-US"),
             "fontFamily" => JsonValue.Create("Arial"),
             "fontFamilyEastAsia" => JsonValue.Create("SimSun"),
@@ -97,7 +102,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         {
             ["paragraphs"] = new JsonArray(
                 new JsonObject { ["style"] = paragraphStyle, ["runs"] = new JsonArray(
-                    new JsonObject { ["text"] = "Retain ", ["style"] = new JsonObject { ["bold"] = false, ["fontFamily"] = "Courier New", ["language"] = "de-DE", ["kerning"] = 8, ["letterSpacing"] = 2, ["baseline"] = 5, ["capitalization"] = "none", ["strike"] = "noStrike" } },
+                    new JsonObject { ["text"] = "Retain ", ["style"] = new JsonObject { ["bold"] = false, ["fontFamily"] = "Courier New", ["language"] = "de-DE", ["kerning"] = 8, ["letterSpacing"] = 2, ["baseline"] = 5, ["capitalization"] = "none", ["strike"] = "noStrike", ["underline"] = "none" } },
                     new JsonObject { ["text"] = "these runs", ["style"] = new JsonObject { ["italic"] = false } }) },
                 new JsonObject { ["style"] = new JsonObject { ["defaultText"] = new JsonObject { ["bold"] = false } },
                     ["runs"] = new JsonArray(new JsonObject { ["text"] = "Second paragraph" }) })
@@ -135,6 +140,8 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                 "kerning" => new[] { "0", "0.001", "0.01", "12.25", "12.256", "12.125", "768" },
                 "letterSpacing" => new[] { "-768", "-1.256", "-1.125", "-0.001", "0", "0.01", "1.125", "1.256", "768" },
                 "baseline" => new[] { "-400", "-12.3456", "-12.3445", "-0.0001", "0", "0.001", "12.3445", "12.3456", "400" },
+                "underline" => new[] { "none", "single", "double", "words", "sng", "dbl", "heavy", "dotted", "dottedHeavy", "dash", "dashHeavy", "dashLong", "dashLongHeavy", "dotDash", "dotDashHeavy", "dotDotDash", "dotDotDashHeavy", "wavy", "wavyHeavy", "wavyDbl" }
+                    .Select(underline => JsonValue.Create(underline)!.ToJsonString()).ToArray(),
                 "strike" => new[] { "false", "true", "\"noStrike\"", "\"sngStrike\"", "\"dblStrike\"" },
                 "capitalization" => new[] { "none", "small", "all" }.Select(capitalization => JsonValue.Create(capitalization)!.ToJsonString()).ToArray(),
                 "language" => new[] { "fr-FR", "zh-Hant-TW", "EN-us", "en-" + string.Join("-", Enumerable.Repeat("abcdefgh", 6)) + "-abcdef" }
@@ -158,8 +165,14 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                     ? JsonValue.Create(checked((int)Math.Round(double.Parse(value, System.Globalization.CultureInfo.InvariantCulture) * precision)) / precision)!.ToJsonString()
                     : field == "strike" && value is "false" or "true"
                         ? JsonValue.Create(value == "true" ? "sngStrike" : "noStrike")!.ToJsonString() : value;
+                if (field == "underline")
+                    expected = JsonValue.Create(JsonNode.Parse(value)!.GetValue<string>() switch
+                    { "single" => "sng", "double" => "dbl", var token => token })!.ToJsonString();
                 Assert.Equal(expected, ParagraphDefaultScalar(restored, kind, field)?.ToJsonString());
-                Assert.Equal(expected, FirstTextParagraph(Project(restored))["style"]!["defaultText"]![field]!.ToJsonString());
+                var expectedProjection = field == "underline"
+                    ? JsonValue.Create(JsonNode.Parse(expected)!.GetValue<string>() switch
+                    { "sng" => "single", "dbl" => "double", var token => token })!.ToJsonString() : expected;
+                Assert.Equal(expectedProjection, FirstTextParagraph(Project(restored))["style"]!["defaultText"]![field]!.ToJsonString());
                 AssertOnlyBodyPropertyChanged(deleted, restored, kind, "paragraphDefault." + field);
             }
         }
@@ -178,8 +191,24 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             Assert.Null(FirstTextParagraph(Project(omitted))["style"]?["defaultText"]?[field]);
             AssertOnlyBodyPropertyChanged(canceled, omitted, kind, "paragraphDefault.strike");
         }
+        if (field == "underline")
+        {
+            var cancel = Project(source);
+            FirstTextParagraph(cancel)["style"]!["defaultText"]![field] = "none";
+            var canceled = Compile(cancel, source).File.ToByteArray();
+            Assert.Equal("none", ParagraphDefaultScalar(canceled, kind, field)!.GetValue<string>());
+            Assert.Equal("none", FirstTextParagraph(Project(canceled))["style"]!["defaultText"]![field]!.GetValue<string>());
+            AssertOnlyBodyPropertyChanged(source, canceled, kind, "paragraphDefault.underline");
+            var removeCanceled = Project(canceled);
+            FirstTextParagraph(removeCanceled)["style"]!["defaultText"]!.AsObject().Remove(field);
+            var omitted = Compile(removeCanceled, canceled).File.ToByteArray();
+            Assert.Null(ParagraphDefaultScalar(omitted, kind, field));
+            Assert.Null(FirstTextParagraph(Project(omitted))["style"]?["defaultText"]?[field]);
+            AssertOnlyBodyPropertyChanged(canceled, omitted, kind, "paragraphDefault.underline");
+        }
         var denied = Project(source);
         FirstTextParagraph(denied)["style"]!["defaultText"]![field] = isFont ? JsonValue.Create("Georgia")
+            : field == "underline" ? JsonValue.Create("double")
             : field == "strike" ? JsonValue.Create("dblStrike")
             : field == "capitalization" ? JsonValue.Create("small")
             : field == "language" ? JsonValue.Create("fr-FR")
@@ -190,7 +219,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         fields.Remove(fields.Single(f => f!.GetValue<string>() == "text.paragraphs[].style.defaultText." + field));
         Assert.Empty(Compile(denied, source, success: false).File);
         var unsupported = Project(source);
-        FirstTextParagraph(unsupported)["style"]!["defaultText"]!["underline"] = "single";
+        FirstTextParagraph(unsupported)["style"]!["defaultText"]!["color"] = "#112233";
         Assert.Empty(Compile(unsupported, source, success: false).File);
         if (field == "size")
             foreach (var invalid in new[] { 0d, -1d, 768.01, 0.001, 0.01, 0.99 })
@@ -232,6 +261,20 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             {
                 var request = Project(source);
                 FirstTextParagraph(request)["style"]!["defaultText"]![field] = invalid;
+                Assert.Empty(Compile(request, source, success: false).File);
+            }
+        if (field == "underline")
+            foreach (var invalid in new[] { "", "Sng", "sngStrike", " single", "true" })
+            {
+                var request = Project(source);
+                FirstTextParagraph(request)["style"]!["defaultText"]![field] = invalid;
+                Assert.Empty(Compile(request, source, success: false).File);
+            }
+        if (field == "underline")
+            foreach (var invalid in new JsonNode?[] { JsonValue.Create(true), JsonValue.Create(1), new JsonObject(), null })
+            {
+                var request = Project(source);
+                FirstTextParagraph(request)["style"]!["defaultText"]![field] = invalid?.DeepClone();
                 Assert.Empty(Compile(request, source, success: false).File);
             }
         if (field == "language")
@@ -495,6 +538,52 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         Assert.Equal(original, source);
     }
 
+    [Theory]
+    [InlineData("unknown")]
+    [InlineData("effect")]
+    [InlineData("effect-only")]
+    public void ParagraphDefaultUnderlineRetainsUnmodeledNativeContent(string profile)
+    {
+        var program = Program("text");
+        program["pages"]![0]!["elements"]![0]!["text"] = new JsonObject
+        {
+            ["paragraphs"] = new JsonArray(new JsonObject
+            {
+                ["style"] = new JsonObject { ["defaultText"] = new JsonObject { ["underline"] = "sng", ["bold"] = true } },
+                ["runs"] = new JsonArray(new JsonObject { ["text"] = "Retain Mixed Case" }),
+            }),
+        };
+        var authored = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
+        using var stream = new MemoryStream(); stream.Write(authored);
+        using (var doc = PresentationDocument.Open(stream, true))
+        {
+            var defaults = Owner(doc, "text").Descendants<A.DefaultRunProperties>().First();
+            if (profile == "unknown") defaults.SetAttribute(new OpenXmlAttribute("u", "", "futureUnderline"));
+            else
+            {
+                defaults.Append(new A.UnderlineFillText());
+                if (profile == "effect-only") defaults.Underline = null;
+            }
+        }
+        var source = stream.ToArray(); var original = source.ToArray();
+        var projected = Project(source);
+        Assert.Null(FirstTextParagraph(projected)["style"]?["defaultText"]?["underline"]);
+        Assert.Equal(source, Compile(projected, source).File.ToByteArray());
+        FirstTextParagraph(projected)["style"]!["defaultText"]!["underline"] = "dbl";
+        Assert.Empty(Compile(projected, source, success: false).File);
+        foreach (var remove in new[] { false, true })
+        {
+            var unrelated = Project(source);
+            var defaults = FirstTextParagraph(unrelated)["style"]!["defaultText"]!.AsObject();
+            if (remove) defaults.Remove("bold"); else defaults["bold"] = false;
+            var candidate = Compile(unrelated, source).File.ToByteArray();
+            Assert.Equal(ParagraphDefaultScalar(source, "text", "underline")?.ToJsonString(),
+                ParagraphDefaultScalar(candidate, "text", "underline")?.ToJsonString());
+            AssertOnlyBodyPropertyChanged(source, candidate, "text", "paragraphDefault.bold");
+        }
+        Assert.Equal(original, source);
+    }
+
     private static JsonObject FirstTextParagraph(JsonObject program) =>
         program["pages"]![0]!["elements"]![0]!["text"]!["paragraphs"]![0]!.AsObject();
 
@@ -514,6 +603,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             "baseline" => defaults?.Baseline is { } baseline ? JsonValue.Create(baseline.Value / 1000d) : null,
             "capitalization" => defaults?.Capital is { } caps ? JsonValue.Create(caps.InnerText) : null,
             "strike" => defaults?.Strike is { } strike ? JsonValue.Create(strike.InnerText) : null,
+            "underline" => defaults?.Underline is { } underline ? JsonValue.Create(underline.InnerText) : null,
             "fontFamily" => defaults?.GetFirstChild<A.LatinFont>()?.Typeface is { } family ? JsonValue.Create(family.Value) : null,
             "fontFamilyEastAsia" => defaults?.GetFirstChild<A.EastAsianFont>()?.Typeface is { } eastAsian ? JsonValue.Create(eastAsian.Value) : null,
             "fontFamilyComplexScript" => defaults?.GetFirstChild<A.ComplexScriptFont>()?.Typeface is { } complexScript ? JsonValue.Create(complexScript.Value) : null,
@@ -1509,6 +1599,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                     else if (field == "paragraphDefault.baseline") defaults.Baseline = null;
                     else if (field == "paragraphDefault.capitalization") defaults.Capital = null;
                     else if (field == "paragraphDefault.strike") defaults.Strike = null;
+                    else if (field == "paragraphDefault.underline") defaults.Underline = null;
                     if (defaults.GetAttributes().Count == 0 && defaults.ChildElements.Count == 0) defaults.Remove();
                 }
                 if (paragraphProperties is not null && paragraphProperties.GetAttributes().Count == 0 && paragraphProperties.ChildElements.Count == 0)

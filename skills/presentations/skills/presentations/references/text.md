@@ -118,6 +118,15 @@ text and direct run strike remain unchanged. Unmodeled source strike survives
 no-op and unrelated scalar changes; replacement rejects. Host glyph rendering
 remains unverified.
 
+Use defaultText.underline for the existing underline tokens, including
+single/double aliases (native sng/dbl, projected as single/double). Explicit none cancels the
+underline; deleting the field or its underline-only defaultText/style wrapper
+removes the direct setting. Both can later be restored. Original text,
+direct run underline and other defaults remain unchanged. Unknown source
+u tokens and uFillTx/uFill/uLnTx/uLn children stay source-owned even when u is
+absent: no-op and unrelated scalar edits preserve them, replacement rejects.
+Host underline contours and inherited placeholder defaults need separate evidence.
+
 
 `textWarpPreset`, `textWarpAdjustments`, `flatTextZ`, `fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.
