@@ -140,6 +140,7 @@ internal static class PpjNativeLeafProjection
             ["textDefaultReflectionScaleY"] = 100_000,
             ["textDefaultReflectionSkewX"] = 60_000,
             ["textDefaultReflectionSkewY"] = 60_000,
+            ["textDefaultReflectionStartPosition"] = 100_000,
             ["shapeInnerShadowDirectionDegrees"] = 60_000,
             ["imageInnerShadowDirectionDegrees"] = 60_000,
             ["shapeReflectionDirectionDegrees"] = 60_000,
@@ -1519,6 +1520,11 @@ internal static class PpjNativeLeafProjection
             if (paragraph.DefaultRunStyleCase == PresentationTextParagraph.DefaultRunStyleOneofCase.DefaultRunProperties &&
                 paragraph.DefaultRunProperties.Reflection is { HasDirectionAngle60000: true } reflectionDirection)
                 AddInteger(add, "textDefaultReflectionDirectionDegrees", reflectionDirection.DirectionAngle60000, nativeIndex);
+            if (paragraph.DefaultRunStyleCase == PresentationTextParagraph.DefaultRunStyleOneofCase.DefaultRunProperties &&
+                paragraph.DefaultRunProperties.Reflection is { HasStartPositionThousandthPercent: true } reflectionStartPosition &&
+                (!reflectionStartPosition.HasEndPositionThousandthPercent || reflectionStartPosition.EndPositionThousandthPercent == 100_000))
+                AddScaled(add, "textDefaultReflectionStartPosition",
+                    reflectionStartPosition.StartPositionThousandthPercent / 100_000d, 100_000, nativeIndex);
             if (paragraph.DefaultRunStyleCase == PresentationTextParagraph.DefaultRunStyleOneofCase.DefaultRunProperties &&
                 paragraph.DefaultRunProperties.Reflection is { HasFadeDirectionAngle60000: true } reflectionFadeDirection)
                 AddInteger(add, "textDefaultReflectionFadeAngleDegrees", reflectionFadeDirection.FadeDirectionAngle60000, nativeIndex);

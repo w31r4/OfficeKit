@@ -4,8 +4,9 @@ using A = DocumentFormat.OpenXml.Drawing;
 
 namespace OfficeKit.Codec;
 
-// Direct DrawingML reflection values. Charts opt into variable positions and
-// transforms; ordinary imported proofs retain their full-span profile.
+// Direct DrawingML reflection values. Charts and the bounded paragraph-default
+// start-position profile opt into variable positions; ordinary imported proofs
+// retain their full-span profile. Transforms remain opt-in per caller.
 internal static class PptxReflectionCodec
 {
     private const long MaxBlurRadiusEmu = 12_700_000L;
@@ -16,7 +17,8 @@ internal static class PptxReflectionCodec
     internal static bool TryRead(
         OpenXmlCompositeElement? properties,
         out PresentationReflection? reflection,
-        bool allowTransforms = false)
+        bool allowTransforms = false,
+        bool allowVariablePositions = false)
     {
         reflection = null;
         var lists = properties?.Elements<A.EffectList>().ToArray() ?? [];
@@ -37,7 +39,11 @@ internal static class PptxReflectionCodec
                  !PptxShadowCodec.TryReadOuterShadow(outerShadows[0], out _)))
             return false;
 
-        return TryReadDirectReflection(reflections[0], out reflection, allowTransforms: allowTransforms);
+        return TryReadDirectReflection(
+            reflections[0],
+            out reflection,
+            allowVariablePositions: allowVariablePositions,
+            allowTransforms: allowTransforms);
     }
 
     internal static void Apply(OpenXmlCompositeElement properties, PresentationReflection? reflection)
