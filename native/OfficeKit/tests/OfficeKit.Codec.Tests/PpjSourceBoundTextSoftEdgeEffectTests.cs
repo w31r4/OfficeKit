@@ -387,6 +387,20 @@ public sealed partial class PptxCodecTests
         }
 
         var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        using (var stream = new MemoryStream())
+        {
+            stream.Write(source);
+            stream.Position = 0;
+            using (var document = PresentationDocument.Open(stream, true))
+            {
+                var paragraphs = document.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.Paragraph>().ToArray();
+                var reflectionProperties = paragraphs[3]
+                    .ParagraphProperties!.GetFirstChild<A.DefaultRunProperties>()!;
+                var reflection = reflectionProperties.GetFirstChild<A.EffectList>()!.GetFirstChild<A.Reflection>()!;
+                reflection.HorizontalRatio = -50_000;
+            }
+            source = stream.ToArray();
+        }
         var projected = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
@@ -417,6 +431,7 @@ public sealed partial class PptxCodecTests
         Assert.Equal(12, projectedReflectionParagraph["style"]!["defaultText"]!["reflection"]!["distance"]!.GetValue<double>());
         Assert.Equal(45, projectedReflectionParagraph["style"]!["defaultText"]!["reflection"]!["angle"]!.GetValue<double>());
         Assert.Equal(30, projectedReflectionParagraph["style"]!["defaultText"]!["reflection"]!["fadeAngle"]!.GetValue<double>());
+        Assert.Equal(-0.5, projectedReflectionParagraph["style"]!["defaultText"]!["reflection"]!["scaleX"]!.GetValue<double>(), precision: 6);
         var softEdgeLeaves = projectedElement["nativeRef"]!["leaves"]!.AsArray()
             .Select(leaf => leaf!.AsObject())
             .Where(leaf => leaf["kind"]!.GetValue<string>() == "textSoftEdgeRadiusEmu")
@@ -607,6 +622,12 @@ public sealed partial class PptxCodecTests
             .ToArray();
         Assert.Single(defaultReflectionFadeAngleLeaves);
         Assert.Equal(1_800_000, defaultReflectionFadeAngleLeaves[0]["value"]!.GetValue<long>());
+        var defaultReflectionScaleXLeaves = projectedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Select(leaf => leaf!.AsObject())
+            .Where(leaf => leaf["kind"]!.GetValue<string>() == "textDefaultReflectionScaleX")
+            .ToArray();
+        Assert.Single(defaultReflectionScaleXLeaves);
+        Assert.Equal(-0.5, defaultReflectionScaleXLeaves[0]["value"]!.GetValue<double>(), precision: 6);
 
         softEdgeLeaves[0]["value"] = 127_000;
         defaultSoftEdgeLeaves[0]["value"] = 76_200;
@@ -638,6 +659,7 @@ public sealed partial class PptxCodecTests
         defaultReflectionEndOpacityLeaves[0]["value"] = 20_000;
         defaultReflectionDirectionLeaves[0]["value"] = 5_400_000;
         defaultReflectionFadeAngleLeaves[0]["value"] = 5_400_000;
+        defaultReflectionScaleXLeaves[0]["value"] = 1.25;
         var edited = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
@@ -724,6 +746,7 @@ public sealed partial class PptxCodecTests
             Assert.Equal(254_000, defaultReflection.Distance!.Value);
             Assert.Equal(5_400_000, defaultReflection.Direction!.Value);
             Assert.Equal(5_400_000, defaultReflection.FadeDirection!.Value);
+            Assert.Equal(125_000, defaultReflection.HorizontalRatio!.Value);
         }
 
         var editedBytes = edited.File.ToByteArray();
@@ -776,6 +799,7 @@ public sealed partial class PptxCodecTests
         Assert.Equal(0.2, reprojectedElement["text"]!["paragraphs"]![3]!["style"]!["defaultText"]!["reflection"]!["endOpacity"]!.GetValue<double>(), precision: 6);
         Assert.Equal(90, reprojectedElement["text"]!["paragraphs"]![3]!["style"]!["defaultText"]!["reflection"]!["angle"]!.GetValue<double>());
         Assert.Equal(90, reprojectedElement["text"]!["paragraphs"]![3]!["style"]!["defaultText"]!["reflection"]!["fadeAngle"]!.GetValue<double>());
+        Assert.Equal(1.25, reprojectedElement["text"]!["paragraphs"]![3]!["style"]!["defaultText"]!["reflection"]!["scaleX"]!.GetValue<double>(), precision: 6);
     }
 
     [Fact]
@@ -924,7 +948,7 @@ public sealed partial class PptxCodecTests
                 else if (profile == "child") list.InnerXml = """<a:reflection xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" blurRad="25400" stA="50000" stPos="0" endA="10000" endPos="100000" dist="38100" dir="2700000" fadeDir="1800000"><future:content xmlns:future="urn:officekit:test"/></a:reflection>""";
                 else if (profile == "duplicate-effect") list.Append(reflection.CloneNode(true));
                 else if (profile == "duplicate-list") defaults.Append(list.CloneNode(true));
-                else if (profile == "unsupported-transform") reflection.HorizontalRatio = 100_000;
+                else if (profile == "unsupported-transform") reflection.VerticalRatio = 100_000;
                 else defaults.Append(new A.EffectDag());
             }
 
