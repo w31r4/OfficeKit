@@ -3691,6 +3691,9 @@ message PresentationTextParagraph {
   // Direct a:pPr/@latinLnBrk. Presence distinguishes true, false and
   // absence; unset clears modeled state and preserves unknown source tokens.
   optional bool latin_line_break = 39;
+  // Direct a:pPr/@eaLnBrk. Presence distinguishes true, false and absence;
+  // unset clears modeled state and preserves unknown source tokens.
+  optional bool east_asian_line_break = 40;
 }
 
 message PresentationPictureBullet {

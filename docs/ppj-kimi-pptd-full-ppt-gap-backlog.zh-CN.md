@@ -463,6 +463,15 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+新增布尔字段 `text.paragraphs[].style.eastAsianLineBreak`，表达是否应用
+东亚文字的行首、行尾换行规则。`true`、`false` 与未设置分别保留，和拉丁
+单词换行、标点溢出、文本框换行及手动换行独立。普通 text/shape 源段落支持
+增改删恢复，包括只含此字段的 style 删除；原生布尔拼写和非目标 XML/ZIP
+保留，未知原生值拒绝覆盖。最小实验见
+`PpjParagraphEastAsianLineBreakLifecycleTests`；OpenSpec 为
+`ppj-paragraph-east-asian-line-break-lifecycle`。本轮交付源码和生成绑定，
+东亚禁则、字体测量及宿主排版仍由预览明确标记为 partial。
+
 **段落拉丁单词内换行增量（2026-09-10）：**
 新增布尔字段 `text.paragraphs[].style.latinLineBreak`，表达是否允许在
 拉丁单词中间换行，对应直接 `a:pPr/@latinLnBrk`。true、false 与缺省

@@ -176,6 +176,17 @@ remain. Unknown, malformed or duplicate native sizes stay source-owned and
 reject replacement. Direct point-size character preview retains glyph/layout
 limits; relative and follow-text sizing diagnose unavailable.
 
+Use `text.paragraphs[].style.eastAsianLineBreak` for the direct boolean
+controlling East Asian typography and line-start/end rules. Preserve `true`,
+`false` and absence; omission does not write a direct default. Latin word
+breaking, hanging punctuation, text-box wrap and explicit break inlines remain
+independent. Ordinary source-bound text/shape paragraphs support add, set,
+remove and restore under exact eastAsianLineBreak authority; removing its
+single-field style also clears the direct setting. Unknown native tokens remain
+source-owned: unrelated edits preserve them and replacement rejects. The local
+preview reports both values as partial until measured line breaking and kinsoku
+evaluation are implemented; inspect the exported PPTX for host layout.
+
 Use `text.paragraphs[].style.latinLineBreak` for the direct setting that
 permits Latin text to wrap inside a word. True, false and absence stay distinct;
 omission leaves the direct setting absent. Text-box `wrap`, explicit `run.break`,

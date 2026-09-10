@@ -1934,6 +1934,7 @@
               "text",
             "text.paragraphs[].style.alignment",
             "text.paragraphs[].style.level",
+            "text.paragraphs[].style.eastAsianLineBreak",
             "text.paragraphs[].style.latinLineBreak",
             "text.paragraphs[].style.hangingPunctuation",
             "text.paragraphs[].style.fontAlignment",
@@ -3379,6 +3380,10 @@
         "latinLineBreak": {
           "type": "boolean",
           "description": "Direct setting permitting Latin text to wrap inside a word. True, false and absence remain distinct; absence does not materialize a direct default. Independent of text-box wrap, explicit break inlines, hanging punctuation, indentation and writing direction. Ordinary source-bound text/shape owners support add/set/remove/restore and latinLineBreak-only style removal under exact latinLineBreak authority. Only changed paragraphs are patched, preserving equivalent native boolean spelling, runs, breaks, neighbors and non-target XML/ZIP. Unknown native tokens survive no-op and unrelated edits but reject replacement. Measured word-breaking preview remains partial."
+        },
+        "eastAsianLineBreak": {
+          "type": "boolean",
+          "description": "Direct boolean setting applying East Asian typography and line-start/end rules to this paragraph. True, false and absence remain distinct; absence does not materialize a direct default. Independent of Latin word breaking, hanging punctuation, text-box wrap, explicit break inlines, indentation and writing direction. Ordinary source-bound text/shape owners support add/set/remove/restore and eastAsianLineBreak-only style removal under exact eastAsianLineBreak authority. Only changed paragraphs are patched, preserving equivalent native boolean spelling, runs, breaks, neighbors and non-target XML/ZIP. Unknown native tokens survive no-op and unrelated edits but reject replacement. Measured East Asian line breaking and kinsoku evaluation remain partial in preview."
         }
       },
       "allOf": [

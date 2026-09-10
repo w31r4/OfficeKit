@@ -1080,6 +1080,13 @@
       "reason": "PpjBulletSizeLifecycleTests covers authored bounds/precision and fresh native text/shape lifecycle for character/number/picture markers, imported embedded media, authority and unmodeled source preservation. Numeric parsing avoids SDK conversion failures; lowering normalizes native precision before source postwrite checks. Preview retains direct point-size character painting and explicitly diagnoses unresolved relative/follow-text sizing; inherited metrics and host glyph/layout remain partial."
     },
     {
+      "feature": "source-bound paragraph East Asian line break",
+      "ppjPath": "pages[].elements[].text.paragraphs[].style.eastAsianLineBreak",
+      "behavior": "partial",
+      "sourceBound": "Ordinary recognized text/shape paragraphs issue setTextParagraphStyle with exact eastAsianLineBreak authority. The direct boolean applies East Asian typography and line-start/end rules while retaining true, false and absence separately. Add/set/remove/restore and eastAsianLineBreak-only style removal patch only changed paragraphs, preserving Latin word breaking, hanging punctuation, text-box wrap, explicit break inlines, indentation, direction, native boolean spelling, neighbors and non-target XML/ZIP.",
+      "reason": "PpjParagraphEastAsianLineBreakLifecycleTests verifies boolean presence, authored precedence, independent Latin/punctuation/wrap/break settings, original-source removal/restoration, exact authority and unknown native token preservation/refusal. Shared paragraph/list/table/master paths reuse the native property. ppj-preview-input-assessment.mjs proves explicit partial diagnostics for true and false; inherited defaults, measured East Asian line breaking, kinsoku evaluation and host layout remain unresolved."
+    },
+    {
       "feature": "source-bound paragraph Latin line break",
       "ppjPath": "pages[].elements[].text.paragraphs[].style.latinLineBreak",
       "behavior": "partial",

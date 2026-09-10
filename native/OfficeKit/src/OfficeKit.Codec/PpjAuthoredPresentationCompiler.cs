@@ -2714,6 +2714,8 @@ internal static partial class PpjAuthoredPresentationCompiler
                 "auto" or "top" or "center" or "baseline" or "bottom" => fontAlignment.GetString(),
                 _ => throw Unsupported("paragraph", "fontAlignment must be auto, top, center, baseline or bottom"),
             };
+        if (FirstProperty(direct, inline, middle, named, "eastAsianLineBreak") is { } eastAsianLineBreak)
+            target.EastAsianLineBreak = eastAsianLineBreak.GetBoolean();
         if (FirstProperty(direct, inline, middle, named, "latinLineBreak") is { } latinLineBreak)
             target.LatinLineBreak = latinLineBreak.GetBoolean();
         if (FirstProperty(direct, inline, middle, named, "hangingPunctuation") is { } hangingPunctuation)
