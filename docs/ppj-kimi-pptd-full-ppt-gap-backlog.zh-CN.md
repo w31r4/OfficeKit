@@ -463,6 +463,19 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**段落对齐增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.alignment` 已验证 `left`、`center`、`right`、
+`justify`、`distributed` 的赋值、删除、恢复和单字段 style 包装删除。
+显式 left 保留直接属性，删除则清除它；直接段落值优先于 authored owner
+默认值，每次编辑要求 alignment 的精确字段权限。只改变化段落的对齐，
+保留缩进、间距、其它属性、run、相邻段落和非目标 XML/ZIP。
+本轮复现并修复非法原生 `algn` 导致投影失败的问题：按原始属性文本识别
+已建模值，未建模值随 no-op 和无关标量赋值/删除保留，拒绝覆盖。
+原生 `justLow`、`thaiDist` 仍属未建模模式。最小实验 **3/3 通过**，
+包含该实验的段落与列表回归 **25/25 通过，0 跳过**。
+Help、schema、生成资料、预览诊断、可移植性、reference-sync 和 OpenSpec
+检查通过。未重建 NativeAOT，预览文本布局仍为 partial；完整 F-03 继续开放。
+
 **段落悬挂缩进增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.hanging` 已接通正负值赋值、显式零、删除、恢复和
 单字段 style 包装删除。范围为 −4032–4032pt，按最近 EMU 取偶数舍入；

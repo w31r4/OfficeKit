@@ -15,7 +15,7 @@ internal static class PptxParagraphPropertiesCodec
         bool readLevel)
     {
         if (readLevel && source?.Level is not null) target.Level = checked((uint)source.Level.Value);
-        if (source?.Alignment?.Value is { } alignment && AlignmentName(alignment) is { Length: > 0 } name)
+        if (AlignmentName(source) is { Length: > 0 } name)
             target.Alignment = name;
         PptxParagraphLayoutCodec.Read(target, source);
         PptxParagraphSpacingCodec.Read(target, source);
@@ -91,8 +91,14 @@ internal static class PptxParagraphPropertiesCodec
         bool includeLevel)
     {
         if (includeLevel) target.Level = source.HasLevel ? checked((int)source.Level) : null;
-        if (source.HasAlignment) target.Alignment = ParseAlignment(source.Alignment);
-        else if (target.Alignment?.Value is { } alignment && AlignmentName(alignment).Length > 0) target.Alignment = null;
+        var alignment = AlignmentName(target);
+        if (source.HasAlignment)
+        {
+            if (alignment.Length == 0 && target.GetAttributes().Any(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "algn"))
+                throw new CodecException("unsupported_presentation_edit", "Source-preserving PPTX export cannot replace an unmodeled paragraph alignment.");
+            if (alignment != source.Alignment) target.Alignment = ParseAlignment(source.Alignment);
+        }
+        else if (alignment.Length > 0) target.Alignment = null;
         PptxParagraphLayoutCodec.Apply(target, source);
         PptxParagraphSpacingCodec.Apply(target, source);
         PptxBulletStyleCodec.Apply(target, source);
@@ -104,7 +110,7 @@ internal static class PptxParagraphPropertiesCodec
     internal static void Scrub(A.TextParagraphPropertiesType target, PptxPartContext? slideContext, bool includeLevel)
     {
         if (includeLevel) target.Level = null;
-        if (target.Alignment?.Value is { } alignment && AlignmentName(alignment).Length > 0) target.Alignment = null;
+        if (AlignmentName(target).Length > 0) target.Alignment = null;
         PptxParagraphLayoutCodec.Scrub(target);
         PptxParagraphSpacingCodec.Scrub(target);
         PptxDefaultRunStyleCodec.Scrub(target);
@@ -113,12 +119,18 @@ internal static class PptxParagraphPropertiesCodec
         target.GetFirstChild<A.TabStopList>()?.Remove();
     }
 
-    private static string AlignmentName(A.TextAlignmentTypeValues value) =>
-        value == A.TextAlignmentTypeValues.Left ? "left" :
-        value == A.TextAlignmentTypeValues.Center ? "center" :
-        value == A.TextAlignmentTypeValues.Right ? "right" :
-        value == A.TextAlignmentTypeValues.Justified ? "justify" :
-        value == A.TextAlignmentTypeValues.Distributed ? "distributed" : string.Empty;
+    // Classify raw tokens before accessing SDK enum values: malformed values
+    // must remain source-owned instead of aborting projection or unrelated edits.
+    private static string AlignmentName(A.TextParagraphPropertiesType? source) =>
+        source?.GetAttributes().FirstOrDefault(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "algn").Value switch
+        {
+            "l" => "left",
+            "ctr" => "center",
+            "r" => "right",
+            "just" => "justify",
+            "dist" => "distributed",
+            _ => string.Empty,
+        };
 
     private static A.TextAlignmentTypeValues ParseAlignment(string value) => value switch
     {

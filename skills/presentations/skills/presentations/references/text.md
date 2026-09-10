@@ -71,6 +71,15 @@ field authority. Remove the field or its hanging-only style to clear the
 direct setting. Other paragraph state and unmodeled source indentation stay
 preserved; replacing unmodeled indentation rejects. Preview remains partial.
 
+Use `text.paragraphs[].style.alignment` for `left`, `center`, `right`,
+`justify` or `distributed`. Direct values override the authored owner's
+paragraph default. Ordinary imported text/shape paragraphs support assignment,
+removal and restoration under the exact alignment field authority. Explicit
+`left` retains a direct native value; remove the field or an alignment-only
+style wrapper to clear it. Edits preserve runs, neighbors and other paragraph
+state. Unknown or invalid native alignment survives no-op and unrelated edits
+but rejects replacement. Preview text layout remains partial.
+
 For an ordinary imported text box or shape,
 `text.paragraphs[].style.defaultText.bold` and `.italic` edit independent paragraph defaults.
 True and false remain explicit; delete the field (or its flag-only

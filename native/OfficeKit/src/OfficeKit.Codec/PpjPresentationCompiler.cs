@@ -7096,7 +7096,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                     current.LineSpacingMultiplier = next.LineSpacingMultiplier;
                 else current.NoLineSpacing = true;
             }
-            if (alignmentChanged)
+            if (alignmentChanged && PropertyChanged(ParagraphStyle(beforeRaw, index), ParagraphStyle(afterRaw, index), "alignment"))
             {
                 current.ClearAlignment();
                 if (next.HasAlignment) current.Alignment = next.Alignment;

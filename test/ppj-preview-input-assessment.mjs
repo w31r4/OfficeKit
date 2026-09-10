@@ -78,6 +78,11 @@ for (const radius of [0, 2]) {
     { style: { defaultText: { softEdge: { radius } } }, runs: [{ text: "Soft-edge defaults" }] }] } }]));
   assert.ok(softEdgeDefaults.diagnostics.some(d => d.path.endsWith(".style.defaultText.softEdge.radius") && d.status !== "supported"));
 }
+for (const alignment of ["left", "center", "right", "justify", "distributed"]) {
+  const paragraph = assessPpjPreviewInput(deck([{ ...text, text: { paragraphs: [
+    { style: { alignment }, runs: [{ text: "Paragraph alignment" }] }] } }]));
+  assert.ok(paragraph.diagnostics.some(d => d.path.endsWith(".style.alignment") && d.status !== "supported"));
+}
 for (const field of ["spaceBefore", "spaceBeforeMultiplier", "spaceAfter", "spaceAfterMultiplier", "lineSpacing", "lineSpacingMultiplier", "indent", "hanging"]) {
   const spacing = assessPpjPreviewInput(deck([{ ...text, text: { paragraphs: [
     { style: { [field]: field.startsWith("lineSpacing") ? 1 : 0 }, runs: [{ text: "Paragraph spacing" }] }] } }]));
