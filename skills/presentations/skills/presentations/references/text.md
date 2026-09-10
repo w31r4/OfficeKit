@@ -176,6 +176,16 @@ remain. Unknown, malformed or duplicate native sizes stay source-owned and
 reject replacement. Direct point-size character preview retains glyph/layout
 limits; relative and follow-text sizing diagnose unavailable.
 
+Use `text.paragraphs[].style.hangingPunctuation` to enable or disable direct
+hanging punctuation. It is independent of first-line hanging indent (`hanging`),
+margins, alignment and writing direction. True, false and absence stay distinct.
+Ordinary source-bound text/shape paragraphs support add/set/remove/restore under
+exact hangingPunctuation authority; deleting the field or its single-field style
+clears the modeled direct attribute. Unknown native values survive unrelated
+edits and reject replacement. Other paragraphs, boolean spelling, runs and
+non-target XML/ZIP are retained. Preview reports both true and false as partial;
+measured punctuation placement and host line breaking need separate evidence.
+
 Use `text.paragraphs[].style.fontAlignment` for within-line alignment of
 different font sizes: `auto`, `top`, `center`, `baseline` or `bottom`.
 Explicit `auto` and absence remain distinct. Horizontal paragraph alignment,

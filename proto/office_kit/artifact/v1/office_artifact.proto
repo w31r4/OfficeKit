@@ -3685,6 +3685,9 @@ message PresentationTextParagraph {
   // Direct a:pPr/@fontAlgn. Unset clears a modeled direct attribute and
   // preserves unknown source tokens, matching alignment/direction semantics.
   optional string font_alignment = 37;
+  // Direct a:pPr/@hangingPunct. Presence distinguishes true, false and
+  // absence; unset clears modeled state and preserves unknown source tokens.
+  optional bool hanging_punctuation = 38;
 }
 
 message PresentationPictureBullet {

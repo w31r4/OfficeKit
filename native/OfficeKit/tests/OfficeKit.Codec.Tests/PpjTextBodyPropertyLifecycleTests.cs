@@ -2428,12 +2428,13 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
                     paragraphProperties.Remove();
             }
         }
-        else if (field is "paragraph.spaceBefore" or "paragraph.spaceAfter" or "paragraph.lineSpacing" or "paragraph.indent" or "paragraph.hanging" or "paragraph.alignment" or "paragraph.level" or "paragraph.bullet.startAt" or "paragraph.bullet.scheme" or "paragraph.bullet.schemeAndStartAt" or "paragraph.bullet.character" or "paragraph.bullet.font" or "paragraph.bullet.color" or "paragraph.bullet.size" or "paragraph.tabStops" or "paragraph.direction" or "paragraph.rightIndent" or "paragraph.fontAlignment")
+        else if (field is "paragraph.spaceBefore" or "paragraph.spaceAfter" or "paragraph.lineSpacing" or "paragraph.indent" or "paragraph.hanging" or "paragraph.alignment" or "paragraph.level" or "paragraph.bullet.startAt" or "paragraph.bullet.scheme" or "paragraph.bullet.schemeAndStartAt" or "paragraph.bullet.character" or "paragraph.bullet.font" or "paragraph.bullet.color" or "paragraph.bullet.size" or "paragraph.tabStops" or "paragraph.direction" or "paragraph.rightIndent" or "paragraph.fontAlignment" or "paragraph.hangingPunctuation")
         {
             foreach (var owner in new[] { oldSlide, newSlide })
             {
                 var properties = owner.Descendants<A.Paragraph>().First().ParagraphProperties;
-                if (field == "paragraph.fontAlignment") { if (properties is not null) properties.FontAlignment = null; }
+                if (field == "paragraph.hangingPunctuation") { if (properties is not null) properties.Height = null; }
+                else if (field == "paragraph.fontAlignment") { if (properties is not null) properties.FontAlignment = null; }
                 else if (field == "paragraph.rightIndent") { if (properties is not null) properties.RightMargin = null; }
                 else if (field == "paragraph.direction") { if (properties is not null) properties.RightToLeft = null; }
                 else if (field == "paragraph.tabStops") properties?.GetFirstChild<A.TabStopList>()?.Remove();

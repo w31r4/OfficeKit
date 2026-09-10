@@ -463,6 +463,20 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**段落标点溢出增量（2026-09-10）：**
+新增布尔字段 `text.paragraphs[].style.hangingPunctuation`，表达允许标点
+溢出边界的直接设置，对应 `a:pPr/@hangingPunct`。开启、关闭与缺省
+分别保留，与首行悬挂缩进 `hanging`、边距、对齐和书写方向各自独立。
+普通文本框和形状支持新增、赋值、删除和恢复；删除只含此字段的样式
+对象会清除直接属性。每次修改要求该字段自身权限，保留等价布尔值的
+原始写法、相邻段落、run、其他属性及非目标 XML/ZIP。未知原生值在
+无操作和独立样式修改时保留，替换时拒绝。
+最小实验 **4/4**、相关回归 **18/18** 通过，覆盖三态、优先级及原始
+源文件上的删除恢复。协议、预览诊断与资料同步检查通过；记录见 `openspec/changes/ppj-paragraph-hanging-punctuation-lifecycle/tasks.md`。
+预览对 true/false 均保留明确的 partial 诊断。本轮交付源码与生成绑定，
+未重建 NativeAOT；继承、字体度量、实际标点位置和换行仍有缺口，
+F-03 继续开放。
+
 **段落字体对齐增量（2026-09-10）：**
 新增 `text.paragraphs[].style.fontAlignment`，表达同一行内不同字号文字的
 对齐方式：`auto`、`top`、`center`、`baseline`、`bottom`，对应直接

@@ -17,6 +17,7 @@ internal static class PptxParagraphPropertiesCodec
     {
         if (FontAlignmentName(source) is { Length: > 0 } fontAlignment) target.FontAlignment = fontAlignment;
         if (RightToLeft(source) is { } rightToLeft) target.RightToLeft = rightToLeft;
+        if (HangingPunctuation(source) is { } hangingPunctuation) target.HangingPunctuation = hangingPunctuation;
         if (readLevel && TryLevel(source, out var level)) target.Level = level;
         if (AlignmentName(source) is { Length: > 0 } name)
             target.Alignment = name;
@@ -49,7 +50,7 @@ internal static class PptxParagraphPropertiesCodec
 
     internal static bool HasAuthoredProperties(PresentationTextParagraph source, bool includeLevel) =>
         includeLevel && source.HasLevel ||
-        source.HasAlignment || source.HasRightToLeft || source.HasFontAlignment ||
+        source.HasAlignment || source.HasRightToLeft || source.HasFontAlignment || source.HasHangingPunctuation ||
         PptxParagraphLayoutCodec.HasAuthoredLayout(source) ||
         PptxParagraphSpacingCodec.HasAuthoredSpacing(source) ||
         PptxBulletCodec.HasModeledBullet(source) ||
@@ -58,7 +59,7 @@ internal static class PptxParagraphPropertiesCodec
         source.TabStops.Count > 0;
 
     internal static bool HasModeledProperties(PresentationTextParagraph source) =>
-        source.HasAlignment || source.HasRightToLeft || source.HasFontAlignment ||
+        source.HasAlignment || source.HasRightToLeft || source.HasFontAlignment || source.HasHangingPunctuation ||
         source.LeftMarginCase != PresentationTextParagraph.LeftMarginOneofCase.None ||
         source.RightMarginCase != PresentationTextParagraph.RightMarginOneofCase.None ||
         source.IndentationCase != PresentationTextParagraph.IndentationOneofCase.None ||
@@ -80,6 +81,7 @@ internal static class PptxParagraphPropertiesCodec
     {
         if (source.HasFontAlignment) target.FontAlignment = ParseFontAlignment(source.FontAlignment);
         if (source.HasRightToLeft) target.RightToLeft = source.RightToLeft;
+        if (source.HasHangingPunctuation) target.Height = source.HangingPunctuation;
         if (includeLevel && source.HasLevel) target.Level = checked((int)source.Level);
         if (source.HasAlignment) target.Alignment = ParseAlignment(source.Alignment);
         PptxParagraphLayoutCodec.Append(target, source);
@@ -123,6 +125,14 @@ internal static class PptxParagraphPropertiesCodec
             if (rightToLeft != source.RightToLeft) target.RightToLeft = source.RightToLeft;
         }
         else if (rightToLeft is not null) target.RightToLeft = null;
+        var hangingPunctuation = HangingPunctuation(target);
+        if (source.HasHangingPunctuation)
+        {
+            if (hangingPunctuation is null && target.GetAttributes().Any(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "hangingPunct"))
+                throw new CodecException("unsupported_presentation_edit", "Source-preserving PPTX export cannot replace an unmodeled paragraph hanging punctuation.");
+            if (hangingPunctuation != source.HangingPunctuation) target.Height = source.HangingPunctuation;
+        }
+        else if (hangingPunctuation is not null) target.Height = null;
         var alignment = AlignmentName(target);
         if (source.HasAlignment)
         {
@@ -144,6 +154,7 @@ internal static class PptxParagraphPropertiesCodec
         if (includeLevel && TryLevel(target, out _)) target.Level = null;
         if (AlignmentName(target).Length > 0) target.Alignment = null;
         if (RightToLeft(target) is not null) target.RightToLeft = null;
+        if (HangingPunctuation(target) is not null) target.Height = null;
         if (FontAlignmentName(target).Length > 0) target.FontAlignment = null;
         PptxParagraphLayoutCodec.Scrub(target);
         PptxParagraphSpacingCodec.Scrub(target);
@@ -176,6 +187,16 @@ internal static class PptxParagraphPropertiesCodec
 
     private static bool? RightToLeft(A.TextParagraphPropertiesType? source) =>
         source?.GetAttributes().FirstOrDefault(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "rtl").Value switch
+        {
+            "0" or "false" => false,
+            "1" or "true" => true,
+            _ => null,
+        };
+
+    // The SDK names the hangingPunct attribute Height; it is a boolean setting,
+    // independent of text/shape height and the paragraph's hanging indent.
+    private static bool? HangingPunctuation(A.TextParagraphPropertiesType? source) =>
+        source?.GetAttributes().FirstOrDefault(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "hangingPunct").Value switch
         {
             "0" or "false" => false,
             "1" or "true" => true,
