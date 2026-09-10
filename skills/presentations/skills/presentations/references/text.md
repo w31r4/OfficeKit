@@ -34,7 +34,9 @@ Assign language and font roles explicitly for mixed-script runs.
 
 Use `text.paragraphs[].style.spaceBefore` for points (0..1584), or
 `spaceBeforeMultiplier` for a multiplier (0..132; 1 = 100%). Declare one unit
-per style; the highest-priority paragraph style selects its unit and value.
+per style. For space after, use `spaceAfter` or `spaceAfterMultiplier`
+with the same ranges and unit rules. The highest-priority paragraph style
+selects each slot's unit and value.
 Points round to hundredths and multipliers to 1/100000, with ties to even.
 Ordinary imported text/shape paragraphs support setting, switching units,
 removing and restoring this spacing. Zero retains its unit. Remove the field

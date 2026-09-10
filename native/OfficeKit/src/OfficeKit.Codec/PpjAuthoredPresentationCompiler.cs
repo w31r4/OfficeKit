@@ -2724,10 +2724,16 @@ internal static partial class PpjAuthoredPresentationCompiler
             else if (hasMultiplier) target.SpaceBeforeMultiplier = Math.Round(multiplier.GetDouble() * 100_000) / 100_000d;
             if (hasPoints || hasMultiplier) break;
         }
-        if (FirstProperty(direct, inline, middle, named, "spaceAfter") is { } after)
-            target.SpaceAfterPoints = after.GetDouble();
-        if (FirstProperty(direct, inline, middle, named, "spaceAfterMultiplier") is { } afterMultiplier)
-            target.SpaceAfterMultiplier = afterMultiplier.GetDouble();
+        foreach (var layer in new[] { direct, inline, middle, named })
+        {
+            if (layer is not { ValueKind: JsonValueKind.Object } paragraph) continue;
+            var hasPoints = paragraph.TryGetProperty("spaceAfter", out var before);
+            var hasMultiplier = paragraph.TryGetProperty("spaceAfterMultiplier", out var multiplier);
+            if (hasPoints && hasMultiplier) throw Unsupported("paragraph", "spaceAfter and spaceAfterMultiplier are mutually exclusive");
+            if (hasPoints) target.SpaceAfterPoints = Math.Round(before.GetDouble() * 100) / 100d;
+            else if (hasMultiplier) target.SpaceAfterMultiplier = Math.Round(multiplier.GetDouble() * 100_000) / 100_000d;
+            if (hasPoints || hasMultiplier) break;
+        }
         if (FirstProperty(direct, inline, middle, named, "lineSpacing") is { } spacing)
             target.LineSpacingPoints = spacing.GetDouble();
         if (FirstProperty(direct, inline, middle, named, "lineSpacingMultiplier") is { } spacingMultiplier)
@@ -4282,18 +4288,20 @@ internal static partial class PpjAuthoredPresentationCompiler
 
     private static JsonElement? MergeJsonObjects(params JsonElement?[] sources) => MergeJsonObjects(false, sources);
 
-    private static JsonElement? MergeJsonObjects(bool mergeSpaceBefore, params JsonElement?[] sources)
+    private static JsonElement? MergeJsonObjects(bool mergeParagraphSpacing, params JsonElement?[] sources)
     {
         Dictionary<string, JsonElement>? merged = null;
         foreach (var source in sources)
         {
             if (source is not { ValueKind: JsonValueKind.Object } value) continue;
             merged ??= new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-            if (mergeSpaceBefore && (value.TryGetProperty("spaceBefore", out _) || value.TryGetProperty("spaceBeforeMultiplier", out _)))
-            {
-                merged.Remove("spaceBefore");
-                merged.Remove("spaceBeforeMultiplier");
-            }
+            if (mergeParagraphSpacing)
+                foreach (var slot in new[] { "spaceBefore", "spaceAfter" })
+                    if (value.TryGetProperty(slot, out _) || value.TryGetProperty(slot + "Multiplier", out _))
+                    {
+                        merged.Remove(slot);
+                        merged.Remove(slot + "Multiplier");
+                    }
             foreach (var property in value.EnumerateObject())
                 merged[property.Name] = property.Value.Clone();
         }

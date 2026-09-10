@@ -23,17 +23,17 @@ internal static class PptxParagraphSpacingCodec
             ReadSlot(before[0], true,
                 points => target.SpaceBeforePoints = points,
                 multiplier => target.SpaceBeforeMultiplier = multiplier);
-        ReadSlot(source?.GetFirstChild<A.SpaceAfter>(), true,
-            points => target.SpaceAfterPoints = points,
-            multiplier => target.SpaceAfterMultiplier = multiplier);
+        var after = source?.Elements<A.SpaceAfter>().Take(2).ToArray() ?? [];
+        if (after.Length == 1)
+            ReadSlot(after[0], true,
+                points => target.SpaceAfterPoints = points,
+                multiplier => target.SpaceAfterMultiplier = multiplier);
     }
 
+    // Before/after replacement is checked locally. Unmodeled source slots
+    // can remain untouched during an unrelated paragraph edit.
     internal static bool Supports(A.TextParagraphPropertiesType? source) =>
-        source is null ||
-        SupportsSingle(source.Elements<A.LineSpacing>(), false) &&
-        // Space-before replacement is checked locally. Unmodeled source slots
-        // can remain untouched during an unrelated paragraph edit.
-        SupportsSingle(source.Elements<A.SpaceAfter>(), true);
+        source is null || SupportsSingle(source.Elements<A.LineSpacing>(), false);
 
     internal static void Validate(PresentationTextParagraph source)
     {
@@ -190,6 +190,12 @@ internal static class PptxParagraphSpacingCodec
         else if (replacement is A.SpaceBefore)
         {
             if (target.GetFirstChild<A.LineSpacing>() is { } preceding) target.InsertAfter(replacement, preceding);
+            else target.PrependChild(replacement);
+        }
+        else if (replacement is A.SpaceAfter)
+        {
+            var preceding = target.ChildElements.LastOrDefault(child => child is A.LineSpacing or A.SpaceBefore);
+            if (preceding is not null) target.InsertAfter(replacement, preceding);
             else target.PrependChild(replacement);
         }
         else if (replacement is not null) target.AddChild(replacement, true);

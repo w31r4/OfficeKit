@@ -78,9 +78,9 @@ for (const radius of [0, 2]) {
     { style: { defaultText: { softEdge: { radius } } }, runs: [{ text: "Soft-edge defaults" }] }] } }]));
   assert.ok(softEdgeDefaults.diagnostics.some(d => d.path.endsWith(".style.defaultText.softEdge.radius") && d.status !== "supported"));
 }
-for (const field of ["spaceBefore", "spaceBeforeMultiplier"]) {
+for (const field of ["spaceBefore", "spaceBeforeMultiplier", "spaceAfter", "spaceAfterMultiplier"]) {
   const spacing = assessPpjPreviewInput(deck([{ ...text, text: { paragraphs: [
-    { style: { [field]: 0 }, runs: [{ text: "Spacing before paragraph" }] }] } }]));
+    { style: { [field]: 0 }, runs: [{ text: "Paragraph spacing" }] }] } }]));
   assert.ok(spacing.diagnostics.some(d => d.path.endsWith(".style." + field) && d.status !== "supported"));
 }
 for (const field of ["bold", "italic", "size", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "language", "kerning", "letterSpacing", "baseline", "capitalization", "strike", "underline", "highlight", "color", "gradient", "glow", "innerShadow"]) {
