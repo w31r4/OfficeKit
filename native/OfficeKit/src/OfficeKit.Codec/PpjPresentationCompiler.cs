@@ -1797,8 +1797,17 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 if (changed) mutations.SemanticChanges = true;
                 break;
             case PpjTableElementModel beforeTable when after is PpjTableElementModel afterTable && target.ContentCase == PresentationElement.ContentOneofCase.Table:
-                changed = ApplyTableElement(program, beforeTable, afterTable, target.Table, assets, assetDimensions, path);
-                if (changed) mutations.SemanticChanges = true;
+                var tableSemanticChanged = ApplyTableElement(program, beforeTable, afterTable, target.Table, assets, assetDimensions, path);
+                var tableFieldTypeChanged = ApplyTableFieldTypeMutations(
+                    beforeTable,
+                    afterTable,
+                    target,
+                    slide,
+                    shapeTreePath,
+                    mutations,
+                    path);
+                changed = tableSemanticChanged || tableFieldTypeChanged;
+                if (tableSemanticChanged) mutations.SemanticChanges = true;
                 break;
             case PpjConnectorElementModel beforeConnector when after is PpjConnectorElementModel afterConnector && target.ContentCase == PresentationElement.ContentOneofCase.Connector:
                 changed = ApplyConnectorElement(program, beforeConnector, afterConnector, target.Connector, path);
@@ -4154,7 +4163,13 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 var newStructuredText = newCell.Raw.TryGetProperty("text", out var newTextRaw) && newTextRaw.ValueKind == JsonValueKind.Object;
                 if (oldStructuredText && rawTextChanged && !newStructuredText)
                     throw Unsupported(cellPath + ".text", "mixed-run table-cell text must retain its structured text body");
-                var textChanged = !TextEqual(oldCell.Text, newCell.Text);
+                // A table field type leaf is issued separately from cached
+                // text. Let that one token change bypass the table text-body
+                // writer; every other difference (including field ID,
+                // cached text, automatic state, or inline topology) still
+                // follows the source-preserving text path and is rejected by
+                // its identity checks when unsafe.
+                var textChanged = !TextEqualExceptFieldTypes(oldCell.Text, newCell.Text);
                 var textBodyStyleChanged = rawTextChanged && newStructuredText &&
                     TextBodyStyleChanged(oldTextRaw, newTextRaw);
                 var styleChanged = PropertyChanged(oldCell.Raw, newCell.Raw, "fill") ||
@@ -4224,6 +4239,77 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 }
                 else target.Rows[physicalRow].Cells[physicalColumn].Text = newCell.Text.PlainText!;
                 changed = true;
+            }
+        }
+        return changed;
+    }
+
+    private static bool ApplyTableFieldTypeMutations(
+        PpjTableElementModel before,
+        PpjTableElementModel after,
+        PresentationElement target,
+        PresentationSlide slide,
+        IReadOnlyList<uint> shapeTreePath,
+        MutationState mutations,
+        string path)
+    {
+        var changed = false;
+        for (var row = 0; row < before.Rows.Count; row++)
+        {
+            var oldRow = before.Rows[row];
+            var newRow = after.Rows[row];
+            for (var cell = 0; cell < oldRow.Cells.Count; cell++)
+            {
+                var oldCell = oldRow.Cells[cell];
+                var newCell = newRow.Cells[cell];
+                var oldRuns = oldCell.Text.Paragraphs.SelectMany(paragraph => paragraph.Runs).ToArray();
+                var newRuns = newCell.Text.Paragraphs.SelectMany(paragraph => paragraph.Runs).ToArray();
+                if (oldRuns.Length != newRuns.Length) continue;
+                if (!TryProjectedCellCoordinates(oldCell.Id, out var physicalRow, out var physicalColumn) ||
+                    physicalRow < 0 || physicalRow >= target.Table.Rows.Count ||
+                    physicalColumn < 0 || physicalColumn >= target.Table.Rows[physicalRow].Cells.Count)
+                    continue;
+                var textLeafIndex = checked((uint)target.Table.Rows.Take(physicalRow).Sum(item => item.Cells.Count) + (uint)physicalColumn);
+                uint fieldIndex = 0;
+                for (var run = 0; run < oldRuns.Length; run++)
+                {
+                    var oldField = oldRuns[run].Field;
+                    var newField = newRuns[run].Field;
+                    if (oldField is not null && newField is not null)
+                    {
+                        if (!string.Equals(oldField.Id, newField.Id, StringComparison.Ordinal) ||
+                            oldField.Automatic != newField.Automatic)
+                            throw new CodecException("unsupported_presentation_edit", "Source-preserving table-cell field edits may not change field identity or automatic state.", $"{path}.rows[{row}].cells[{cell}].text");
+                        if (!string.Equals(oldField.Type, newField.Type, StringComparison.Ordinal))
+                        {
+                            if (oldField.Automatic || newField.Automatic ||
+                                PptxTextCodec.IsAutomaticFieldType(oldField.Type) ||
+                                PptxTextCodec.IsAutomaticFieldType(newField.Type) ||
+                                !PptxTextCodec.ValidFieldType(oldField.Type) ||
+                                !PptxTextCodec.ValidFieldType(newField.Type))
+                                throw Unsupported($"{path}.rows[{row}].cells[{cell}].text", "source-bound automatic or invalid table-cell field type change");
+                            RequireCapabilityField(after.NativeRef, "setTextField",
+                                "table.rows[].cells[].text.paragraphs[].runs[].field.type",
+                                $"{path}.rows[{row}].cells[{cell}].text.paragraphs[].runs[{run}].field.type");
+                            mutations.NativeLeaves.Add(new NativeLeafMutation(
+                                after.Id,
+                                slide,
+                                target,
+                                shapeTreePath,
+                                fieldIndex,
+                                textLeafIndex,
+                                oldField.Type,
+                                newField.Type,
+                                "tableTextFieldType"));
+                            changed = true;
+                            if (!string.Equals(oldField.Text, newField.Text, StringComparison.Ordinal))
+                                throw Unsupported($"{path}.rows[{row}].cells[{cell}].text", "source-bound table-cell field cached text and type must not change together");
+                        }
+                    }
+                    else if (oldField is not null || newField is not null)
+                        throw Unsupported($"{path}.rows[{row}].cells[{cell}].text", "source-bound table-cell field topology change");
+                    if (oldField is not null) fieldIndex++;
+                }
             }
         }
         return changed;
@@ -7679,6 +7765,31 @@ internal static partial class PpjSourceBoundPresentationCompiler
                     leftRun.LineBreak != rightRun.LineBreak ||
                     leftRun.Field?.Id != rightRun.Field?.Id || leftRun.Field?.Type != rightRun.Field?.Type ||
                     leftRun.Field?.Text != rightRun.Field?.Text) return false;
+            }
+        }
+        return true;
+    }
+
+    private static bool TextEqualExceptFieldTypes(PpjTextContentModel left, PpjTextContentModel right)
+    {
+        if (left.PlainText is not null || right.PlainText is not null) return left.PlainText == right.PlainText;
+        if (left.Paragraphs.Count != right.Paragraphs.Count) return false;
+        for (var paragraph = 0; paragraph < left.Paragraphs.Count; paragraph++)
+        {
+            if (left.Paragraphs[paragraph].Runs.Count != right.Paragraphs[paragraph].Runs.Count) return false;
+            for (var run = 0; run < left.Paragraphs[paragraph].Runs.Count; run++)
+            {
+                var leftRun = left.Paragraphs[paragraph].Runs[run];
+                var rightRun = right.Paragraphs[paragraph].Runs[run];
+                if ((leftRun.Field is null) != (rightRun.Field is null) ||
+                    (leftRun.Formula is null) != (rightRun.Formula is null) ||
+                    leftRun.Text != rightRun.Text ||
+                    leftRun.Formula?.Syntax != rightRun.Formula?.Syntax ||
+                    leftRun.Formula?.Source != rightRun.Formula?.Source ||
+                    leftRun.LineBreak != rightRun.LineBreak ||
+                    leftRun.Field?.Id != rightRun.Field?.Id ||
+                    leftRun.Field?.Text != rightRun.Field?.Text ||
+                    leftRun.Field?.Automatic != rightRun.Field?.Automatic) return false;
             }
         }
         return true;

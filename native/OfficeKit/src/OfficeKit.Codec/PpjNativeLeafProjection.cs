@@ -50,7 +50,7 @@ internal static class PpjNativeLeafProjection
         "paragraphBulletFontFamily", "paragraphBulletColorScheme", "verticalAnchor",
         "textBodyWrap", "textBodyAutoFit", "textBodyVerticalText", "fontFamily",
         "textBodyVerticalOverflow", "textBodyHorizontalOverflow",
-        "textBodyWarpPreset", "customGeometryGuideFormula", "customGeometryAdjustmentFormula", "textFieldType",
+        "textBodyWarpPreset", "customGeometryGuideFormula", "customGeometryAdjustmentFormula", "textFieldType", "tableTextFieldType",
         "fontFamilyEastAsia", "fontFamilyComplexScript", "fontLanguage", "fontUnderline", "fontStrike", "fontColorScheme", "textGlowColorScheme", "textDefaultGlowColorScheme", "textInnerShadowColorScheme", "textDefaultInnerShadowColorScheme", "shapeGlowColorScheme", "imageGlowColorScheme", "shapeInnerShadowColorScheme", "imageInnerShadowColorScheme",
         "fontCaps", "fontHighlightScheme", "fillScheme", "shadowAlignment", "imageShadowAlignment", "imageShadowColorScheme", "textDefaultShadowAlignment", "shadowColorScheme", "textDefaultShadowColorScheme", "lineScheme", "lineStyle", "lineCap", "lineJoin",
         "lineStartArrow", "lineEndArrow", "lineStartArrowWidth", "lineStartArrowLength", "lineEndArrowWidth", "lineEndArrowLength", "imageMaskPreset", "shape3dPresetMaterial", "shape3dBevelTopPreset", "shape3dBevelBottomPreset", "shape3dSceneCameraPreset", "shape3dSceneLightRigPreset", "shape3dSceneLightRigDirection", "shape3dContourColorScheme", "shape3dExtrusionColorScheme", "chartDataCategory",
@@ -249,7 +249,7 @@ internal static class PpjNativeLeafProjection
     /// </summary>
     internal static string NormalizeValue(string kind, JsonElement value, string path)
     {
-        if (kind == "textFieldType")
+        if (kind is "textFieldType" or "tableTextFieldType")
         {
             var token = RequireString(value, kind, path);
             if (!PptxTextCodec.ValidFieldType(token) || PptxTextCodec.IsAutomaticFieldType(token))
@@ -1244,6 +1244,8 @@ internal static class PpjNativeLeafProjection
         Action<string, string, JsonNode?, uint, uint> add)
     {
         if (!source.Editable) return;
+        if (table.ColumnWidthsEmu.Count == 0 || table.Rows.Count == 0 ||
+            table.Rows.Any(row => row.Cells.Count != table.ColumnWidthsEmu.Count)) return;
         if (table.HasFirstRow)
             AddInteger(add, "tableHeaderRows", table.FirstRow ? 1 : 0);
         if (table.HasBandedRows)
@@ -1260,6 +1262,21 @@ internal static class PpjNativeLeafProjection
         foreach (var cell in table.Rows.SelectMany(row => row.Cells))
         {
             add("tableCellText", cell.Text, JsonValue.Create(cell.Text), 0, cellIndex);
+            if (cell.TextBody is not null && PptxTableCodec.IsBoundedMixedRunTextBody(cell.TextBody))
+            {
+                uint fieldIndex = 0;
+                foreach (var run in cell.TextBody.Paragraphs.SelectMany(paragraph => paragraph.Runs))
+                {
+                    if (run.ContentCase == PresentationTextRun.ContentOneofCase.Field)
+                    {
+                        if (Guid.TryParseExact(run.Field.Id, "B", out _) &&
+                            PptxTextCodec.ValidFieldType(run.Field.Type) &&
+                            !PptxTextCodec.IsAutomaticFieldType(run.Field.Type))
+                            add("tableTextFieldType", run.Field.Type, JsonValue.Create(run.Field.Type), fieldIndex, cellIndex);
+                        fieldIndex++;
+                    }
+                }
+            }
             cellIndex++;
         }
     }

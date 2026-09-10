@@ -174,7 +174,11 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
         return true;
       })) paintedShapeGeometryOwners.add(path);
   }
-  const rules = new Map(Object.values(support.fields).map((rule) => [previewSchemaAt(schema, rule.schemaRef), rule]));
+  const tableTextFieldRule = support.fields.tableTextFieldType;
+  const tableTextFieldPath = /\.rows\[\d+\]\.cells\[\d+\]\.text\.paragraphs\[\d+\]\.runs\[\d+\]\.field\.type$/u;
+  const rules = new Map(Object.entries(support.fields)
+    .filter(([name]) => name !== "tableTextFieldType")
+    .map(([, rule]) => [previewSchemaAt(schema, rule.schemaRef), rule]));
   const metadata = new Set(Object.values(support.metadata).map((rule) => previewSchemaAt(schema, rule.schemaRef)));
   const sourceRules = new Map(Object.values(support.sourceBound).map((rule) => [previewSchemaAt(schema, rule.schemaRef), rule]));
   const effectBounds = new Set(["shadow", "glow", "softEdge", "reflection", "innerShadow"].map((name) => schema.$defs[name]).filter(Boolean));
@@ -214,7 +218,9 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
     const known = parts.length > 0;
     // Unknown children of recognized metadata are NOT automatically metadata.
     nonvisual = known && (nonvisual || parts.some((part) => metadata.has(part)));
-    const localRule = parts.map((part) => rules.get(part)).find(Boolean);
+    const localRule = tableTextFieldPath.test(path) && tableTextFieldRule
+      ? tableTextFieldRule
+      : parts.map((part) => rules.get(part)).find(Boolean);
     const rule = known ? localRule || inheritedRule : undefined;
     if (!nonvisual && parts.some((part) => effectBounds.has(part))) emit(context, path, value, undefined, { reason: "preview.bounds.unassessed", action: "Inspect the effect-expanded extent; the preview does not compute these bounds." });
     if (!value || typeof value !== "object") {

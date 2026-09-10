@@ -3182,6 +3182,15 @@ internal static partial class PpjPresentationProjector
                         fields.Add("table.cell.textStyle");
                     output.Add(new("setTableCellStyle", fields));
                 }
+                if (element.Table.Rows.Any(row => row.Cells.Any(cell =>
+                        cell.TextBody is not null &&
+                        PptxTableCodec.IsBoundedMixedRunTextBody(cell.TextBody) &&
+                        cell.TextBody.Paragraphs.SelectMany(paragraph => paragraph.Runs).Any(run =>
+                            run.ContentCase == PresentationTextRun.ContentOneofCase.Field &&
+                            Guid.TryParseExact(run.Field.Id, "B", out _) &&
+                            PptxTextCodec.ValidFieldType(run.Field.Type) &&
+                            !PptxTextCodec.IsAutomaticFieldType(run.Field.Type)))))
+                    output.Add(new("setTextField", ["table.rows[].cells[].text.paragraphs[].runs[].field.type"]));
                 output.Add(new("setFrame", EditableFrameFields));
                 break;
             case PresentationElement.ContentOneofCase.Connector when source.Editable:

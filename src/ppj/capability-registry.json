@@ -298,6 +298,13 @@
         "reason": "preview.text.field-type-unassessed",
         "test": "test/ppj-preview-input-assessment.mjs"
       },
+      "tableTextFieldType": {
+        "schemaRef": "#/$defs/textField/properties/type",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.text.table-field-type-unassessed",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
       "textStyle": {
         "schemaRef": "#/$defs/textStyle",
         "owner": "presentation-compiler",
@@ -813,6 +820,13 @@
     "table.setAccessibilityMetadata": "$.pages[].elements[].accessibility"
   },
   "authoredCompilerBoundaries": [
+    {
+      "feature": "source-bound static table-cell field type",
+      "ppjPath": "pages[].elements[].rows[].cells[].text.paragraphs[].runs[].field.type",
+      "behavior": "partial",
+      "sourceBound": "Imported rectangular editable tables expose valid non-automatic field type tokens as native leaves and patch only the owning slide's direct a:fld/@type token. Field ID, cached text, automatic state, inline topology, table grid, merges, and other XML remain source-bound.",
+      "reason": "Automatic field evaluation, stale bindings, identity changes, cached-text/type combined edits, irregular tables, and unsupported field graphs fail closed. Preview rendering is assessed separately from package structure and host PowerPoint refresh behavior."
+    },
     {
       "feature": "bounded hierarchy display levels",
       "ppjPath": "pages[].elements[].data.series[0].levels for treemap and sunburst charts",
@@ -1403,6 +1417,7 @@
     "paragraphBulletSizePercent": { "valueType": "number", "unit": "percent", "ppjLocation": "paragraph.style.bullet.sizePercent", "surface": "native-leaf", "boundary": "Bullet size relative to text." },
     "paragraphLevel": { "valueType": "number", "unit": "integer", "ppjLocation": "paragraph.style.level", "surface": "native-leaf", "boundary": "Paragraph outline level 0 through 8." },
     "textFieldType": { "valueType": "string", "unit": "token", "ppjLocation": "text.paragraphs[].runs[].field.type", "surface": "native-leaf", "boundary": "Direct static DrawingML field type token; the field ID, cached text, automatic marker and inline topology remain source-bound, and recognized automatic field types stay source-owned." },
+    "tableTextFieldType": { "valueType": "string", "unit": "token", "ppjLocation": "table.rows[].cells[].text.paragraphs[].runs[].field.type", "surface": "native-leaf", "boundary": "Direct static DrawingML table-cell field type token; the physical cell and field ordinals are source-bound, as are field ID, cached text, automatic state, inline topology, table grid and merges." },
     "verticalAnchor": { "valueType": "string", "unit": "enum", "ppjLocation": "textBoxStyle.verticalAlignment", "surface": "native-leaf", "boundary": "Text body vertical anchor." },
     "textBodyAnchorCenter": { "valueType": "boolean", "unit": "boolean", "ppjLocation": "textBoxStyle.anchorCenter", "surface": "native-leaf", "boundary": "Direct imported text-body anchorCtr flag; the source must contain one existing canonical a:bodyPr/@anchorCtr token." },
     "textBodyForceAntiAlias": { "valueType": "boolean", "unit": "boolean", "ppjLocation": "textBoxStyle.forceAntiAlias", "surface": "native-leaf", "boundary": "Direct imported text-body forceAA hint; the source must contain one existing canonical a:bodyPr/@forceAA token." },
