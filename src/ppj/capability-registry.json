@@ -291,6 +291,13 @@
         "reason": "preview.text.unassessed",
         "test": "test/ppj-preview-capability-coverage.mjs"
       },
+      "textFieldType": {
+        "schemaRef": "#/$defs/textField/properties/type",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.text.field-type-unassessed",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
       "textStyle": {
         "schemaRef": "#/$defs/textStyle",
         "owner": "presentation-compiler",
@@ -982,6 +989,13 @@
       "reason": "PPJ compiles one bounded, non-executable LaTeX subset to canonical editable Office Math and restores the exact source only from an embedded PPJ snapshot. Arbitrary TeX, raw OMML, environments, macros and unsupported formula styling fail closed."
     },
     {
+      "feature": "source-bound static text field type",
+      "ppjPath": "pages[].elements[].text.paragraphs[].runs[].field.type",
+      "behavior": "partial",
+      "sourceBound": "Existing ordinary text/shape fields issue setTextField for a changed non-automatic DrawingML type token. The source-bound edit patches only the target SlidePart a:fld/@type attribute and then reprojects the same field ID, cached display text, automatic marker and inline topology. Recognized automatic field types, field identity changes, cached-text changes in the same edit and unknown field graphs remain source-owned or use their existing boundaries.",
+      "reason": "The bounded leaf proves a valid 1..255 printable static token, a unique direct type attribute and the field ordinal against the exact source element. It does not evaluate, refresh or broaden PowerPoint field semantics; host PowerPoint acceptance is not claimed."
+    },
+    {
       "feature": "source-bound paragraph default scalars",
       "ppjPath": "pages[].elements[].text.paragraphs[].style.defaultText.bold, italic, size, fontFamily, fontFamilyEastAsia, fontFamilyComplexScript, language, kerning, letterSpacing, baseline, capitalization, strike, underline, highlight, color, gradient, glow, innerShadow, reflection, shadow and softEdge",
       "behavior": "partial",
@@ -1388,6 +1402,7 @@
     "paragraphBulletSizePoints": { "valueType": "number", "unit": "pt", "ppjLocation": "paragraph.style.bullet.size", "surface": "native-leaf", "boundary": "Absolute bullet size." },
     "paragraphBulletSizePercent": { "valueType": "number", "unit": "percent", "ppjLocation": "paragraph.style.bullet.sizePercent", "surface": "native-leaf", "boundary": "Bullet size relative to text." },
     "paragraphLevel": { "valueType": "number", "unit": "integer", "ppjLocation": "paragraph.style.level", "surface": "native-leaf", "boundary": "Paragraph outline level 0 through 8." },
+    "textFieldType": { "valueType": "string", "unit": "token", "ppjLocation": "text.paragraphs[].runs[].field.type", "surface": "native-leaf", "boundary": "Direct static DrawingML field type token; the field ID, cached text, automatic marker and inline topology remain source-bound, and recognized automatic field types stay source-owned." },
     "verticalAnchor": { "valueType": "string", "unit": "enum", "ppjLocation": "textBoxStyle.verticalAlignment", "surface": "native-leaf", "boundary": "Text body vertical anchor." },
     "textBodyAnchorCenter": { "valueType": "boolean", "unit": "boolean", "ppjLocation": "textBoxStyle.anchorCenter", "surface": "native-leaf", "boundary": "Direct imported text-body anchorCtr flag; the source must contain one existing canonical a:bodyPr/@anchorCtr token." },
     "textBodyForceAntiAlias": { "valueType": "boolean", "unit": "boolean", "ppjLocation": "textBoxStyle.forceAntiAlias", "surface": "native-leaf", "boundary": "Direct imported text-body forceAA hint; the source must contain one existing canonical a:bodyPr/@forceAA token." },

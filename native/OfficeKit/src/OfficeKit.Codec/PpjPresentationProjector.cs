@@ -3023,6 +3023,13 @@ internal static partial class PpjPresentationProjector
                             "text.paragraphs[].style.defaultText.shadow",
                             "text.paragraphs[].style.defaultText.softEdge",
                         ]));
+                        if (element.Shape.TextBody?.Paragraphs
+                                .SelectMany(paragraph => paragraph.Runs)
+                                .Any(run => run.ContentCase == PresentationTextRun.ContentOneofCase.Field &&
+                                    !PptxTextCodec.IsAutomaticFieldType(run.Field.Type)) == true)
+                        {
+                            output.Add(new("setTextField", ["text.paragraphs[].runs[].field.type"]));
+                        }
                         if (PptxBodyPropertiesCodec.SupportsBoundedDirectLayout(element.Shape.TextBody?.BodyProperties))
                         {
                             output.Add(new("setTextBodyStyle", [

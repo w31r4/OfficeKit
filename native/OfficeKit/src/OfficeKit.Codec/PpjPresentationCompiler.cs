@@ -5846,6 +5846,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
             if (before.Paragraphs.Count != after.Paragraphs.Count || before.Paragraphs.Count != target.TextBody.Paragraphs.Count)
                 throw Unsupported(path, "paragraph topology change");
             uint leafIndex = 0;
+            uint fieldIndex = 0;
             for (var paragraph = 0; paragraph < before.Paragraphs.Count; paragraph++)
             {
                 if (before.Paragraphs[paragraph].Runs.Count != after.Paragraphs[paragraph].Runs.Count ||
@@ -5876,17 +5877,33 @@ internal static partial class PpjSourceBoundPresentationCompiler
                     }
                     else if (targetRun.ContentCase == PresentationTextRun.ContentOneofCase.Field)
                     {
-                        // Keep field identity and type source-owned. A static
-                        // field display value is safe to update through the
-                        // existing text-body export path without changing
-                        // paragraph/run topology or host field semantics.
+                        // Keep field identity, cached display, and automatic
+                        // evaluation source-owned. Static type replacement is
+                        // separately issued as a native a:fld/@type leaf.
                         if (beforeRun.Field is null || afterRun.Field is null ||
                             !string.Equals(beforeRun.Field.Id, afterRun.Field.Id, StringComparison.Ordinal) ||
-                            !string.Equals(beforeRun.Field.Type, afterRun.Field.Type, StringComparison.Ordinal) ||
                             beforeRun.Field.Automatic != afterRun.Field.Automatic ||
                             !string.Equals(targetRun.Field.Id, beforeRun.Field.Id, StringComparison.Ordinal) ||
                             !string.Equals(targetRun.Field.Type, beforeRun.Field.Type, StringComparison.Ordinal))
-                            throw Unsupported(path, "source-bound field identity or type change");
+                            throw Unsupported(path, "source-bound field identity or automatic-state change");
+                        if (!string.Equals(beforeRun.Field.Type, afterRun.Field.Type, StringComparison.Ordinal))
+                        {
+                            if (beforeRun.Field.Automatic || afterRun.Field.Automatic ||
+                                PptxTextCodec.IsAutomaticFieldType(beforeRun.Field.Type) ||
+                                PptxTextCodec.IsAutomaticFieldType(afterRun.Field.Type))
+                                throw Unsupported(path, "source-bound automatic field type change");
+                            RequireCapabilityField(nativeRef, "setTextField", "text.paragraphs[].runs[].field.type", path + ".field.type");
+                            mutations.NativeLeaves.Add(new NativeLeafMutation(
+                                programElementId,
+                                slide,
+                                element,
+                                shapeTreePath,
+                                fieldIndex,
+                                0,
+                                beforeRun.Field.Type,
+                                afterRun.Field.Type,
+                                "textFieldType"));
+                        }
                         if (!string.Equals(beforeRun.Field.Text, afterRun.Field.Text, StringComparison.Ordinal))
                         {
                             targetRun.Field.Automatic = afterRun.Field.Automatic;
@@ -5902,6 +5919,8 @@ internal static partial class PpjSourceBoundPresentationCompiler
                     }
                     else
                         throw Unsupported(path, "non-text imported run mutation");
+                    if (targetRun.ContentCase == PresentationTextRun.ContentOneofCase.Field)
+                        fieldIndex++;
                     leafIndex++;
                 }
             }
@@ -7043,7 +7062,10 @@ internal static partial class PpjSourceBoundPresentationCompiler
                     {
                         run["text"] = string.Empty;
                         if (run["field"] is System.Text.Json.Nodes.JsonObject field)
+                        {
                             field["text"] = string.Empty;
+                            field.Remove("type");
+                        }
                     }
                 if ((maskTabStops || maskAlignment || maskLevel || maskDirection || maskDefaultTabSize || maskEastAsianLineBreak || maskLatinLineBreak || maskHangingPunctuation || maskFontAlignment || maskBulletStartAt || maskBulletScheme || maskBulletCharacter || maskBulletFont || maskBulletColor || maskBulletSize || maskDefaultBold || maskDefaultItalic || maskDefaultSize || maskDefaultFontFamily || maskDefaultEastAsianFont || maskDefaultComplexScriptFont || maskDefaultLanguage || maskDefaultKerning || maskDefaultLetterSpacing || maskDefaultBaseline || maskDefaultCapitalization || maskDefaultStrike || maskDefaultUnderline || maskDefaultHighlight || maskDefaultColor || maskDefaultGradient || maskDefaultGlow || maskDefaultInnerShadow || maskDefaultReflection || maskDefaultShadow || maskDefaultSoftEdge || maskSpaceBefore || maskSpaceAfter || maskLineSpacing || maskIndent || maskRightIndent || maskHanging) && paragraph["style"] is System.Text.Json.Nodes.JsonObject style)
                 {

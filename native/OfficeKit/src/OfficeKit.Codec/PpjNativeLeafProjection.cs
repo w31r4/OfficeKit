@@ -50,7 +50,7 @@ internal static class PpjNativeLeafProjection
         "paragraphBulletFontFamily", "paragraphBulletColorScheme", "verticalAnchor",
         "textBodyWrap", "textBodyAutoFit", "textBodyVerticalText", "fontFamily",
         "textBodyVerticalOverflow", "textBodyHorizontalOverflow",
-        "textBodyWarpPreset", "customGeometryGuideFormula", "customGeometryAdjustmentFormula",
+        "textBodyWarpPreset", "customGeometryGuideFormula", "customGeometryAdjustmentFormula", "textFieldType",
         "fontFamilyEastAsia", "fontFamilyComplexScript", "fontLanguage", "fontUnderline", "fontStrike", "fontColorScheme", "textGlowColorScheme", "textDefaultGlowColorScheme", "textInnerShadowColorScheme", "textDefaultInnerShadowColorScheme", "shapeGlowColorScheme", "imageGlowColorScheme", "shapeInnerShadowColorScheme", "imageInnerShadowColorScheme",
         "fontCaps", "fontHighlightScheme", "fillScheme", "shadowAlignment", "imageShadowAlignment", "imageShadowColorScheme", "textDefaultShadowAlignment", "shadowColorScheme", "textDefaultShadowColorScheme", "lineScheme", "lineStyle", "lineCap", "lineJoin",
         "lineStartArrow", "lineEndArrow", "lineStartArrowWidth", "lineStartArrowLength", "lineEndArrowWidth", "lineEndArrowLength", "imageMaskPreset", "shape3dPresetMaterial", "shape3dBevelTopPreset", "shape3dBevelBottomPreset", "shape3dSceneCameraPreset", "shape3dSceneLightRigPreset", "shape3dSceneLightRigDirection", "shape3dContourColorScheme", "shape3dExtrusionColorScheme", "chartDataCategory",
@@ -249,6 +249,13 @@ internal static class PpjNativeLeafProjection
     /// </summary>
     internal static string NormalizeValue(string kind, JsonElement value, string path)
     {
+        if (kind == "textFieldType")
+        {
+            var token = RequireString(value, kind, path);
+            if (!PptxTextCodec.ValidFieldType(token) || PptxTextCodec.IsAutomaticFieldType(token))
+                throw InvalidValue(kind, path, "a valid non-automatic presentation field type");
+            return token;
+        }
         if (kind == "chartDataCategory")
         {
             var token = RequireString(value, kind, path);
@@ -1344,6 +1351,7 @@ internal static class PpjNativeLeafProjection
         }
 
         uint textLeafIndex = 0;
+        uint fieldIndex = 0;
         uint runStyleIndex = 0;
         for (var paragraphIndex = 0; paragraphIndex < body.Paragraphs.Count; paragraphIndex++)
         {
@@ -1481,6 +1489,16 @@ internal static class PpjNativeLeafProjection
                     DescribeReflection(run, runStyleIndex, textLeafIndex, add);
                     DescribeSoftEdge(run, runStyleIndex, textLeafIndex, add);
                     textLeafIndex++;
+                }
+                else if (run.ContentCase == PresentationTextRun.ContentOneofCase.Field)
+                {
+                    // Automatic fields are host-evaluated. Keep their type
+                    // source-owned until the PPJ profile can model refresh
+                    // semantics; the ordinal still advances so a later
+                    // static field is re-proven against the same a:fld.
+                    if (!PptxTextCodec.IsAutomaticFieldType(run.Field.Type))
+                        add("textFieldType", run.Field.Type, JsonValue.Create(run.Field.Type), fieldIndex, 0);
+                    fieldIndex++;
                 }
                 DescribeRun(run, runStyleIndex, add);
                 runStyleIndex++;

@@ -579,7 +579,7 @@ internal static class PptxTextCodec
 
     private static bool ValidFieldId(string? value) => Guid.TryParseExact(value, "B", out _);
 
-    private static bool ValidFieldType(string? value) =>
+    internal static bool ValidFieldType(string? value) =>
         !string.IsNullOrWhiteSpace(value) && value.Length <= 255 && !value.Any(char.IsControl);
 
     internal static bool IsAutomaticFieldType(string? value) =>

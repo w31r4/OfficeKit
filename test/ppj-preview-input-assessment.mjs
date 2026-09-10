@@ -16,6 +16,11 @@ assert.equal(result.children[0].children[0].children[0].id, "text");
 assert.ok(reasonsAt(result, "$.pages[0].elements[0].elements[0].text").includes("preview.text.unassessed"));
 assert.ok(!result.diagnostics.some((d) => d.path.endsWith(".frame.x")));
 
+const staticField = assessPpjPreviewInput(deck([{ type: "text", id: "field", frame,
+  text: { paragraphs: [{ runs: [{ field: { id: "{11111111-2222-4333-8444-555555555555}", type: "customStatic", text: "cached" } }] }] } }]));
+assert.ok(staticField.diagnostics.some((d) => d.path.endsWith(".field.type") &&
+  d.reason === "preview.text.field-type-unassessed" && d.status === "partial"));
+
 const sizedConnector = assessPpjPreviewInput(deck([{ type: "connector", id: "edge", frame,
   connectorType: "straight", from: { x: 1, y: 2 }, to: { x: 101, y: 62 },
   stroke: { color: "#112233", width: 2 }, startArrow: "open", endArrow: "triangle",

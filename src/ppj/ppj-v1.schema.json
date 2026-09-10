@@ -1865,6 +1865,7 @@
         "operation": {
           "enum": [
             "replaceText",
+            "setTextField",
             "setTextParagraphStyle",
             "setTextBodyStyle",
             "setFill",
@@ -1932,6 +1933,7 @@
           "items": {
             "enum": [
               "text",
+            "text.paragraphs[].runs[].field.type",
             "text.paragraphs[].style.alignment",
             "text.paragraphs[].style.level",
             "text.paragraphs[].style.defaultTabSize",
@@ -2134,6 +2136,7 @@
         "kind": {
           "enum": [
             "text",
+            "textFieldType",
             "tableCellText",
             "tableHeaderRows",
             "tableBandedRows",
@@ -4176,7 +4179,8 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 255,
-          "pattern": "^[^\\u0000-\\u001F\\u007F]*$"
+          "pattern": "^[^\\u0000-\\u001F\\u007F]*$",
+          "description": "DrawingML field type token. Imported non-automatic fields support source-bound replacement under text.paragraphs[].runs[].field.type when the field ID, cached text, automatic marker, and inline topology remain unchanged; automatic field evaluation and refresh remain source-owned."
         },
         "text": {
           "type": "string",
