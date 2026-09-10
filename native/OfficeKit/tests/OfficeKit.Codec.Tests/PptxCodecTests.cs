@@ -6218,7 +6218,16 @@ public sealed partial class PptxCodecTests
         Assert.True(irregularImported.Ok, Diagnostics(irregularImported));
         var irregular = Assert.Single(Assert.Single(irregularImported.Artifact.Presentation.Slides).Elements, item => item.Name == "Agent card group");
         Assert.Equal(PresentationElement.ContentOneofCase.Opaque, irregular.ContentCase);
-        Assert.False(irregular.Source.Editable);
+        // Unknown group metadata stays opaque; its proven direct frame can move.
+        Assert.True(irregular.Source.Editable);
+        irregular.Opaque.LeftEmu += 12_700;
+        var movedIrregular = Export(irregularImported.Artifact);
+        Assert.True(movedIrregular.Ok, Diagnostics(movedIrregular));
+        var movedImport = Import(movedIrregular.File.ToByteArray());
+        Assert.True(movedImport.Ok, Diagnostics(movedImport));
+        var movedGroup = Assert.Single(movedImport.Artifact.Presentation.Slides[0].Elements, item => item.Name == "Agent card group");
+        Assert.Equal(PresentationElement.ContentOneofCase.Opaque, movedGroup.ContentCase);
+        Assert.Equal(irregular.Opaque.LeftEmu, movedGroup.Opaque.LeftEmu);
     }
 
     [Fact]
@@ -15573,7 +15582,9 @@ public sealed partial class PptxCodecTests
         Assert.Equal("character", projectedText["paragraphs"]![0]!["style"]!["bullet"]!["type"]!.GetValue<string>());
         Assert.Equal("•", projectedText["paragraphs"]![0]!["style"]!["bullet"]!["character"]!.GetValue<string>());
         Assert.Equal("Arial", projectedText["paragraphs"]![0]!["style"]!["bullet"]!["fontFamily"]!.GetValue<string>());
-        Assert.Equal("#008060A6", projectedText["paragraphs"]![0]!["style"]!["bullet"]!["color"]!.GetValue<string>());
+        var projectedBulletColor = projectedText["paragraphs"]![0]!["style"]!["bullet"]!["color"]!;
+        Assert.Equal("#008060", projectedBulletColor["rgb"]!.GetValue<string>());
+        Assert.Equal(0.65, projectedBulletColor["alpha"]!.GetValue<double>());
         Assert.Equal(1.25, projectedText["paragraphs"]![0]!["style"]!["bullet"]!["sizePercent"]!.GetValue<double>(), 3);
         Assert.Equal(11, projectedText["paragraphs"]![0]!["style"]!["defaultText"]!["size"]!.GetValue<double>(), 3);
         Assert.Equal("Arial", projectedText["paragraphs"]![0]!["style"]!["defaultText"]!["fontFamily"]!.GetValue<string>());

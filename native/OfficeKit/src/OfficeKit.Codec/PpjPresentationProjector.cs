@@ -2975,6 +2975,7 @@ internal static partial class PpjPresentationProjector
                             "text.paragraphs[].style.bullet.scheme",
                             "text.paragraphs[].style.bullet.format",
                             "text.paragraphs[].style.tabStops",
+                            "text.paragraphs[].style.noTabStops",
                             "text.paragraphs[].style.spaceBefore",
                             "text.paragraphs[].style.spaceBeforeMultiplier",
                             "text.paragraphs[].style.spaceAfter",

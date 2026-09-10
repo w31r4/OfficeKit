@@ -463,6 +463,22 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**段落制表位增量（2026-09-10）：**
+`text.paragraphs[].style.tabStops` 以点表达位置，按 EMU 精度保存，
+舍入后严格递增；支持 `left`（缺省）、`center`、`right`、`decimal`。
+位置范围为 0 至 `2147483647 / 12700` 点，每段最多 32 项，修正此前
+256 项会生成无效 DrawingML 的上限。`tabStops` 与 `noTabStops: true`
+在同一样式层互斥，高优先级层整体覆盖低优先级的列表或清空设置。
+普通文本框和形状支持新增、赋值、清空、删除和恢复；每个变化字段要求
+自身权限。空数组、删除已投影字段或 `noTabStops: true` 清除直接列表，
+回投影恢复缺省。只修改目标段落，保留相邻列表、原始数值写法、run
+及非目标 XML/ZIP。异常、重复、超限或带未知内容的源列表整表保留，
+不再投影成部分有效内容；独立样式修改可继续，覆盖和显式清空拒绝。
+未修改的原生空列表保留，明确清空会删除它。最小实验 **7/7**、相关回归
+**10/10** 通过；详细结果记录在 `openspec/changes/ppj-paragraph-tab-stops-lifecycle/tasks.md`。
+预览保留明确的 tab 布局 partial 诊断；未重建 NativeAOT，
+继承与宿主排版仍有缺口，F-03 继续开放。
+
 **列表字号增量（2026-09-10）：**
 `text.paragraphs[].style.bullet` 的 `size`、`sizePercent` 和
 `sizeFollowText: true` 已成为互斥选择，适用于字符、编号和图片列表。

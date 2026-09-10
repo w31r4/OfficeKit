@@ -5642,11 +5642,11 @@ internal static partial class PpjSourceBoundPresentationCompiler
         if (tabStopsChanged || alignmentChanged || levelChanged || bulletStartAtChanged || bulletSchemeChanged || bulletCharacterChanged || bulletFontChanged || bulletColorChanged || bulletSizeChanged || defaultBoldChanged || defaultItalicChanged || defaultSizeChanged || defaultFontFamilyChanged || defaultEastAsianFontChanged || defaultComplexScriptFontChanged || defaultLanguageChanged || defaultKerningChanged || defaultLetterSpacingChanged || defaultBaselineChanged || defaultCapitalizationChanged || defaultStrikeChanged || defaultUnderlineChanged || defaultHighlightChanged || defaultColorChanged || defaultGradientChanged || defaultGlowChanged || defaultInnerShadowChanged || defaultReflectionChanged || defaultShadowChanged || defaultSoftEdgeChanged || spaceBeforeChanged || spaceAfterChanged || lineSpacingChanged || indentChanged || hangingChanged)
         {
             if (tabStopsChanged)
-                RequireCapabilityField(
-                    nativeRef,
-                    "setTextParagraphStyle",
-                    "text.paragraphs[].style.tabStops",
-                    path + ".paragraphStyle.tabStops");
+                foreach (var field in new[] { "tabStops", "noTabStops" })
+                    if (Enumerable.Range(0, target.TextBody.Paragraphs.Count).Any(index =>
+                        PropertyChanged(ParagraphStyle(beforeRaw, index), ParagraphStyle(afterRaw, index), field)))
+                        RequireCapabilityField(nativeRef, "setTextParagraphStyle",
+                            "text.paragraphs[].style." + field, path + ".paragraphStyle." + field);
             if (levelChanged)
                 RequireCapabilityField(nativeRef, "setTextParagraphStyle",
                     "text.paragraphs[].style.level", path + ".paragraphStyle.level");
@@ -7277,14 +7277,14 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 current.ClearAlignment();
                 if (next.HasAlignment) current.Alignment = next.Alignment;
             }
-            if (tabStopsChanged)
+            if (tabStopsChanged &&
+                (PropertyChanged(ParagraphStyle(beforeRaw, index), ParagraphStyle(afterRaw, index), "tabStops") ||
+                 PropertyChanged(ParagraphStyle(beforeRaw, index), ParagraphStyle(afterRaw, index), "noTabStops")))
             {
-                if (next.TabStops.Count == 0 && !next.HasNoTabStops && current.TabStops.Count > 0)
-                    throw Unsupported(path, "removing source tab stops requires explicit noTabStops: true");
                 current.TabStops.Clear();
                 current.TabStops.Add(next.TabStops);
                 current.ClearNoTabStops();
-                if (next.HasNoTabStops && next.NoTabStops) current.NoTabStops = true;
+                if (next.TabStops.Count == 0) current.NoTabStops = true;
             }
             if (defaultBoldChanged || defaultItalicChanged || defaultSizeChanged || defaultFontFamilyChanged || defaultEastAsianFontChanged || defaultComplexScriptFontChanged || defaultLanguageChanged || defaultKerningChanged || defaultLetterSpacingChanged || defaultBaselineChanged || defaultCapitalizationChanged || defaultStrikeChanged || defaultUnderlineChanged || defaultHighlightChanged || defaultColorChanged || defaultGradientChanged || defaultGlowChanged || defaultInnerShadowChanged || defaultReflectionChanged || defaultShadowChanged || defaultSoftEdgeChanged)
             {

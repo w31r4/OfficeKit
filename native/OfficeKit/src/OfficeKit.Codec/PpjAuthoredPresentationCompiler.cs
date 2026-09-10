@@ -2744,22 +2744,37 @@ internal static partial class PpjAuthoredPresentationCompiler
             else if (hasMultiplier) target.LineSpacingMultiplier = Math.Round(multiplier.GetDouble() * 100_000) / 100_000d;
             if (hasPoints || hasMultiplier) break;
         }
-        if (FirstProperty(direct, inline, middle, named, "tabStops") is { } tabStops)
+        foreach (var layer in new[] { direct, inline, middle, named })
         {
-            if (tabStops.ValueKind != JsonValueKind.Array)
-                throw Unsupported("text", "paragraph tabStops must be an array");
-            foreach (var tab in tabStops.EnumerateArray())
+            if (layer is not { ValueKind: JsonValueKind.Object } paragraph) continue;
+            var hasTabs = paragraph.TryGetProperty("tabStops", out var tabStops);
+            var hasClear = paragraph.TryGetProperty("noTabStops", out var noTabStops);
+            if (hasTabs && hasClear) throw Unsupported("paragraph", "tabStops and noTabStops are mutually exclusive");
+            if (hasClear)
             {
-                target.TabStops.Add(new PresentationTabStop
-                {
-                    PositionEmu = Emu(tab.GetProperty("position").GetDouble()),
-                    Alignment = OptionalString(tab, "alignment") ?? "left",
-                });
+                if (noTabStops.ValueKind != JsonValueKind.True)
+                    throw Unsupported("paragraph", "noTabStops must be true");
+                target.NoTabStops = true;
             }
+            if (hasTabs)
+            {
+                if (tabStops.ValueKind != JsonValueKind.Array)
+                    throw Unsupported("paragraph", "tabStops must be an array");
+                foreach (var tab in tabStops.EnumerateArray())
+                {
+                    var position = tab.GetProperty("position").GetDouble();
+                    if (!double.IsFinite(position) || position < 0 || position > int.MaxValue / (double)EmuPerPoint)
+                        throw Unsupported("paragraph", "tab stop position must be in the nonnegative signed-32-bit EMU range");
+                    target.TabStops.Add(new PresentationTabStop
+                    {
+                        PositionEmu = Emu(position),
+                        Alignment = OptionalString(tab, "alignment") ?? "left",
+                    });
+                }
+                if (target.TabStops.Count == 0) target.NoTabStops = true;
+            }
+            if (hasTabs || hasClear) break;
         }
-        if (FirstProperty(direct, inline, middle, named, "noTabStops") is { } noTabStops &&
-            noTabStops.ValueKind == JsonValueKind.True)
-            target.NoTabStops = true;
         if (FirstProperty(direct, inline, middle, named, "defaultText") is { } defaultText && defaultText.EnumerateObject().Any())
             target.DefaultRunProperties = BuildTextStyle(defaultText, catalog, paragraphDefaults: true);
         if (FirstProperty(direct, inline, middle, named, "bullet") is { } bullet)
@@ -4349,12 +4364,19 @@ internal static partial class PpjAuthoredPresentationCompiler
             if (source is not { ValueKind: JsonValueKind.Object } value) continue;
             merged ??= new Dictionary<string, JsonElement>(StringComparer.Ordinal);
             if (mergeParagraphSpacing)
+            {
+                if (value.TryGetProperty("tabStops", out _) || value.TryGetProperty("noTabStops", out _))
+                {
+                    merged.Remove("tabStops");
+                    merged.Remove("noTabStops");
+                }
                 foreach (var slot in new[] { "spaceBefore", "spaceAfter", "lineSpacing" })
                     if (value.TryGetProperty(slot, out _) || value.TryGetProperty(slot + "Multiplier", out _))
                     {
                         merged.Remove(slot);
                         merged.Remove(slot + "Multiplier");
                     }
+            }
             foreach (var property in value.EnumerateObject())
                 merged[property.Name] = property.Value.Clone();
         }

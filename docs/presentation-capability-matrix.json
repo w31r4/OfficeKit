@@ -1151,8 +1151,8 @@
       "feature": "source-bound paragraph tab stops",
       "ppjPath": "pages[].elements[].text.paragraphs[].style.tabStops and noTabStops",
       "behavior": "partial",
-      "sourceBound": "Recognized text bodies issue setTextParagraphStyle for fixed-topology tab-stop edits. PPJ positions are expressed in points and lower to the owning paragraph's a:tabLst; noTabStops explicitly removes only that modeled list.",
-      "reason": "Only a single direct tab-stop list with bounded left, center, right or decimal alignment is modeled. Inherited list styles, malformed lists, reflow and other paragraph extensions remain source-owned and fail closed.",
+      "sourceBound": "Ordinary recognized text/shape paragraphs issue setTextParagraphStyle with exact tabStops/noTabStops authority. At most 32 strictly increasing positions in points through int.MaxValue/12700 round to the nearest EMU (ties to even); alignment is left (default), center, right or decimal. Each style layer selects the whole mutually exclusive choice. Add/set/clear/remove/restore patches only changed paragraphs. Empty arrays, removal and noTabStops:true clear the direct list and reproject as absence. Equivalent source spelling and unrelated XML/ZIP remain.",
+      "reason": "PpjParagraphTabStopsLifecycleTests proves precision, bounds, precedence, exact authority, original-source removal, empty native lists and malformed-source preservation/refusal; existing field/break/tab and shared paragraph regressions cover reuse. Unknown/duplicate/malformed lists remain source-owned as a whole while independent edits stay available. Inherited tab placement and host reflow remain partial; ppj-preview-input-assessment.mjs checks explicit unmapped tab-layout diagnostics.",
       "visualStatus": "partial-or-opaque"
     },
     {

@@ -2428,12 +2428,13 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
                     paragraphProperties.Remove();
             }
         }
-        else if (field is "paragraph.spaceBefore" or "paragraph.spaceAfter" or "paragraph.lineSpacing" or "paragraph.indent" or "paragraph.hanging" or "paragraph.alignment" or "paragraph.level" or "paragraph.bullet.startAt" or "paragraph.bullet.scheme" or "paragraph.bullet.schemeAndStartAt" or "paragraph.bullet.character" or "paragraph.bullet.font" or "paragraph.bullet.color" or "paragraph.bullet.size")
+        else if (field is "paragraph.spaceBefore" or "paragraph.spaceAfter" or "paragraph.lineSpacing" or "paragraph.indent" or "paragraph.hanging" or "paragraph.alignment" or "paragraph.level" or "paragraph.bullet.startAt" or "paragraph.bullet.scheme" or "paragraph.bullet.schemeAndStartAt" or "paragraph.bullet.character" or "paragraph.bullet.font" or "paragraph.bullet.color" or "paragraph.bullet.size" or "paragraph.tabStops")
         {
             foreach (var owner in new[] { oldSlide, newSlide })
             {
                 var properties = owner.Descendants<A.Paragraph>().First().ParagraphProperties;
-                if (field == "paragraph.spaceBefore") properties?.GetFirstChild<A.SpaceBefore>()?.Remove();
+                if (field == "paragraph.tabStops") properties?.GetFirstChild<A.TabStopList>()?.Remove();
+                else if (field == "paragraph.spaceBefore") properties?.GetFirstChild<A.SpaceBefore>()?.Remove();
                 else if (field == "paragraph.spaceAfter") properties?.GetFirstChild<A.SpaceAfter>()?.Remove();
                 else if (field == "paragraph.lineSpacing") properties?.GetFirstChild<A.LineSpacing>()?.Remove();
                 else if (properties is not null)

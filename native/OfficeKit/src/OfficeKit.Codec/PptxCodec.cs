@@ -1251,7 +1251,7 @@ internal static class PptxCodec
                         oleOfficePackageReplacement = PptxOleOfficePackageCodec.PrepareReplacement(original.Opaque, requested.Opaque, assetCatalog, limits);
                         diagramTextReplacement = PptxDiagramTextCodec.PrepareReplacement(slidePart, sourceElement, original.Opaque, requested.Opaque);
                     }
-                    if (SemanticHash(requested).Equals(elementBinding.SemanticSha256, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!HasParagraphTabStopRemovalIntent(requested) && SemanticHash(requested).Equals(elementBinding.SemanticSha256, StringComparison.OrdinalIgnoreCase)) continue;
                     var stateChanged = PptxElementStateCodec.StateChanged(original, requested);
                     var contentChanged = !PptxElementStateCodec.EqualExceptState(original, requested);
                     if (stateChanged)
@@ -2753,6 +2753,16 @@ internal static class PptxCodec
             $"Source-free presentation placeholder {ownerId} uses {type}; only title, body, ctrTitle, and subTitle text placeholders are supported.");
     }
 
+    // Removal is an edit even when the imported list was empty or unmodeled.
+    // Keep this intent out of semantic hashes, but still run the native writer
+    // so it can remove a modeled empty list or refuse an unknown source list.
+    private static bool HasParagraphTabStopRemovalIntent(PresentationElement element) => element.ContentCase switch
+    {
+        PresentationElement.ContentOneofCase.Shape => element.Shape.TextBody?.Paragraphs.Any(paragraph => paragraph.HasNoTabStops && paragraph.NoTabStops) == true,
+        PresentationElement.ContentOneofCase.Group => element.Group.Children.Any(HasParagraphTabStopRemovalIntent),
+        _ => false,
+    };
+
     private static bool ContainsAutomaticFields(PresentationElement element) => element.ContentCase switch
     {
         PresentationElement.ContentOneofCase.Shape => ContainsAutomaticFields(element.Shape.TextBody),
@@ -3075,7 +3085,7 @@ internal static class PptxCodec
                     "presentation_element_binding_mismatch",
                     $"Presentation slide {slideIndex + 1} {location} child {requestedIndex + 1} does not match its owner-local source binding.",
                     PartPath(slideContext.Owner));
-            if (SemanticHash(requestedChild).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase)) continue;
+            if (!HasParagraphTabStopRemovalIntent(requestedChild) && SemanticHash(requestedChild).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase)) continue;
             var stateChanged = PptxElementStateCodec.StateChanged(originalChild, requestedChild);
             var contentChanged = !PptxElementStateCodec.EqualExceptState(originalChild, requestedChild);
             if (stateChanged)
@@ -4406,7 +4416,7 @@ internal static class PptxCodec
                     throw new CodecException("presentation_postwrite_topology_changed", $"PPTX slide {slideIndex + 1} retained element {elementIndex + 1} has an invalid source index.", PartPath(outputSlide));
                 var beforeElement = before[sourceElementIndex];
                 var afterElement = after[elementIndex];
-                var changed = !SemanticHash(request).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase);
+                var changed = HasParagraphTabStopRemovalIntent(request) || !SemanticHash(request).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase);
                 if (!changed)
                 {
                     if (!HashElement(beforeElement).Equals(HashElement(afterElement), StringComparison.OrdinalIgnoreCase))
@@ -4654,7 +4664,7 @@ internal static class PptxCodec
             var sourceIndex = requestedSourceOrder[index];
             var beforeChild = beforeChildren[sourceIndex];
             var afterChild = afterChildren[index];
-            var changed = !SemanticHash(child).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase);
+            var changed = HasParagraphTabStopRemovalIntent(child) || !SemanticHash(child).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase);
             if (!changed)
             {
                 if (!HashElement(beforeChild).Equals(HashElement(afterChild), StringComparison.OrdinalIgnoreCase))
@@ -5340,7 +5350,7 @@ internal static class PptxCodec
             {
                 var binding = requested.Source!;
                 AssertElementBinding(requested.Id, binding, sourceElements[elementIndex], original, strictDeletionPlan, zOrderPlan, target.TargetIndex, elementIndex, source.Part);
-                if (!SemanticHash(requested).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase))
+                if (HasParagraphTabStopRemovalIntent(requested) || !SemanticHash(requested).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase))
                     throw new CodecException("presentation_slide_clone_mismatch", $"Presentation clone {target.TargetIndex + 1} element {elementIndex + 1} is not an unchanged source element.", PartPath(source.Part));
                 continue;
             }

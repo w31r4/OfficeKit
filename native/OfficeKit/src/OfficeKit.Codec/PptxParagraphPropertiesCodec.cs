@@ -27,7 +27,6 @@ internal static class PptxParagraphPropertiesCodec
     }
 
     internal static bool Supports(A.TextParagraphPropertiesType? source) =>
-        PptxTextCodec.SupportsTabStops(source) &&
         PptxDefaultRunStyleCodec.Supports(source);
 
     internal static void Validate(PresentationTextParagraph source, bool requireLevel)
@@ -127,7 +126,7 @@ internal static class PptxParagraphPropertiesCodec
         PptxDefaultRunStyleCodec.Scrub(target);
         PptxBulletCodec.Scrub(target, slideContext);
         PptxBulletStyleCodec.Scrub(target);
-        target.GetFirstChild<A.TabStopList>()?.Remove();
+        if (PptxTextCodec.SupportsTabStops(target)) target.GetFirstChild<A.TabStopList>()?.Remove();
     }
 
     private static bool TryLevel(A.TextParagraphPropertiesType? source, out uint level) =>

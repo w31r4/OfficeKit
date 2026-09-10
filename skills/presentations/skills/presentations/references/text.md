@@ -176,6 +176,21 @@ remain. Unknown, malformed or duplicate native sizes stay source-owned and
 reject replacement. Direct point-size character preview retains glyph/layout
 limits; relative and follow-text sizing diagnose unavailable.
 
+Use paragraph `tabStops: [{ "position": 72, "alignment": "decimal" }]`
+for an ordered direct list. Positions are points, from zero through
+`2147483647 / 12700`, with at most 32 stops. Round to the nearest EMU (ties to
+even); the rounded positions must remain strictly increasing. Alignment is
+left (the default), center, right or decimal. `tabStops` and `noTabStops: true`
+are mutually exclusive; the highest-priority style layer containing either
+selects the whole choice. For ordinary source-bound text/shape paragraphs,
+add, set, clear, remove and restore require exact authority for every changed
+choice property. An empty array, deleting the projected field, or
+`noTabStops: true` removes the direct list and reprojects as absence.
+Untouched paragraphs, native number spelling and other XML/ZIP remain.
+Malformed, unknown or duplicate source lists stay preserved and refuse
+replacement or clearing; unrelated modeled edits remain available.
+Preview reports unresolved tab layout as partial; review host tab placement.
+
 For an ordinary imported text box or shape,
 `text.paragraphs[].style.defaultText.bold` and `.italic` edit independent paragraph defaults.
 True and false remain explicit; delete the field (or its flag-only

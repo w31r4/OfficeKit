@@ -160,6 +160,25 @@ for (const choice of [0, 0.12345, 1, "theme", "follow"]) {
     assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.text-layout" && d.status === "partial"));
   } else assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.bullet-layout" && d.status === "unavailable"));
 }
+{
+  const tabStops = [{ position: 72, alignment: "decimal" }];
+  const input = deck([{ ...text, text: { paragraphs: [
+    { style: { tabStops }, runs: [{ text: "Label\t12.5" }] }] } }]);
+  const assessment = assessPpjPreviewInput(input);
+  for (const field of ["position", "alignment"])
+    assert.ok(assessment.diagnostics.some(d => d.path.endsWith(".style.tabStops[0]." + field) && d.status !== "supported"));
+  const receipt = previewSceneFixture(input, [{ id: "p1", elements: [nativeElement("text", "shape", {
+    ...emuFrame(1, 2, 100, 60), geometry: "textbox", text: "Label\t12.5",
+    textBody: { paragraphs: [{ tabStops: [{ positionEmu: 914400n, alignment: "decimal" }],
+      runs: [{ content: { case: "text", value: "Label\t12.5" } }] }] },
+  })] }], ["$.pages[0].elements[0]"]);
+  const painted = paintPpjSceneSvg(receipt);
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && d.scenePath.includes(".tabStops") && d.status === "partial"));
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.text-layout" && d.status === "partial"));
+  const clear = assessPpjPreviewInput(deck([{ ...text, text: { paragraphs: [
+    { style: { noTabStops: true }, runs: [{ text: "Clear tabs" }] }] } }]));
+  assert.ok(clear.diagnostics.some(d => d.path.endsWith(".style.noTabStops") && d.status !== "supported"));
+}
 for (const [field, choice, nativeCase] of [["size", 12.34, "bulletSizePoints"],
   ["sizePercent", 1, "bulletSizePercent"], ["sizeFollowText", true, "bulletSizeFollowText"]]) {
   const input = deck([{ ...text, text: { paragraphs: [{ style: { indent: 20, hanging: 10,

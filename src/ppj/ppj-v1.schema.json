@@ -1946,6 +1946,7 @@
             "text.paragraphs[].style.bullet.scheme",
             "text.paragraphs[].style.bullet.format",
             "text.paragraphs[].style.tabStops",
+            "text.paragraphs[].style.noTabStops",
               "text.paragraphs[].style.spaceBefore",
               "text.paragraphs[].style.spaceBeforeMultiplier",
               "text.paragraphs[].style.spaceAfter",
@@ -3304,7 +3305,7 @@
         },
         "tabStops": {
           "type": "array",
-          "maxItems": 256,
+          "maxItems": 32,
           "items": {
             "type": "object",
             "additionalProperties": false,
@@ -3315,7 +3316,8 @@
               "position": {
                 "type": "number",
                 "minimum": 0,
-                "maximum": 100000
+                "maximum": 169093.2005511811,
+                "description": "Points in the nonnegative signed-32-bit EMU range (0 through 2147483647/12700), rounded to the nearest EMU with ties to even."
               },
               "alignment": {
                 "enum": [
@@ -3326,10 +3328,12 @@
                 ]
               }
             }
-          }
+          },
+          "description": "Direct ordered tab stops: at most 32, with strictly increasing positions after nearest-EMU rounding (ties to even). Omitted alignment means left. Empty arrays or deletion remove the modeled direct list and project as absence. Mutually exclusive with noTabStops; the highest-priority style layer containing either selects the whole choice. Ordinary source-bound text/shape owners support add/set/clear/remove/restore under exact authority for every changed choice property, preserving other paragraphs and source content. Malformed/unknown native lists stay preserved and reject replacement; preview tab layout remains partial."
         },
         "noTabStops": {
-          "const": true
+          "const": true,
+          "description": "Explicit alias for removing the modeled direct tab list; projects as absence after native export. Mutually exclusive with tabStops, including an empty array. Source edits require exact noTabStops authority and authority for any removed tabStops property."
         },
         "level": {
           "type": "integer",
@@ -3365,6 +3369,23 @@
               "lineSpacingMultiplier"
             ]
           }
+        },
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "noTabStops": false
+              }
+            },
+            {
+              "required": [
+                "noTabStops"
+              ],
+              "properties": {
+                "tabStops": false
+              }
+            }
+          ]
         }
       ]
     },

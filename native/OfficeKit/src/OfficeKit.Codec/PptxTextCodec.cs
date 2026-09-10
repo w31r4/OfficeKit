@@ -1,3 +1,4 @@
+using System.Globalization;
 using DocumentFormat.OpenXml;
 using Google.Protobuf;
 using OfficeKit.Artifact.Wire.V1;
@@ -12,7 +13,7 @@ internal static class PptxTextCodec
 {
     private const int MaxParagraphs = 4_096;
     private const int MaxInlines = 16_384;
-    private const int MaxTabStops = 256;
+    private const int MaxTabStops = 32;
     private const double MaxFontSizePoints = 768;
 
     internal static PresentationTextBody Read(P.TextBody? source, PptxPartContext? slideContext = null)
@@ -616,29 +617,41 @@ internal static class PptxTextCodec
 
     internal static void ReadTabStops(PresentationTextParagraph target, A.TextParagraphPropertiesType? source)
     {
-        var list = source?.GetFirstChild<A.TabStopList>();
-        if (list is null) return;
-        foreach (var tab in list.Elements<A.TabStop>())
-        {
-            if (tab.Position?.Value is not { } position || position < 0 || TabAlignmentName(tab.Alignment?.Value).Length == 0) continue;
-            target.TabStops.Add(new PresentationTabStop { PositionEmu = position, Alignment = TabAlignmentName(tab.Alignment?.Value) });
-        }
+        if (!TryTabStops(source, out var tabs)) return;
+        target.TabStops.Add(tabs);
     }
 
-    internal static bool SupportsTabStops(A.TextParagraphPropertiesType? source)
+    internal static bool SupportsTabStops(A.TextParagraphPropertiesType? source) =>
+        TryTabStops(source, out _);
+
+    // A source list is modeled atomically. Inspect raw attributes before SDK
+    // numeric/enum access so malformed tokens remain preservable residual XML.
+    private static bool TryTabStops(A.TextParagraphPropertiesType? source, out List<PresentationTabStop> tabs)
     {
+        tabs = [];
         if (source is null) return true;
         var lists = source.Elements<A.TabStopList>().ToArray();
-        if (lists.Length > 1) return false;
         if (lists.Length == 0) return true;
-        var tabs = lists[0].Elements<A.TabStop>().ToArray();
-        if (tabs.Length > MaxTabStops || lists[0].ChildElements.Any(child => child is not A.TabStop)) return false;
+        if (lists.Length != 1 || lists[0].GetAttributes().Count != 0 ||
+            lists[0].ChildElements.Count > MaxTabStops) return false;
         var previous = -1;
-        foreach (var tab in tabs)
+        foreach (var child in lists[0].ChildElements)
         {
-            var position = tab.Position?.Value;
-            if (position is null || position < 0 || position <= previous || TabAlignmentName(tab.Alignment?.Value).Length == 0) return false;
-            previous = position.Value;
+            if (child is not A.TabStop tab || tab.ChildElements.Count != 0) return false;
+            var attributes = tab.GetAttributes();
+            if (attributes.Any(a => a.NamespaceUri.Length != 0 || a.LocalName is not ("pos" or "algn"))) return false;
+            var positions = attributes.Where(a => a.LocalName == "pos").ToArray();
+            var alignments = attributes.Where(a => a.LocalName == "algn").ToArray();
+            if (positions.Length != 1 || alignments.Length > 1 ||
+                !int.TryParse(positions[0].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var position) ||
+                position < 0 || position <= previous) return false;
+            var alignment = alignments.Length == 0 ? "left" : alignments[0].Value switch
+            {
+                "l" => "left", "ctr" => "center", "r" => "right", "dec" => "decimal", _ => string.Empty,
+            };
+            if (alignment.Length == 0) return false;
+            tabs.Add(new PresentationTabStop { PositionEmu = position, Alignment = alignment });
+            previous = position;
         }
         return true;
     }
@@ -666,30 +679,39 @@ internal static class PptxTextCodec
 
     internal static void AppendTabStops(A.TextParagraphPropertiesType target, PresentationTextParagraph source)
     {
-        if (source.TabStops.Count == 0) return;
+        if (source.TabStops.Count > 0) target.AddChild(BuildTabStops(source), true);
+    }
+
+    private static A.TabStopList BuildTabStops(PresentationTextParagraph source)
+    {
         var list = new A.TabStopList();
         foreach (var tab in source.TabStops)
             list.Append(new A.TabStop { Position = checked((int)tab.PositionEmu), Alignment = ParseTabAlignment(tab.Alignment) });
-        target.AddChild(list, true);
+        return list;
     }
 
     internal static void ApplyTabStops(A.TextParagraphPropertiesType target, PresentationTextParagraph source)
     {
         if (!source.HasNoTabStops && source.TabStops.Count == 0) return;
-        var existing = target.Elements<A.TabStopList>().ToArray();
-        if (existing.Length > 1 || !SupportsTabStops(target))
+        if (!TryTabStops(target, out var current))
             throw new CodecException("unsupported_presentation_edit", "Source-preserving PPTX export cannot replace malformed or unmodeled tab stops.");
-        foreach (var list in existing) list.Remove();
-        AppendTabStops(target, source);
-    }
-
-    private static string TabAlignmentName(A.TextTabAlignmentValues? value)
-    {
-        if (value is null || value.Value == A.TextTabAlignmentValues.Left) return "left";
-        if (value.Value == A.TextTabAlignmentValues.Center) return "center";
-        if (value.Value == A.TextTabAlignmentValues.Right) return "right";
-        if (value.Value == A.TextTabAlignmentValues.Decimal) return "decimal";
-        return string.Empty;
+        var existing = target.GetFirstChild<A.TabStopList>();
+        if (source.TabStops.Count == 0)
+        {
+            existing?.Remove();
+            return;
+        }
+        // Preserve numeric spelling, omitted default alignment and unaffected
+        // paragraph XML instead of re-adding an equivalent list.
+        if (current.SequenceEqual(source.TabStops)) return;
+        var replacement = BuildTabStops(source);
+        if (existing is not null) target.ReplaceChild(replacement, existing);
+        else
+        {
+            var following = target.ChildElements.FirstOrDefault(child => child is A.DefaultRunProperties or A.ExtensionList);
+            if (following is not null) target.InsertBefore(replacement, following);
+            else target.Append(replacement);
+        }
     }
 
     private static A.TextTabAlignmentValues ParseTabAlignment(string value) => value switch
