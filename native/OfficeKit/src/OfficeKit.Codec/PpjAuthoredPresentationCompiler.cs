@@ -5192,6 +5192,10 @@ internal static partial class PpjAuthoredPresentationCompiler
             var fadeDegrees = fadeAngle.GetDouble();
             output.FadeDirectionAngle60000 = Angle(((fadeDegrees % 360) + 360) % 360) % 21_600_000;
         }
+        if (value.TryGetProperty("scaleX", out var scaleX))
+            output.ScaleXThousandthPercent = checked((int)Math.Round(
+                ChartEffectNumber(scaleX.GetDouble(), int.MinValue / 100000d, int.MaxValue / 100000d) * 100000d,
+                MidpointRounding.ToEven));
         return output;
     }
 

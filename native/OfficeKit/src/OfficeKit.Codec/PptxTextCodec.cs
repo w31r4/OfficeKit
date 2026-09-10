@@ -442,8 +442,7 @@ internal static class PptxTextCodec
 
     private static bool IsSafeDirectRunReflection(PresentationReflection reflection)
     {
-        if (reflection.HasScaleXThousandthPercent ||
-            reflection.HasScaleYThousandthPercent ||
+        if (reflection.HasScaleYThousandthPercent ||
             reflection.HasSkewXAngle60000 ||
             reflection.HasSkewYAngle60000 ||
             reflection.HasAlignment ||
@@ -452,9 +451,15 @@ internal static class PptxTextCodec
 
         var fullSpan = (!reflection.HasStartPositionThousandthPercent || reflection.StartPositionThousandthPercent == 0) &&
                        (!reflection.HasEndPositionThousandthPercent || reflection.EndPositionThousandthPercent == 100_000);
-        return ((!reflection.HasStartPositionThousandthPercent || reflection.StartPositionThousandthPercent == 0) ||
+        if ((!reflection.HasStartPositionThousandthPercent || reflection.StartPositionThousandthPercent == 0) &&
+            (!reflection.HasEndPositionThousandthPercent || reflection.EndPositionThousandthPercent == 100_000))
+            return !(reflection.HasFadeDirectionAngle60000 && reflection.HasScaleXThousandthPercent);
+
+        return (!reflection.HasScaleXThousandthPercent &&
+                (!reflection.HasStartPositionThousandthPercent || reflection.StartPositionThousandthPercent == 0) ||
+                !reflection.HasScaleXThousandthPercent &&
                 (!reflection.HasEndPositionThousandthPercent || reflection.EndPositionThousandthPercent == 100_000)) &&
-               (!reflection.HasFadeDirectionAngle60000 || fullSpan);
+               !reflection.HasFadeDirectionAngle60000;
     }
 
     internal static A.Paragraph BuildParagraph(PresentationTextParagraph source, PptxPartContext? slideContext)

@@ -151,6 +151,7 @@ internal static class PpjNativeLeafProjection
             ["textReflectionEndPosition"] = 100_000,
             ["textReflectionDirectionDegrees"] = 60_000,
             ["textReflectionFadeAngleDegrees"] = 60_000,
+            ["textReflectionScaleX"] = 100_000,
         };
 
     internal static JsonArray Describe(
@@ -1696,6 +1697,15 @@ internal static class PpjNativeLeafProjection
         if (reflection.HasFadeDirectionAngle60000)
             add("textReflectionFadeAngleDegrees", reflection.FadeDirectionAngle60000.ToStringInvariant(),
                 JsonValue.Create(reflection.FadeDirectionAngle60000 / 60_000d), runIndex, textIndex);
+        if (reflection.HasScaleXThousandthPercent &&
+            !reflection.HasFadeDirectionAngle60000 &&
+            !reflection.HasScaleYThousandthPercent &&
+            !reflection.HasSkewXAngle60000 &&
+            !reflection.HasSkewYAngle60000 &&
+            !reflection.HasAlignment &&
+            !reflection.HasRotateWithShape)
+            AddScaledText(add, "textReflectionScaleX",
+                reflection.ScaleXThousandthPercent / 100_000d, 100_000, runIndex, textIndex);
     }
 
     private static void DescribeSoftEdge(
@@ -1725,6 +1735,18 @@ internal static class PpjNativeLeafProjection
     {
         var raw = checked((long)Math.Round(value * scale, MidpointRounding.AwayFromZero));
         add(kind, raw.ToStringInvariant(), JsonValue.Create(value), nativeIndex, 0);
+    }
+
+    private static void AddScaledText(
+        Action<string, string, JsonNode?, uint, uint> add,
+        string kind,
+        double value,
+        int scale,
+        uint nativeIndex,
+        uint textIndex)
+    {
+        var raw = checked((long)Math.Round(value * scale, MidpointRounding.AwayFromZero));
+        add(kind, raw.ToStringInvariant(), JsonValue.Create(value), nativeIndex, textIndex);
     }
 
     private static void AddBoolean(Action<string, string, JsonNode?, uint, uint> add, string kind, bool value, uint nativeIndex = 0) =>

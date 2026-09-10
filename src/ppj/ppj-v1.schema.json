@@ -2256,6 +2256,7 @@
             "textReflectionEndPosition",
             "textReflectionDirectionDegrees",
             "textReflectionFadeAngleDegrees",
+            "textReflectionScaleX",
             "textDefaultReflectionDirectionDegrees",
             "textDefaultReflectionFadeAngleDegrees",
             "textDefaultReflectionScaleX",
@@ -2956,6 +2957,12 @@
           "minimum": -360,
           "maximum": 360,
           "description": "Reflection fade direction in degrees; normalized to [0,360)."
+        },
+        "scaleX": {
+          "type": "number",
+          "minimum": -21474.83648,
+          "maximum": 21474.83647,
+          "description": "Reflection horizontal scale ratio; preserved at native 1/100000 precision."
         },
         "startPosition": {
           "type": "number",

@@ -469,6 +469,15 @@ all other effects and package parts byte-stable, and reprojects the degree value
 Unsupported endpoint or transform topologies remain source-owned; this field does
 not claim host reflection rendering.
 
+For an imported direct rich-text run, `run.style.reflection.scaleX` is exposed as
+`textReflectionScaleX` only when the direct `a:reflection` has full-span positions,
+one explicit canonical `sx`, and no fade, scaleY, skew, alignment, or
+rotate-with-shape transform. A source-bound edit token-splices only
+`reflection/@sx` in that run's owning SlidePart, keeps all other effects and
+package parts byte-stable, and reprojects the signed ratio at native 1/100000
+precision. Unsupported transform or effect-list topologies remain source-owned;
+this field does not claim host reflection rendering.
+
 Use `defaultText.shadow` for a direct paragraph outer shadow. Color is required;
 `opacity`, `blur`, `distance`, `angle`, `alignment`, `rotateWithShape`, `scaleX`,
 `scaleY`, `skewX` and `skewY` are optional. Remove an optional field to clear its
