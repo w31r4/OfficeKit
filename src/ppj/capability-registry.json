@@ -1080,6 +1080,13 @@
       "reason": "PpjBulletSizeLifecycleTests covers authored bounds/precision and fresh native text/shape lifecycle for character/number/picture markers, imported embedded media, authority and unmodeled source preservation. Numeric parsing avoids SDK conversion failures; lowering normalizes native precision before source postwrite checks. Preview retains direct point-size character painting and explicitly diagnoses unresolved relative/follow-text sizing; inherited metrics and host glyph/layout remain partial."
     },
     {
+      "feature": "source-bound paragraph default tab size",
+      "ppjPath": "pages[].elements[].text.paragraphs[].style.defaultTabSize",
+      "behavior": "partial",
+      "sourceBound": "Ordinary recognized text/shape paragraphs issue setTextParagraphStyle with exact defaultTabSize authority. Points cover signed 32-bit native EMUs with nearest-EMU ties-to-even conversion. Explicit zero and absence remain distinct; absence does not materialize a default. Add/set/remove/restore and defaultTabSize-only style removal patch only changed paragraphs, preserving custom tabStops/noTabStops, literal tabs, indentation, direction, numeric spelling, neighbors and non-target XML/ZIP.",
+      "reason": "PpjParagraphDefaultTabSizeLifecycleTests verifies signed endpoints, sub-EMU precision, authored precedence, zero/absence, independent tab lists/literal tabs, original-source removal/restoration, exact authority and unknown native token preservation/refusal. Shared paragraph/list/table/master paths reuse the direct property. ppj-preview-input-assessment.mjs proves explicit partial diagnostics for zero and nonzero values; measured tab placement, inherited defaults and host layout remain unresolved."
+    },
+    {
       "feature": "source-bound paragraph East Asian line break",
       "ppjPath": "pages[].elements[].text.paragraphs[].style.eastAsianLineBreak",
       "behavior": "partial",

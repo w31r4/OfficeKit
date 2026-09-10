@@ -3694,6 +3694,9 @@ message PresentationTextParagraph {
   // Direct a:pPr/@eaLnBrk. Presence distinguishes true, false and absence;
   // unset clears modeled state and preserves unknown source tokens.
   optional bool east_asian_line_break = 40;
+  // Direct a:pPr/@defTabSz in signed 32-bit EMUs. Unset clears modeled
+  // source state and preserves unknown tokens; explicit zero stays present.
+  optional int32 default_tab_size_emu = 41;
 }
 
 message PresentationPictureBullet {

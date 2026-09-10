@@ -2714,6 +2714,13 @@ internal static partial class PpjAuthoredPresentationCompiler
                 "auto" or "top" or "center" or "baseline" or "bottom" => fontAlignment.GetString(),
                 _ => throw Unsupported("paragraph", "fontAlignment must be auto, top, center, baseline or bottom"),
             };
+        if (FirstProperty(direct, inline, middle, named, "defaultTabSize") is { } defaultTabSize)
+        {
+            var points = defaultTabSize.GetDouble();
+            if (!double.IsFinite(points) || points < int.MinValue / EmuPerPoint || points > int.MaxValue / EmuPerPoint)
+                throw Unsupported("paragraph", "defaultTabSize must fit a signed 32-bit EMU coordinate");
+            target.DefaultTabSizeEmu = checked((int)Emu(points));
+        }
         if (FirstProperty(direct, inline, middle, named, "eastAsianLineBreak") is { } eastAsianLineBreak)
             target.EastAsianLineBreak = eastAsianLineBreak.GetBoolean();
         if (FirstProperty(direct, inline, middle, named, "latinLineBreak") is { } latinLineBreak)

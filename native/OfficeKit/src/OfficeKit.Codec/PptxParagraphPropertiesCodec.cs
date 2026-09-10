@@ -20,6 +20,7 @@ internal static class PptxParagraphPropertiesCodec
         if (HangingPunctuation(source) is { } hangingPunctuation) target.HangingPunctuation = hangingPunctuation;
         if (LatinLineBreak(source) is { } latinLineBreak) target.LatinLineBreak = latinLineBreak;
         if (EastAsianLineBreak(source) is { } eastAsianLineBreak) target.EastAsianLineBreak = eastAsianLineBreak;
+        if (DefaultTabSize(source) is { } defaultTabSize) target.DefaultTabSizeEmu = defaultTabSize;
         if (readLevel && TryLevel(source, out var level)) target.Level = level;
         if (AlignmentName(source) is { Length: > 0 } name)
             target.Alignment = name;
@@ -52,7 +53,7 @@ internal static class PptxParagraphPropertiesCodec
 
     internal static bool HasAuthoredProperties(PresentationTextParagraph source, bool includeLevel) =>
         includeLevel && source.HasLevel ||
-        source.HasAlignment || source.HasRightToLeft || source.HasFontAlignment || source.HasHangingPunctuation || source.HasLatinLineBreak || source.HasEastAsianLineBreak ||
+        source.HasAlignment || source.HasRightToLeft || source.HasFontAlignment || source.HasHangingPunctuation || source.HasLatinLineBreak || source.HasEastAsianLineBreak || source.HasDefaultTabSizeEmu ||
         PptxParagraphLayoutCodec.HasAuthoredLayout(source) ||
         PptxParagraphSpacingCodec.HasAuthoredSpacing(source) ||
         PptxBulletCodec.HasModeledBullet(source) ||
@@ -61,7 +62,7 @@ internal static class PptxParagraphPropertiesCodec
         source.TabStops.Count > 0;
 
     internal static bool HasModeledProperties(PresentationTextParagraph source) =>
-        source.HasAlignment || source.HasRightToLeft || source.HasFontAlignment || source.HasHangingPunctuation || source.HasLatinLineBreak || source.HasEastAsianLineBreak ||
+        source.HasAlignment || source.HasRightToLeft || source.HasFontAlignment || source.HasHangingPunctuation || source.HasLatinLineBreak || source.HasEastAsianLineBreak || source.HasDefaultTabSizeEmu ||
         source.LeftMarginCase != PresentationTextParagraph.LeftMarginOneofCase.None ||
         source.RightMarginCase != PresentationTextParagraph.RightMarginOneofCase.None ||
         source.IndentationCase != PresentationTextParagraph.IndentationOneofCase.None ||
@@ -86,6 +87,7 @@ internal static class PptxParagraphPropertiesCodec
         if (source.HasHangingPunctuation) target.Height = source.HangingPunctuation;
         if (source.HasLatinLineBreak) target.LatinLineBreak = source.LatinLineBreak;
         if (source.HasEastAsianLineBreak) target.EastAsianLineBreak = source.EastAsianLineBreak;
+        if (source.HasDefaultTabSizeEmu) target.DefaultTabSize = source.DefaultTabSizeEmu;
         if (includeLevel && source.HasLevel) target.Level = checked((int)source.Level);
         if (source.HasAlignment) target.Alignment = ParseAlignment(source.Alignment);
         PptxParagraphLayoutCodec.Append(target, source);
@@ -153,6 +155,14 @@ internal static class PptxParagraphPropertiesCodec
             if (eastAsianLineBreak != source.EastAsianLineBreak) target.EastAsianLineBreak = source.EastAsianLineBreak;
         }
         else if (eastAsianLineBreak is not null) target.EastAsianLineBreak = null;
+        var defaultTabSize = DefaultTabSize(target);
+        if (source.HasDefaultTabSizeEmu)
+        {
+            if (defaultTabSize is null && target.GetAttributes().Any(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "defTabSz"))
+                throw new CodecException("unsupported_presentation_edit", "Source-preserving PPTX export cannot replace an unmodeled paragraph default tab size.");
+            if (defaultTabSize != source.DefaultTabSizeEmu) target.DefaultTabSize = source.DefaultTabSizeEmu;
+        }
+        else if (defaultTabSize is not null) target.DefaultTabSize = null;
         var alignment = AlignmentName(target);
         if (source.HasAlignment)
         {
@@ -177,6 +187,7 @@ internal static class PptxParagraphPropertiesCodec
         if (HangingPunctuation(target) is not null) target.Height = null;
         if (LatinLineBreak(target) is not null) target.LatinLineBreak = null;
         if (EastAsianLineBreak(target) is not null) target.EastAsianLineBreak = null;
+        if (DefaultTabSize(target) is not null) target.DefaultTabSize = null;
         if (FontAlignmentName(target).Length > 0) target.FontAlignment = null;
         PptxParagraphLayoutCodec.Scrub(target);
         PptxParagraphSpacingCodec.Scrub(target);
@@ -240,6 +251,10 @@ internal static class PptxParagraphPropertiesCodec
             "1" or "true" => true,
             _ => null,
         };
+
+    private static int? DefaultTabSize(A.TextParagraphPropertiesType? source) =>
+        int.TryParse(source?.GetAttributes().FirstOrDefault(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "defTabSz").Value,
+            NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : null;
 
     private static bool TryLevel(A.TextParagraphPropertiesType? source, out uint level) =>
         uint.TryParse(source?.GetAttributes().FirstOrDefault(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "lvl").Value,

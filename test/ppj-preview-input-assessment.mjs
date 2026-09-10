@@ -95,6 +95,20 @@ for (const alignment of ["left", "center", "right", "justify", "distributed", "j
     assert.match(painted.pages[0].svg, /Paragraph alignment/);
   }
 }
+for (const defaultTabSize of [-12, 0, 36]) {
+  const input = deck([{ ...text, text: { paragraphs: [
+    { style: { defaultTabSize }, runs: [{ text: "A\tB\tC" }] }] } }]);
+  assert.ok(assessPpjPreviewInput(input).diagnostics.some(d =>
+    d.path.endsWith(".style.defaultTabSize") && d.status !== "supported"));
+  const receipt = previewSceneFixture(input, [{ id: "p1", elements: [nativeElement("text", "shape", {
+    ...emuFrame(1, 2, 100, 60), geometry: "textbox", text: "A\tB\tC",
+    textBody: { paragraphs: [{ defaultTabSizeEmu: defaultTabSize * 12700,
+      runs: [{ content: { case: "text", value: "A\tB\tC" } }] }] },
+  })] }], ["$.pages[0].elements[0]"]);
+  const painted = paintPpjSceneSvg(receipt);
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" &&
+    d.scenePath.endsWith(".defaultTabSizeEmu") && d.status === "partial"));
+}
 for (const eastAsianLineBreak of [false, true]) {
   const input = deck([{ ...text, text: { paragraphs: [
     { style: { eastAsianLineBreak }, runs: [{ text: "「中文标点」与（日文）、句末。" },

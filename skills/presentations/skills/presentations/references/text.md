@@ -176,6 +176,17 @@ remain. Unknown, malformed or duplicate native sizes stay source-owned and
 reject replacement. Direct point-size character preview retains glyph/layout
 limits; relative and follow-text sizing diagnose unavailable.
 
+Use `text.paragraphs[].style.defaultTabSize` for direct default tab spacing
+in points; for example `36` stores 457200 EMUs. The field preserves the native
+signed coordinate range, `-2147483648/12700` through `2147483647/12700` points,
+with nearest-EMU ties-to-even conversion. Zero remains explicit; deletion
+removes the direct setting. Custom `tabStops`/`noTabStops`, literal tab
+characters and indentation remain independent. Ordinary source-bound text/shape
+paragraphs support add/set/remove/restore under exact authority, including
+single-field style removal. Unknown native tokens survive unrelated edits and
+reject replacement. Default-tab placement and inherited defaults remain partial
+in the local preview; inspect host layout separately.
+
 Use `text.paragraphs[].style.eastAsianLineBreak` for the direct boolean
 controlling East Asian typography and line-start/end rules. Preserve `true`,
 `false` and absence; omission does not write a direct default. Latin word

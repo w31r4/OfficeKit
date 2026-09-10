@@ -2230,6 +2230,9 @@ internal static partial class PpjPresentationProjector
             if (source.HasFontAlignment) paragraphStyle["fontAlignment"] = StringNode(source.FontAlignment);
             if (source.HasHangingPunctuation) paragraphStyle["hangingPunctuation"] = JsonValue.Create(source.HangingPunctuation);
             if (source.HasEastAsianLineBreak) paragraphStyle["eastAsianLineBreak"] = JsonValue.Create(source.EastAsianLineBreak);
+            // Keep the signed endpoints valid; six-decimal point rounding can
+            // otherwise move int.MinValue outside the public coordinate range.
+            if (source.HasDefaultTabSizeEmu) paragraphStyle["defaultTabSize"] = JsonValue.Create(source.DefaultTabSizeEmu / EmuPerPoint);
             if (source.HasLatinLineBreak) paragraphStyle["latinLineBreak"] = JsonValue.Create(source.LatinLineBreak);
             if (source.HasRightToLeft) paragraphStyle["direction"] = StringNode(source.RightToLeft ? "right-to-left" : "left-to-right");
             if (source.HasAlignment && ParagraphAlignment(source.Alignment) is { } alignment)
@@ -2970,6 +2973,7 @@ internal static partial class PpjPresentationProjector
                         output.Add(new("setTextParagraphStyle", [
                             "text.paragraphs[].style.alignment",
                             "text.paragraphs[].style.level",
+                            "text.paragraphs[].style.defaultTabSize",
                             "text.paragraphs[].style.eastAsianLineBreak",
                             "text.paragraphs[].style.latinLineBreak",
                             "text.paragraphs[].style.hangingPunctuation",

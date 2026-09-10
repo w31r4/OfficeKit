@@ -463,6 +463,16 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+新增 `text.paragraphs[].style.defaultTabSize`，以 points 表达直接默认
+制表位间距，对应 `a:pPr/@defTabSz`。保留原生有符号 32 位 EMU 范围、
+显式零和未设置状态；换算到最近 EMU，中点取偶。两端点投影不截断为六位
+小数，保证返回的 PPJ 仍有效。普通 text/shape 源段落支持增改删恢复及
+单字段 style 删除，显式制表位列表、字面 tab、缩进和非目标 XML/ZIP 保留。
+未知原生值保留并拒绝覆盖。最小实验见
+`PpjParagraphDefaultTabSizeLifecycleTests`，OpenSpec 为
+`ppj-paragraph-default-tab-size-lifecycle`；预览对零和非零均保留 partial
+诊断，实际制表布局与继承仍待补齐，本轮交付源码和生成绑定。
+
 新增布尔字段 `text.paragraphs[].style.eastAsianLineBreak`，表达是否应用
 东亚文字的行首、行尾换行规则。`true`、`false` 与未设置分别保留，和拉丁
 单词换行、标点溢出、文本框换行及手动换行独立。普通 text/shape 源段落支持

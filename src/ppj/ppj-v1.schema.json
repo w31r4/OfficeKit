@@ -1934,6 +1934,7 @@
               "text",
             "text.paragraphs[].style.alignment",
             "text.paragraphs[].style.level",
+            "text.paragraphs[].style.defaultTabSize",
             "text.paragraphs[].style.eastAsianLineBreak",
             "text.paragraphs[].style.latinLineBreak",
             "text.paragraphs[].style.hangingPunctuation",
@@ -3384,6 +3385,12 @@
         "eastAsianLineBreak": {
           "type": "boolean",
           "description": "Direct boolean setting applying East Asian typography and line-start/end rules to this paragraph. True, false and absence remain distinct; absence does not materialize a direct default. Independent of Latin word breaking, hanging punctuation, text-box wrap, explicit break inlines, indentation and writing direction. Ordinary source-bound text/shape owners support add/set/remove/restore and eastAsianLineBreak-only style removal under exact eastAsianLineBreak authority. Only changed paragraphs are patched, preserving equivalent native boolean spelling, runs, breaks, neighbors and non-target XML/ZIP. Unknown native tokens survive no-op and unrelated edits but reject replacement. Measured East Asian line breaking and kinsoku evaluation remain partial in preview."
+        },
+        "defaultTabSize": {
+          "type": "number",
+          "minimum": -169093.20062992125,
+          "maximum": 169093.2005511811,
+          "description": "Direct default tab size in points over the signed 32-bit native EMU range (-2147483648/12700 through 2147483647/12700). Quantized to nearest EMU with ties-to-even. Negative values and explicit zero remain native coordinates; absence clears a modeled direct setting without writing a default. Independent of custom tabStops/noTabStops, indentation, direction and literal tab characters. Ordinary source-bound text/shape paragraphs support add/set/remove/restore and defaultTabSize-only style removal under exact authority, preserving equivalent numeric spelling, neighbors and non-target XML/ZIP. Unknown native tokens survive unrelated edits and reject replacement. Measured tab placement and inherited defaults remain partial in preview."
         }
       },
       "allOf": [
