@@ -18,6 +18,7 @@ internal static class PptxParagraphPropertiesCodec
         if (FontAlignmentName(source) is { Length: > 0 } fontAlignment) target.FontAlignment = fontAlignment;
         if (RightToLeft(source) is { } rightToLeft) target.RightToLeft = rightToLeft;
         if (HangingPunctuation(source) is { } hangingPunctuation) target.HangingPunctuation = hangingPunctuation;
+        if (LatinLineBreak(source) is { } latinLineBreak) target.LatinLineBreak = latinLineBreak;
         if (readLevel && TryLevel(source, out var level)) target.Level = level;
         if (AlignmentName(source) is { Length: > 0 } name)
             target.Alignment = name;
@@ -50,7 +51,7 @@ internal static class PptxParagraphPropertiesCodec
 
     internal static bool HasAuthoredProperties(PresentationTextParagraph source, bool includeLevel) =>
         includeLevel && source.HasLevel ||
-        source.HasAlignment || source.HasRightToLeft || source.HasFontAlignment || source.HasHangingPunctuation ||
+        source.HasAlignment || source.HasRightToLeft || source.HasFontAlignment || source.HasHangingPunctuation || source.HasLatinLineBreak ||
         PptxParagraphLayoutCodec.HasAuthoredLayout(source) ||
         PptxParagraphSpacingCodec.HasAuthoredSpacing(source) ||
         PptxBulletCodec.HasModeledBullet(source) ||
@@ -59,7 +60,7 @@ internal static class PptxParagraphPropertiesCodec
         source.TabStops.Count > 0;
 
     internal static bool HasModeledProperties(PresentationTextParagraph source) =>
-        source.HasAlignment || source.HasRightToLeft || source.HasFontAlignment || source.HasHangingPunctuation ||
+        source.HasAlignment || source.HasRightToLeft || source.HasFontAlignment || source.HasHangingPunctuation || source.HasLatinLineBreak ||
         source.LeftMarginCase != PresentationTextParagraph.LeftMarginOneofCase.None ||
         source.RightMarginCase != PresentationTextParagraph.RightMarginOneofCase.None ||
         source.IndentationCase != PresentationTextParagraph.IndentationOneofCase.None ||
@@ -82,6 +83,7 @@ internal static class PptxParagraphPropertiesCodec
         if (source.HasFontAlignment) target.FontAlignment = ParseFontAlignment(source.FontAlignment);
         if (source.HasRightToLeft) target.RightToLeft = source.RightToLeft;
         if (source.HasHangingPunctuation) target.Height = source.HangingPunctuation;
+        if (source.HasLatinLineBreak) target.LatinLineBreak = source.LatinLineBreak;
         if (includeLevel && source.HasLevel) target.Level = checked((int)source.Level);
         if (source.HasAlignment) target.Alignment = ParseAlignment(source.Alignment);
         PptxParagraphLayoutCodec.Append(target, source);
@@ -133,6 +135,14 @@ internal static class PptxParagraphPropertiesCodec
             if (hangingPunctuation != source.HangingPunctuation) target.Height = source.HangingPunctuation;
         }
         else if (hangingPunctuation is not null) target.Height = null;
+        var latinLineBreak = LatinLineBreak(target);
+        if (source.HasLatinLineBreak)
+        {
+            if (latinLineBreak is null && target.GetAttributes().Any(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "latinLnBrk"))
+                throw new CodecException("unsupported_presentation_edit", "Source-preserving PPTX export cannot replace an unmodeled paragraph Latin line break.");
+            if (latinLineBreak != source.LatinLineBreak) target.LatinLineBreak = source.LatinLineBreak;
+        }
+        else if (latinLineBreak is not null) target.LatinLineBreak = null;
         var alignment = AlignmentName(target);
         if (source.HasAlignment)
         {
@@ -155,6 +165,7 @@ internal static class PptxParagraphPropertiesCodec
         if (AlignmentName(target).Length > 0) target.Alignment = null;
         if (RightToLeft(target) is not null) target.RightToLeft = null;
         if (HangingPunctuation(target) is not null) target.Height = null;
+        if (LatinLineBreak(target) is not null) target.LatinLineBreak = null;
         if (FontAlignmentName(target).Length > 0) target.FontAlignment = null;
         PptxParagraphLayoutCodec.Scrub(target);
         PptxParagraphSpacingCodec.Scrub(target);
@@ -197,6 +208,14 @@ internal static class PptxParagraphPropertiesCodec
     // independent of text/shape height and the paragraph's hanging indent.
     private static bool? HangingPunctuation(A.TextParagraphPropertiesType? source) =>
         source?.GetAttributes().FirstOrDefault(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "hangingPunct").Value switch
+        {
+            "0" or "false" => false,
+            "1" or "true" => true,
+            _ => null,
+        };
+
+    private static bool? LatinLineBreak(A.TextParagraphPropertiesType? source) =>
+        source?.GetAttributes().FirstOrDefault(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "latinLnBrk").Value switch
         {
             "0" or "false" => false,
             "1" or "true" => true,

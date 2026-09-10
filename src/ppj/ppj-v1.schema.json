@@ -1934,6 +1934,7 @@
               "text",
             "text.paragraphs[].style.alignment",
             "text.paragraphs[].style.level",
+            "text.paragraphs[].style.latinLineBreak",
             "text.paragraphs[].style.hangingPunctuation",
             "text.paragraphs[].style.fontAlignment",
             "text.paragraphs[].style.direction",
@@ -3374,6 +3375,10 @@
         "hangingPunctuation": {
           "type": "boolean",
           "description": "Direct hanging-punctuation setting, independent of first-line hanging indent, paragraph margins, alignment and writing direction. True, false and absence remain distinct. Ordinary source-bound text/shape owners support add/set/remove/restore and hangingPunctuation-only style removal under exact hangingPunctuation authority. Only changed paragraphs are patched, preserving equivalent native boolean spelling, runs, neighbors and non-target XML/ZIP. Unknown native tokens survive no-op and unrelated edits but reject replacement. Measured punctuation placement and line-breaking preview remain partial."
+        },
+        "latinLineBreak": {
+          "type": "boolean",
+          "description": "Direct setting permitting Latin text to wrap inside a word. True, false and absence remain distinct; absence does not materialize a direct default. Independent of text-box wrap, explicit break inlines, hanging punctuation, indentation and writing direction. Ordinary source-bound text/shape owners support add/set/remove/restore and latinLineBreak-only style removal under exact latinLineBreak authority. Only changed paragraphs are patched, preserving equivalent native boolean spelling, runs, breaks, neighbors and non-target XML/ZIP. Unknown native tokens survive no-op and unrelated edits but reject replacement. Measured word-breaking preview remains partial."
         }
       },
       "allOf": [

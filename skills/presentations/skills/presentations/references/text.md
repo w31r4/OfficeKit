@@ -176,6 +176,17 @@ remain. Unknown, malformed or duplicate native sizes stay source-owned and
 reject replacement. Direct point-size character preview retains glyph/layout
 limits; relative and follow-text sizing diagnose unavailable.
 
+Use `text.paragraphs[].style.latinLineBreak` for the direct setting that
+permits Latin text to wrap inside a word. True, false and absence stay distinct;
+omission leaves the direct setting absent. Text-box `wrap`, explicit `run.break`,
+hanging punctuation, indentation and writing direction remain independent.
+Ordinary source-bound text/shape paragraphs support add/set/remove/restore under
+exact latinLineBreak authority; deleting the field or its single-field style
+clears the modeled direct attribute. Unknown native tokens survive unrelated edits
+and reject replacement. Native spelling, existing breaks, neighboring paragraphs
+and non-target XML/ZIP are retained. Preview reports both true and false as partial;
+measured word breaking and host line layout need separate evidence.
+
 Use `text.paragraphs[].style.hangingPunctuation` to enable or disable direct
 hanging punctuation. It is independent of first-line hanging indent (`hanging`),
 margins, alignment and writing direction. True, false and absence stay distinct.

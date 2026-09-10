@@ -95,6 +95,21 @@ for (const alignment of ["left", "center", "right", "justify", "distributed", "j
     assert.match(painted.pages[0].svg, /Paragraph alignment/);
   }
 }
+for (const latinLineBreak of [false, true]) {
+  const input = deck([{ ...text, text: { paragraphs: [
+    { style: { latinLineBreak }, runs: [{ text: "extraordinarilylongword" },
+      { break: true }, { text: "Existing break" }] }] } }]);
+  assert.ok(assessPpjPreviewInput(input).diagnostics.some(d =>
+    d.path.endsWith(".style.latinLineBreak") && d.status !== "supported"));
+  const receipt = previewSceneFixture(input, [{ id: "p1", elements: [nativeElement("text", "shape", {
+    ...emuFrame(1, 2, 100, 60), geometry: "textbox", text: "extraordinarilylongword",
+    textBody: { paragraphs: [{ latinLineBreak,
+      runs: [{ content: { case: "text", value: "extraordinarilylongword" } }] }] },
+  })] }], ["$.pages[0].elements[0]"]);
+  const painted = paintPpjSceneSvg(receipt);
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" &&
+    d.scenePath.endsWith(".latinLineBreak") && d.status === "partial"));
+}
 for (const hangingPunctuation of [false, true]) {
   const input = deck([{ ...text, text: { paragraphs: [
     { style: { hangingPunctuation, hanging: 12 }, runs: [{ text: "中文标点，句末。" }] }] } }]);

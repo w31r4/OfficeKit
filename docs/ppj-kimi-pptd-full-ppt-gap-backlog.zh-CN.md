@@ -463,6 +463,21 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**段落拉丁单词内换行增量（2026-09-10）：**
+新增布尔字段 `text.paragraphs[].style.latinLineBreak`，表达是否允许在
+拉丁单词中间换行，对应直接 `a:pPr/@latinLnBrk`。true、false 与缺省
+分别保留，缺省不补写默认值。它与文本框 wrap、已有 `run.break`、标点
+溢出、缩进和书写方向各自独立。普通文本框和形状支持新增、赋值、删除
+和恢复；删除只含此字段的样式对象会清除直接属性。每次修改要求该字段
+自身权限，保留等价布尔值的原始写法、run、手动换行、相邻段落及非目标
+XML/ZIP。未知原生值在无操作和独立样式修改时保留，替换时拒绝。
+最小实验 **4/4**、相关回归 **17/17** 通过，覆盖三态、优先级、wrap/
+手动换行独立性及原始源文件上的删除恢复。协议、预览诊断和资料同步
+检查通过；记录见
+`openspec/changes/ppj-paragraph-latin-line-break-lifecycle/tasks.md`。
+预览对 true/false 均保留明确的 partial 诊断。本轮交付源码与生成绑定，
+未重建 NativeAOT；继承、字体度量和实际断词排版仍有缺口，F-03 继续开放。
+
 **段落标点溢出增量（2026-09-10）：**
 新增布尔字段 `text.paragraphs[].style.hangingPunctuation`，表达允许标点
 溢出边界的直接设置，对应 `a:pPr/@hangingPunct`。开启、关闭与缺省
