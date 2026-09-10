@@ -15,7 +15,7 @@
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
     "authoredCompilerBoundaries": 81,
-    "nativeLeafKinds": 287,
+    "nativeLeafKinds": 288,
     "helpApis": 151,
     "hostOnlyApis": 13
   },
@@ -1325,8 +1325,8 @@
       "feature": "authored text reflection",
       "ppjPath": "textStyle.reflection across paragraph defaultText, rich-text run styles, named text styles and authored layout/master text defaults",
       "behavior": "partial",
-      "sourceBound": "Source-free PPJ owns a bounded direct text reflection for authored runs and paragraph default runs. A strict imported/source-bound profile now projects one full-span direct rich-text run reflection, optionally preceded by one valid outer shadow, and issues the existing scalar leaves; paragraph defaultText also exposes textDefaultReflectionBlurRadiusEmu, textDefaultReflectionDistanceEmu, textDefaultReflectionStartOpacityThousandthPercent, textDefaultReflectionEndOpacityThousandthPercent, textDefaultReflectionDirectionDegrees, textDefaultReflectionFadeAngleDegrees, textDefaultReflectionScaleX, and textDefaultReflectionScaleY alongside the separate glow, inner-shadow and soft-edge radius leaves documented below. Other text effect graphs remain source-preserved or fail closed.",
-      "reason": "The profile reuses bounded blur, start/end opacity, distance and angle, lowering to a:reflection with deterministic full-span positions after the bounded text glow, inner-shadow and outer-shadow owners. The source-bound profile accepts only a full-span reflection or outer-shadow→reflection, preserves the owner proof and token-splices the selected run scalar as proven by PpjSourceBoundTextReflectionEditsDirectRunOwnerAndReprojects; the paragraph defaultText profile proves the same full-span owner and token-splices only reflection/@blurRad, reflection/@dist, reflection/@stA, reflection/@endA, reflection/@dir, reflection/@fadeDir, reflection/@sx, or reflection/@sy; only sx, sy and fadeDir are allowed reflection transforms. 3-D, other reflection transform variants, WordArt and arbitrary effect lists remain outside this owner.",
+      "sourceBound": "Source-free PPJ owns a bounded direct text reflection for authored runs and paragraph default runs. A strict imported/source-bound profile now projects one full-span direct rich-text run reflection, optionally preceded by one valid outer shadow, and issues the existing scalar leaves; paragraph defaultText also exposes textDefaultReflectionBlurRadiusEmu, textDefaultReflectionDistanceEmu, textDefaultReflectionStartOpacityThousandthPercent, textDefaultReflectionEndOpacityThousandthPercent, textDefaultReflectionDirectionDegrees, textDefaultReflectionFadeAngleDegrees, textDefaultReflectionScaleX, textDefaultReflectionScaleY, and textDefaultReflectionSkewX alongside the separate glow, inner-shadow and soft-edge radius leaves documented below. Other text effect graphs remain source-preserved or fail closed.",
+      "reason": "The profile reuses bounded blur, start/end opacity, distance and angle, lowering to a:reflection with deterministic full-span positions after the bounded text glow, inner-shadow and outer-shadow owners. The source-bound profile accepts only a full-span reflection or outer-shadow→reflection, preserves the owner proof and token-splices the selected run scalar as proven by PpjSourceBoundTextReflectionEditsDirectRunOwnerAndReprojects; the paragraph defaultText profile proves the same full-span owner and token-splices only reflection/@blurRad, reflection/@dist, reflection/@stA, reflection/@endA, reflection/@dir, reflection/@fadeDir, reflection/@sx, reflection/@sy, or reflection/@kx; only sx, sy, fadeDir and kx are allowed reflection transforms. 3-D, other reflection transform variants, WordArt and arbitrary effect lists remain outside this owner.",
       "visualStatus": "partial-or-opaque"
     },
     {
@@ -2409,7 +2409,7 @@
       "unit": "degrees",
       "ppjLocation": "paragraph.style.defaultText.reflection.fadeAngle",
       "surface": "native-leaf",
-      "boundary": "Direct imported paragraph default-text reflection fade direction; the paragraph a:defRPr effect list must use the strict full-span reflection profile with only sx, sy and fadeDir as allowed transforms."
+      "boundary": "Direct imported paragraph default-text reflection fade direction; the paragraph a:defRPr effect list must use the strict full-span reflection profile with only sx, sy, fadeDir and kx as allowed transforms."
     },
     {
       "name": "textDefaultReflectionScaleX",
@@ -2417,7 +2417,7 @@
       "unit": "ratio",
       "ppjLocation": "paragraph.style.defaultText.reflection.scaleX",
       "surface": "native-leaf",
-      "boundary": "Direct imported paragraph default-text reflection horizontal scale; the paragraph a:defRPr effect list must use the strict full-span reflection profile with only sx, sy and fadeDir as allowed transforms."
+      "boundary": "Direct imported paragraph default-text reflection horizontal scale; the paragraph a:defRPr effect list must use the strict full-span reflection profile with only sx, sy, fadeDir and kx as allowed transforms."
     },
     {
       "name": "textDefaultReflectionScaleY",
@@ -2425,7 +2425,15 @@
       "unit": "ratio",
       "ppjLocation": "paragraph.style.defaultText.reflection.scaleY",
       "surface": "native-leaf",
-      "boundary": "Direct imported paragraph default-text reflection vertical scale; the paragraph a:defRPr effect list must use the strict full-span reflection profile with only sx, sy and fadeDir as allowed transforms."
+      "boundary": "Direct imported paragraph default-text reflection vertical scale; the paragraph a:defRPr effect list must use the strict full-span reflection profile with only sx, sy, fadeDir and kx as allowed transforms."
+    },
+    {
+      "name": "textDefaultReflectionSkewX",
+      "valueType": "number",
+      "unit": "degrees",
+      "ppjLocation": "paragraph.style.defaultText.reflection.skewX",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text reflection horizontal skew in 60000ths of a degree; the paragraph a:defRPr effect list must use the strict full-span reflection profile with one existing canonical kx token and only sx, sy, fadeDir and kx as allowed transforms."
     },
     {
       "name": "textSoftEdgeRadiusEmu",

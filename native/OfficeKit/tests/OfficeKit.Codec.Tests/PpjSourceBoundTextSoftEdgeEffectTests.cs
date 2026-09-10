@@ -399,6 +399,7 @@ public sealed partial class PptxCodecTests
                 var reflection = reflectionProperties.GetFirstChild<A.EffectList>()!.GetFirstChild<A.Reflection>()!;
                 reflection.HorizontalRatio = -50_000;
                 reflection.VerticalRatio = 175_000;
+                reflection.HorizontalSkew = -750_000;
             }
             source = stream.ToArray();
         }
@@ -434,6 +435,7 @@ public sealed partial class PptxCodecTests
         Assert.Equal(30, projectedReflectionParagraph["style"]!["defaultText"]!["reflection"]!["fadeAngle"]!.GetValue<double>());
         Assert.Equal(-0.5, projectedReflectionParagraph["style"]!["defaultText"]!["reflection"]!["scaleX"]!.GetValue<double>(), precision: 6);
         Assert.Equal(1.75, projectedReflectionParagraph["style"]!["defaultText"]!["reflection"]!["scaleY"]!.GetValue<double>(), precision: 6);
+        Assert.Equal(-12.5, projectedReflectionParagraph["style"]!["defaultText"]!["reflection"]!["skewX"]!.GetValue<double>(), precision: 6);
         var softEdgeLeaves = projectedElement["nativeRef"]!["leaves"]!.AsArray()
             .Select(leaf => leaf!.AsObject())
             .Where(leaf => leaf["kind"]!.GetValue<string>() == "textSoftEdgeRadiusEmu")
@@ -636,6 +638,12 @@ public sealed partial class PptxCodecTests
             .ToArray();
         Assert.Single(defaultReflectionScaleYLeaves);
         Assert.Equal(1.75, defaultReflectionScaleYLeaves[0]["value"]!.GetValue<double>(), precision: 6);
+        var defaultReflectionSkewXLeaves = projectedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Select(leaf => leaf!.AsObject())
+            .Where(leaf => leaf["kind"]!.GetValue<string>() == "textDefaultReflectionSkewX")
+            .ToArray();
+        Assert.Single(defaultReflectionSkewXLeaves);
+        Assert.Equal(-12.5, defaultReflectionSkewXLeaves[0]["value"]!.GetValue<double>(), precision: 6);
 
         softEdgeLeaves[0]["value"] = 127_000;
         defaultSoftEdgeLeaves[0]["value"] = 76_200;
@@ -669,6 +677,7 @@ public sealed partial class PptxCodecTests
         defaultReflectionFadeAngleLeaves[0]["value"] = 5_400_000;
         defaultReflectionScaleXLeaves[0]["value"] = 1.25;
         defaultReflectionScaleYLeaves[0]["value"] = -1.5;
+        defaultReflectionSkewXLeaves[0]["value"] = 20d;
         var edited = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
@@ -757,6 +766,7 @@ public sealed partial class PptxCodecTests
             Assert.Equal(5_400_000, defaultReflection.FadeDirection!.Value);
             Assert.Equal(125_000, defaultReflection.HorizontalRatio!.Value);
             Assert.Equal(-150_000, defaultReflection.VerticalRatio!.Value);
+            Assert.Equal(1_200_000, defaultReflection.HorizontalSkew!.Value);
         }
 
         var editedBytes = edited.File.ToByteArray();
@@ -811,6 +821,7 @@ public sealed partial class PptxCodecTests
         Assert.Equal(90, reprojectedElement["text"]!["paragraphs"]![3]!["style"]!["defaultText"]!["reflection"]!["fadeAngle"]!.GetValue<double>());
         Assert.Equal(1.25, reprojectedElement["text"]!["paragraphs"]![3]!["style"]!["defaultText"]!["reflection"]!["scaleX"]!.GetValue<double>(), precision: 6);
         Assert.Equal(-1.5, reprojectedElement["text"]!["paragraphs"]![3]!["style"]!["defaultText"]!["reflection"]!["scaleY"]!.GetValue<double>(), precision: 6);
+        Assert.Equal(20, reprojectedElement["text"]!["paragraphs"]![3]!["style"]!["defaultText"]!["reflection"]!["skewX"]!.GetValue<double>(), precision: 6);
     }
 
     [Fact]
@@ -959,7 +970,7 @@ public sealed partial class PptxCodecTests
                 else if (profile == "child") list.InnerXml = """<a:reflection xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" blurRad="25400" stA="50000" stPos="0" endA="10000" endPos="100000" dist="38100" dir="2700000" fadeDir="1800000"><future:content xmlns:future="urn:officekit:test"/></a:reflection>""";
                 else if (profile == "duplicate-effect") list.Append(reflection.CloneNode(true));
                 else if (profile == "duplicate-list") defaults.Append(list.CloneNode(true));
-                else if (profile == "unsupported-transform") reflection.HorizontalSkew = 100_000;
+                else if (profile == "unsupported-transform") reflection.VerticalSkew = 100_000;
                 else defaults.Append(new A.EffectDag());
             }
 

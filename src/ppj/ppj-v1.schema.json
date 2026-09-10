@@ -2257,6 +2257,7 @@
             "textDefaultReflectionFadeAngleDegrees",
             "textDefaultReflectionScaleX",
             "textDefaultReflectionScaleY",
+            "textDefaultReflectionSkewX",
             "textSoftEdgeRadiusEmu",
             "textDefaultSoftEdgeRadiusEmu",
             "shapeGlowRadiusEmu",
