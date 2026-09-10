@@ -2220,6 +2220,7 @@
             "textDefaultShadowBlurRadiusEmu",
             "textDefaultShadowDistanceEmu",
             "textDefaultShadowDirectionDegrees",
+            "textDefaultShadowScaleX",
             "textDefaultShadowAlignment",
             "textDefaultShadowColorRgb",
             "textDefaultShadowColorScheme",

@@ -102,6 +102,8 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
     [InlineData("blur")]
     [InlineData("large-distance")]
     [InlineData("skew")]
+    [InlineData("scale-invalid")]
+    [InlineData("scale-overflow")]
     [InlineData("attribute")]
     [InlineData("color")]
     [InlineData("alpha-child")]
@@ -122,6 +124,8 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
             else if (profile == "blur") shadow.BlurRadius = -1;
             else if (profile == "large-distance") shadow.Distance = 1_270_000_001;
             else if (profile == "skew") shadow.HorizontalSkew = 5_400_000;
+            else if (profile == "scale-invalid") shadow.SetAttribute(new OpenXmlAttribute("sx", "", "not-an-int"));
+            else if (profile == "scale-overflow") shadow.SetAttribute(new OpenXmlAttribute("sx", "", "2147483648"));
             else if (profile == "attribute") shadow.SetAttribute(new OpenXmlAttribute("future", "", "retain"));
             else if (profile == "color") shadow.GetFirstChild<A.RgbColorModelHex>()!.Append(new A.Tint { Val = 50000 });
             else shadow.GetFirstChild<A.RgbColorModelHex>()!.InnerXml = """<a:alpha xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" val="50000"><future:content xmlns:future="urn:officekit:test"/></a:alpha>""";
