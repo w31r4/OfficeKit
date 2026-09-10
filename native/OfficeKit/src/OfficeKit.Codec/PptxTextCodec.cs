@@ -427,16 +427,34 @@ internal static class PptxTextCodec
         if (PptxShadowCodec.TryRead(properties, out var shadow) && shadow is not null) run.Shadow = shadow;
         if (PptxGlowCodec.TryRead(properties, out var glow) && glow is not null) run.Glow = glow;
         if (PptxInnerShadowCodec.TryRead(properties, out var innerShadow) && innerShadow is not null) run.InnerShadow = innerShadow;
-        if (PptxReflectionCodec.TryRead(properties, out var reflection, allowVariablePositions: true) &&
+        if (PptxReflectionCodec.TryRead(properties, out var reflection,
+                allowTransforms: true,
+                allowVariablePositions: true) &&
             reflection is not null &&
-            ((!reflection.HasStartPositionThousandthPercent || reflection.StartPositionThousandthPercent == 0) ||
-             (!reflection.HasEndPositionThousandthPercent || reflection.EndPositionThousandthPercent == 100_000)))
+            IsSafeDirectRunReflection(reflection))
             run.Reflection = reflection;
         if (PptxSoftEdgeCodec.TryRead(properties, out var softEdge) && softEdge is not null) run.SoftEdge = softEdge;
         if (PptxTextDecoration.TryUnderline(properties, out var underline)) run.Underline = underline;
         if (PptxTextDecoration.TryStrike(properties, out var strike)) run.Strike = strike;
         PptxHyperlinkCodec.Read(run, properties, slideContext);
         return run;
+    }
+
+    private static bool IsSafeDirectRunReflection(PresentationReflection reflection)
+    {
+        if (reflection.HasScaleXThousandthPercent ||
+            reflection.HasScaleYThousandthPercent ||
+            reflection.HasSkewXAngle60000 ||
+            reflection.HasSkewYAngle60000 ||
+            reflection.HasAlignment ||
+            reflection.HasRotateWithShape)
+            return false;
+
+        var fullSpan = (!reflection.HasStartPositionThousandthPercent || reflection.StartPositionThousandthPercent == 0) &&
+                       (!reflection.HasEndPositionThousandthPercent || reflection.EndPositionThousandthPercent == 100_000);
+        return ((!reflection.HasStartPositionThousandthPercent || reflection.StartPositionThousandthPercent == 0) ||
+                (!reflection.HasEndPositionThousandthPercent || reflection.EndPositionThousandthPercent == 100_000)) &&
+               (!reflection.HasFadeDirectionAngle60000 || fullSpan);
     }
 
     internal static A.Paragraph BuildParagraph(PresentationTextParagraph source, PptxPartContext? slideContext)

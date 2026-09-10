@@ -5177,7 +5177,7 @@ internal static partial class PpjAuthoredPresentationCompiler
             throw new CodecException("ppj.opacity", "PPJ reflection opacity must be between 0 and 1.");
         var degrees = value.GetProperty("angle").GetDouble();
         var normalized = ((degrees % 360) + 360) % 360;
-        return new PresentationReflection
+        var output = new PresentationReflection
         {
             StartPositionThousandthPercent = 0,
             EndPositionThousandthPercent = 100_000,
@@ -5187,6 +5187,12 @@ internal static partial class PpjAuthoredPresentationCompiler
             DistanceEmu = Emu(value.GetProperty("distance").GetDouble()),
             DirectionAngle60000 = Angle(normalized),
         };
+        if (value.TryGetProperty("fadeAngle", out var fadeAngle))
+        {
+            var fadeDegrees = fadeAngle.GetDouble();
+            output.FadeDirectionAngle60000 = Angle(((fadeDegrees % 360) + 360) % 360) % 21_600_000;
+        }
+        return output;
     }
 
     private static (string Kind, JsonElement Value)? FirstTextPaint(params JsonElement?[] layers)

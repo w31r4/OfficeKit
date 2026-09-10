@@ -460,6 +460,15 @@ variable start position, two-variable ramp, malformed token, or unsupported
 effect topology remains source-owned; this field does not claim host reflection
 rendering.
 
+For an imported direct rich-text run, `run.style.reflection.fadeAngle` is
+exposed as `textReflectionFadeAngleDegrees` only when the direct `a:reflection`
+has an explicit canonical `fadeDir`, absent or full-span endpoint positions, and
+no scale, skew, alignment, or rotate-with-shape transform. A source-bound edit
+token-splices only `reflection/@fadeDir` in that run's owning SlidePart, keeps
+all other effects and package parts byte-stable, and reprojects the degree value.
+Unsupported endpoint or transform topologies remain source-owned; this field does
+not claim host reflection rendering.
+
 Use `defaultText.shadow` for a direct paragraph outer shadow. Color is required;
 `opacity`, `blur`, `distance`, `angle`, `alignment`, `rotateWithShape`, `scaleX`,
 `scaleY`, `skewX` and `skewY` are optional. Remove an optional field to clear its

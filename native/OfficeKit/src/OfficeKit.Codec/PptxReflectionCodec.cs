@@ -4,9 +4,10 @@ using A = DocumentFormat.OpenXml.Drawing;
 
 namespace OfficeKit.Codec;
 
-// Direct DrawingML reflection values. Charts, direct rich-text runs and the
-// bounded paragraph-default endpoint profiles opt into variable positions;
-// ordinary imported proofs retain their full-span profile.
+// Direct DrawingML reflection values. Charts and bounded paragraph-default
+// endpoint profiles opt into additional positions/transforms; the direct-run
+// fade profile opts into fadeDir only. Ordinary imported proofs retain their
+// full-span profile.
 // Transforms remain opt-in per caller.
 internal static class PptxReflectionCodec
 {
