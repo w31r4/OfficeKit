@@ -15,9 +15,17 @@ import { paintPpjSceneSvg, nativePathData } from "../src/ppj/preview-scene-svg.m
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import { createHash } from "node:crypto";
+import { checkNativeSmallCaps } from "./helpers/ppj-preview-small-caps.mjs";
+import { checkNativeAreas } from "./helpers/ppj-preview-area.mjs";
+import { cutCornerPresets, cutCornerReference, adjustmentList } from "./helpers/ppj-preview-cut-corners.mjs";
+import { roundedCornerPresets, roundedCornerReference, roundedCornerGlyphReference } from "./helpers/ppj-preview-rounded-corners.mjs";
 
 assert.ok(process.argv[2], "Pass the directory produced by npm run build:office-kit -- --output <new-directory>.");
 const evidenceFiles = ["../src/ppj/preview-scene-svg.mjs", "./ppj-preview-scene-native.mjs",
+  "./helpers/ppj-preview-small-caps.mjs",
+  "./helpers/ppj-preview-area.mjs",
+  "./helpers/ppj-preview-cut-corners.mjs",
+  "./helpers/ppj-preview-rounded-corners.mjs",
   "./ppj-preview-scene-svg.mjs", "./ppj-preview-render-assessment.mjs",
   "../src/ppj/svg-preview.mjs",
   "../src/ppj/preview-scene.mjs", "../src/ppj/preview-scene-view.mjs", "../src/ppj/preview-diagnostics.mjs", "../src/ppj/preview-output.mjs",
@@ -333,7 +341,7 @@ try {
   const backgroundGradientCases = [], backgroundGradientFailures = [];
   const backgroundImageCases = [], backgroundImageFailures = [], backgroundImageRejections = [];
   const shapeImageCases = [], shapeImageFailures = [];
-  const polygonPresetCases = [], polygonPresetFailures = [];
+  const polygonPresetCases = [], polygonPresetFailures = [], polygonAdjustmentRejections = [];
   const textRegionCases = [], textRegionFailures = [];
   const shadowCases = [], shadowFailures = [];
   const textShadowCases = [], textShadowFailures = [];
@@ -820,6 +828,8 @@ try {
     mediaPosterCases.push({ color, authoredPixels: true, transparency: true, visibleStaticWarning: true,
       sourceNoopBytes: true, sourceOpaqueRetained: true, sourceSha256: sourceHash, candidateSha256: sha256(authored.file) });
   }
+  const smallCaps = await checkNativeSmallCaps({ pairBase, sourceWorkspace, compilePpjWorkspace,
+    projectPptxToPpj, withoutAuthoredSnapshot, savePaint, assertProductionEntry, artifacts, sha256 });
   const capitalizationCases = [];
   const capsPixels = async (name, receipt) => {
     const painted = await savePaint(name, receipt);
@@ -2368,7 +2378,7 @@ try {
   const datasetFixture = JSON.parse(await readFile(new URL("./fixtures/presentation/preview-dataset-equivalence.json", import.meta.url)));
   const datasetPairFailures = [];
   const datasetProfileCases = [];
-  for (const [chartType, firstValue] of [["line", 1], ["line", 2], ["heatmap", 1]]) {
+  for (const [chartType, firstValue] of [["line", 1], ["line", 2], ["heatmap", 1], ["heatmap", 2]]) {
   const variant = firstValue === 1 ? chartType : `${chartType}-value-${firstValue}`;
   const datasetPair = [];
   for (const name of ["encoded", "explicit"]) try {
@@ -2411,7 +2421,7 @@ try {
       assert.equal(node.kind, "group", "vector heatmap must consume the compiler's actual children");
       const cells = node.native.children.filter(c => c.name.startsWith("heatmap cell "));
       assert.equal(cells.length, 6);
-      const fills = ["330000", "00FF00", "000000", "000000", "CC0000", "FF0000"];
+      const fills = [firstValue === 1 ? "330000" : "660000", "00FF00", "000000", "000000", "CC0000", "FF0000"];
       assert.deepEqual(cells.map(c => c.content.value.fillRgb), fills);
       const raster = await sharp(Buffer.from(painted.pages[0].svg)).removeAlpha().raw().toBuffer({ resolveWithObject: true });
       // Fixed expected layout: 52pt row-label gutter, 27pt bottom labels,
@@ -2442,16 +2452,30 @@ try {
       const options = { rendererProfile: "native-scene-svg", sceneReceipt: compiled, scenePaint: painted };
       const mapped = assessPpjPreviewInput(canonical, options);
       assert.ok(legacy.diagnostics.some(isDatasetError));
-      assert.equal(mapped.diagnostics.some(isDatasetError), chartType !== "line");
-      assert.equal(published.diagnostics.some(isDatasetError), chartType !== "line");
+      assert.ok(!mapped.diagnostics.some(isDatasetError));
+      assert.ok(!published.diagnostics.some(isDatasetError));
       for (const d of legacy.diagnostics.filter(d => !isDatasetError(d)))
         assert.ok(mapped.diagnostics.some(a => a.path === d.path && a.reason === d.reason), "unrelated input checks remain");
-      const missing = assessPpjPreviewInput(canonical, { ...options, scenePaint: { ...painted, lineScenePaths: [] } });
+      const capture = chartType === "line" ? "lineScenePaths" : "primitiveScenePaths";
+      const missing = assessPpjPreviewInput(canonical, { ...options, scenePaint: { ...painted, [capture]: [] } });
       assert.ok(missing.diagnostics.some(isDatasetError));
+      if (chartType === "heatmap") {
+        assert.equal(painted.primitiveScenePaths.length,compiled.previewScene.bindings.length,
+          "every generated heatmap primitive has complete bounded paint evidence");
+        for (const field of ["primitiveScenePaths","shapeGeometryScenePaths","transformedScenePaths"])
+          for (const removed of painted[field]) {
+            const partial = assessPpjPreviewInput(canonical,{...options,scenePaint:{...painted,[field]:painted[field].filter(p=>p!==removed)}});
+            assert.ok(partial.diagnostics.some(isDatasetError),`${field}/${removed}: one missing node restores the factual error`);
+          }
+        assert.deepEqual(mapped.diagnostics,missing.diagnostics.filter(d=>!isDatasetError(d)),"no unrelated input limitation is weakened");
+        assert.equal(published.reliability.status,"requires-review");
+      }
       const registry = JSON.parse(await readFile("src/ppj/capability-registry.json", "utf8"));
-      delete registry.previewScene.factualMappings.datasetLine;
-      assert.throws(() => assessPpjPreviewInput(canonical, { ...options, registry }), /dataset line mapping/);
-      datasetProfileCases.push({ chartType, firstValue, errorRetired: chartType === "line", missingCaptureRetainsError: true,
+      delete registry.previewScene.factualMappings[chartType === "line" ? "datasetLine" : "datasetHeatmap"];
+      assert.throws(() => assessPpjPreviewInput(canonical, { ...options, registry }), /dataset (?:line|heatmap) mapping/);
+      datasetProfileCases.push({ chartType, firstValue, errorRetired: true, missingCaptureRetainsError: true,
+        ...(chartType === "heatmap" ? {allPrimitiveNodesCaptured:true,eachMissingNodeRetainsError:true,
+          directColorAndMissingZeroPixels:true,primitiveCount:painted.primitiveScenePaths.length} : {}),
         missingRegistryRejects: true, unrelatedRulesRetained: true, productionReliability: published.reliability.status,
         candidateSha256: sha256(compiled.file), sceneSha256: compiled.previewScene.sha256 });
     }
@@ -2651,6 +2675,8 @@ try {
   nativeLineProgram.pages[0].elements = [structuredClone(nativeLineInput)];
   const nativeLineResult = await compilePpjWorkspace({ ...sourceWorkspace, program: Buffer.from(JSON.stringify(nativeLineProgram)) }, { includePreviewScene: true });
   await assertNativeLine(nativeLineResult, await savePaint("native-line", nativeLineResult));
+  const nativeAreas = await checkNativeAreas({ pairBase, sourceWorkspace, compilePpjWorkspace, projectPptxToPpj,
+    withoutAuthoredSnapshot, createPpjSceneView, savePaint, assertProductionEntry, artifacts });
   const nativeBars = [];
   for (const type of ["column", "bar"]) {
     const program = structuredClone(pairBase);
@@ -3342,6 +3368,7 @@ try {
   // The 240x120 frame makes short-side adjustment scaling distinguishable
   // from the incorrect width-based construction.
   const polygonReferencePoints = (preset, adjustment) => {
+    if (cutCornerPresets.includes(preset)) return cutCornerReference(preset, adjustment).points;
     const offset = { undefined: preset === "chevron" ? 60 : preset === "triangle" ? 120 : 30,
       75000: preset === "triangle" ? 180 : 90, 25000: preset === "triangle" ? 60 : 30, 0: 0 }[String(adjustment)];
     switch (preset) {
@@ -3354,7 +3381,8 @@ try {
   };
   const polygonReferenceTextRectangle = (preset, adjustment) => {
     const variant = String(adjustment);
-    let edges;
+    let edges = roundedCornerPresets.includes(preset) ? roundedCornerReference(preset, adjustmentList(adjustment)).edges
+      : cutCornerPresets.includes(preset) ? cutCornerReference(preset, adjustment).edges : undefined;
     if (preset === "triangle") edges = { undefined: [60,60,180,120], 75000: [90,60,210,120], 25000: [30,60,150,120], 0: [0,60,120,120] }[variant];
     if (preset === "rtTriangle") edges = [20,70,140,110];
     if (preset === "trapezoid") edges = { undefined: [20,10,220,120], 75000: [60,30,180,120], 25000: [20,10,220,120], 0: [0,0,240,120] }[variant];
@@ -3389,20 +3417,25 @@ try {
     return orderedXml(masked);
   };
   function polygonProgram(preset, consumer, adjustment, reference = false) {
-    const program = structuredClone(pairBase), points = polygonReferencePoints(preset, adjustment);
-    const geometry = reference ? { kind: "custom", viewBox: { x: 0, y: 0, width: 240, height: 120 }, paths: [{
-      fill: true, stroke: true, commands: [...points.map(([x,y],i) => ({ op: i ? "lineTo" : "moveTo", x,y })), { op: "close" }],
+    const program = structuredClone(pairBase);
+    const rounded = roundedCornerPresets.includes(preset) ? roundedCornerReference(preset, adjustmentList(adjustment)) : undefined;
+    const points = rounded ? undefined : polygonReferencePoints(preset, adjustment);
+    const geometry = reference ? { kind: "custom", viewBox: rounded?.viewBox ?? { x: 0, y: 0, width: 240, height: 120 }, paths: [{
+      fill: true, stroke: true, commands: rounded?.commands ?? [...points.map(([x,y],i) => ({ op: i ? "lineTo" : "moveTo", x,y })), { op: "close" }],
     }], ...(consumer === "image" ? {} : { textRectangle: polygonReferenceTextRectangle(preset, adjustment) }) }
-      : { kind: "preset", preset, ...(adjustment === undefined ? {} : { adjustments: [adjustment] }) };
+      : { kind: "preset", preset, ...(adjustment === undefined ? {} : { adjustments: adjustmentList(adjustment) }) };
     const frame = { x: 100, y: 100, width: 240, height: 120,
-      ...(preset === "chevron" ? { rotation: 15, flipH: true } : {}) };
+      ...(["chevron","snip2DiagRect","round2DiagRect","snipRoundRect"].includes(preset) ? { rotation: 15, flipH: true } : {}) };
     const imageFill = { type: "image", asset: backgroundAsset.id, fit: "stretch", opacity: .5, crop: { left: -.5, right: -.5 } };
-    const stroke = { color: "#FF00FF", width: 4 };
+    const stroke = { color: "#FF00FF", width: 4, ...(cutCornerPresets.includes(preset) || roundedCornerPresets.includes(preset) ? { join: "round" } : {}) };
     const element = consumer === "image" ? { id: "polygon", type: "image", frame, mask: geometry,
       asset: backgroundAsset.id, fit: "stretch", crop: imageFill.crop, opacity: .5, border: stroke }
       : { id: "polygon", type: "shape", frame, geometry,
         style: { fill: consumer === "shape-image" ? imageFill : { type: "solid", color: "#008800" }, stroke },
         text: { paragraphs: [{ runs: [{ text: "F0", style: { size: 16, color: "#000000" } }] }] } };
+    // Rounded references keep the native literal contour but use a separately
+    // authored exact SVG glyph reference, avoiding custom-rectangle EMU loss.
+    if (reference && rounded && consumer !== "image") delete element.text;
     program.assets = consumer === "shape" ? [] : [backgroundAsset];
     program.pages[0].background = { type: "solid", color: "#0000FF" };
     program.pages[0].elements = [element, { id: "unrelated", type: "shape", frame: { x: 400, y: 300, width: 50, height: 50 },
@@ -3412,29 +3445,59 @@ try {
   async function polygonPixels(name, receipt, input, preset, consumer, adjustment) {
     const view = createPpjSceneView(receipt), target = view.pages[0].nodes[0], native = target.native;
     assert.equal(consumer === "image" ? native.maskPreset : native.geometry, preset);
-    assert.deepEqual(consumer === "image" ? native.maskPresetAdjustments : native.presetAdjustments, adjustment === undefined ? [] : [adjustment]);
+    assert.deepEqual(consumer === "image" ? native.maskPresetAdjustments : native.presetAdjustments, adjustmentList(adjustment));
     const painted = await savePaint(`polygon-${name}`, receipt);
     assert.ok(!painted.diagnostics.some(d => /preview.scene.paint.(preset|preset-adjustments|image-mask|shape-image)$/.test(d.reason)));
     const referenceInput = polygonProgram(preset, consumer, adjustment, true);
     const reference = await compilePpjWorkspace(referenceInput, { includePreviewScene: true });
     const referencePaint = paintPpjSceneSvg(reference), region = { left: 0, top: 24, width: painted.canvas.width, height: painted.canvas.height - 24 };
+    let referenceSvg = referencePaint.pages[0].svg;
+    const referenceEvidence = {};
+    if (roundedCornerPresets.includes(preset)) {
+      if (consumer !== "image") {
+        const sibling = '<g data-officekit-native-id="unrelated"';
+        const split = referenceSvg.indexOf(sibling);
+        assert.ok(split > 0 && referenceSvg.slice(0,split).endsWith("</g>"));
+        assert.ok(!referenceSvg.slice(0,split).includes("<text"), "native contour reference must have no rounded-away text");
+        referenceSvg = referenceSvg.slice(0,split-4) + roundedCornerGlyphReference(preset,adjustmentList(adjustment)) + referenceSvg.slice(split-4);
+      }
+      referenceEvidence.referenceFile = `polygon-${name}-reference.svg`;
+      referenceEvidence.referenceSha256 = sha256(Buffer.from(referenceSvg));
+      referenceEvidence.referenceInputFile = `polygon-${name}-reference.ppj`;
+      referenceEvidence.referenceInputSha256 = sha256(referenceInput.program);
+      referenceEvidence.referenceCandidateFile = `polygon-${name}-reference.pptx`;
+      referenceEvidence.referenceCandidateSha256 = sha256(reference.file);
+      await writeFile(path.join(artifacts,referenceEvidence.referenceFile),referenceSvg,{flag:"wx"});
+      await writeFile(path.join(artifacts,referenceEvidence.referenceInputFile),referenceInput.program,{flag:"wx"});
+      await writeFile(path.join(artifacts,referenceEvidence.referenceCandidateFile),reference.file,{flag:"wx"});
+    }
     const pixels = svg => sharp(Buffer.from(svg)).extract(region).ensureAlpha().raw().toBuffer();
-    assert.deepEqual(await pixels(painted.pages[0].svg), await pixels(referencePaint.pages[0].svg), `${name}: independent literal contour, fill/alpha/border/text and outer transform`);
+    assert.deepEqual(await pixels(painted.pages[0].svg), await pixels(referenceSvg), `${name}: independent literal contour, fill/alpha/border/text and outer transform`);
     const publicResult = await assertProductionEntry(`polygon-${name}`, input, receipt, painted);
     assert.ok(!publicResult.diagnostics.some(d => d.reason === shapeGeometryReason));
     const candidateFile = `polygon-${name}.pptx`;
     await writeFile(path.join(artifacts, candidateFile), receipt.file, { flag: "wx" });
-    return { name, preset, consumer, adjustment, candidateFile, candidateSha256: sha256(receipt.file),
+    return { name, preset, consumer, adjustment, ...referenceEvidence, candidateFile, candidateSha256: sha256(receipt.file),
       sceneSha256: receipt.previewScene.sha256, nativeAndLiteralContourRaster: true, publicReliability: publicResult.reliability.status };
   }
-  for (const preset of ["triangle", "rtTriangle", "trapezoid", "parallelogram", "chevron"])
+  for (const preset of ["triangle", "rtTriangle", "trapezoid", "parallelogram", "chevron", ...cutCornerPresets, ...roundedCornerPresets])
     for (const consumer of ["shape", "shape-image", "image"]) {
-      const name = `${preset}-${consumer}`, adjustment = preset === "rtTriangle" ? undefined : 75000;
+      const cornerProfile = cutCornerPresets.includes(preset) || roundedCornerPresets.includes(preset);
+      const twoCuts = preset.startsWith("snip2") || preset.startsWith("round2") || preset === "snipRoundRect";
+      const secondDefault = preset === "snip2DiagRect" || preset === "snipRoundRect" ? 16667 : 0;
+      const name = `${preset}-${consumer}`, adjustment = cornerProfile ? twoCuts ? [25000,50000] : [25000]
+        : preset === "rtTriangle" ? undefined : 75000;
       let stage = "author";
       try {
         const input = polygonProgram(preset, consumer, adjustment), inputHash = sha256(input.program);
         const authored = await compilePpjWorkspace(input, { includePreviewScene: true });
         polygonPresetCases.push(await polygonPixels(`${name}-author`, authored, input, preset, consumer, adjustment));
+        if (cornerProfile) {
+          stage = "default-author";
+          const defaultInput = polygonProgram(preset, consumer, undefined);
+          const defaultReceipt = await compilePpjWorkspace(defaultInput, { includePreviewScene: true });
+          polygonPresetCases.push(await polygonPixels(`${name}-default-author`, defaultReceipt, defaultInput, preset, consumer, undefined));
+        }
         const source = await withoutAuthoredSnapshot(authored.file), sourceHash = sha256(source), sourceFile = `polygon-${name}-source.pptx`;
         await writeFile(path.join(artifacts, sourceFile), source, { flag: "wx" });
         stage = "source-noop";
@@ -3443,12 +3506,27 @@ try {
         const noop = await compilePpjWorkspace(sourceInput, { includePreviewScene: true });
         assert.deepEqual(noop.file, source);
         polygonPresetCases.push({ ...await polygonPixels(`${name}-noop`, noop, sourceInput, preset, consumer, adjustment), sourceFile, sourceSha256: sourceHash });
-        if (preset !== "rtTriangle") for (const value of [25000, 0, undefined]) {
+        if (twoCuts) {
+          stage = "reject-incomplete-adjustments";
+          const fresh = await projectPptxToPpj(source, { sourceUri: sourceFile, assetRootUri: "assets" });
+          const request = JSON.parse(Buffer.from(fresh.programJson).toString("utf8"));
+          request.pages[0].elements[0][consumer === "image" ? "mask" : "geometry"].adjustments = [25000];
+          const bytes = Buffer.from(JSON.stringify(request)), requestSha256 = sha256(bytes), requestFile = `polygon-${name}-incomplete.ppj`;
+          await writeFile(path.join(artifacts, requestFile), bytes, { flag: "wx" });
+          await assert.rejects(compilePpjWorkspace({ source, program: bytes, assets: fresh.assets }, { includePreviewScene: true }),
+            error => error.code === "ppj.geometry.adjustmentCount");
+          assert.equal(sha256(bytes), requestSha256); assert.equal(sha256(source), sourceHash);
+          polygonAdjustmentRejections.push({ preset, consumer, sourceFile, sourceSha256: sourceHash, requestFile, requestSha256,
+            code: "ppj.geometry.adjustmentCount", sourcePreserved: true, requestPreserved: true });
+        }
+        const edits = cornerProfile ? twoCuts ? [[50000,25000], [0,0], [25000,secondDefault], undefined] : [[50000], [0], undefined]
+          : [25000, 0, undefined];
+        if (preset !== "rtTriangle") for (const value of edits) {
           stage = `source-${value ?? "delete"}`;
           // Start each change from the original bytes, not the prior candidate.
           const freshSource = await projectPptxToPpj(source, { sourceUri: sourceFile, assetRootUri: "assets" });
           const program = JSON.parse(Buffer.from(freshSource.programJson).toString("utf8")), geometry = program.pages[0].elements[0][consumer === "image" ? "mask" : "geometry"];
-          if (value === undefined) delete geometry.adjustments; else geometry.adjustments = [value];
+          if (value === undefined) delete geometry.adjustments; else geometry.adjustments = adjustmentList(value);
           const edit = { source, assets: freshSource.assets, program: Buffer.from(JSON.stringify(program)) };
           const requestFile = `polygon-${name}-${stage}.ppj`, requestHash = sha256(edit.program);
           await writeFile(path.join(artifacts, requestFile), edit.program, { flag: "wx" });
@@ -3456,7 +3534,7 @@ try {
           const record = await polygonPixels(`${name}-${stage}`, candidate, edit, preset, consumer, value);
           const fresh = await projectPptxToPpj(candidate.file, { sourceUri: record.candidateFile, assetRootUri: "assets" });
           const target = JSON.parse(Buffer.from(fresh.programJson).toString("utf8")).pages[0].elements[0];
-          assert.deepEqual(target[consumer === "image" ? "mask" : "geometry"].adjustments, value === undefined ? undefined : [value]);
+          assert.deepEqual(target[consumer === "image" ? "mask" : "geometry"].adjustments, value === undefined ? undefined : adjustmentList(value));
           const before = createPpjSceneView(noop).pages[0].nodes[0].native, after = createPpjSceneView(candidate).pages[0].nodes[0].native;
           const field = consumer === "image" ? "maskPresetAdjustments" : "presetAdjustments";
           assert.deepEqual({ ...after, [field]: [] }, { ...before, [field]: [] }, "all non-adjustment native fields remain exact");
@@ -3486,6 +3564,14 @@ try {
   // Independent rectangle children in the SAME outer transform provide a
   // text-only reference for each preset region, not a copy of painter output.
   const regionProfiles = [
+    ...roundedCornerPresets.map(preset => {
+      const adjustment = preset === "round1Rect" ? [25000] : [25000,50000];
+      return [preset, adjustment, roundedCornerReference(preset, adjustment).edges];
+    }),
+    ...cutCornerPresets.map(preset => {
+      const adjustment = preset.startsWith("snip2") ? [25000,50000] : [25000];
+      return [preset, adjustment, cutCornerReference(preset, adjustment).edges];
+    }),
     ["rect", undefined, [0,0,240,120]], ["flowChartProcess", undefined, [0,0,240,120]],
     ["roundRect", 50000, [17.5734,17.5734,222.4266,102.4266]],
     ["ellipse", undefined, [35.14718625761429,17.573593128807147,204.8528137423857,102.42640687119285]],
@@ -3511,7 +3597,7 @@ try {
       if (preset.startsWith("custom-")) {
         e.geometry = shapeFillGeometry("custom");
         e.geometry.textRectangle = preset === "custom-literal" ? {left:30,top:40,right:170,bottom:110} : {left:"l",top:"t",right:"w",bottom:"h"};
-      } else e.geometry = {kind:"preset",preset,...(adjustment===undefined?{}:{adjustments:[adjustment]})};
+      } else e.geometry = {kind:"preset",preset,...(adjustment===undefined?{}:{adjustments:adjustmentList(adjustment)})};
       const referenceProgram = structuredClone(program), [l,t,r,b] = edges;
       const referenceShape = {...structuredClone(e),id:"reference-text",frame:{x:l,y:t,width:r-l,height:b-t},geometry:{kind:"preset",preset:"rect"}};
       referenceProgram.pages[0].elements[0] = {id:"reference-frame",type:"group",frame:structuredClone(e.frame),
@@ -3535,7 +3621,7 @@ try {
         assert.equal(native.textBody.bodyProperties.rotation.value,mode.angle*60000);
         if(!preset.startsWith("custom-")) {
           assert.equal(native.geometry,preset);
-          assert.deepEqual(native.presetAdjustments,adjustment===undefined?[]:[adjustment]);
+          assert.deepEqual(native.presetAdjustments,adjustmentList(adjustment));
         } else assert.ok(native.textRectangle);
         const painted=await savePaint(`text-region-${name}-${origin}`,receipt);
         assert.ok(!painted.diagnostics.some(d=>["preview.scene.paint.text-rectangle","preview.scene.paint.text-direction","preview.scene.paint.text-anchor-overflow"].includes(d.reason)));
@@ -4283,8 +4369,9 @@ try {
   for (const descriptor of descriptors) assert.equal(sha256(await readFile(descriptor.executablePath)),
     descriptor.manifest.files.find(file => file.path === descriptor.manifest.profiles[descriptor.profile].executable).sha256,
     "Executed package identity must still match its validated manifest");
-  const report = { status: localeCapsFailures.length || defaultInsetFailures.length || textShadowFailures.length || shadowFailures.length || textRegionFailures.length || polygonPresetFailures.length || relationFailures.length || diagramFailures.length || transformProfileFailures.length || nestedPairFailures.length || datasetPairFailures.length || stylePairFailures.length || textAnchorFailures.length || spacingDeletionFailures.length || backgroundGradientFailures.length || backgroundImageFailures.length || shapeImageFailures.length || radialGradientFailures.length || brightnessFailures.length || textRotationFailures.length || textReflectionFailures.length || textDirectionFailures.length ? "failed" : "passed", scope: "PPJ NativeAOT wire/view, internal painting and selected production entry cases; not complete paint or installed-package acceptance",
+  const report = { status: nativeAreas.failures.length || smallCaps.failures.length || localeCapsFailures.length || defaultInsetFailures.length || textShadowFailures.length || shadowFailures.length || textRegionFailures.length || polygonPresetFailures.length || relationFailures.length || diagramFailures.length || transformProfileFailures.length || nestedPairFailures.length || datasetPairFailures.length || stylePairFailures.length || textAnchorFailures.length || spacingDeletionFailures.length || backgroundGradientFailures.length || backgroundImageFailures.length || shapeImageFailures.length || radialGradientFailures.length || brightnessFailures.length || textRotationFailures.length || textReflectionFailures.length || textDirectionFailures.length ? "failed" : "passed", scope: "PPJ NativeAOT wire/view, internal painting and selected production entry cases; not complete paint or installed-package acceptance",
     productionEntryCases,
+    smallCaps, nativeAreas,
     performance: { file: "performance.json", cases: performanceCases.map(c => ({ name: c.name, samples: c.samples.length })),
       sha256: sha256(await readFile(path.join(artifacts, "performance.json"))),
       scope: "warm size/time plus isolated native RSS/high-water; retained-object release and full 5.3/G-16 remain unverified" },
@@ -4307,6 +4394,7 @@ try {
     textDirectionCases,
     textDirectionFailures,
     polygonPresetCases,
+    polygonAdjustmentRejections,
     polygonPresetFailures,
     spacingDeletionFailures,
     capitalizationCases,
@@ -4365,6 +4453,7 @@ try {
           originalOwners: true, distinctInstances: true, missingAndZero: true }) },
       datasetPair: { fixture: "test/fixtures/presentation/preview-dataset-equivalence.json", status: datasetPairFailures.length ? "failed" : "passed",
         chartTypes: ["line", "heatmap"],
+        firstValueVariants: [1,2],
         ...(datasetPairFailures.length ? {} : { visualPayloadBytesEqual: true, completeRasterEqual: true, sceneOnOffCandidateEqual: true,
           multiSeries: true, originalOwners: true, missingAndZero: true }) },
       customArcPath, generatedBezierPaths: paths, sourceTextEdit: true, directedAnchorCases, requiredDirectedAnchorCases: 2,
@@ -4402,13 +4491,25 @@ try {
   if (textDirectionFailures.length) throw new AggregateError(textDirectionFailures.map(f => new Error(`${f.name}: ${f.message}`)), "Text direction regressions failed; independent checks executed, not a passing integration.");
   assert.equal(textDirectionCases.length, 75, "all three text owners and directions, anchors, transforms and independent source edits must execute");
   if (polygonPresetFailures.length) throw new AggregateError(polygonPresetFailures.map(f => new Error(`${f.preset}/${f.consumer}/${f.stage}: ${f.message}`)), "Polygon preset regressions failed; independent checks executed.");
-  assert.equal(polygonPresetCases.length, 66, "five presets, three consumers, authored/no-op and independent adjustment set/zero/delete edits");
+  assert.equal(polygonPresetCases.length, 225, "thirteen presets, three consumers, authored/no-op and independent adjustment set/zero/delete edits");
+  const cutCases = polygonPresetCases.filter(c => cutCornerPresets.includes(c.preset));
+  assert.equal(cutCases.length, 78, "all four cut-corner presets include default authoring and source lifecycle");
+  assert.equal(cutCases.filter(c => c.nonAdjustmentStatePreserved).length, 42, "independent source edits retain all non-adjustment content");
+  assert.equal(cutCases.filter(c => /source-25000,(16667|0)$/.test(c.name)).length, 6, "reset the second cut explicitly without changing the first");
+  const roundedCases = polygonPresetCases.filter(c => roundedCornerPresets.includes(c.preset));
+  assert.equal(roundedCases.length,81,"all rounded-corner author/default/no-op/source profiles execute");
+  assert.equal(roundedCases.filter(c=>c.nonAdjustmentStatePreserved).length,45,"rounded-corner source edits retain non-target content");
+  assert.equal(polygonAdjustmentRejections.length,15,"incomplete two-value adjustments remain invalid for cut and rounded presets, all three consumers");
   if (textRegionFailures.length) throw new AggregateError(textRegionFailures.map(f=>new Error(`${f.name}/${f.stage}: ${f.message}`)), "Text rectangle regressions failed; independent checks executed.");
-  assert.equal(textRegionCases.length,78,"eleven public presets and two custom rectangles across three direction/anchor/transform profiles, author and source no-op");
+  assert.equal(textRegionCases.length,126,"nineteen public presets and two custom rectangles across three direction/anchor/transform profiles, author and source no-op");
   if(shadowFailures.length)throw new AggregateError(shadowFailures.map(f=>new Error(`${f.name}/${f.stage}: ${f.message}`)),"Shadow regressions failed; independent checks executed.");
   assert.equal(shadowCases.length,30,"twelve author/no-op profiles plus independent shape/image color, zero and deletion");
   if(textShadowFailures.length)throw new AggregateError(textShadowFailures.map(f=>new Error(`${f.name}/${f.stage}: ${f.message}`)),"Text shadow regressions failed; independent checks executed.");
   assert.equal(textShadowCases.length,34,"fifteen author/no-op text shadow profiles and four independent original-source edits");
+  if (nativeAreas.failures.length) throw new AggregateError(nativeAreas.failures.map(f => new Error(`${f.name}: ${f.message}`)), "Native area regressions failed");
+  assert.equal(nativeAreas.cases.length,nativeAreas.expectedCount,"all ordinary area lifecycle cases execute");
+  if (smallCaps.failures.length) throw new AggregateError(smallCaps.failures.map(f => new Error(`${f.name}: ${f.message}`)), "Small capitals regressions failed");
+  assert.equal(smallCaps.cases.length, smallCaps.expectedCount, "all small-capital owners, inheritance and independent source edits execute");
   if(localeCapsFailures.length)throw new AggregateError(localeCapsFailures.map(f=>new Error(f.message)),"Locale casing regressions failed");
   assert.equal(localeCapsCases.length,12,"four locale author/no-op profiles plus four independent semantic/leaf source edits");
   if(defaultInsetFailures.length)throw new AggregateError(defaultInsetFailures.map(f=>new Error(f.message)),"Default inset presence regressions failed");

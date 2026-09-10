@@ -53,6 +53,7 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
   const paintedOwnerConnectors = new Map();
   const paintedOwnerLines = new Map();
   const paintedDatasetLineOwners = new Set();
+  const paintedDatasetHeatmapOwners = new Set();
   const paintedShapeGeometryOwners = new Set();
   if (rendererProfile === "native-scene-svg") {
     const mapping = registry.previewScene?.factualMappings?.visibility;
@@ -73,6 +74,9 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
     const datasetMapping = registry.previewScene?.factualMappings?.datasetLine;
     if (datasetMapping?.handler !== "all-owner-native-dataset-lines-painted" || datasetMapping.test !== "test/ppj-preview-scene-native.mjs")
       throw new Error("Missing verified native dataset line mapping in the preview registry");
+    const heatmapMapping = registry.previewScene?.factualMappings?.datasetHeatmap;
+    if (heatmapMapping?.handler !== "all-owner-authored-heatmap-primitives-painted" || heatmapMapping.test !== "test/ppj-preview-scene-native.mjs")
+      throw new Error("Missing verified native dataset heatmap mapping in the preview registry");
     const geometryMapping = registry.previewScene?.factualMappings?.shapeGeometry;
     if (geometryMapping?.handler !== "all-owner-shape-geometry-painted" || geometryMapping.test !== "test/ppj-preview-scene-native.mjs")
       throw new Error("Missing verified native shape geometry mapping in the preview registry");
@@ -90,6 +94,8 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
     const nativeLines = new Map(), isolated = new Map();
     const lines = new Set(scenePaint.lineScenePaths ?? []), parents = new Map();
     const nativeShapes = new Set(), geometries = new Set(scenePaint.shapeGeometryScenePaths ?? []);
+    const primitives = new Set(scenePaint.primitiveScenePaths ?? []);
+    const bindingAt = new Map(scene.bindings.map(binding => [binding.scenePath,binding]));
     for (const point of scenePaint.isolatedLinePoints ?? []) {
       if (!isolated.has(point.scenePath)) isolated.set(point.scenePath, new Set());
       isolated.get(point.scenePath).add(`${point.seriesIndex}:${point.pointIndex}`);
@@ -139,6 +145,25 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
           if (!transformed.has(address)) return false;
         return true;
       })) paintedDatasetLineOwners.add(path);
+    // Dataset evaluation and heatmap layout belong to authored lowering, not
+    // this checker. Verify the actual complete tree consumed by the painter.
+    // A candidate-import group, guessed label, orphan or foreign-owned child
+    // does not establish that the original dataset channels were rendered.
+    if (scene.origin === 1) for (const [path, bindings] of owners) {
+      const owned = new Set(bindings.map(binding => binding.scenePath));
+      const roots = bindings.filter(binding => !owned.has(parents.get(binding.scenePath)));
+      const complete = address => {
+        const binding = bindingAt.get(address), group = nativeGroups.get(address);
+        if (binding?.programPath !== path || ![1,2].includes(binding.attribution) ||
+            !primitives.has(address) || !transformed.has(address)) return false;
+        for (let ancestor = parents.get(address); ancestor; ancestor = parents.get(ancestor))
+          if (!nativeGroups.has(ancestor) || !primitives.has(ancestor) || !transformed.has(ancestor)) return false;
+        if (group) return group.children.length > 0 && group.children.every((_child,i) => complete(`${address}.group.children[${i}]`));
+        return binding.attribution === 2 && nativeShapes.has(address) && geometries.has(address);
+      };
+      if (roots.length && roots.every(binding => nativeGroups.has(binding.scenePath) && complete(binding.scenePath)))
+        paintedDatasetHeatmapOwners.add(path);
+    }
     for (const [path, bindings] of owners)
       if (bindings.every(binding => {
         if (!nativeShapes.has(binding.scenePath) || !geometries.has(binding.scenePath)) return false;
@@ -306,7 +331,8 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
     context.diagnostics.push(...previewFactualErrors(element, { path, pageId, id }, support,
       { hiddenOwnerPaths, resolvedTransformPaths, resolvedGroupCoordinates, resolvedConnectorPaths, resolvedIsolatedLinePaths, resolvedLineSeriesPaths,
         resolvedShapeGeometry: paintedShapeGeometryOwners.has(path),
-        resolvedDataset: element?.type === "chart" && element.chartType === "line" && paintedDatasetLineOwners.has(path) }));
+        resolvedDataset: element?.type === "chart" && (element.chartType === "line" && paintedDatasetLineOwners.has(path) ||
+          element.chartType === "heatmap" && paintedDatasetHeatmapOwners.has(path)) }));
     const type = object(element) && Object.hasOwn(support.types, element.type) ? support.types[element.type] : undefined;
     if (!provenImage) emit(context, previewPath(path, "type"), element?.type, type, type ? {} : { status: "opaque", reason: "preview.element.unknown" });
     if (element?.type === "image" && !assets.get(element.asset)?.data?.byteLength) {

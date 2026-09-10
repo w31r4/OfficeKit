@@ -1,14 +1,28 @@
 # OfficeKit 本地 PPT 渲染器：当前能力与剩余差距
 
+最新热力图事实检查复验（2026-09-10 20:30:02）：`YqCTgw` 使用冻结副本 `heatmap-fact-snapshot-a3dTPY` 和同一 035472e9 原生包，741 项正式入口通过限定内容/发布检查，均保留 requires-review。两个热力图数值变体解除旧通道忽略误报；原候选、场景及警示条以下全部 RGBA 不变。原 12 项删除、3 项语言及 1 项表格文字样式丢失仍使整套 `failed/exit1`；完整参考门禁在显式临时 Poppler PATH 下通过，系统默认 PATH 仍缺该工具。详见[热力图映射与验证边界](#作者热力图的数据通道误报)。
+
+最新非对称圆角复验（2026-09-10 20:05:18）：`RAAEyl` 使用冻结副本 `rounded-corner-snapshot-QzUx5q` 和同一 035472e9 原生包，739 项正式入口通过限定内容/发布检查，可靠性为 738 项 requires-review、1 项 failed。新增四种圆角的 81 项轮廓/源生命周期、24 项文字区域和 9 项非法输入拒绝通过；外部 19 个轮廓和文字对照均通过。原 12 项删除、3 项语言及 1 项表格文字样式丢失仍使整套 `failed/exit1`，不计为本轮修复。详见[非对称圆角的实现、参考精度与验收](#四种非对称圆角轮廓图片和文字使用同一几何)。
+
+此前切角复验（2026-09-10 19:39:56）：`Td0XOT` 使用冻结副本 `cut-corner-snapshot-rhWueu` 和同一 035472e9 原生包，634 项正式入口通过限定内容/发布检查，可靠性为 633 项 requires-review、1 项 failed。新增四种切角的 78 项轮廓/源生命周期、24 项文字区域及 6 项非法输入拒绝通过；外部 18 个轮廓和文字对照均通过。原 12 项删除、3 项语言及 1 项表格文字样式丢失仍使整套 `failed/exit1`，原生修复尚未实施。详见[四种切角的实现、测试与限制](#四种切角轮廓共享几何与调整值生命周期)。
+
+此前小型大写复验（2026-09-10 19:07:36）：`d5XctG` 使用 `small-caps-snapshot-Ef6lYs` 和同一 035472e9 默认原生包，正式入口共 532 项。新增小型大写 27 项中 26 项通过，1 项表格源导入丢失文字样式；原 12 项删除及 3 项语言写回失败仍在，整套保持 `failed/exit1`。外部小型大写边界对照 6/8 通过，两项字宽差异保留。用户授权的 [ppj-source-deletion-lifecycle](../openspec/changes/ppj-source-deletion-lifecycle/proposal.md) 仍仅规划原 12 项删除，不包含新发现的文字问题，也不代表已经修复。详见[小型大写记录](#小型大写本地映射与表格源导入失败)；本文较早运行的数量不累加。
+
 文字外阴影复验（2026-09-10）：qCO4bS 使用冻结源码 `text-shadow-snapshot-OenB3z` 与同一 035472e9 原生包，新增 34 项形状文字阴影回归全部通过，正式入口共 473 项。原十二项源删除失败仍使整套 failed。外部九项直接阴影对照为七项通过、两项竖排位置失败；模糊与换行仍有限制。详见 G-04 的“形状文字外阴影”小节；没有重建 C#、提升完整覆盖等级或宣称宿主验收。
 
 文字区域复验（2026-09-10）：已补上当前绘制预设的内部文字矩形和有限自定义边值；p4Au9s 在同一 035472e9 默认原生包下通过新增 78 项作者/源 no-op 回归，正式入口共 409 项。两组外部文字对照分别为 8/8、39/39，通过预设边界阈值；不是完整字体或人类验收。整套仍为 failed，原十二项删除失败保持不变。无 preload 的 presentation 门禁 4/4；具体范围见 G-02 的形状内部文字区域小节。 TzaE9j 与旧轮廓对照保留为修复前的历史记录。
 
 核对日期：2026-09-10。当前默认 linux-x64 原生包来自冻结提交 `035472e9ca8f7fd58987148285da5a3f406286d2`，构建、备份及实际结果见第 3.6 节。工作区另有持续更新的原生、测试和能力声明，HEAD 不能单独标识未提交修改。本文区分所读源码、已验证的本机安装包与尚未验证的变更，不代表其他平台或远端发布状态。
 
-本文记录现有 PPT 静态功能的已知差距，不是完整字段覆盖率报告：目前缺少逐字段分母，不能据此声称已穷尽所有 OOXML 属性。最近实施已重建指定快照并运行内部集成及窄门禁；已有九个早期文字方向/边距、两组各五个轮廓案例，以及本轮八个变换和三十九个文字区域/锚定案例的 LibreOffice 对照，轮廓缺省连接组含两项失败，尚无全仓测试、PowerPoint 或人类验收。各历史运行仍按自己的版本和范围解释。
+本文记录现有 PPT 静态功能的已知差距，不是完整字段覆盖率报告：目前缺少逐字段分母，不能据此声称已穷尽所有 OOXML 属性。已构建过指定原生快照，并持续运行冻结 JS 的真实集成和窄门禁；外部对照包括早期方向、轮廓、文字区域、阴影和大小写、上一轮 18 个切角及本轮 19 个圆角案例。早期轮廓缺省连接、小型大写等组仍有失败，尚无全仓测试、PowerPoint 或人类验收。各次结果仍按自己的版本和范围解释。
 
 ### 本次复核摘要
+
+最新证据为 `tmp/officekit-native-scene-paint-RAAEyl/integration.json`，SHA-256 `5b9550a4ea1242cc16a4ef2b20b50a4497ebe3ae7ca64a83c151d0c105b95f31`。739 个正式入口的完整内容栅格、强制检查、返回/持久化一致及输入保留断言通过；其中 738 个为 requires-review，encoded heatmap 的可靠性仍为 failed。共享路径预设累计 225 项、文字区域累计 126 项，本轮分别新增 81、24 项；双调整值不完整的拒绝测试共 15 项，其中新增 9 项。新增圆角的 45 项独立源编辑均保留非目标内容，原有 78 项切角及其他回归仍执行。原有 26/27 小型大写、24 项缺省边距与 9 项语言正例保留，未通过的表格源案例和原 3 项语言失败不计为成功。
+
+本轮冻结快照的 20 项证据源码、包/性能记录、739 组正式产物、候选/请求/重新投影和独立参考、外部对照共 2,649 份唯一文件摘要核对通过；核对时 20 项也与当前工作区一致。另有并行的 paragraph rightIndent 等源码/协议更新，旧原生包不包含这些新能力，本轮不把它们算作原生验收。没有重建 C# 或替换默认包。此前 Td0XOT 曾有 registry 一项后续漂移，那个阶段的 18/19 记录仍保留在任务历史中，不混入本轮结果。
+
+无 preload 的 presentation 门禁 4/4（`/tmp/officekit-ppj-preview-baOlGI`）、SVG 基础、能力覆盖、两个生成检查、Skill 维护/可移植/参考同步及 gate-policy 通过。`node test/reference-skills.mjs` 本轮仍退出 1，具体为缺少外部 `pdftoppm`（ENOENT）；没有执行完整 `npm test`、PowerPoint 或人类验收。
 
 文字区域阶段整体复验为 `tmp/officekit-native-scene-paint-p4Au9s/integration.json`（北京时间 2026-09-10 17:21:21）：同一 035472e9 默认原生包，正式入口 409 项，新增 78 项文字区域作者/源 no-op 与原 66 项多边形全部通过限定断言、均为 requires-review。36 项调整值源修改/清零/删除继续保留非目标内容，75 项方向及其他独立回归保留。报告仍为 failed，原十二项删除失败未消失。另有 8+39 个本轮外部文字对照通过；此前缺省线条连接的两个轮廓差异仍未关闭。
 
@@ -20,18 +34,18 @@
 | --- | --- | --- |
 | 正式预览入口 | 请求 `includePreviewScene: true` 并实际绘制 scene，旧组件/图表猜测分支已删除 | 本机默认 linux-x64 包的无 preload 回归通过；其他平台和后续版本仍需复验 |
 | 输入可靠性检查 | 正式 `renderPpjSceneSvg` 强制合并原始输入与场景检查，没有关闭选项 | 内部 paint-only 仍可独立测试；公共入口不能借此跳过检查 |
-| 正式入口案例 | 473 项文字阴影/形状图片阴影/文字区域/多边形/文字方向/翻转/旋转/背景/形状填充/组件/样式/dataset/源候选通过限定内容像素、身份、发布与输入保留检查；另有 2 项平铺背景拒绝发布及 CLI 子进程回归 | 成功发布不代表可靠性通过；34 项文字阴影、30 项基础阴影、78 项文字区域、原 66 项多边形、75 项方向及原 36 项翻转、47 项旋转等案例仍为 requires-review |
-| dataset 折线检查 | 两个真实数值变体解除旧通道忽略误报；1→2 对应孤立点实际上移 42px | 缺失、真实零、显式数据对照通过；heatmap 和其他未验证通道仍保留错误 |
+| 正式入口案例 | YqCTgw 的 741 项通过限定内容像素、身份、发布与输入保留检查；包含 225 项预设路径/源生命周期和 126 项文字区域；另列 15 项调整数量拒绝、2 项平铺背景拒绝及 CLI 回归 | 全部 requires-review；原有小型大写、边距、语言、阴影和方向等回归保留，发布不代表可靠性通过 |
+| dataset 折线/热力图检查 | 两类各有首值 1、2 的真实变体和独立显式数据对照；折线点位移动、热力图颜色变化及 null/zero 区分通过 | 只解除实际完整绘制的对应通道误报；热力图还要求作者来源和完整生成子树，源导入或缺节点/变换记录仍失败，其他未验证通道不放宽 |
 | 显式连接线端点检查 | 六个实际场景通过逐端点匹配，已绘制的直线/折线不再误报端点被忽略 | 对象锚点、坐标不符、缺绘制记录及其他限制仍保留 |
 | 成对 fixture | 嵌套组件/repeat/slot、命名样式/grammar、dataset/encoding、native line 与 vector heatmap 的固定对照通过 | 任务 5.1 指定类别已有证据；不代表所有字段、图表变体、workbook 或第三方源均完成 |
-| 文字近期进展 | 小字号基线、物理边距、直接锚定、旋转/防镜像及三种方向；新增 78 项预设/自定义文字区域，保留 75 项方向回归，九项源切换/删除通过 | 完整换行、字体度量、其他预设/公式文字区域、多列/WordArt/东亚竖排、upright、原生图表独立标签及 AutoFit 仍缺；单 run 换行表格仍会导入为 opaque |
+| 文字近期进展 | 小字号基线、物理边距、直接锚定、旋转/防镜像及三种方向；累计 126 项预设/自定义文字区域，保留 75 项方向回归，九项源切换/删除通过 | 完整换行、字体度量、其他预设/公式文字区域、多列/WordArt/东亚竖排、upright、原生图表独立标签及 AutoFit 仍缺；单 run 换行表格仍会导入为 opaque |
 | 直接图片背景 | 12 项作者/源 no-op/独立源编辑通过原生状态、RGBA、前景与共享媒体保留检查 | 支持透明像素、正负裁切和 opacity 存在性；共享图片的整个背景删除在原生编译阶段失败 |
 | 形状图片填充 | 五种几何各有作者/源 no-op，加六项源修改与删除，共 16 项实际裁切、RGBA、轮廓/文字及正式入口回归通过 | 仅已映射几何和完整 imageFill；旧资产身份字段、平铺、其余 preset/效果未完成；仅解除已有完整几何记录的旧事实错误 |
 | 图片 tile | 作者/源 no-op 的明确拒绝、占位和输入保留断言通过 | 通过的是防误画测试，不是平铺渲染成功 |
 | 源变换字段删除 | rotation、flipH、flipV、组合四例失败 | 删除仍留下显式 0/false；画面恢复原位不能抵消编辑语义失败 |
 | 源段落间距删除 | 行距/段前/段后倍数的七种非空删除组合全部被 PPJ 编译器拒绝 | 尚未生成候选，不属于渲染失败；原始源和七份请求保留 |
 | 线性与居中径向渐变 | 共享直接 RGB/alpha 绘制，原线性/背景与 22 项径向案例保留；新增 36 项特殊亮度插值及普通插值切换案例通过 | 特殊曲线已有有限精度绘制，不是仅提示；非居中焦点、其他路径类型、继承背景及其他消费者仍缺 |
-| 报告整体状态 | `failed`；4 项变换删除、7 项间距删除、1 项共享图片背景删除失败，其余回归失败数组为空 | 十二项失败均保留；背景删除报 `presentation_element_binding_mismatch`，尚未生成候选 |
+| 报告整体状态 | `failed`；4 项变换删除、7 项间距删除、1 项共享图片背景删除，加 3 项语言/大小写写回失败及 1 项表格源文字样式丢失 | 原 12 项已另立原生提案，尚未实施；新问题没有并入该授权。表格源 no-op 文件字节保留，但 scene 缺少实际字体和大小写，不能用作者渲染成功抵消 |
 | G-01 任务 | 10 项勾选、5 项未勾选，共 15 项 | 只表示任务记录，不是渲染覆盖率或总体完成率 |
 | 性能证据 | 重复组件/源候选有分阶段采样、独立进程驻留高水位及预算失败恢复记录 | 保留峰值与完整负载目标仍缺，5.3 未完成；托管释放证据另见 G-16 |
 
@@ -131,11 +145,11 @@
 
 | 功能 | 内部路线已实现或已有通过证据 | 不能由此推导的结论 |
 | --- | --- | --- |
-| 基础几何 | 有限预设（新增五种多边形）、literal 自定义路径、二次/三次 Bézier、`arcTo`；形状与文字分别绘制 | 所有 preset、公式引用、连接点、文字区域均已求值和显示 |
+| 基础几何 | 有限预设（含九种多边形、四种非对称圆角）、literal 自定义路径、二次/三次 Bézier、`arcTo`；形状与文字分别绘制 | 所有 preset、公式引用、连接点、文字区域均已求值和显示 |
 | 圆角矩形 | 形状和图片遮罩共享 roundRect 逻辑；默认值、零值、非正方形和调整边界有合成断言 | 所有形状 adjustment 都有对应实现 |
-| 文字 | 保留段落/run 边界、显式换行、有限对齐、字号、字体、粗斜体、直接颜色/透明度；单下划线、单删除线、有符号基线及零覆盖 | 完整字体度量、自动换行、列表、AutoFit、双线/波浪装饰或全部文字效果 |
+| 文字 | 保留段落/run 边界、显式换行、有限对齐、字号、字体、粗斜体、直接颜色/透明度；单下划线、单删除线、有符号基线、零覆盖及小型大写本地字形 | 完整字体度量、自动换行、列表、AutoFit、双线/波浪装饰或全部文字效果；小型大写仍有外部字宽差异和表格源导入失败 |
 | 组与变换 | 原生 frame/childFrame 映射、旋转、镜像、元素 hidden 分支 | 所有嵌套、导入变换及效果扩展边界均已验收 |
-| 图片 | 正裁切、负边值透明留白、alpha；rect/ellipse/diamond/roundRect、五种多边形遮罩及 literal 自定义遮罩；直接 RGB 边框 | tile、全部 fit/focus、主题色、阴影及复杂路径都已支持 |
+| 图片 | 正裁切、负边值透明留白、alpha；rect/ellipse/diamond/roundRect、九种多边形、四种非对称圆角和 literal 自定义遮罩；直接 RGB 边框 | tile、全部 fit/focus、主题色、阴影及复杂路径都已支持 |
 | 表格 | 显式行列尺寸、合并范围、有限单元格样式；有合并像素和源移动回归 | 完整表格主题、banding、边框冲突和文字排版 |
 | 连接线 | 原生端点、straight/elbow、箭头方向及相对尺寸、literal bendAdjustment；对象锚点两个集成案例 | 任意 connection-site、曲线、自动避障或导入路线精确复刻 |
 | 普通 line | 缺失断段、真实零、孤立观测提示、有限 marker、显式范围/反向和有限对数轴 | 平滑/堆叠折线、全部轴、图例、标签和源主题 |
@@ -267,9 +281,61 @@
 
 ### G-02：文字和形状
 
+#### 四种非对称圆角：轮廓、图片和文字使用同一几何
+
+`round1Rect`、`round2DiagRect`、`round2SameRect`、`snipRoundRect` 已接入 `presetPathMetrics()` / `presetPath()`。普通形状、形状图片填充和图片遮罩共用路径；文字区域也使用同一组调整值。它们不是普通 roundRect 的别名，也没有增加图形依赖、公式解释器或原生写回入口。
+
+仍依据仓库固定的 [DrawingML 预设定义](https://github.com/plutext/docx4j/blob/0eec2587ab38db5265ce66c12423849c1bea2c60/docx4j-core/src/main/resources/org/docx4j/model/shapes/presetShapeDefinitions.xml)。设两项调整值对应的物理长度为 a、b，圆角文字内缩分别为 ia=a×29289/100000、ib=b×29289/100000：
+
+| 预设 | 默认调整值 | 实际角点 | 文字区域 |
+| --- | --- | --- | --- |
+| round1Rect | 16667 | 只有右上角为半径 a 的圆角 | 仅右边内缩 ia，上边不缩 |
+| round2DiagRect | 16667、0 | 左上/右下为 a，右上/左下为 b | 四边均内缩 max(ia,ib) |
+| round2SameRect | 16667、0 | 上方两角为 a，下方两角为 b | 左右按较大内缩，上下分别按 ia、ib |
+| snipRoundRect | 16667、16667 | 左上圆角半径 a，右上直线切角长度 b，下方直角 | 左上内缩 ia，右边内缩 b/2，下边不缩 |
+
+各值独立钳制到 0～50000，再乘短边 /100000；四分之一圆弧按定义的起点顺时针绘制。零半径退化为直角，不输出无效弧段；显式零和省略在原生状态中仍有区别。双值输入须完整提供两个值或整组省略，单值列表仍被原有验证器拒绝。
+
+合成回归覆盖 12 项三种使用方式的固定路径与文字位置、36 项横长/竖长/正方形和极值钳制、12 项多余调整值反例，以及新增 108 项文字方向/锚定/对齐和 12 项旋转/翻转中心检查。源 scene 字节保持不变。
+
+最终 `RAAEyl` 的 81 项圆角轮廓回归全部通过：12 项非默认作者、12 项默认作者、12 项去除作者快照的源 no-op，以及 45 项从同一原始源独立发起的修改、清零、第二值显式恢复默认或整组删除。每份源候选重新投影，只有目标 slide1.xml 的调整列表允许变化；其他原生字段、整个非目标 XML、其余 ZIP 部件、资产、输入和请求保持。每个内容区的全部 RGBA 与独立参考逐字节相同；三种使用方式同时验证裁切、图片 alpha、边框、文字和外层变换。另有 24 项真实文字区域作者/源 no-op 和 9 项不完整双值拒绝通过。该组不是整体可靠性 passed，739 项正式入口中仍有 738 项 requires-review 和 1 项 failed；原有 16 项原生失败使完整集成退出 1。
+
+首轮真实报告 `q4omeO` 新增圆角仅完成 43/81 项，六个使用方式在参考比较处失败，不能计为完整通过。默认半径 20.0004pt 被自定义路径参考的 1/1000 单位量化成 20pt；参考现改用 100 倍 viewBox 和坐标，物理 frame 不变。第一次尝试 1000 倍超出既有 100000 上限，被正常拒绝，没有扩大 schema 范围。
+
+另外两项 snipRoundRect 只有两个边缘像素不同。独立诊断 `tmp/rounded-corner-probe-vfRcRb/diagnosis-0z6yPx/` 显示轮廓路径完全相同，但 custom textRectangle 将 8.7867pt 取整为 111591 EMU，翻转中心随之变为 418.7866929133858，而预设的精确值为 418.7867。仅用精确参考文字位置替换量化位置时差异归零，去掉路径样式分组则仍有差异。最终测试保留真实编译的 literal 轮廓，单行 F0 由测试 helper 按固定边值、原字号、原边距独立生成 SVG 文字参考；不从实际输出抄坐标，不取整实际预设，不放宽内容区逐字节 RGBA 断言。每个参考的输入、候选 PPTX 和最终 SVG 分别保留。
+
+外部对照 `tmp/rounded-corner-probe-vfRcRb/run-XqeP2J/comparison.json` 已有 19/19 轮廓和文字通过：公开 CLI 生成 PPTX 与本地预览，再以 LibreOffice 26.8.0.3 → PDF → 公共 MuPDF 72dpi 检查。同一预设覆盖默认、非对称、零值、第二值显式默认，另含三种锚定及旋转/翻转。预先固定的轮廓双向 2px/15% 面积、文字 3px/20% 阈值不变；实际最大边界差均为 1px，最大面积差约为 1.13%/7.37%，邻域外墨迹为零。沿用实际 PDF 百分之一毫米取整检查，未缩放或配准图片。
+
+这些是自生成案例和有限本地/外部对照，不是第三方复杂输入、PowerPoint 或人类验收。完整字体排版、继承笔画、其他预设/guide 和效果仍开放；原生删除修复另立变更，本轮没有重建或替换默认包。
+
+#### 四种切角轮廓：共享几何与调整值生命周期
+
+新增 `octagon`、`snip1Rect`、`snip2DiagRect`、`snip2SameRect`，覆盖普通形状、形状图片填充、图片遮罩与内部文字区域。`presetPathMetrics()` 共用调整值计算，`presetPath()` 共用轮廓；没有增加另一套 PPJ/OOXML 解释器或图形依赖。预设定义仍取[仓库固定版本的 DrawingML 参考](https://github.com/plutext/docx4j/blob/0eec2587ab38db5265ce66c12423849c1bea2c60/docx4j-core/src/main/resources/org/docx4j/model/shapes/presetShapeDefinitions.xml)，本轮重新下载核对 SHA-256 为 `6fc9592cb55db6e572051f41d15a079ae4164635af902db6f13a8a61d0c949d3`。
+
+| 预设 | 默认调整值 | 轮廓和文字区域 |
+| --- | --- | --- |
+| octagon | 29289 | 四角相同切角；文字四边内缩切角的一半 |
+| snip1Rect | 16667 | 只切右上角；文字上、右内缩切角的一半 |
+| snip2DiagRect | 0、16667 | 两组对角独立切角；文字四边内缩较大切角的一半 |
+| snip2SameRect | 16667、0 | 上方两角与下方两角独立切角；文字左右按较大切角，上下分别按对应切角内缩一半 |
+
+切角长度使用短边乘以调整值比例，各值独立钳制到 0～50000。清零仍是原生显式零，整组省略恢复默认；显示时的钳制不改写原始值。八边形保留定义指定的左侧起点，避免只旋转闭合路径起点就改变虚线相位。方向、锚定、文字旋转和外层翻转继续使用共享文字区域，不从轮廓外接框猜测。
+
+新增合成检查包括 12 项三种使用方式的固定顶点、36 项横长/竖长/正方形钳制对照、12 项多余调整值反例，以及 108 项文字方向/锚定/对齐和 12 项旋转/防镜像中心检查。真实回归另使用测试专属的固定顶点与文字边值，通过独立编译的 literal 自定义轮廓比较内容区全部 RGBA；参考 helper 不导入生产几何函数。
+
+原生回归新增 78 项：12 项非默认作者、12 项默认作者、12 项去除作者快照的源 no-op、42 项从原始源独立发起的调整值修改。包含交换双值、清零、将第二个值显式恢复默认和整组删除。每份候选重新投影，检查调整值存在性、其他原生字段及整个 slide 的非目标 XML；固定案例仅允许 `ppt/slides/slide1.xml` 的目标调整列表变化，其他 ZIP 部件、图片资产、原文件和请求保留。另有 24 项真实文字区域检查覆盖横排、两种竖排、锚定与组合变换，比较独立矩形参考的墨迹范围和邻域。
+
+首轮 `wfsntS` 错把“只留第一个调整值”当作合法编辑，六例被 `ppj.geometry.adjustmentCount` 拒绝。当前 `PpjSemanticValidator.ValidatePresetAdjustments` 明确要求双值预设完整提供两个值或整组省略。测试保留这六份独立请求及精确拒绝断言，合法编辑改为显式恢复第二值，并继续执行整组删除；没有放宽验证器、取消输入或借默认值推导编辑权限。
+
+外部对照由公开 `office-kit` 包和 `officekit run` 调用 build/preview，再经 LibreOffice 26.8.0.3 → PDF → 公共 MuPDF 72dpi 路线检查，18 个自生成案例同时覆盖默认、非对称、零值和第二值默认，以及三种锚定。轮廓使用预先固定的双向 2px 邻域和 15% 墨迹面积阈值，文字为 3px/20%；18/18 均通过，实际最大边界差均为 1px，最大面积差约为 0.68%/7.37%。产物见 `tmp/cut-corner-probe-D4TxXC/run-HJAHgY/comparison.json`。这不是第三方源文件、任意字体、PowerPoint 或人类验收；既有缺省线连接和小型大写的外部失败不因此关闭。
+
+外部脚本的首次输入误用 `{type:"break"}`，随后按现有 schema 改为 `{break:true}`；旧目录保留。第二次在页面尺寸断言处停止：LibreOffice 按百分之一毫米取整后 PDF 宽为 1280.012573pt，MuPDF 输出 1281px，而本地是 1280px。最终检查实际 PDF 取整尺寸和各自像素范围，仍在原坐标比较，没有缩放、配准或修改轮廓/文字阈值。已查看本地与外部整页及源编辑图片填充的实际 PNG，仅计 Agent 检查。
+
+其余预设、复杂 guide/formula、继承笔画、完整排版与其他效果仍缺，支持等级与任务 3.3/4.1 不提升。本轮预查还确认普通形状/图片的 `$defs.shadow` 不拥有缩放/斜切字段，相关字段属于 `chartTextShadow`；不能用合成场景上的错误 owner 宣称普通阴影已经支持它们。
+
 #### 形状内部文字区域：预设定义与自定义坐标
 
-`shapeTextFrame()` 现先确定形状的内部文字矩形，再交给共享文字布局消费边距、段落和锚定。它覆盖当前已绘制的十二个原生预设/别名：rect、textbox、flowChartProcess、roundRect、ellipse、diamond、flowChartDecision、triangle、rtTriangle、trapezoid、parallelogram、chevron。textbox 是文本框的原生标记；不能把十二个标记解释为十二个公开 PPJ preset。
+`shapeTextFrame()` 现先确定形状的内部文字矩形，再交给共享文字布局消费边距、段落和锚定。它覆盖当前已绘制的二十个原生预设/别名：rect、textbox、flowChartProcess、roundRect、ellipse、diamond、flowChartDecision、triangle、rtTriangle、trapezoid、parallelogram、chevron，以及前两节的四种切角和四种非对称圆角。textbox 是文本框的原生标记；公开 PPJ preset 为十九个。下方 p4Au9s 的 78 项属于增加切角之前的十二标记阶段。
 
 矩形来自[现有预设表所固定版本的定义](https://github.com/plutext/docx4j/blob/0eec2587ab38db5265ce66c12423849c1bea2c60/docx4j-core/src/main/resources/org/docx4j/model/shapes/presetShapeDefinitions.xml)，不是轮廓外接框或手工估计留白。轮廓与文字区域共用调整值缺省和钳制计算；例如，三角形区域随顶点水平移动，平行四边形不能简化为左侧错位量，而 chevron 在凹口达到特定范围时使用定义中的分支。roundRect 使用圆角半径导出的内缩，ellipse 使用内接矩形，diamond/flowChartDecision 使用四分之一边距。
 
@@ -328,9 +394,41 @@ p4Au9s 的完整报告时间为北京时间 2026-09-10 17:21:21，正式入口 4
 
 **轮廓阶段曾复现文字区域缺陷。** 当时 LibreOffice 把 F0 放在预设内部，本地却按整个外框排版，文字落到轮廓外。上节已补充本轮修复和独立验证；此处的旧轮廓正例本身仍不能证明文字正确，也不证明任意预设、主题连接继承、连接点、阴影边缘、复杂自定义公式、PowerPoint 或人类验收。
 
+#### 小型大写：本地映射与表格源导入失败
+
+`fontCaps=small` 现交给既有 SVG 字体后端的 `font-variant="small-caps"` 绘制，保留原文、原生字号和逻辑行高，不把整段转成全尺寸大写，也不另写固定缩放比例。大小写和语言分别按 run → paragraph default → cell fallback 取值；显式 none/all 覆盖不受影响。每处实际小型大写都保留 `preview.scene.paint.text-small-caps-review`，非法语言或未知大小写值继续 unavailable。对应字段见 [DrawingML TextCapsValues](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.drawing.textcapsvalues?view=openxml-3.0.1)，本机 librsvg 2.61.2 的 [text.rs](https://raw.githubusercontent.com/GNOME/librsvg/2.61.2/rsvg/src/text.rs) 将该 SVG 属性交给 Pango；这不证明其他后端或 Office 使用相同字形合成。
+
+合成回归覆盖 3 类样式归属 × 4 种直接覆盖 × 2 种语言，共 24 组；检查文字/XML 转义、语言、警告和 scene 不变。真实测试拆到 [ppj-preview-small-caps.mjs](../test/helpers/ppj-preview-small-caps.mjs)，共有 12 个 profile 的作者/去快照源 no-op，加 3 项从同一原源独立发起的 leaf 编辑：small→none、small→all、改原文。包含 shape/table、粗斜体、alpha=0、字距、土耳其语、显式换行和全小写。
+
+最终 `d5XctG` 的 `smallCaps` 为 **26/27，通过项并不代表完整源支持**。26 项核对完整文字区域与独立手写 SVG 的 RGBA、前景控制色、正式入口内容及警告；非透明小型大写还须与普通大小写、全尺寸大写的像素分别不同。三个源编辑重新投影正确，候选只改变 slide1.xml，且完整 XML 仅含预期 cap 属性或文字替换；原源、请求、其他部件和 scene 开/关候选一致。所有新正式结果为 requires-review。
+
+**剩余表格失败是真实原生导入缺失。** 作者表格通过，去掉私有 PPJ 快照后的源 no-op 也逐字节保留 PPTX；但再导入的单元格只有 text/fill，既没有 textBody，也没有 textStyle，`fontCaps` 为缺省。输入 XML 的 `cap="small"` 并未删除。故该例停在原生状态断言，未算作源绘制成功；未从 PPJ 反推样式或把失败改成预期拒绝。
+
+`tmp/small-caps-cell-diagnosis-9AqDbb/diagnosis.json` 对同一生成源另建 4 份受控副本，仅分别保留/移除 `cap="small"` 与 `spc="0"`：保留任一属性时三份 scene 均丢失文字样式，两项都移除才恢复富文本体。四份 no-op 字节相同，原文件摘要不变。[PptxTableCodec.cs](../native/OfficeKit/src/OfficeKit.Codec/PptxTableCodec.cs) 的 `CellTextStyleSupported` 同时排除 FontCaps/FontSpacingPoints；`TryReadCell` 的不支持分支只返回文字而未携带样式。这是当前源码与旧包现象一致的定位，不是新源码已经构建的证明。此问题涉及原生导入契约，暂不并入只覆盖 12 项删除的原生修复提案。
+
+外部对照使用公开 `office-kit`/`officekit run` 生成八组 small/none/all，LibreOffice → PDF → MuPDF 72dpi；`tmp/small-caps-probe-Tbh9Mq/run-wBfI1Z/comparison.json` 仍为 **failed**。预先固定的四边差 ≤3px 下 6/8 通过，mixed 右边差 5px、lowercase 右边差 8px，后者顶部另差 1px。Agent 查看了两张图片；没有用外部字宽反调一个固定缩放，也没有把这批生成案例当成第三方 fixture、PowerPoint 或人类验收。kerning 阈值、复杂 shaping 和完整字体度量仍缺。
+
+前两次 `nPFrSn`、`93QYyV` 分别为 23/27、26/27：先修正 shape/table 测试输入的样式字段位置，再修正测试对富文本体必然存在的假设。最终仍断言大小写必须存在，因此暴露上述源导入缺失，没有降低像素阈值或删除表格案例。冻结快照和旧失败产物均保留。
+
+收尾核对了 1,223 个唯一源码、原生包、输入、候选、独立参照、正式发布及外部对照文件摘要；18 项证据源码在当前工作区与冻结副本一致。这不包含随后并行开发的制表位 schema/C# 变更。无 preload 的 presentation 4/4（`/tmp/officekit-ppj-preview-JKmGxc`）、SVG foundations、能力覆盖、两个生成检查、维护检查、gate-policy、可移植性和参考同步检查通过；193 个本地链接/锚点、严格 OpenSpec 与空白检查通过。`node test/reference-skills.mjs` 退出 1：外部 `pdftoppm` 不在 PATH，不能记为完整 reference-skills 通过。没有执行完整 npm test、重建 C#、替换默认包、提交或推送；任务保持 10/15。
+
 #### 文字方向：阅读坐标与物理边距
 
-新增反例：显式 Liberation Sans、24pt、缺省边距的 vertical/vertical270 在文字阴影外部对照中出现 3～4px 的字形位置差，超过该组预设 3px 阈值。字形和阴影同步偏移，两侧阴影相对字形均准确右移 40px；这证明局部投影位移，不能证明竖排文本定位正确。具体 PNG、边界和失败报告见下方 G-04 的“形状文字外阴影”。后续应核对竖排缺省边距与文本锚点，不能用此前其他文字 profile 的成功关闭此反例。
+历史反例：显式 Liberation Sans、24pt、缺省边距的 vertical/vertical270 在文字阴影外部对照中出现 3～4px 的字形位置差，超过该组预设 3px 阈值。字形和阴影同步偏移，两侧阴影相对字形均准确右移 40px。下节独立探针进一步将差异定位到缺省与显式边距的宿主处理；没有修改本地几何来抹平该差异，原外部报告继续为 failed。
+
+##### 缺省边距与语言大小写复验
+
+**缺省边距。** `tmp/vertical-inset-probe-GOFtyl/run-zpyfNG/comparison.json` 覆盖三种方向 × 缺省、显式默认、显式零、不对称边距，共 12 个公开 CLI 生成案例。原定 3px 外部边界阈值下 10/12 通过；仅两个缺省竖排为 4px，显式默认的两个竖排四边差均为 0px。本地省略边距与显式默认的墨迹范围/数量完全一致；LibreOffice 的两个竖排却有 3～4px 差异。报告仍为 failed，没有放宽阈值或声称完整宿主验收。
+
+DrawingML 的隐含物理边距为左右 7.2pt、上下 3.6pt，参见 [Microsoft 左边距](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.drawing.bodyproperties.leftinset?view=openxml-3.0.1)和[上边距说明](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.drawing.bodyproperties.topinset?view=openxml-3.0.1)。所读 [LibreOffice textbodyproperties.cxx](https://raw.githubusercontent.com/LibreOffice/core/master/oox/source/drawingml/textbodyproperties.cxx) 只对显式存在的 inset 应用方向映射并写入文字距离；缺省值由宿主路径保留。该源码机制与本机探针一致，但 master 源码并非本机安装版本的构建证明，也不代表 PowerPoint 行为。
+
+本地保持先补 DrawingML 物理默认、再映射阅读坐标的几何规则；只给竖排缺省的每个 inset 增加 `preview.scene.paint.text-inset-default-review`，显式零仍与默认不同。合成测试覆盖三种方向 × 16 种部分显式默认组合，检查完整 SVG 等价、准确缺省字段诊断及原始 scene 不变。真实 `ay3U2S` 的 text/shape/table × 两种竖排 × 缺省/显式默认 × 作者/去快照源 no-op 共 24 项通过完整内容像素与原生存在性检查；no-op 字节和输入保留。这里只补诊断和证明默认映射，没有关闭字体排版或外部竖排差异。
+
+**语言大小写。** painter 之前读取不存在的 `fontLanguage` 场景字段，真实 wire 字段为 `language`，导致土耳其语 `i` 错转为 `I`。现在按 run → paragraph default → cell fallback 的 `language` 做显示转换，原始字符不改；修正合成 fixture 的同名错误后先复现失败，再验证 `tr-TR`、`az-Latn`、显式英文覆盖与非法 tag 拒绝。语言未映射提示仍保留，局部 casing 不代表完整 shaping。
+
+`ay3U2S` 的 12 项语言案例有 9 项通过：4 个作者、3 个源 no-op、2 个从同一原始源独立发起的已签发 language/caps native-leaf 编辑。后两者重新投影正确，只有 slide1.xml 改变。另 3 项保持失败：语义 run `style.language`、`style.capitalization` 修改各被旧包拒绝；段落默认 tr-TR 作者 scene 正确，但候选原生 run 写入显式 en-US，源再导入时不再继承 tr-TR。当前 `PptxTextCodec` 的 run writer 也存在未指定语言就写 en-US 的路径；这是场景与实际导出不一致，不能由 painter 忽略显式 run 语言来掩盖。失败请求、源、可生成的候选和状态 JSON 保留，三项暂不并入获授权的 12 项删除变更。
+
+另一个公开 CLI 探针 `tmp/locale-caps-probe-D8I4OY/run-Ijzwv1/comparison.json` 的四个作者案例与独立手写大写字面量在本地 RGBA 完全相同；其 `passed` 仅指该本地对照。LibreOffice 四项都不满足逐像素相同，属于报告明确保留的外部观察，不能写成 4/4 宿主通过。本轮未重建 C#，历史文字阴影的 1,516 文件核对只证明旧快照，不作为这次新增代码的全量摘要验收。
 
 [原生文本体 codec](../native/OfficeKit/src/OfficeKit.Codec/PptxBodyPropertiesCodec.cs) 支持的 `horizontal`、`vertical`、`vertical270` 现由共享文字 painter 实际消费。后两者分别对应整段文字顺时针/逆时针 90° 阅读，不能等同于 WordArt 逐字堆叠或东亚竖排；原生接口也未承诺这些其他模式。方向先决定逻辑排版区域，再完成段落/显式换行/锚定，之后依次施加方向、独立文字角度、镜像补偿和外层形状/组变换，填充和轮廓仍使用原 frame。
 
@@ -413,7 +511,7 @@ p4Au9s 的完整报告时间为北京时间 2026-09-10 17:21:21，正式入口 4
 
 真实 `tmp/officekit-native-scene-paint-BPCuPP/integration.json` 的 characterBullets 记录作者、去快照源 no-op、源 leaf 修改及独立作者对照。●/CC5500 的实色符号像素为 155，改为 ■/0066CC 后为 210；正文 x=137.2、符号 x≈117.2，两行正文不随字符修改移位，续行区域无符号像素。作者/no-op 和源修改/对照的文字区域逐像素相等，重新投影保留新字符，仅 slide1.xml 变化，原源和作者输入不变。已查看修改后的 PNG（Agent 检查，非人类校准）。合成正例先失败后通过，并保留五种不确定布局/样式反例；Presentation 4/4 和生成检查通过。沿用第 3.5 节包，未重建或切换正式入口，完整集成仍有十一项删除失败、退出 1。
 
-大小写显示已有有界映射（2026-09-10）：内部 `fontCaps=all` 只转换绘制文字，`none` 保留原字符；直接 run 覆盖段落默认，再使用表格 fallback。显式语言参与 Unicode 大写转换，语言/shaping 的原有限制不因此解除。`small` 和未知 token 明确 unavailable，不伪造小型大写字形。合成覆盖默认/直接覆盖、原 scene 不变、土耳其语 i/ı、ß 展开、换行和 XML 转义；新增正例先失败后通过。
+大小写显示早期映射（2026-09-10）：内部 `fontCaps=all` 只转换绘制文字，`none` 保留原字符；直接 run 覆盖段落默认，再使用表格 fallback。显式语言参与 Unicode 大写转换，语言/shaping 的原有限制不因此解除。当时 `small` 和未知 token 均为 unavailable；现在 small 的本地映射、外部差异及源导入反例见上方“小型大写”小节，未知 token 仍拒绝。早期合成覆盖默认/直接覆盖、原 scene 不变、土耳其语 i/ı、ß 展开、换行和 XML 转义。
 
 沿用第 3.5 节包的 `tmp/officekit-native-scene-paint-je2i3l/integration.json` 记录 `capitalizationCases` 五例：all/none × 作者/去快照源 no-op，以及 all→none 源 leaf 编辑。实际文字区域与独立显式文字作者结果逐像素相等；原生文字和重新投影仍为 `Hello abc`，仅显示改变。候选编辑仅 slide1.xml 变化，原源/输入不变。未重建原生包，未验证完整小型大写、大小写属性删除或正式入口；完整集成仍因四项 frame 删除与七项间距删除失败退出 1。
 
@@ -492,7 +590,7 @@ p4Au9s 的完整报告时间为北京时间 2026-09-10 17:21:21，正式入口 4
 
 当前 `PpjPresentationCompiler.TryCollectFrameLeafMutations` 根据解析后的 Rotation/FlipH/FlipV 值生成快速编辑，把缺失字段的默认值也写成 0/false；它没有按原始 JSON 属性存在性区分删除和显式覆盖。组 `ApplyFrame` 的内存更新不能纠正随后选中的 token-splice 候选。scene 再导入该候选，正确反映了仍存在的零值；这不是 painter 自行补出的属性。
 
-修复需明确原生 frame 快速编辑的属性移除契约，并检查 presence-only 删除、组合变换中只删一项、源与非目标内容保留，以及显式零/false 继续存在。它涉及源编辑输出语义，超出当前只读 scene change 的边界，待确认扩展或另建原生 change 后实施；本轮没有修改编译器。首次测试将 program 误传字符串，按 workspace 的 Uint8Array 契约修正后才得到上述原生失败。presentation 4/4 仍通过，但不含这些新的真实原生删除断言，不能抵消该集成失败。
+修复需明确原生 frame 快速编辑的属性移除契约，并检查 presence-only 删除、组合变换中只删一项、源与非目标内容保留，以及显式零/false 继续存在。用户已授权将四项 frame、七项间距及一项共享背景删除另立 [原生写回变更](../openspec/changes/ppj-source-deletion-lifecycle/proposal.md)，不扩展当前只读 scene change；目前完成的是提案，尚未修改编译器。首次测试将 program 误传字符串，按 workspace 的 Uint8Array 契约修正后才得到上述原生失败。presentation 4/4 仍通过，但不含这些新的真实原生删除断言，不能抵消该集成失败。
 
 ### G-04：样式、主题和效果
 
@@ -710,6 +808,30 @@ SmartArt 必须分开判断作者输入、源导入和源编辑保留：
 缺失值应保留原观测身份：默认不得补 0 或跨缺失连线；真实 0 必须可区分。显式 `zero/span/connect` 应被识别为显示策略，记录其与原始数据的区别；尚未实现时明确拒绝，不能忽略或擅自选择。堆叠中未知段会影响后续起点，百分比中未知值会影响分母，不能只用“跳过 null”解决。
 
 ### G-11、G-12：已有检查和发布契约，不是绘制完成
+
+#### 作者热力图的数据通道误报
+
+此前热力图已使用编译器生成的六个矩形和五个标签，但输入检查仍报告 `preview.fact.chart-channel-ignored`，并在根组及 11 个子节点重复，共 12 条。现在 registry 的 `datasetHeatmap` 映射只在实际绘制证据完整时解除这条旧错误，不由 JS 重算 dataset、猜测标签或生成热力图布局。
+
+检查要求 scene 来源是 authored-lowering，同一原始图表 owner 的根节点为原生组，完整子树的归属可追溯，矩形/文本框叶节点为编译器生成。每个节点必须有正面积并完成直接颜色、几何、文字及自身/全部祖先变换的绘制记录。空组、孤立节点、混入其他 owner、隐藏/退化节点、未知原生字段、未绘制样式以及 candidate-import 来源均保留原错误。已存在的文字布局、换行/AutoFit 等明确 review 提示不会被这次映射删除，不能据此宣称完整文字保真。
+
+`test/ppj-preview-scene-svg.mjs` 的普通/嵌套正例及 16 组不完整或不可信输入反例通过；另外检查移除绘制、几何、祖先记录和 registry 的结果，以及输入 scene 字节不变。原生回归在首值为 1、2 时分别编译 dataset/encoding 和独立显式数据：完整原生组载荷、整页栅格与 scene 开关候选字节相等；首格 RGB 从 330000 变成 660000，缺失仍为 00FF00，真实零仍为 000000。每个热力图有 12 个完成的基础节点，逐一移除任意节点的绘制、几何或变换记录都会恢复旧错误，其他输入诊断逐项保持。
+
+最终报告为 `tmp/officekit-native-scene-paint-YqCTgw/integration.json`（北京时间 2026-09-10 20:30:02），SHA-256 `4faf99d2031670736a3d27741b57778c83f83a26f9826ca784c586e48b94d36d`。冻结副本 `tmp/heatmap-fact-snapshot-a3dTPY` 使用原有 035472e9 默认包；没有重建原生代码。741 项正式入口均通过内容/发布/输入保留断言，可靠性为 requires-review，不是 passed。四个 dataset profile（两类图表各两个值）全部通过；原 12 项删除、3 项语言及 1 项表格小型大写源导入失败仍使整套退出 1。前一轮 LLEQKH 的结果相同，但不包含最后两个正面积反例，保留而不重复计数。
+
+`tmp/heatmap-fact-probe-EyWQ3Q/verification.json` 核对 2,646 个唯一文件摘要，包括冻结实现、原生 profile/manifest、741 组发布结果及保留的路径/源生命周期证据。核验时 20 项记录源码与当前工作区一致。对照修复前 RAAEyl 的同一 encoded 热力图：候选和 scene 摘要完全相同，顶部固定 24px 警示条以下的全部 RGBA 逐字节相等；仅去掉 12 条旧事实错误，红色 failed 警示变为棕色 requires-review，其他诊断完全相同。实际 PNG 已由 Agent 查看，不是人类或 PowerPoint 验收。
+
+无 preload 的 presentation 门禁 4/4（`/tmp/officekit-ppj-preview-cHfihx`）、SVG foundations、能力覆盖、两项生成检查、Skill 维护/可移植性/参考同步及 gate-policy 通过。本轮未执行完整 npm test、C# 构建、默认包替换或宿主校准；后续并行原生功能不因这次旧包回归而获得验收。任务仍为 10/15，4.1 及完整目标保持开放。
+
+完整 `test/reference-skills.mjs` 先前因缺少 `pdftoppm` 失败；这次用 Debian 的 `poppler-utils 26.07.0-2` 解包到 `tmp/preview-poppler-9eYA9s/runtime` 后，在显式临时 PATH 下通过。下载包 SHA-256 为 `679440ebc9c1609f2e223a85b663e04f02a87dcb9b06208ffee59b8320bf0cb7`，与 APT 元数据一致；工具摘要为 `df7528cf0297c62da7c3d1b58be601b94de7717cb45e543a5e7d9a522bf88e1d`。系统默认 PATH 仍没有该工具，不能把此次结果记作系统安装完成。复验命令：
+
+```sh
+PATH="$PWD/tmp/preview-poppler-9eYA9s/runtime/usr/bin:$PATH" node test/reference-skills.mjs
+```
+
+该目录仅供本次 QA，不是生产或 Skill 的依赖路径。自有 SVG/PNG 预览没有新增 Poppler 依赖，历史失败记录也不改写为通过。
+
+#### 既有几何和折线映射记录
 
 形状几何误报已按实际绘制记录修正（2026-09-10）。[painter](../src/ppj/preview-scene-svg.mjs) 仅为完整生成的预设/literal 路径记录 `shapeGeometryScenePaths`，不把图片 clip 定义、未知几何、未映射 adjustment 或部分成功路径当成完整形状。[输入检查](../src/ppj/preview-input-assessment.mjs) 还要求同一 owner 的全部绑定都是原生 shape，且节点与全部祖先变换均成功；只解除 `preview.fact.shape-geometry-omitted`。文字失败导致整个节点 SVG 被丢弃时，即使几何已经构造也保留错误。
 

@@ -56,27 +56,71 @@ function roundedRectangle(f, adjustments = [], paint = "") {
   return `<rect ${box(f)} rx="${n(radius)}" ry="${n(radius)}" ${paint}/>`;
 }
 
-const polygonPresets = new Set(["triangle", "rtTriangle", "trapezoid", "parallelogram", "chevron"]);
-// These straight-edge profiles use the same pinned definitions/defaults as
+const cutCornerPresets = new Set(["octagon", "snip1Rect", "snip2DiagRect", "snip2SameRect"]);
+const roundedCornerPresets = new Set(["round1Rect", "round2DiagRect", "round2SameRect", "snipRoundRect"]);
+const pathPresets = new Set(["triangle", "rtTriangle", "trapezoid", "parallelogram", "chevron", ...cutCornerPresets, ...roundedCornerPresets]);
+// These path profiles use the same pinned definitions/defaults as
 // roundRect. Share adjustment clamping between contours and text rectangles;
 // neither connection sites nor text rectangles are inferred from path bounds.
-function polygonMetrics(f, preset, adjustments = []) {
+function presetPathMetrics(f, preset, adjustments = []) {
   const profile = presetProfiles.profiles[preset];
-  if (!polygonPresets.has(preset) || adjustments.length > profile.defaults.length ||
+  if (!pathPresets.has(preset) || adjustments.length > profile.defaults.length ||
       adjustments.some(v => !Number.isInteger(v) || v < presetProfiles.minimumValue || v > presetProfiles.maximumValue))
     throw new TypeError(`Invalid ${preset} adjustment`);
   const w = numeric(f.width), h = numeric(f.height);
-  if (w <= 0 || h <= 0) throw new RangeError("Polygon requires positive frame extents");
+  if (w <= 0 || h <= 0) throw new RangeError("Preset path requires positive frame extents");
+  if (cutCornerPresets.has(preset) || roundedCornerPresets.has(preset)) {
+    // Pinned DrawingML definitions clamp each independent adjustment, then
+    // measure corner cuts against the shorter physical side (not width).
+    const [a, b] = profile.defaults.map((value,i) => Math.min(w,h) * Math.max(0,Math.min(50000,adjustments[i] ?? value)) / 100000);
+    if (roundedCornerPresets.has(preset)) {
+      const ia = a * 29289 / 100000, ib = (b ?? 0) * 29289 / 100000, inset = Math.max(ia,ib);
+      const cuts = preset === "round1Rect" ? [0,a,0,0] : preset === "round2DiagRect" ? [a,b,a,b]
+        : preset === "round2SameRect" ? [a,a,b,b] : [a,b,0,0];
+      const rounding = preset === "snipRoundRect" ? [true,false,false,false] : [true,true,true,true];
+      const textRectangle = preset === "round1Rect" ? [0,0,w-ia,h]
+        : preset === "round2SameRect" ? [inset,ia,w-inset,h-ib]
+        : preset === "snipRoundRect" ? [ia,ia,w-b/2,h] : [inset,inset,w-inset,h-inset];
+      return {w,h,cuts,rounding,textRectangle};
+    }
+    const inset = Math.max(a,b ?? a) / 2;
+    const cuts = preset === "octagon" ? [a,a,a,a] : preset === "snip1Rect" ? [0,a,0,0]
+      : preset === "snip2DiagRect" ? [a,b,a,b] : [a,a,b,b];
+    const textRectangle = preset === "snip1Rect" ? [0,a/2,w-a/2,h]
+      : preset === "snip2SameRect" ? [inset,a/2,w-inset,h-b/2] : [inset,inset,w-inset,h-inset];
+    return { w,h,cuts,textRectangle };
+  }
   const short = Math.min(w, h), value = adjustments[0] ?? profile.defaults[0] ?? 0;
   const limit = preset === "triangle" ? 100000 : (preset === "trapezoid" ? 50000 : 100000) * w / short;
   const a = Math.max(0, Math.min(limit, value));
   const offset = (preset === "triangle" ? w : short) * a / 100000;
   return { w, h, a, limit, offset };
 }
-function presetPolygon(f, preset, adjustments = [], paint = "") {
-  const { w, h, offset } = polygonMetrics(f, preset, adjustments);
+function presetPath(f, preset, adjustments = [], paint = "") {
+  const { w, h, offset, cuts, rounding } = presetPathMetrics(f, preset, adjustments);
+  if (rounding) {
+    const [tl,tr,br,bl] = cuts;
+    const d = [`M ${n(f.x+tl)} ${n(f.y)}`];
+    // Follow the definition clockwise. A zero radius is a sharp corner,
+    // never an invalid SVG/OOXML arc; a snipped corner uses a straight edge.
+    for (const [i,x,y,ex,ey] of [[1,w-tr,0,w,tr],[2,w,h-br,w-br,h],[3,bl,h,0,h-bl],[0,0,tl,tl,0]]) {
+      d.push(`L ${n(f.x+x)} ${n(f.y+y)}`);
+      if (cuts[i] > 0) d.push(rounding[i]
+        ? `A ${n(cuts[i])} ${n(cuts[i])} 0 0 1 ${n(f.x+ex)} ${n(f.y+ey)}`
+        : `L ${n(f.x+ex)} ${n(f.y+ey)}`);
+    }
+    return `<path d="${d.join(" ")} Z" ${paint}/>`;
+  }
   let points;
-  switch (preset) {
+  if (cuts) {
+    const [tl,tr,br,bl] = cuts;
+    const corners = [[tl,0],[w-tr,0],[w,tr],[w,h-br],[w-br,h],[bl,h],[0,h-bl],[0,tl]];
+    // Keep the definition's start vertex too: rotating a closed contour can
+    // change the dash phase even when its solid fill is indistinguishable.
+    const ordered = preset === "octagon" ? [corners.at(-1), ...corners.slice(0,-1)] : corners;
+    points = ordered.filter((p,i) => i === 0 || p.some((v,a) => v !== ordered[i-1][a]));
+    if (points.at(-1).every((v,a) => v === points[0][a])) points.pop();
+  } else switch (preset) {
     case "triangle": points = [[0,h],[offset,0],[w,h]]; break;
     case "rtTriangle": points = [[0,h],[0,0],[w,h]]; break;
     case "trapezoid": points = [[0,h],[offset,0],[w-offset,0],[w,h]]; break;
@@ -108,9 +152,10 @@ function shapeTextFrame(f, s) {
   } else {
     if (s.textRectangle) throw new TypeError("Custom text rectangle conflicts with preset geometry");
     const preset = s.geometry;
-    if (polygonPresets.has(preset)) {
-      const { a, limit, offset } = polygonMetrics(f, preset, s.presetAdjustments);
-      switch (preset) {
+    if (pathPresets.has(preset)) {
+      const { a, limit, offset, textRectangle } = presetPathMetrics(f, preset, s.presetAdjustments);
+      if (textRectangle) [l,t,r,b] = textRectangle;
+      else switch (preset) {
         case "triangle": l = offset / 2; t = h / 2; r = l + w / 2; break;
         case "rtTriangle": l = w / 12; t = h * 7 / 12; r = w * 7 / 12; b = h * 11 / 12; break;
         case "trapezoid": l = w * a / limit / 3; t = h * a / limit / 3; r = w - l; break;
@@ -333,6 +378,7 @@ function paintScene(receipt, { assessInput, integrated }) {
   const connectorScenePaths = new Set();
   const lineScenePaths = new Set();
   const shapeGeometryScenePaths = new Set();
+  const primitiveScenePaths = new Set();
   const isolatedLinePoints = [];
   let imageMaskSequence = 0;
   let gradientSequence = 0;
@@ -660,6 +706,7 @@ function paintScene(receipt, { assessInput, integrated }) {
         const style = `font-family="${esc(run.fontFamily || defaults.fontFamily || fallback.fontFamily || "sans-serif")}" font-size="${n(size)}" font-weight="${(run.bold ?? defaults.bold ?? fallback.bold) ? "bold" : "normal"}" font-style="${(run.italic ?? defaults.italic ?? fallback.italic) ? "italic" : "normal"}" fill="${rgb(run.colorRgb || defaultColor, "#000000")}" fill-opacity="${n(sceneOpacity(run.colorOpacityThousandthPercent ?? defaults.colorOpacityThousandthPercent ?? fallback.colorOpacityThousandthPercent ?? 100000))}"`;
         const caps = run.fontCaps ?? defaults.fontCaps ?? fallback.fontCaps ?? "none";
         let displayed = run.content.value;
+        let variant = "";
         if (caps === "all") {
           // Change only display text; keep the candidate's literal characters
           // untouched. Language is used for casing, not claimed fully shaped.
@@ -669,6 +716,19 @@ function paintScene(receipt, { assessInput, integrated }) {
             limit(node, `${rp}fontCaps`, "preview.scene.paint.text-capitalization", "Unresolved casing language", "unavailable");
             throw new RangeError("Invalid native capitalization language");
           }
+        } else if (caps === "small") {
+          // Leave literal text and logical line size intact. The SVG font
+          // backend selects/synthesizes small capitals; do not hardcode a
+          // guessed lowercase scale or replace every character with capitals.
+          const language = run.language ?? defaults.language ?? fallback.language;
+          try { if (language) Intl.getCanonicalLocales(language); }
+          catch {
+            limit(node, `${rp}fontCaps`, "preview.scene.paint.text-capitalization", "Unresolved small-capital language", "unavailable");
+            throw new RangeError("Invalid native capitalization language");
+          }
+          variant = ` font-variant="small-caps"${language ? ` xml:lang="${esc(language)}"` : ""}`;
+          limit(node, `${rp}fontCaps`, "preview.scene.paint.text-small-caps-review",
+            "Small capitals use local font features or synthesis; host glyph metrics, casing and font substitution remain unverified.");
         } else if (caps !== "none") {
           limit(node, `${rp}fontCaps`, "preview.scene.paint.text-capitalization", caps, "unavailable");
           throw new RangeError("Unsupported native capitalization");
@@ -676,7 +736,7 @@ function paintScene(receipt, { assessInput, integrated }) {
         // Preserve explicit newlines as line boundaries, not one line per run.
         displayed.split(/\r\n|\r|\n/u).forEach((segment, i) => {
           if (i) lines.push([]);
-          lines.at(-1).push({ size, shift, spacing, style, decoration: decorations.join(" ") || "none", segment });
+          lines.at(-1).push({ size, shift, spacing, style, variant, decoration: decorations.join(" ") || "none", segment });
         });
       }
       const lineSize = line => line.length ? Math.max(...line.map(run => run.size))
@@ -699,7 +759,7 @@ function paintScene(receipt, { assessInput, integrated }) {
           // shift so following runs (including explicit zero) do not inherit it.
           const dy = run.shift - previousShift;
           previousShift = run.shift;
-          return `<tspan text-decoration="${run.decoration}" dy="${n(dy)}"${run.spacing === undefined ? "" : ` letter-spacing="${n(run.spacing)}"`} ${run.style}>${esc(run.segment)}</tspan>`;
+          return `<tspan text-decoration="${run.decoration}" dy="${n(dy)}"${run.variant}${run.spacing === undefined ? "" : ` letter-spacing="${n(run.spacing)}"`} ${run.style}>${esc(run.segment)}</tspan>`;
         }).join("");
         const bullet = index === 0 && characterBullet
           ? `<text data-officekit-bullet="character" x="${n(paragraphLeft + firstLineIndent)}" y="${n(y)}" ${bulletStyle}>${esc(paragraph.bullet.value)}</text>` : "";
@@ -831,7 +891,7 @@ function paintScene(receipt, { assessInput, integrated }) {
     unused(content.get("shape"), s, [...frameFields, "geometry", "text", "textBody", "fillRgb", "lineRgb", "lineWidthEmu",
       "fillOpacityThousandthPercent", "lineOpacityThousandthPercent", "lineStyle", "lineCap", "lineJoin", "transform", "customPaths", "gradientFill", "imageFill", "imageFillAssetId", "shadow",
       ...(s.textBody || s.text ? ["textRectangle"] : []),
-      ...((s.geometry === "roundRect" || polygonPresets.has(s.geometry)) && !s.customPaths.length ? ["presetAdjustments"] : [])], node, "shape.");
+      ...((s.geometry === "roundRect" || pathPresets.has(s.geometry)) && !s.customPaths.length ? ["presetAdjustments"] : [])], node, "shape.");
     const outline = linePaint(node, "shape", s.lineStyle === "none" ? "none" : rgb(s.lineRgb), scenePoints(s.lineWidthEmu),
       sceneOpacity(s.lineOpacityThousandthPercent ?? 100000), s.lineStyle === "none" ? "solid" : s.lineStyle || "solid", s.lineCap, s.lineJoin, "lineStyle");
     if (s.imageFill || s.imageFillAssetId) {
@@ -881,11 +941,11 @@ function paintScene(receipt, { assessInput, integrated }) {
     const completed = svg => {
       // A clip definition alone is not a drawn shape. Unmapped adjustments
       // and any failed path must also retain the owner's geometry failure.
-      if (!clip && (!s.presetAdjustments.length || (s.geometry === "roundRect" || polygonPresets.has(s.geometry)) && !s.customPaths.length))
+      if (!clip && (!s.presetAdjustments.length || (s.geometry === "roundRect" || pathPresets.has(s.geometry)) && !s.customPaths.length))
         shapeGeometryScenePaths.add(node.scenePath);
       return svg;
     };
-    if (clip && s.presetAdjustments.length && s.geometry !== "roundRect" && !polygonPresets.has(s.geometry))
+    if (clip && s.presetAdjustments.length && s.geometry !== "roundRect" && !pathPresets.has(s.geometry))
       throw new TypeError("Image fill mask has unresolved preset adjustments");
     if (s.customPaths.length) {
       let complete = true;
@@ -910,8 +970,8 @@ function paintScene(receipt, { assessInput, integrated }) {
     // The codec lowers its "textbox" marker to native rect geometry too.
     if (["rect", "textbox", "flowChartProcess"].includes(s.geometry)) return completed(`<rect ${box(f)} ${paint}/>`);
     if (s.geometry === "roundRect") return completed(roundedRectangle(f, s.presetAdjustments, paint));
-    if (polygonPresets.has(s.geometry)) {
-      try { return completed(presetPolygon(f, s.geometry, s.presetAdjustments, paint)); }
+    if (pathPresets.has(s.geometry)) {
+      try { return completed(presetPath(f, s.geometry, s.presetAdjustments, paint)); }
       catch (error) {
         if (clip) throw error;
         limit(node, "shape.presetAdjustments", "preview.scene.paint.preset-adjustments", error.message, "unavailable");
@@ -950,7 +1010,7 @@ function paintScene(receipt, { assessInput, integrated }) {
     let mask = "";
     const f = node.frame;
     try {
-      if (s.maskPresetAdjustments.length && s.maskPreset !== "roundRect" && !polygonPresets.has(s.maskPreset)) throw new TypeError("Adjusted image preset is not mapped");
+      if (s.maskPresetAdjustments.length && s.maskPreset !== "roundRect" && !pathPresets.has(s.maskPreset)) throw new TypeError("Adjusted image preset is not mapped");
       if (s.customMaskPaths.length) {
         if (s.maskPreset) throw new TypeError("Conflicting custom and preset masks");
         mask = s.customMaskPaths.map(p => {
@@ -958,7 +1018,7 @@ function paintScene(receipt, { assessInput, integrated }) {
           return `<path d="${nativePathData(p, f)}"/>`;
         }).join("");
       } else if (s.maskPreset === "roundRect") mask = roundedRectangle(f, s.maskPresetAdjustments);
-      else if (polygonPresets.has(s.maskPreset)) mask = presetPolygon(f, s.maskPreset, s.maskPresetAdjustments);
+      else if (pathPresets.has(s.maskPreset)) mask = presetPath(f, s.maskPreset, s.maskPresetAdjustments);
       else if (s.maskPreset === "ellipse") mask = `<ellipse cx="${n(f.x + f.width / 2)}" cy="${n(f.y + f.height / 2)}" rx="${n(f.width / 2)}" ry="${n(f.height / 2)}"/>`;
       else if (s.maskPreset === "diamond") mask = `<path d="M ${n(f.x + f.width / 2)} ${n(f.y)} L ${n(f.x + f.width)} ${n(f.y + f.height / 2)} L ${n(f.x + f.width / 2)} ${n(f.y + f.height)} L ${n(f.x)} ${n(f.y + f.height / 2)} Z"/>`;
       else if (s.maskPreset && s.maskPreset !== "rect") throw new TypeError(`Unmapped image mask: ${s.maskPreset}`);
@@ -1563,10 +1623,113 @@ function paintScene(receipt, { assessInput, integrated }) {
     const heading = text({ ...node, frame: { x: f.x, y: f.y, width: f.width, height: f.height * .15 } }, { text: s.title, textBody: s.titleBody }, "chart");
     return `<g data-officekit-chart="scatter" data-officekit-scatter-style="${style}" data-officekit-x-min="${n(xs.low)}" data-officekit-x-max="${n(xs.high)}">${heading}${axes}<svg ${box(f)} viewBox="${n(f.x)} ${n(f.y)} ${n(f.width)} ${n(f.height)}" overflow="hidden">${output}</svg>${observed.length ? "" : '<text font-size="10">No observed data</text>'}</g>`;
   }
+  function areaChart(node) {
+    const s = node.native, f = node.frame, fail = (field, message) => chartFail(node, field, message);
+    unused(content.get("chart"), s, [...frameFields, "frameTransform", "type", "categories", "series", "grouping",
+      "displayBlanksAs", "xAxis", "yAxis", "showCategoryAxis", "showValueAxis", "title", "titleBody"], node, "chart.");
+    if (s.comboSeries.length || s.secondaryXAxis || s.secondaryYAxis || s.lineOptions)
+      fail("chart", "Ordinary areas cannot replace mixed/secondary-axis or line-option topology.");
+    if (s.grouping && s.grouping !== "none") fail("chart.grouping", "Stacked areas require independently verified cumulative boundaries.");
+    const series = categorySeries(node, s, ["name", "values", "missingValueIndexes", "fill", "seriesFill", "line"]);
+    for (const { entry, prefix } of series)
+      if (entry.marker || entry.pointStyles.length) fail(prefix, "Area point-specific paint/markers are not yet mapped.");
+    const blank = s.displayBlanksAs ?? "gap", missingCount = series.reduce((total,v) => total + v.missing.size,0);
+    if (!["gap", "zero", "span"].includes(blank) || missingCount && blank !== "gap")
+      fail("chart.displayBlanksAs", "Area gaps cannot be replaced by an unverified zero/span display policy.");
+    const xa = s.xAxis, ya = s.yAxis;
+    if (xa) {
+      unused(SpreadsheetChartAxisArtifactSchema, xa, ["reverse", "visible", "axisLineVisible", "tickLabelsVisible", "tickLabelInterval"], node, "chart.xAxis.");
+      if ([xa.minimum,xa.maximum,xa.logBase].some(v => v !== undefined)) fail("chart.xAxis", "Area categories are not numeric X coordinates.");
+    }
+    if (ya) unused(SpreadsheetChartAxisArtifactSchema, ya, ["minimum", "maximum", "reverse", "visible", "axisLineVisible", "tickLabelsVisible"], node, "chart.yAxis.");
+    if (ya?.logBase !== undefined) fail("chart.yAxis.logBase", "Logarithmic areas need a separately verified nonzero baseline.");
+    // A missing canonical zero never participates in the observed domain.
+    // Ordinary areas close to zero, not the minimum observed sample.
+    const observed = series.flatMap(({entry,missing}) => entry.values.filter((_,i) => !missing.has(i)));
+    let low = 0, high = 0;
+    for (const value of observed) { low = Math.min(low,value); high = Math.max(high,value); }
+    if (!observed.length || low === high) high = 1;
+    const explicitLow = ya?.minimum !== undefined, explicitHigh = ya?.maximum !== undefined;
+    if (explicitLow) low = numeric(ya.minimum);
+    if (explicitHigh) high = numeric(ya.maximum);
+    if (low >= high) {
+      if (explicitLow && explicitHigh) fail("chart.yAxis", "Explicit minimum must be less than maximum.");
+      const pad = Math.max(1,Math.abs(explicitLow ? low : high)*.1);
+      if (!explicitLow) low = high-pad;
+      if (!explicitHigh) high = low+pad;
+    }
+    if (![low,high,high-low].every(Number.isFinite)) fail("chart.yAxis", "Unrepresentable area range.");
+    const plot = {x:f.x+f.width*.1,y:f.y+f.height*.15,width:f.width*.8,height:f.height*.7};
+    if (plot.width <= 0 || plot.height <= 0) fail("chart", "Nonpositive area-plot extent.");
+    const x = i => {
+      let ratio = s.categories.length <= 1 ? .5 : i/(s.categories.length-1);
+      if (xa?.reverse === true) ratio = 1-ratio;
+      return plot.x+ratio*plot.width;
+    };
+    const y = value => plot.y+(ya?.reverse === true ? (value-low)/(high-low) : 1-(value-low)/(high-low))*plot.height;
+    const baseline = y(0), palette = ["#2563EB", "#B45309", "#047857", "#9333EA"];
+    limit(node,"chart","preview.scene.paint.chart-layout","Ordinary zero-baseline area boundaries are mapped; fixed plot layout, automatic scale fitting, ticks, labels, theme and host overlap layout remain limited.");
+    if (missingCount) limit(node,"chart.series","preview.scene.paint.chart-area-gaps","Areas cover only contiguous observed samples. Unknown intervals have no area and are not treated as zero.");
+    // Ordinary area series overlap: the first native series is foreground.
+    // Keep its original index/ownership while emitting back-to-front paint.
+    const reviewMarks = [];
+    const output = series.toReversed().map(({entry,si,prefix,missing}) => {
+      const fill = chartFill(node,entry.seriesFill,entry.fill,palette[si%palette.length],`${prefix}.${entry.fill ? "fill" : "seriesFill"}`);
+      const reviewColor = entry.seriesFill?.fill.case === "solidRgb" ? rgb(entry.seriesFill.fill.value)
+        : entry.fill?.source.case === "rgb" ? rgb(entry.fill.source.value) : palette[si%palette.length];
+      const stroke = chartOutline(node,entry.line,`${prefix}.line`), segments = [], evidence = [];
+      let points = [];
+      entry.values.forEach((value,i) => {
+        if (missing.has(i)) {
+          if (points.length) segments.push(points); points = [];
+          evidence.push(`<g data-officekit-missing-point="${i}"><title>${esc(entry.name)} / ${esc(s.categories[i])}: missing observation</title></g>`);
+        } else {
+          const p = {x:x(i),y:y(value),value,index:i}; points.push(p);
+          const outside = p.y < plot.y || p.y > plot.y+plot.height;
+          evidence.push(`<g data-officekit-point="${i}" data-officekit-value="${n(value)}"${outside ? ' data-officekit-point-outside-plot="true"' : ""}><title>${esc(entry.name)} / ${esc(s.categories[i])}: ${n(value)}</title></g>`);
+        }
+      });
+      if (points.length) segments.push(points);
+      const marks = [], paths = segments.map(segment => {
+        for (const p of segment) if (p.value === 0 && segment.length > 1 && p.y >= plot.y && p.y <= plot.y+plot.height) {
+          limit(node,`${prefix}.values[${p.index}]`,"preview.scene.paint.chart-area-zero","Zero has no area height; shown as a short review tick, not an authored marker.");
+          marks.push(`<path data-officekit-review-point="area-zero" d="M ${n(p.x-3)} ${n(p.y)} L ${n(p.x+3)} ${n(p.y)}" fill="none" stroke="${reviewColor}" stroke-dasharray="1 1"/>`);
+        }
+        if (segment.length === 1) {
+          const p = segment[0];
+          limit(node,`${prefix}.values[${p.index}]`,"preview.scene.paint.chart-area-isolated","A single observation has no measurable horizontal area; shown as a hollow review point, not an authored marker.");
+          if (p.y >= plot.y && p.y <= plot.y+plot.height) marks.push(`<circle data-officekit-review-point="area-isolated" cx="${n(p.x)}" cy="${n(p.y)}" r="3" fill="none" stroke="${reviewColor}" stroke-dasharray="1 1"/>`);
+          return "";
+        }
+        // One closed polygon per contiguous observed run. Never bridge a gap
+        // or use a line-only surrogate for positive/negative filled regions.
+        const first = segment[0], last = segment.at(-1);
+        const d = `M ${n(first.x)} ${n(baseline)} ${segment.map(p=>`L ${n(p.x)} ${n(p.y)}`).join(" ")} L ${n(last.x)} ${n(baseline)} Z`;
+        return `<path data-officekit-area-segment="${first.index}:${last.index}" d="${d}" ${fill} ${stroke}/>`;
+      }).join("");
+      reviewMarks.push(`<g data-officekit-area-review-series="${si}">${marks.join("")}</g>`);
+      return `<g data-officekit-series="${si}" data-officekit-series-name="${esc(entry.name)}">${evidence.join("")}<svg data-officekit-area-clip="plot" ${box(plot)} viewBox="${n(plot.x)} ${n(plot.y)} ${n(plot.width)} ${n(plot.height)}" overflow="hidden">${paths}</svg></g>`;
+    }).join("");
+    let axes = "";
+    const bottom = plot.y+plot.height;
+    if ((xa?.visible ?? s.showCategoryAxis ?? true) === true) {
+      if (xa?.axisLineVisible !== false) axes += `<line data-officekit-axis="category" x1="${n(plot.x)}" y1="${n(bottom)}" x2="${n(plot.x+plot.width)}" y2="${n(bottom)}" stroke="#64748B"/>`;
+      const interval = xa?.tickLabelInterval ?? 1;
+      if (!Number.isSafeInteger(interval) || interval < 1) fail("chart.xAxis.tickLabelInterval","Invalid category tick interval.");
+      if (xa?.tickLabelsVisible !== false && xa?.tickLabelPosition !== "none") axes += s.categories.map((label,i) => i%interval ? "" : `<text data-officekit-category="${i}" x="${n(x(i))}" y="${n(bottom+12)}" text-anchor="middle" font-size="10">${esc(label)}</text>`).join("");
+    }
+    if ((ya?.visible ?? s.showValueAxis ?? true) === true) {
+      if (ya?.axisLineVisible !== false) axes += `<line data-officekit-axis="value" x1="${n(plot.x)}" y1="${n(plot.y)}" x2="${n(plot.x)}" y2="${n(bottom)}" stroke="#64748B"/>`;
+      if (ya?.tickLabelsVisible !== false && ya?.tickLabelPosition !== "none") axes += [low,low+(high-low)/2,high].map(value => `<text data-officekit-value-tick="${n(value)}" x="${n(plot.x-4)}" y="${n(y(value)+3)}" text-anchor="end" font-size="10">${n(value)}</text>`).join("");
+    }
+    const heading = text({...node,frame:{x:f.x,y:f.y,width:f.width,height:f.height*.15}},{text:s.title,textBody:s.titleBody},"chart");
+    return `<g data-officekit-chart="area" data-officekit-blank-policy="${blank}" data-officekit-scale-min="${n(low)}" data-officekit-scale-max="${n(high)}" data-officekit-area-baseline="0">${heading}${axes}<svg ${box(f)} viewBox="${n(f.x)} ${n(f.y)} ${n(f.width)} ${n(f.height)}" overflow="hidden">${output}${reviewMarks.join("")}</svg>${observed.length ? "" : `<text x="${n(plot.x)}" y="${n(plot.y+12)}" font-size="10">No observed data</text>`}</g>`;
+  }
   function chart(node) {
     const s = node.native, f = node.frame;
     if ([SpreadsheetChartType.PIE, SpreadsheetChartType.DOUGHNUT].includes(s.type)) return circularChart(node);
     if (s.type === SpreadsheetChartType.BAR) return barChart(node);
+    if (s.type === SpreadsheetChartType.AREA) return areaChart(node);
     if (s.type === SpreadsheetChartType.SCATTER) return scatterChart(node);
     if (s.type !== SpreadsheetChartType.LINE) {
       limit(node, "chart.type", "preview.scene.paint.chart-type", s.type, "opaque");
@@ -1744,7 +1907,8 @@ function paintScene(receipt, { assessInput, integrated }) {
     node = { ...node, textReflected: inheritedReflection !== reflected(node.transform) };
     visitedNodes.add(node.scenePath);
     const identity = `data-officekit-native-id="${esc(node.nativeId)}" data-officekit-scene-path="${esc(node.scenePath)}"${node.semanticId ? ` data-officekit-id="${esc(node.semanticId)}"` : ""}`;
-    let svg;
+    let svg, completed = false;
+    const diagnosticStart = diagnostics.length;
     try {
       if (node.hidden === true) {
         hiddenScenePaths.add(node.scenePath);
@@ -1753,7 +1917,6 @@ function paintScene(receipt, { assessInput, integrated }) {
       if (!node.frame) throw new TypeError("Missing native frame");
       for (const value of Object.values(node.frame)) numeric(value);
       if (node.frame.width < 0 || node.frame.height < 0) throw new RangeError("Negative native frame");
-      const diagnosticStart = diagnostics.length;
       if (node.kind === "group") {
         svg = paintGroup(node, node, "group");
       } else if (node.kind === "diagram") {
@@ -1780,6 +1943,7 @@ function paintScene(receipt, { assessInput, integrated }) {
       if (node.kind === "shape" || node.kind === "image") svg = outerShadow(node, svg, diagnosticStart);
       const transform = frameTransform(node.frame, node.transform);
       transformedScenePaths.add(node.scenePath);
+      completed = true;
       return `<g ${identity} transform="${transform}">${svg}</g>`;
     } catch (error) {
       // Do not erase diagnostics already emitted for this node's descendants.
@@ -1791,6 +1955,22 @@ function paintScene(receipt, { assessInput, integrated }) {
       // Native element metadata (including animation/source-related fields)
       // remains explicitly unassessed, even when a primitive was drawn.
       unused(PresentationElementSchema, node.element, ["id", "hidden", node.kind], node);
+      // This capture proves only literal rectangular geometry, direct paint
+      // and text consumption, not complete typography or arbitrary effects.
+      // It is used for compiler-lowered heatmap data, never inferred from IDs.
+      const s = node.native;
+      const directShape = node.kind === "shape" && ["rect", "textbox"].includes(s.geometry) &&
+        shapeGeometryScenePaths.has(node.scenePath) && !s.fillScheme && !s.useBackgroundFill &&
+        !s.gradientFill && !s.imageFill && !s.imageFillAssetId && !s.customPaths.length &&
+        (!s.fillRgb || /^[0-9a-f]{6}$/iu.test(s.fillRgb));
+      const literalTree = node.frame?.width > 0 && node.frame?.height > 0 &&
+        (directShape || node.kind === "group" && node.children.length > 0);
+      const retainedLayoutReview = d => d.status === "partial" && (
+        d.reason === "preview.scene.paint.text-layout" || d.reason === "preview.scene.paint.unmapped" && (
+          d.scenePath.endsWith(".name") || /\.shape\.textBody\.bodyProperties\.(?:autoFitMode|wrap|no(?:Left|Right|Top|Bottom)Inset)$/u.test(d.scenePath)));
+      if (completed && literalTree && diagnostics.slice(diagnosticStart).every(retainedLayoutReview) &&
+          !view.diagnostics.some(d => d.scenePath === node.scenePath || d.scenePath.startsWith(`${node.scenePath}.`)))
+        primitiveScenePaths.add(node.scenePath);
     }
   }
   // Complete actual drawing before the input profile can inspect successful
@@ -1803,6 +1983,7 @@ function paintScene(receipt, { assessInput, integrated }) {
     connectorScenePaths: Object.freeze([...connectorScenePaths]),
     lineScenePaths: Object.freeze([...lineScenePaths]),
     shapeGeometryScenePaths: Object.freeze([...shapeGeometryScenePaths]),
+    primitiveScenePaths: Object.freeze([...primitiveScenePaths]),
     isolatedLinePoints: Object.freeze(isolatedLinePoints.map(point => Object.freeze(point))) };
   let inputAssessment;
   if (assessInput) {

@@ -7,7 +7,7 @@ import { PresentationPreviewSceneSchema, PresentationElementSchema, Presentation
   PresentationCustomGeometryPathSchema, SpreadsheetChartMarkerArtifactSchema,
   SpreadsheetChartSeriesArtifactSchema, SpreadsheetChartPointStyleArtifactSchema,
   PresentationGradientFillSchema, PresentationBackgroundSchema, PresentationSlideSchema,
-  SpreadsheetChartSurfaceFillSchema, SpreadsheetChartAxisArtifactSchema } from "../src/generated/office_kit/artifact/v1/office_artifact_pb.js";
+  SpreadsheetChartSurfaceFillSchema, SpreadsheetChartAxisArtifactSchema, SpreadsheetChartLineOptionsArtifactSchema } from "../src/generated/office_kit/artifact/v1/office_artifact_pb.js";
 import { nativePathBounds, nativePathData, paintPpjSceneSvg } from "../src/ppj/preview-scene-svg.mjs";
 import { assessPpjPreviewInput } from "../src/ppj/preview-input-assessment.mjs";
 import capabilityRegistry from "../src/ppj/capability-registry.json" with { type: "json" };
@@ -745,6 +745,68 @@ assert.ok(assessPpjPreviewInput(JSON.parse(nestedDatasetInput.programJson), { re
   sceneReceipt: nestedDatasetInput, scenePaint: { ...nestedDatasetPaint,
     transformedScenePaths: nestedDatasetPaint.transformedScenePaths.filter(p => p !== "$.presentation.slides[0].elements[0]") },
 }).diagnostics.some(d => d.reason === datasetReason && d.path === datasetPath), "uncaptured parent retains the dataset failure");
+// Heatmap channels are compiler-owned. Only complete, attributed generated
+// primitive trees may retire the old dataset-ignored rule; not a group label.
+function heatmapProfileFixture({ edit = () => {}, editOwner = () => {}, nested = false, source = false } = {}) {
+  const program = { pages: [{ id:"page",elements:[{id:"heat",type:"chart",chartType:"heatmap",data:{
+    dataset:{cols:["category","value"],rows:[["A",2],["B",null],["C",0]]},encoding:{category:0,value:1}
+  }}] }] };
+  return fixture(scene => {
+    const cells=["CC0000","00FF00","000000"].map((fillRgb,i)=>child(`cell-${i}`,"shape",{
+      ...frame(100+i*60,100,60,60),geometry:"rect",fillRgb,text:["2","missing","0"][i],
+    }));
+    const group=child("heat","group",{...frame(100,100,180,60),childLeftEmu:emu(100),childTopEmu:emu(100),
+      childWidthEmu:emu(180),childHeightEmu:emu(60),children:cells});
+    scene.presentation.slides[0].elements=nested?[child("parent","group",{...frame(0,0,600,400),
+      childWidthEmu:emu(600),childHeightEmu:emu(400),children:[group]})]:[group];
+    if(source)scene.origin=2;
+    edit(scene,group,cells);
+  },program,bindings=>{
+    for(const binding of bindings){binding.programPath=binding.nativeId==="parent"?"$.pages[0]":"$.pages[0].elements[0]";
+      binding.attribution=binding.nativeId.startsWith("cell-")?2:1;binding.semanticId=binding.nativeId==="parent"?"parent":"heat";}
+    editOwner(bindings);
+  });
+}
+for(const nested of [false,true]) {
+  const input=heatmapProfileFixture({nested}),bytes=toBinary(PresentationPreviewSceneSchema,input.previewScene);
+  const painted=paintPpjSceneSvg(input,{assessInput:true}),canonical=JSON.parse(input.programJson);
+  const isError=d=>d.reason===datasetReason&&d.path===datasetPath;
+  assert.ok(assessPpjPreviewInput(canonical).diagnostics.some(isError));
+  assert.ok(!painted.diagnostics.some(isError),"complete generated heatmap primitives consume dataset channels");
+  assert.equal(painted.primitiveScenePaths.length,nested?5:4);
+  assert.match(painted.pages[0].svg,/fill="#00FF00"/);assert.match(painted.pages[0].svg,/>missing<\/tspan>/);
+  assert.match(painted.pages[0].svg,/>0<\/tspan>/);
+  assert.ok(painted.diagnostics.some(d=>d.reason==="preview.scene.paint.text-layout"));
+  const options={rendererProfile:"native-scene-svg",sceneReceipt:input,scenePaint:painted};
+  for(const missing of [{primitiveScenePaths:[]},{shapeGeometryScenePaths:[]},{transformedScenePaths:[]},
+    {primitiveScenePaths:painted.primitiveScenePaths.slice(1)},
+    {transformedScenePaths:painted.transformedScenePaths.filter(p=>p!=="$.presentation.slides[0].elements[0]")}])
+    assert.ok(assessPpjPreviewInput(canonical,{...options,scenePaint:{...painted,...missing}}).diagnostics.some(isError));
+  const registry=structuredClone(capabilityRegistry);delete registry.previewScene.factualMappings.datasetHeatmap;
+  assert.throws(()=>assessPpjPreviewInput(canonical,{...options,registry}),/dataset heatmap mapping/);
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema,input.previewScene),bytes);
+}
+for(const options of [
+  {source:true}, {edit:(_s,g)=>g.hidden=true}, {edit:(_s,_g,c)=>c[1].hidden=true},
+  {edit:(_s,g)=>g.content.value.childWidthEmu=0n},
+  {edit:(_s,g)=>g.content.value.widthEmu=0n},
+  {edit:(_s,_g,c)=>c[1].content.value.heightEmu=0n},
+  {edit:(_s,g)=>g.content.value.children=[]},
+  {edit:(_s,_g,c)=>c[1].content.value.geometry="star5"},
+  {edit:(_s,_g,c)=>c[1].content.value.fillRgb="not-rgb"},
+  {edit:(_s,_g,c)=>c[1].content.value.fillScheme="accent1"},
+  {edit:(_s,_g,c)=>c[1].content.value.$unknown=[{no:999,wireType:0,data:Uint8Array.of(1)}]},
+  {edit:(_s,g)=>g.content.value.$unknown=[{no:999,wireType:0,data:Uint8Array.of(1)}]},
+  {nested:true,edit:s=>s.presentation.slides[0].elements[0].content.value.$unknown=[{no:999,wireType:0,data:Uint8Array.of(1)}]},
+  {edit:(s)=>s.presentation.slides[0].elements.push(child("orphan","shape",{...frame(0,0,10,10),geometry:"rect",fillRgb:"FF0000"}))},
+  {editOwner:bindings=>bindings.find(b=>b.nativeId==="cell-1").programPath="$.pages[0]"},
+  {editOwner:bindings=>bindings.find(b=>b.nativeId==="cell-1").attribution=3},
+]) {
+  const input=heatmapProfileFixture(options),before=toBinary(PresentationPreviewSceneSchema,input.previewScene);
+  const painted=paintPpjSceneSvg(input,{assessInput:true});
+  assert.ok(painted.diagnostics.some(d=>d.reason===datasetReason&&d.path===datasetPath),"incomplete/untrusted heatmap evidence retains factual failure");
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema,input.previewScene),before);
+}
 const isolatedInput = isolatedProfileFixture(), isolatedBytes = toBinary(PresentationPreviewSceneSchema, isolatedInput.previewScene);
 const isolatedPaint = paintPpjSceneSvg(isolatedInput, { assessInput: true });
 assert.ok(!isolatedPaint.diagnostics.some(d => d.reason === missingReason));
@@ -928,7 +990,42 @@ for (const override of [undefined, "none", "all"]) {
   assert.ok(!painted.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && d.scenePath.endsWith("fontCaps")));
   assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), before);
 }
-for (const caps of ["small", "invalid"]) {
+for (const owner of ["run", "default", "cell"]) for (const override of [undefined, "none", "all", "small"])
+  for (const language of [undefined, "tr-TR"]) {
+    const input = fixture(scene => {
+      const element = scene.presentation.slides[0].elements[owner === "cell" ? 7 : 0];
+      scene.presentation.slides[0].elements = [element];
+      if (owner === "cell") {
+        element.content.value.mergeRanges = [];
+        element.content.value.rows = [element.content.value.rows[1]];
+        const cell = element.content.value.rows[0].cells[0];
+        cell.text = "Abc i & <";
+        cell.textStyle.fontCaps = override ?? "small";
+        cell.textStyle.language = language;
+      } else {
+        const p = element.content.value.textBody.paragraphs[0];
+        p.runs = [p.runs[0]];
+        p.runs[0].content.value = "Abc i & <";
+        if (owner === "default") {
+          p.defaultRunStyle.value.fontCaps = "small";
+          p.defaultRunStyle.value.language = language;
+          p.runs[0].fontCaps = override;
+        } else {
+          p.runs[0].fontCaps = override ?? "small";
+          p.runs[0].language = language;
+        }
+      }
+    });
+    const original = toBinary(PresentationPreviewSceneSchema, input.previewScene), painted = paintPpjSceneSvg(input);
+    const small = override === undefined || override === "small";
+    assert.equal(painted.reliability.status, "requires-review", `${owner}/${override}/${language}`);
+    assert.equal(painted.pages[0].svg.includes('font-variant="small-caps"'), small);
+    assert.ok(painted.pages[0].svg.includes(`>${override === "all" ? language ? "ABC İ &amp; &lt;" : "ABC I &amp; &lt;" : "Abc i &amp; &lt;"}</tspan>`));
+    assert.equal(painted.diagnostics.some(d => d.reason === "preview.scene.paint.text-small-caps-review"), small);
+    if (small && language) assert.ok(painted.pages[0].svg.includes('xml:lang="tr-TR"'));
+    assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+  }
+for (const caps of ["invalid"]) {
   const painted = paintPpjSceneSvg(fixture(scene => {
     scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0].runs[0].fontCaps = caps;
   }));
@@ -965,6 +1062,12 @@ const invalidCapsLanguage=paintPpjSceneSvg(fixture(scene=>{
 }));
 assert.equal(invalidCapsLanguage.reliability.status,"failed");
 assert.ok(invalidCapsLanguage.diagnostics.some(d=>d.reason==="preview.scene.paint.text-capitalization"));
+const invalidSmallCapsLanguage = paintPpjSceneSvg(fixture(scene => {
+  const run = scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0].runs[0];
+  run.fontCaps = "small"; run.language = "invalid_tag";
+}));
+assert.equal(invalidSmallCapsLanguage.reliability.status, "failed");
+assert.ok(invalidSmallCapsLanguage.diagnostics.some(d => d.reason === "preview.scene.paint.text-capitalization"));
 const paragraphSpacing = fixture(scene => {
   const body = scene.presentation.slides[0].elements[0].content.value.textBody;
   const p = body.paragraphs[0];
@@ -1127,6 +1230,85 @@ for (const preset of ["ellipse", "diamond", "rect", "star5"]) {
     assert.equal(result.pages[0].svg, paintPpjSceneSvg(input).pages[0].svg);
   }
 }
+// Four cut-corner presets share contours across fill and image consumers.
+// These fixed local vertices/text rectangles are independent of the painter.
+const cutCornerCases = [
+  ["octagon", [25000], [30,30,30,30], [15,15,225,105]],
+  ["snip1Rect", [25000], [0,30,0,0], [0,15,225,120]],
+  ["snip2DiagRect", [25000,50000], [30,60,30,60], [30,30,210,90]],
+  ["snip2SameRect", [25000,50000], [30,30,60,60], [30,15,210,90]],
+];
+for (const [preset, adjustments, cuts, edges] of cutCornerCases) for (const consumer of ["shape", "shape-image", "image"]) {
+  const input = fixture(scene => {
+    const common = { ...frame(10,40,240,120) };
+    const value = consumer === "image" ? { ...common, assetId: "native-asset", maskPreset: preset, maskPresetAdjustments: adjustments }
+      : { ...common, geometry: preset, presetAdjustments: adjustments,
+        ...(consumer === "shape-image" ? { imageFill: { assetId: "native-asset", mode: 1 } } : { fillRgb: "008800" }),
+        textBody: { bodyProperties: { leftInset: { case: "leftInsetEmu", value: 0n }, rightInset: { case: "rightInsetEmu", value: 0n },
+          topInset: { case: "topInsetEmu", value: 0n }, bottomInset: { case: "bottomInsetEmu", value: 0n } },
+          paragraphs: [{ runs: [{ content: { case: "text", value: "F0" }, fontSizePoints: 16 }] }] } };
+    scene.presentation.slides[0].elements = [child("cut-corner", consumer === "image" ? "image" : "shape", value)];
+  });
+  const before = toBinary(PresentationPreviewSceneSchema, input.previewScene), painted = paintPpjSceneSvg(input);
+  const [tl,tr,br,bl] = cuts;
+  const points = [[tl,0],[240-tr,0],[240,tr],[240,120-br],[240-br,120],[bl,120],[0,120-bl],[0,tl]];
+  if (preset === "octagon") points.unshift(points.pop());
+  const outline = [...painted.pages[0].svg.matchAll(/<path d="([^"]+)"/g)].map(m => m[1]);
+  assert.ok(outline.length, `${preset}/${consumer}: actual contour, not placeholder`);
+  // A zero cut repeats a vertex; implementations may omit that zero-length edge.
+  const vertices = points.filter((p,i) => i === 0 || p.some((v,a) => v !== points[i-1][a]));
+  if (vertices.at(-1).every((v,a) => v === vertices[0][a])) vertices.pop();
+  assert.ok(outline.includes(vertices.map(([x,y],i) => `${i ? "L" : "M"} ${x+10} ${y+40}`).join(" ") + " Z"));
+  if (consumer !== "image") assert.ok(painted.pages[0].svg.includes(`<text x="${10+edges[0]}" y="${56+edges[1]}"`));
+  assert.ok(!painted.diagnostics.some(d => ["preview.scene.paint.preset", "preview.scene.paint.preset-adjustments",
+    "preview.scene.paint.image-mask", "preview.scene.paint.shape-image", "preview.scene.paint.text-rectangle"].includes(d.reason)));
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), before);
+}
+for (const [preset] of cutCornerCases) for (const dimensions of [[240,120],[120,240],[120,120]]) {
+  const make = adjustments => fixture(scene => { scene.presentation.slides[0].elements = [child("cut", "shape", {
+    ...frame(10,40,...dimensions), geometry: preset, presetAdjustments: adjustments, fillRgb: "008800" })]; });
+  const count = preset.startsWith("snip2") ? 2 : 1;
+  for (const [requested,effective] of [[-21600000,0],[75000,50000],[21600000,50000]]) {
+    assert.equal(paintPpjSceneSvg(make(Array(count).fill(requested))).pages[0].svg,
+      paintPpjSceneSvg(make(Array(count).fill(effective))).pages[0].svg, `${preset}: pinned adjustment clamps`);
+  }
+  const invalid = paintPpjSceneSvg(make(Array(count+1).fill(0)));
+  assert.equal(invalid.reliability.status, "failed");
+  assert.ok(invalid.diagnostics.some(d => d.reason === "preview.scene.paint.preset-adjustments"));
+}
+const roundedCornerCases = [
+  ["round1Rect",[25000],[0,0,231.2133,120],"M 10 40 L 220 40 A 30 30 0 0 1 250 70 L 250 160 L 10 160 L 10 40 Z"],
+  ["round2DiagRect",[25000,50000],[17.5734,17.5734,222.4266,102.4266],"M 40 40 L 190 40 A 60 60 0 0 1 250 100 L 250 130 A 30 30 0 0 1 220 160 L 70 160 A 60 60 0 0 1 10 100 L 10 70 A 30 30 0 0 1 40 40 Z"],
+  ["round2SameRect",[25000,50000],[17.5734,8.7867,222.4266,102.4266],"M 40 40 L 220 40 A 30 30 0 0 1 250 70 L 250 100 A 60 60 0 0 1 190 160 L 70 160 A 60 60 0 0 1 10 100 L 10 70 A 30 30 0 0 1 40 40 Z"],
+  ["snipRoundRect",[25000,50000],[8.7867,8.7867,210,120],"M 40 40 L 190 40 L 250 100 L 250 160 L 10 160 L 10 70 A 30 30 0 0 1 40 40 Z"],
+];
+for(const [preset,adjustments,edges,d] of roundedCornerCases)for(const consumer of ["shape","shape-image","image"]) {
+  const input=fixture(scene=>{scene.presentation.slides[0].elements=[child("rounded-corner",consumer==="image"?"image":"shape",{
+    ...frame(10,40,240,120),...(consumer==="image"?{assetId:"native-asset",maskPreset:preset,maskPresetAdjustments:adjustments}
+      :{geometry:preset,presetAdjustments:adjustments,...(consumer==="shape-image"?{imageFill:{assetId:"native-asset",mode:1}}:{fillRgb:"008800"}),
+        textBody:{bodyProperties:{leftInset:{case:"leftInsetEmu",value:0n},topInset:{case:"topInsetEmu",value:0n},
+          rightInset:{case:"rightInsetEmu",value:0n},bottomInset:{case:"bottomInsetEmu",value:0n}},
+          paragraphs:[{runs:[{content:{case:"text",value:"F0"},fontSizePoints:16}]}]}})})];});
+  const before=toBinary(PresentationPreviewSceneSchema,input.previewScene),painted=paintPpjSceneSvg(input),svg=painted.pages[0].svg;
+  assert.ok(svg.includes(`d="${d}"`),`${preset}/${consumer}: actual quarter-circle contour`);
+  if(consumer!=="image") {
+    const text=svg.match(/<text x="([^"]+)" y="([^"]+)"/);
+    assert.ok(Math.abs(Number(text?.[1])-(10+edges[0]))<1e-9&&Math.abs(Number(text?.[2])-(56+edges[1]))<1e-9);
+  }
+  assert.ok(!painted.diagnostics.some(d=>["preview.scene.paint.preset","preview.scene.paint.preset-adjustments","preview.scene.paint.image-mask","preview.scene.paint.shape-image","preview.scene.paint.text-rectangle"].includes(d.reason)));
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema,input.previewScene),before);
+}
+for(const [preset,adjustments] of roundedCornerCases)for(const dimensions of [[240,120],[120,240],[120,120]]) {
+  const make=values=>fixture(scene=>{scene.presentation.slides[0].elements=[child("round-clamp","shape",{
+    ...frame(10,40,...dimensions),geometry:preset,presetAdjustments:values,fillRgb:"008800"})];});
+  for(const [requested,effective] of [[-21600000,0],[75000,50000],[21600000,50000]]) {
+    const actual=paintPpjSceneSvg(make(adjustments.map(()=>requested))),expected=paintPpjSceneSvg(make(adjustments.map(()=>effective)));
+    assert.equal(actual.pages[0].svg,expected.pages[0].svg,`${preset}: per-corner clamp uses the short side`);
+    if(effective===0)assert.doesNotMatch(actual.pages[0].svg,/\bA 0/);
+  }
+  const invalid=paintPpjSceneSvg(make([...adjustments,0]));
+  assert.equal(invalid.reliability.status,"failed");assert.ok(invalid.diagnostics.some(d=>d.reason==="preview.scene.paint.preset-adjustments"));
+}
 // The triangle's text rectangle is not its entire outer frame. This fixed
 // asymmetric case used to place text above/outside the painted triangle.
 const triangleTextRegion = fixture(scene => {
@@ -1141,6 +1323,8 @@ assert.deepEqual(toBinary(PresentationPreviewSceneSchema, triangleTextRegion.pre
 // Fixed 240x120 native regions, including aliases and shape-local custom EMU
 // edges. Paths deliberately use a different 100x100 viewport.
 const textRegionProfiles = [
+  ...roundedCornerCases.map(([preset,adjustments,edges])=>[preset,adjustments,edges]),
+  ...cutCornerCases.map(([preset, adjustments, , edges]) => [preset, adjustments, edges]),
   ["rect", [], [0,0,240,120]], ["textbox", [], [0,0,240,120]], ["flowChartProcess", [], [0,0,240,120]],
   ["roundRect", [50000], [17.5734,17.5734,222.4266,102.4266]],
   ["ellipse", [], [35.14718625761429,17.573593128807147,204.8528137423857,102.42640687119285]],
@@ -1902,6 +2086,60 @@ function barFixture(edit = () => {}, direction = "column") {
       seriesFill: { fill: { case: "solidRgb", value: "0044CC" } } })];
     edit(c);
   });
+}
+function areaFixture(edit = () => {}) {
+  return barFixture(c => {
+    c.type = 4; c.barDirection = ""; c.gapWidth = undefined; c.overlap = undefined;
+    c.categories = ["A", "B", "Missing", "Zero", "Negative"];
+    c.series = [create(SpreadsheetChartSeriesArtifactSchema, { name: "Area", values: [4,2,0,0,-4], missingValueIndexes: [2],
+      seriesFill: { fill: { case: "solidRgb", value: "CC2200" } } })];
+    edit(c);
+  });
+}
+const areaPaths = svg => [...svg.matchAll(/<path data-officekit-area-segment="([^"]+)" d="([^"]+)"/g)].map(m => m.slice(1));
+const areaInput = areaFixture(), areaBefore = toBinary(PresentationPreviewSceneSchema,areaInput.previewScene);
+const areaPaint = paintPpjSceneSvg(areaInput), areaSvg = areaPaint.pages[0].svg;
+assert.equal(areaPaint.reliability.status,"requires-review");
+assert.deepEqual(areaPaths(areaSvg),[
+  ["0:1","M 105 265 L 105 195 L 195 230 L 195 265 Z"],
+  ["3:4","M 375 265 L 375 265 L 465 335 L 465 265 Z"],
+],"area fills close independently to the zero baseline, never across missing observations");
+assert.match(areaSvg,/data-officekit-missing-point="2"/);
+assert.match(areaSvg,/data-officekit-point="3" data-officekit-value="0"/);
+assert.match(areaSvg,/data-officekit-review-point="area-zero" d="M 372 265 L 378 265"/);
+assert.doesNotMatch(areaSvg,/data-officekit-line-segment=/);
+assert.deepEqual(toBinary(PresentationPreviewSceneSchema,areaInput.previewScene),areaBefore);
+const areaIsolated = paintPpjSceneSvg(areaFixture(c=>{
+  c.series[0].values=[4,0,0,0,-4];c.series[0].missingValueIndexes=[1,2,3];
+}));
+assert.equal(areaPaths(areaIsolated.pages[0].svg).length,0);
+assert.equal((areaIsolated.pages[0].svg.match(/data-officekit-review-point="area-isolated"/g)||[]).length,2);
+for(const [values,expected] of [[[2,4,0,1,3],[0,4]],[[-2,-4,0,-1,-3],[-4,0]],[[0,0,0,0,0],[0,1]]]) {
+  const painted=paintPpjSceneSvg(areaFixture(c=>{c.yAxis=undefined;c.series[0].values=values;c.series[0].missingValueIndexes=[];}));
+  assert.match(painted.pages[0].svg,new RegExp(`data-officekit-scale-min="${expected[0]}" data-officekit-scale-max="${expected[1]}"`));
+}
+const emptyArea = paintPpjSceneSvg(areaFixture(c=>{c.series[0].values=[0,0,0,0,0];c.series[0].missingValueIndexes=[0,1,2,3,4];}));
+assert.match(emptyArea.pages[0].svg,/No observed data/);assert.equal(areaPaths(emptyArea.pages[0].svg).length,0);
+const reverseArea=paintPpjSceneSvg(areaFixture(c=>{c.xAxis=create(SpreadsheetChartAxisArtifactSchema,{reverse:true});c.yAxis.reverse=true;}));
+assert.deepEqual(areaPaths(reverseArea.pages[0].svg)[0],["0:1","M 465 195 L 465 265 L 375 230 L 375 195 Z"]);
+const clippedArea=paintPpjSceneSvg(areaFixture(c=>{c.yAxis.maximum=2;}));
+assert.match(clippedArea.pages[0].svg,/data-officekit-point="0" data-officekit-value="4" data-officekit-point-outside-plot="true"/);
+assert.match(clippedArea.pages[0].svg,/data-officekit-area-clip="plot"[^>]*overflow="hidden"/);
+const overlapAreaInput=areaFixture(c=>{c.series.push(create(SpreadsheetChartSeriesArtifactSchema,{name:"Behind",values:[8,8,8,8,8],
+  seriesFill:{fill:{case:"solidRgb",value:"0044CC"}}}));});
+const overlapAreaBefore=toBinary(PresentationPreviewSceneSchema,overlapAreaInput.previewScene),overlapArea=paintPpjSceneSvg(overlapAreaInput);
+assert.deepEqual([...overlapArea.pages[0].svg.matchAll(/data-officekit-series="(\d+)"/g)].map(m=>+m[1]),[1,0],"first native area remains foreground without changing source series order");
+assert.deepEqual(toBinary(PresentationPreviewSceneSchema,overlapAreaInput.previewScene),overlapAreaBefore);
+for(const edit of [c=>c.grouping="stacked",c=>c.grouping="percent-stacked",c=>c.yAxis.logBase=10,
+  c=>c.lineOptions=create(SpreadsheetChartLineOptionsArtifactSchema),c=>c.secondaryYAxis=create(SpreadsheetChartAxisArtifactSchema),c=>c.displayBlanksAs="zero",c=>c.displayBlanksAs="span",
+  c=>c.series[0].values.pop(),c=>c.series[0].missingValueIndexes=[2,2],c=>c.series[0].values[2]=100,
+  c=>c.series[0].xValues=[1,2,3,4,5],c=>c.xAxis=create(SpreadsheetChartAxisArtifactSchema,{minimum:0}),c=>c.yAxis.minimum=8,
+  c=>c.series[0].marker=create(SpreadsheetChartMarkerArtifactSchema,{symbol:3}),
+  c=>c.series[0].pointStyles=[create(SpreadsheetChartPointStyleArtifactSchema,{index:0})],
+]) {
+  const input=areaFixture(edit),before=toBinary(PresentationPreviewSceneSchema,input.previewScene),painted=paintPpjSceneSvg(input);
+  assert.equal(painted.reliability.status,"failed");assert.equal(areaPaths(painted.pages[0].svg).length,0);
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema,input.previewScene),before);
 }
 const barGeometry = svg => [...svg.matchAll(/<rect data-officekit-bar="(\d+)" x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)"/g)]
   .map(m => m.slice(1).map(Number));
