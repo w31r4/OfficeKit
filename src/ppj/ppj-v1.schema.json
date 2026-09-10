@@ -1941,6 +1941,7 @@
               "text.paragraphs[].style.lineSpacing",
               "text.paragraphs[].style.lineSpacingMultiplier",
               "text.paragraphs[].style.indent",
+              "text.paragraphs[].style.hanging",
             "text.paragraphs[].style.defaultText.bold",
             "text.paragraphs[].style.defaultText.italic",
             "text.paragraphs[].style.defaultText.size",
@@ -3246,8 +3247,9 @@
         },
         "hanging": {
           "type": "number",
-          "minimum": -100000,
-          "maximum": 100000
+          "minimum": -4032,
+          "maximum": 4032,
+          "description": "Signed paragraph hanging indent in points, independent of indent. Positive values hang the first line leftward; negative values indent it rightward. Native indentation has the opposite sign after nearest-EMU rounding with ties to even. Ordinary source-bound text/shape owners support assignment, explicit zero, removal/restoration and hanging-only style-wrapper removal under this exact field authority. Only changed paragraphs are patched, preserving other native state; unmodeled native indentation survives unrelated scalar edits and rejects replacement."
         },
         "spaceBefore": {
           "type": "number",

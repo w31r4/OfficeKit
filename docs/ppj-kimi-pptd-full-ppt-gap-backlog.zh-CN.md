@@ -463,6 +463,18 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**段落悬挂缩进增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.hanging` 已接通正负值赋值、显式零、删除、恢复和
+单字段 style 包装删除。范围为 −4032–4032pt，按最近 EMU 取偶数舍入；
+正值表示首行向左悬挂，负值表示首行向右缩进，原生 `indent` 取相反符号。
+该字段与 PPJ `indent`（左缩进）独立，每次编辑要求 hanging 的精确字段权限。
+只改目标段落的直接缩进，保留左缩进、三类间距、其它段落属性、原始数值
+写法、run、相邻段落和非目标 XML/ZIP。非法或越界原生缩进随 no-op 和
+无关标量编辑保留，拒绝覆盖。复用左缩进实验，最小实验 **6/6 通过**，
+相关回归 **350/350 通过，0 跳过**，沿用整组默认样式的已记录基线排除项。
+Help、schema、生成资料、预览诊断、可移植性、reference-sync 和 OpenSpec
+检查通过。未重建 NativeAOT，预览仍为 partial；完整 F-03 和宿主布局继续开放。
+
 **段落左缩进增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.indent` 已接通赋值、显式零、删除、恢复和单字段
 style 包装删除。该字段对应原生 `marL`，范围为 0–4032pt，按最近 EMU

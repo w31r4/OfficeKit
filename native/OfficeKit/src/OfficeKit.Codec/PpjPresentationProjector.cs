@@ -2962,6 +2962,7 @@ internal static partial class PpjPresentationProjector
                             "text.paragraphs[].style.lineSpacing",
                             "text.paragraphs[].style.lineSpacingMultiplier",
                             "text.paragraphs[].style.indent",
+                            "text.paragraphs[].style.hanging",
                             "text.paragraphs[].style.defaultText.bold",
                             "text.paragraphs[].style.defaultText.italic",
                             "text.paragraphs[].style.defaultText.size",

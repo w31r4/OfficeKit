@@ -62,6 +62,15 @@ direct margin. Edits preserve hanging, spacing, runs and neighboring
 paragraphs; unmodeled source margins remain preserved and reject replacement.
 Preview indentation remains partial.
 
+Use `text.paragraphs[].style.hanging` for signed hanging indent in points
+(-4032..4032), independently of `indent`. Positive values hang the first line
+leftward; negative values indent it rightward. Values round to the nearest
+EMU with ties to even. Ordinary imported text/shape paragraphs support
+assignment, explicit zero and removal/restoration with the exact hanging
+field authority. Remove the field or its hanging-only style to clear the
+direct setting. Other paragraph state and unmodeled source indentation stay
+preserved; replacing unmodeled indentation rejects. Preview remains partial.
+
 For an ordinary imported text box or shape,
 `text.paragraphs[].style.defaultText.bold` and `.italic` edit independent paragraph defaults.
 True and false remain explicit; delete the field (or its flag-only

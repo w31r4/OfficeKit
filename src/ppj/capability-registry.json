@@ -1015,6 +1015,13 @@
       "reason": "Fixed paragraph/run topology and direct left-margin presence are preserved. PpjParagraphIndentLifecycleTests verifies native XML/ZIP, rounding, style priority and fresh projection; hanging lifecycle, table/placeholder inheritance and host layout retain separate boundaries."
     },
     {
+      "feature": "source-bound paragraph hanging",
+      "ppjPath": "pages[].elements[].text.paragraphs[].style.hanging",
+      "behavior": "partial",
+      "sourceBound": "Paragraph hanging accepts finite -4032..4032pt values, independently of the paragraph left indent. Positive values hang the first line leftward; negative values indent it rightward. Native indentation carries the opposite sign after nearest-EMU rounding with ties to even. Ordinary source-bound text/shape paragraphs support assignment, explicit zero, removal/restoration and hanging-only style-wrapper removal under the exact text.paragraphs[].style.hanging authority. Only changed paragraphs are patched. Left indent, spacing, unchanged numeric spelling, other paragraph attributes/content, direct runs, neighbors and non-target XML/ZIP are preserved. Invalid or out-of-range native indentation survives no-op and unrelated scalar edits but rejects replacement. Preview remains partial.",
+      "reason": "Fixed paragraph/run topology and signed direct indentation are preserved. PpjParagraphHangingLifecycleTests reuses the coordinate fixture to verify native XML/ZIP, signs, rounding, style priority and fresh projection. Table/placeholder inheritance and host layout retain separate boundaries."
+    },
+    {
       "feature": "source-bound paragraph tab stops",
       "ppjPath": "pages[].elements[].text.paragraphs[].style.tabStops and noTabStops",
       "behavior": "partial",

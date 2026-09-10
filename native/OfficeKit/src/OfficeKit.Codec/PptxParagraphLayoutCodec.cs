@@ -13,12 +13,8 @@ internal static class PptxParagraphLayoutCodec
     internal static void Read(PresentationTextParagraph target, A.TextParagraphPropertiesType? source)
     {
         if (TryMargin(source, out var margin)) target.MarginLeftEmu = margin;
-        if (source?.Indent?.Value is { } indent && ValidIndent(indent)) target.IndentEmu = indent;
+        if (TryIndent(source, out var indent)) target.IndentEmu = indent;
     }
-
-    internal static bool Supports(A.TextParagraphPropertiesType? source) =>
-        source is null ||
-        (source.Indent is null || ValidIndent(source.Indent.Value));
 
     internal static void Validate(PresentationTextParagraph source)
     {
@@ -77,10 +73,11 @@ internal static class PptxParagraphLayoutCodec
         }
         if (source.IndentationCase != PresentationTextParagraph.IndentationOneofCase.None)
         {
-            if (target.Indent is not null && !ValidIndent(target.Indent.Value)) throw Unsupported("indent");
+            var modeled = TryIndent(target, out var indent);
+            if (target.Indent is not null && !modeled) throw Unsupported("indent");
             if (source.IndentationCase == PresentationTextParagraph.IndentationOneofCase.IndentEmu)
             {
-                if (target.Indent?.Value != source.IndentEmu) target.Indent = checked((int)source.IndentEmu);
+                if (!modeled || indent != source.IndentEmu) target.Indent = checked((int)source.IndentEmu);
             }
             else target.Indent = null;
         }
@@ -89,12 +86,16 @@ internal static class PptxParagraphLayoutCodec
     internal static void Scrub(A.TextParagraphPropertiesType target)
     {
         if (TryMargin(target, out _)) target.LeftMargin = null;
-        if (target.Indent?.Value is { } indent && ValidIndent(indent)) target.Indent = null;
+        if (TryIndent(target, out _)) target.Indent = null;
     }
 
     private static bool TryMargin(A.TextParagraphPropertiesType? source, out long value) =>
         long.TryParse(source?.GetAttributes().FirstOrDefault(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "marL").Value,
             NumberStyles.Integer, CultureInfo.InvariantCulture, out value) && ValidMargin(value);
+
+    private static bool TryIndent(A.TextParagraphPropertiesType? source, out long value) =>
+        long.TryParse(source?.GetAttributes().FirstOrDefault(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "indent").Value,
+            NumberStyles.Integer, CultureInfo.InvariantCulture, out value) && ValidIndent(value);
 
     private static bool ValidMargin(long value) => value is >= 0 and <= MaxCoordinateEmu;
     private static bool ValidIndent(long value) => value is >= -MaxCoordinateEmu and <= MaxCoordinateEmu;
