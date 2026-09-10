@@ -133,6 +133,7 @@ internal static class PpjNativeLeafProjection
             ["shadowDirectionDegrees"] = 60_000,
             ["imageShadowDirectionDegrees"] = 60_000,
             ["textDefaultShadowScaleX"] = 100_000,
+            ["textDefaultShadowScaleY"] = 100_000,
             ["shapeInnerShadowDirectionDegrees"] = 60_000,
             ["imageInnerShadowDirectionDegrees"] = 60_000,
             ["shapeReflectionDirectionDegrees"] = 60_000,
@@ -1430,6 +1431,10 @@ internal static class PpjNativeLeafProjection
                 paragraph.DefaultRunProperties.Shadow is { HasScaleXThousandthPercent: true } shadowScaleX)
                 AddScaled(add, "textDefaultShadowScaleX",
                     shadowScaleX.ScaleXThousandthPercent / 100_000d, 100_000, nativeIndex);
+            if (paragraph.DefaultRunStyleCase == PresentationTextParagraph.DefaultRunStyleOneofCase.DefaultRunProperties &&
+                paragraph.DefaultRunProperties.Shadow is { HasScaleYThousandthPercent: true } shadowScaleY)
+                AddScaled(add, "textDefaultShadowScaleY",
+                    shadowScaleY.ScaleYThousandthPercent / 100_000d, 100_000, nativeIndex);
             if (paragraph.DefaultRunStyleCase == PresentationTextParagraph.DefaultRunStyleOneofCase.DefaultRunProperties &&
                 paragraph.DefaultRunProperties.Shadow is { HasAlignment: true } shadowAlignment)
                 add("textDefaultShadowAlignment", shadowAlignment.Alignment,

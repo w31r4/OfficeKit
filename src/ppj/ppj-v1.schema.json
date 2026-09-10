@@ -2221,6 +2221,7 @@
             "textDefaultShadowDistanceEmu",
             "textDefaultShadowDirectionDegrees",
             "textDefaultShadowScaleX",
+            "textDefaultShadowScaleY",
             "textDefaultShadowAlignment",
             "textDefaultShadowColorRgb",
             "textDefaultShadowColorScheme",
