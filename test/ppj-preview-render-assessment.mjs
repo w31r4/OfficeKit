@@ -47,7 +47,9 @@ assert.deepEqual(new Set(violations.map((d) => d.path)), new Set([
   "$.pages[0].elements[0].elements[0].geometry", "$.pages[1].elements[0].geometry",
 ]));
 assert.doesNotMatch(JSON.stringify(result.assessment), /do-not-disclose/);
-assert.equal(result.status, "opaque", "opaque dominates partial support but never clears a factual failure");
+assert.equal(result.status, "unavailable", "unmapped preset text regions dominate opaque/partial support without clearing factual failures");
+assert.equal(result.diagnostics.filter(d => d.reason === "preview.scene.paint.text-rectangle").length, 2);
+assert.equal(result.pages[0].assessment.children[0].children[1].status, "opaque", "the source sibling remains independently opaque");
 assert.equal(result.reliability.status, "failed");
 for (const page of result.pages) {
   assert.deepEqual(page.assessment, result.assessment.children.find((child) => child.pageId === page.id));

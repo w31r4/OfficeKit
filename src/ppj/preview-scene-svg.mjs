@@ -9,6 +9,7 @@ import { PresentationElementSchema, PresentationSlideSchema, PresentationTextBod
   PresentationTableRowSchema, PresentationTableCellSchema,
   PresentationTableCellFillSchema, PresentationTableCellBordersSchema,
   PresentationGradientFillSchema, PresentationGradientStopSchema,
+  PresentationShadowSchema,
   SpreadsheetChartLineStyleArtifactSchema, SpreadsheetColorSchema, SpreadsheetChartType,
   SpreadsheetChartSeriesArtifactSchema, SpreadsheetChartAxisArtifactSchema,
   SpreadsheetChartLineOptionsArtifactSchema, SpreadsheetChartMarkerArtifactSchema,
@@ -335,6 +336,7 @@ function paintScene(receipt, { assessInput, integrated }) {
   const isolatedLinePoints = [];
   let imageMaskSequence = 0;
   let gradientSequence = 0;
+  let shadowSequence = 0;
   const limit = (node, field, reason = "preview.scene.paint.unmapped", value, status = "partial") => {
     diagnostics.push(Object.freeze({ ...previewDiagnostic({
       pageId: node.pageId || undefined, id: node.pageId ? node.semanticId : undefined,
@@ -353,6 +355,142 @@ function paintScene(receipt, { assessInput, integrated }) {
     const f = node.frame;
     if (!f) return `<title>${esc(label)}</title>`;
     return `<rect ${box(f)} fill="#FFF7ED" stroke="#9A3412" stroke-dasharray="3 2"/><text x="${n(f.x + 2)}" y="${n(f.y + 12)}" font-size="10" fill="#9A3412">${esc(label)}</text>`;
+  }
+  // Direct outer shadows share the already-painted silhouette. Never cast a
+  // shadow from a warning placeholder or replace transparent pixels by a box.
+  // Nonzero blur is a declared Gaussian review approximation, not Office's
+  // discrete blur kernel. All filtering stays in the optional SVG/raster path.
+  function outerShadow(node, svg, diagnosticStart) {
+    const s = node.native, shadow = s.shadow, field = `${node.kind}.shadow`;
+    if (!shadow) return svg;
+    const reject = (message, status = "partial") => {
+      limit(node, field, "preview.scene.paint.shadow", message, status);
+      return svg;
+    };
+    const fields = ["colorRgb", "colorScheme", "blurRadiusEmu", "distanceEmu", "directionAngle60000",
+      "opacityThousandthPercent", "alignment", "rotateWithShape", "scaleXThousandthPercent",
+      "scaleYThousandthPercent", "skewXAngle60000", "skewYAngle60000"];
+    unused(PresentationShadowSchema, shadow, fields, node, `${field}.`);
+    if (Object.keys(shadow).some(key => key !== "$typeName" && !fields.includes(key)) ||
+        shadow.$unknown?.length) return reject("Unknown shadow fields cannot establish the effect silhouette", "unavailable");
+    if (shadow.colorScheme) return reject("Shadow requires resolved direct RGB; theme colors are not guessed",
+      shadow.colorRgb ? "unavailable" : "partial");
+    if (!/^[0-9a-f]{6}$/iu.test(shadow.colorRgb)) return reject("Invalid direct shadow RGB", "unavailable");
+    const blur = scenePoints(shadow.blurRadiusEmu ?? 0n), distance = scenePoints(shadow.distanceEmu ?? 0n);
+    const direction = shadow.directionAngle60000 ?? 0, opacity = shadow.opacityThousandthPercent ?? 100000;
+    if (!Number.isFinite(blur) || blur < 0 || blur > 1000 || !Number.isFinite(distance) || distance < 0 || distance > 100000 ||
+        !Number.isInteger(direction) || direction < 0 || direction >= 21600000 ||
+        !Number.isInteger(opacity) || opacity < 0 || opacity > 100000 ||
+        shadow.alignment !== undefined && !["tl", "t", "tr", "l", "ctr", "r", "bl", "b", "br"].includes(shadow.alignment) ||
+        shadow.rotateWithShape !== undefined && typeof shadow.rotateWithShape !== "boolean")
+      return reject("Invalid shadow geometry, alignment or opacity", "unavailable");
+    if ((shadow.scaleXThousandthPercent ?? 100000) !== 100000 || (shadow.scaleYThousandthPercent ?? 100000) !== 100000 ||
+        (shadow.skewXAngle60000 ?? 0) !== 0 || (shadow.skewYAngle60000 ?? 0) !== 0)
+      return reject("Scaled/skewed outer-shadow silhouettes are not yet mapped");
+    // With identity scale/skew every alignment has the same offset. Preserve
+    // explicit zero alpha without requiring an otherwise invisible mask.
+    if (opacity === 0) return `<g data-officekit-shadow="transparent">${svg}</g>`;
+    // A shape shadow follows the glyphs text() actually paints. Known language
+    // metadata and an East Asian face identical to the selected face retain
+    // their text-layout warnings without invalidating that local alpha mask.
+    // Different faces, other text paint/effects and unknown fields still block.
+    const textBodyPath = `${node.scenePath}.shape.textBody.`;
+    const localTextMetadata = d => {
+      if (d.status !== "partial" || d.reason !== "preview.scene.paint.unmapped" || !d.scenePath.startsWith(textBodyPath)) return false;
+      const match = /^paragraphs\[(\d+)\]\.(?:runs\[(\d+)\]|defaultRunProperties)\.(language|fontFamilyEastAsia)$/u.exec(d.scenePath.slice(textBodyPath.length));
+      if (!match) return false;
+      if (match[3] === "language") return true;
+      const paragraph = s.textBody.paragraphs[Number(match[1])];
+      const defaults = paragraph.defaultRunStyle?.case === "defaultRunProperties" ? paragraph.defaultRunStyle.value : {};
+      const selectedFace = run => run.fontFamily || defaults.fontFamily || "sans-serif";
+      if (match[2] !== undefined) {
+        const run = paragraph.runs[Number(match[2])];
+        return run.fontFamilyEastAsia === selectedFace(run);
+      }
+      return paragraph.runs.every(run => run.content.case === "lineBreak" || defaults.fontFamilyEastAsia === selectedFace(run));
+    };
+    if (diagnostics.slice(diagnosticStart).some(d => d.status === "unavailable" || d.status === "opaque" ||
+        d.reason === "preview.scene.paint.unmapped" && !localTextMetadata(d) ||
+        ["preview.scene.unknown-field", "preview.scene.paint.preset",
+          "preview.scene.paint.line-join-inherited"].includes(d.reason)))
+      return reject("Unresolved paint or geometry prevents a trustworthy shadow silhouette");
+    if (diagnostics.some(d => d.reason === "preview.scene.unknown-field" &&
+        (d.scenePath === node.scenePath || d.scenePath.startsWith(`${node.scenePath}.`))))
+      return reject("Unknown native descendants prevent a trustworthy shadow silhouette", "unavailable");
+    // Imported no-text shapes still carry an empty p:txBody. Its presence is
+    // not visible ink. A shape shadow includes its already-painted text too;
+    // independent run/paragraph effects remain separately diagnosed by text().
+    const hasTextInk = s.textBody ? s.textBody.paragraphs.some(p =>
+      p.runs.some(r => r.content.case === "text" ? r.content.value.length > 0 : r.content.case && r.content.case !== "lineBreak") ||
+      p.bullet?.case && p.bullet.case !== "noBullet") : Boolean(s.text);
+    if ([s.glow, s.softEdge, s.innerShadow, s.reflection].some(Boolean))
+      return reject("Effect composition must be resolved before casting an outer shadow");
+    const alphas = node.kind === "shape"
+      ? [s.fillOpacityThousandthPercent, s.lineOpacityThousandthPercent, s.imageFill?.opacityThousandthPercent,
+        ...(s.gradientFill?.stops ?? []).map(stop => stop.opacityThousandthPercent),
+        ...(s.textBody?.paragraphs ?? []).flatMap(p => [p.bulletColorOpacityThousandthPercent,
+          p.defaultRunStyle?.case === "defaultRunProperties" ? p.defaultRunStyle.value.colorOpacityThousandthPercent : undefined,
+          ...p.runs.map(r => r.colorOpacityThousandthPercent)])]
+      : [s.opacityThousandthPercent, s.border?.opacityThousandthPercent];
+    if (alphas.some(alpha => alpha !== undefined && alpha !== 0 && alpha !== 100000))
+      return reject("Partial paint opacity and shadow opacity have unresolved composition semantics");
+    // Raster alpha remains in SourceAlpha, including crop/mask edges. It is
+    // distinct from the direct paint opacity rejected above.
+    let bounds = node.frame;
+    const paths = node.kind === "shape" ? s.customPaths : s.customMaskPaths;
+    if (paths?.length) {
+      try { bounds = nativePathBounds(paths, node.frame); }
+      catch (error) { return reject(`Shadow path bounds unavailable: ${error.message}`); }
+    }
+    let dx = distance * Math.cos(direction / 60000 * Math.PI / 180);
+    let dy = distance * Math.sin(direction / 60000 * Math.PI / 180);
+    if (shadow.rotateWithShape === false) {
+      // Inverse of the owning frame's rotation/reflection keeps the offset in
+      // its parent's axes; the silhouette still follows the object's geometry.
+      const angle = (node.transform?.rotation ?? 0) * Math.PI / 180;
+      [dx, dy] = [(Math.cos(angle) * dx + Math.sin(angle) * dy) * (node.transform?.flipH ? -1 : 1),
+        (-Math.sin(angle) * dx + Math.cos(angle) * dy) * (node.transform?.flipV ? -1 : 1)];
+    }
+    dx = Math.abs(dx) < 1e-10 ? 0 : dx;
+    dy = Math.abs(dy) < 1e-10 ? 0 : dy;
+    const sigma = blur / 2;
+    const pen = scenePoints(node.kind === "shape" ? s.lineWidthEmu : s.border?.widthEmu ?? 0n);
+    // Four pen widths cover the SVG default miter limit; three sigma covers
+    // the declared review kernel. Region includes both original and shadow.
+    const pad = Math.max(1, 4 * pen) + 3 * sigma;
+    const region = { x: Math.min(bounds.x, bounds.x + dx) - pad, y: Math.min(bounds.y, bounds.y + dy) - pad,
+      width: bounds.width + Math.abs(dx) + pad * 2, height: bounds.height + Math.abs(dy) + pad * 2 };
+    if (region.width <= 0 || region.height <= 0) return reject("Shadow requires nonempty bounds");
+    if (blur > 0) limit(node, field, "preview.scene.paint.shadow-blur-approximation",
+      "Gaussian sigma=blur/2 is a bounded review approximation; host blur kernel and edge pixels remain unverified");
+    if (node.transform && (node.transform.rotation || node.transform.flipH || node.transform.flipV))
+      limit(node, field, "preview.scene.paint.shadow-transform-review", "Frame-relative offset mapped; external host transform fidelity remains unverified");
+    const id = `officekit-shadow-${shadowSequence++}`;
+    if (hasTextInk) {
+      if (!(bounds.width > 0) || !(bounds.height > 0)) return reject("Text shadow needs nondegenerate geometry bounds");
+      // SVG object bounds include unpainted geometry and the laid-out glyph
+      // cells, even when text overflows its frame. The known geometry bounds
+      // are a lower bound on these dimensions; proportional padding therefore
+      // covers at least the pen/blur margin without estimating font metrics.
+      // Offset a filtered reference, not the filter pixels: distance does not
+      // amplify the proportional filter area for long text. The original is
+      // drawn separately and cannot be clipped by the shadow filter region.
+      const px = pad / bounds.width, py = pad / bounds.height, sourceId = `${id}-source`;
+      limit(node, field, "preview.scene.paint.shadow-text-layout",
+        "Shape shadow follows locally painted glyphs; font metrics, wrapping and independent text effects retain their own limitations");
+      return `<defs><g id="${sourceId}">${svg}</g><filter id="${id}" filterUnits="objectBoundingBox" primitiveUnits="userSpaceOnUse" x="${n(-px)}" y="${n(-py)}" width="${n(1+2*px)}" height="${n(1+2*py)}" color-interpolation-filters="sRGB">` +
+        `<feGaussianBlur in="SourceAlpha" stdDeviation="${n(sigma)}" result="blur"/>` +
+        `<feFlood flood-color="${rgb(shadow.colorRgb)}" flood-opacity="${n(opacity / 100000)}" result="color"/>` +
+        `<feComposite in="color" in2="blur" operator="in"/></filter></defs>` +
+        `<g data-officekit-shadow="outer" data-officekit-shadow-text="true"><g transform="translate(${n(dx)} ${n(dy)})"><use href="#${sourceId}" filter="url(#${id})"/></g><use href="#${sourceId}"/></g>`;
+    }
+    return `<defs><filter id="${id}" filterUnits="userSpaceOnUse" ${box(region)} color-interpolation-filters="sRGB">` +
+      `<feGaussianBlur in="SourceAlpha" stdDeviation="${n(sigma)}" result="blur"/>` +
+      `<feOffset in="blur" dx="${n(dx)}" dy="${n(dy)}" result="offset"/>` +
+      `<feFlood flood-color="${rgb(shadow.colorRgb)}" flood-opacity="${n(opacity / 100000)}" result="color"/>` +
+      `<feComposite in="color" in2="offset" operator="in" result="shadow"/>` +
+      `<feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>` +
+      `<g data-officekit-shadow="outer" filter="url(#${id})">${svg}</g>`;
   }
   function text(node, source = node.native, ownerField = "shape", fallback = {}) {
     const body = source.textBody;
@@ -430,6 +568,11 @@ function paintScene(receipt, { assessInput, integrated }) {
     const inset = (key, selected, fallback) => properties?.[key]?.case === selected ? scenePoints(properties[key].value) : fallback;
     const physicalInsets = [inset("leftInset", "leftInsetEmu", 7.2), inset("topInset", "topInsetEmu", 3.6),
       inset("rightInset", "rightInsetEmu", 7.2), inset("bottomInset", "bottomInsetEmu", 3.6)];
+    if (vertical) for (const side of ["left", "top", "right", "bottom"]) {
+      if (properties?.[`${side}Inset`]?.case !== `${side}InsetEmu`)
+        limit(node, `${ownerField}.textBody.bodyProperties.${side}InsetEmu`, "preview.scene.paint.text-inset-default-review",
+          "Using DrawingML's implied physical inset; external hosts can position absent vertical insets differently from explicit defaults.");
+    }
     const insetOffset = direction === "vertical" ? 1 : direction === "vertical270" ? 3 : 0;
     const [leftInset, topInset, rightInset, bottomInset] = physicalInsets.map((_, i) => physicalInsets[(i + insetOffset) % 4]);
     if (vertical && (f.width - leftInset - rightInset <= 0 || f.height - topInset - bottomInset <= 0)) {
@@ -520,7 +663,7 @@ function paintScene(receipt, { assessInput, integrated }) {
         if (caps === "all") {
           // Change only display text; keep the candidate's literal characters
           // untouched. Language is used for casing, not claimed fully shaped.
-          const language = run.fontLanguage ?? defaults.fontLanguage ?? fallback.fontLanguage;
+          const language = run.language ?? defaults.language ?? fallback.language;
           try { displayed = language ? displayed.toLocaleUpperCase(language) : displayed.toUpperCase(); }
           catch {
             limit(node, `${rp}fontCaps`, "preview.scene.paint.text-capitalization", "Unresolved casing language", "unavailable");
@@ -686,7 +829,7 @@ function paintScene(receipt, { assessInput, integrated }) {
   function shape(node) {
     const s = node.native, f = node.frame;
     unused(content.get("shape"), s, [...frameFields, "geometry", "text", "textBody", "fillRgb", "lineRgb", "lineWidthEmu",
-      "fillOpacityThousandthPercent", "lineOpacityThousandthPercent", "lineStyle", "lineCap", "lineJoin", "transform", "customPaths", "gradientFill", "imageFill", "imageFillAssetId",
+      "fillOpacityThousandthPercent", "lineOpacityThousandthPercent", "lineStyle", "lineCap", "lineJoin", "transform", "customPaths", "gradientFill", "imageFill", "imageFillAssetId", "shadow",
       ...(s.textBody || s.text ? ["textRectangle"] : []),
       ...((s.geometry === "roundRect" || polygonPresets.has(s.geometry)) && !s.customPaths.length ? ["presetAdjustments"] : [])], node, "shape.");
     const outline = linePaint(node, "shape", s.lineStyle === "none" ? "none" : rgb(s.lineRgb), scenePoints(s.lineWidthEmu),
@@ -795,7 +938,7 @@ function paintScene(receipt, { assessInput, integrated }) {
   }
   function image(node) {
     const s = node.native, asset = view.asset(s.svgAssetId || s.assetId);
-    unused(content.get("image"), s, [...frameFields, "assetId", "svgAssetId", "opacityThousandthPercent", "transform", "altText", "accessibilityTitle", "accessibilityDecorative", "crop", "maskPreset", "maskPresetAdjustments", "customMaskPaths", "border"], node, "image.");
+    unused(content.get("image"), s, [...frameFields, "assetId", "svgAssetId", "opacityThousandthPercent", "transform", "altText", "accessibilityTitle", "accessibilityDecorative", "crop", "maskPreset", "maskPresetAdjustments", "customMaskPaths", "border", "shadow"], node, "image.");
     if (!asset?.data?.byteLength) { limit(node, "image.assetId", "preview.scene.paint.asset", s.assetId, "unavailable"); return placeholder(node, "image unavailable"); }
     // A parameter-free native tile is not a stretch. Until intrinsic sizing
     // and DPI semantics are available, drawing one stretched image invents
@@ -1610,6 +1753,7 @@ function paintScene(receipt, { assessInput, integrated }) {
       if (!node.frame) throw new TypeError("Missing native frame");
       for (const value of Object.values(node.frame)) numeric(value);
       if (node.frame.width < 0 || node.frame.height < 0) throw new RangeError("Negative native frame");
+      const diagnosticStart = diagnostics.length;
       if (node.kind === "group") {
         svg = paintGroup(node, node, "group");
       } else if (node.kind === "diagram") {
@@ -1633,6 +1777,7 @@ function paintScene(receipt, { assessInput, integrated }) {
       else if (node.kind === "table") svg = table(node);
       else if (node.kind === "chart") svg = chart(node);
       else { limit(node, node.kind, "preview.scene.paint.content", node.kind, "opaque"); svg = placeholder(node, `${node.kind}: not painted`); }
+      if (node.kind === "shape" || node.kind === "image") svg = outerShadow(node, svg, diagnosticStart);
       const transform = frameTransform(node.frame, node.transform);
       transformedScenePaths.add(node.scenePath);
       return `<g ${identity} transform="${transform}">${svg}</g>`;

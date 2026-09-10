@@ -939,11 +939,32 @@ const turkishCaps = paintPpjSceneSvg(fixture(scene => {
   const p = scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0];
   p.runs[0].content.value = "i ı\nß & <";
   p.runs[0].fontCaps = "all";
-  p.runs[0].fontLanguage = "tr-TR";
+  p.runs[0].language = "tr-TR";
 }));
 assert.ok(turkishCaps.pages[0].svg.includes(">İ I</tspan>"));
 assert.ok(turkishCaps.pages[0].svg.includes(">SS &amp; &lt;</tspan>"));
-assert.ok(turkishCaps.diagnostics.some(d => d.scenePath.endsWith("fontLanguage")), "Casing is not full language/shaping support");
+assert.ok(turkishCaps.diagnostics.some(d => d.scenePath.endsWith(".language")), "Casing is not full language/shaping support");
+for(const [language,runLanguage,expected]of [["tr-TR",undefined,"İ I"],["tr-TR","en-US","I I"],["en-US","az-Latn","İ I"]]) {
+  const input=fixture(scene=>{
+    const p=scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0];
+    p.defaultRunStyle.value.language=language;p.defaultRunStyle.value.fontCaps="all";
+    p.runs[0].content.value="i ı";if(runLanguage)p.runs[0].language=runLanguage;
+  });
+  const before=toBinary(PresentationPreviewSceneSchema,input.previewScene),painted=paintPpjSceneSvg(input);
+  assert.ok(painted.pages[0].svg.includes(`>${expected}</tspan>`));
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema,input.previewScene),before);
+}
+const cellCaps=paintPpjSceneSvg(fixture(scene=>{
+  const table=scene.presentation.slides[0].elements[7];scene.presentation.slides[0].elements=[table];
+  const cell=table.content.value.rows[1].cells[0];cell.text="i ı";cell.textStyle.language="tr-TR";cell.textStyle.fontCaps="all";
+}));
+assert.ok(cellCaps.pages[0].svg.includes(">İ I</tspan>"));
+const invalidCapsLanguage=paintPpjSceneSvg(fixture(scene=>{
+  const run=scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0].runs[0];
+  run.fontCaps="all";run.language="invalid_tag";
+}));
+assert.equal(invalidCapsLanguage.reliability.status,"failed");
+assert.ok(invalidCapsLanguage.diagnostics.some(d=>d.reason==="preview.scene.paint.text-capitalization"));
 const paragraphSpacing = fixture(scene => {
   const body = scene.presentation.slides[0].elements[0].content.value.textBody;
   const p = body.paragraphs[0];
@@ -1117,6 +1138,80 @@ const triangleTextRegion = fixture(scene => {
 const triangleTextBefore = toBinary(PresentationPreviewSceneSchema, triangleTextRegion.previewScene);
 assert.match(paintPpjSceneSvg(triangleTextRegion).pages[0].svg, /<text x="92\.2" y="119\.6"/);
 assert.deepEqual(toBinary(PresentationPreviewSceneSchema, triangleTextRegion.previewScene), triangleTextBefore);
+// Fixed 240x120 native regions, including aliases and shape-local custom EMU
+// edges. Paths deliberately use a different 100x100 viewport.
+const textRegionProfiles = [
+  ["rect", [], [0,0,240,120]], ["textbox", [], [0,0,240,120]], ["flowChartProcess", [], [0,0,240,120]],
+  ["roundRect", [50000], [17.5734,17.5734,222.4266,102.4266]],
+  ["ellipse", [], [35.14718625761429,17.573593128807147,204.8528137423857,102.42640687119285]],
+  ["diamond", [], [60,30,180,90]], ["flowChartDecision", [], [60,30,180,90]],
+  ["triangle", [75000], [90,60,210,120]], ["rtTriangle", [], [20,70,140,110]],
+  ["trapezoid", [75000], [60,30,180,120]], ["parallelogram", [75000], [57.5,28.75,182.5,91.25]],
+  ["chevron", [75000], [90,0,150,120]], ["custom-literal", [], [30,40,170,110]], ["custom-builtins", [], [0,0,240,120]],
+];
+const regionShape = (preset, adjustments, properties = {}, alignment = "left") => {
+  const data = { ...frame(10,40,240,120), geometry: preset, presetAdjustments: adjustments,
+    fillRgb: "008800", textBody: { bodyProperties: properties,
+      paragraphs: [{ alignment, runs: [{ content: { case: "text", value: "F0" }, fontSizePoints: 10 }] }] } };
+  if (preset.startsWith("custom-")) {
+    data.geometry = ""; data.customPaths = [clone(PresentationCustomGeometryPathSchema, polygon)];
+    data.textRectangle = preset === "custom-literal" ? { leftEmu: emu(30), topEmu: emu(40), rightEmu: emu(170), bottomEmu: emu(110) }
+      : { leftReference: "l", topReference: "t", rightReference: "w", bottomReference: "h" };
+  }
+  return data;
+};
+for (const [preset, adjustments, [l,t,r,b]] of textRegionProfiles)
+  for (const direction of ["horizontal", "vertical", "vertical270"]) for (const anchor of ["top", "center", "bottom"])
+    for (const alignment of ["left", "center", "right"]) {
+      const physical = [2,1,3,4], offset = direction === "vertical" ? 1 : direction === "vertical270" ? 3 : 0;
+      const [li,ti,ri,bi] = physical.map((_,i) => physical[(i+offset)%4]);
+      const properties = { verticalText: {case:"verticalTextMode",value:direction}, anchor: {case:"verticalAnchor",value:anchor},
+        leftInset:{case:"leftInsetEmu",value:emu(2)},topInset:{case:"topInsetEmu",value:emu(1)},
+        rightInset:{case:"rightInsetEmu",value:emu(3)},bottomInset:{case:"bottomInsetEmu",value:emu(4)} };
+      const input = fixture(scene => { scene.presentation.slides[0].elements = [child("region", "shape", regionShape(preset,adjustments,properties,alignment))]; });
+      const before = toBinary(PresentationPreviewSceneSchema,input.previewScene), result = paintPpjSceneSvg(input);
+      let x=10+l,y=40+t,w=r-l,h=b-t;
+      if(direction!=="horizontal") { x+=(w-h)/2; y+=(h-w)/2; [w,h]=[h,w]; }
+      const expectedX=alignment==="left" ? x+li : alignment==="right" ? x+w-ri : (2*x+li+w-ri)/2;
+      const match=result.pages[0].svg.match(/<text x="([^"]+)" y="([^"]+)" text-anchor=/);
+      assert.ok(match, `${preset}/${direction}/${anchor}/${alignment}: readable text`);
+      assert.ok(Math.abs(Number(match[1])-expectedX)<1e-9);
+      assert.ok(Math.abs(Number(match[2])-(y+ti+10))<1e-9);
+      const shift=anchor==="center" ? (h-ti-bi-12)/2 : anchor==="bottom" ? h-ti-bi-12 : 0;
+      const translation=result.pages[0].svg.match(/data-officekit-text-anchor="[^"]+" transform="translate\(0 ([^)]+)\)"/);
+      assert.ok(Math.abs(Number(translation?.[1])-shift)<1e-9);
+      assert.ok(!result.diagnostics.some(d=>d.reason==="preview.scene.paint.text-rectangle"));
+      assert.ok(result.diagnostics.some(d=>d.reason==="preview.scene.paint.text-layout"));
+      assert.deepEqual(toBinary(PresentationPreviewSceneSchema,input.previewScene),before);
+    }
+for(const [preset,adjustments] of textRegionProfiles) for(const angle of [-90,0,90]) {
+  const edges=textRegionProfiles.find(p=>p[0]===preset)[2],cx=10+(edges[0]+edges[2])/2,cy=40+(edges[1]+edges[3])/2;
+  const input=fixture(scene=>{
+    const s=regionShape(preset,adjustments,{rotation:{case:"rotationAngle60000",value:angle*60000}});
+    s.transform={flipHorizontal:true,rotationAngle60000:15*60000};
+    scene.presentation.slides[0].elements=[child("rotated-region","shape",s)];
+  });
+  const svg=paintPpjSceneSvg(input).pages[0].svg;
+  const m=svg.match(/data-officekit-text-rotation="[^"]+" transform="rotate\(([^ ]+) ([^ ]+) ([^)]+)\)"/);
+  assert.ok(m); assert.equal(Number(m[1]),angle);
+  assert.ok(Math.abs(Number(m[2])-cx)<1e-9 && Math.abs(Number(m[3])-cy)<1e-9);
+  const mirror=svg.match(/data-officekit-text-reflection="compensated" transform="translate\(([^ ]+) 0\)/);
+  assert.ok(Math.abs(Number(mirror?.[1])-2*cx)<1e-9);
+}
+for (const edit of [s=>{s.geometry="star5";}, s=>{s.geometry="rect";s.presetAdjustments=[1];},
+  s=>{s.geometry="parallelogram";s.presetAdjustments=[21600000];},
+  s=>{s.textRectangle={leftEmu:0n,rightEmu:emu(10),bottomEmu:emu(10)};},
+  ...["left","top","right","bottom"].map(k=>s=>{s.geometry="";s.customPaths=[clone(PresentationCustomGeometryPathSchema,polygon)];
+    s.textRectangle={leftEmu:0n,topEmu:0n,rightEmu:emu(20),bottomEmu:emu(20),[`${k}Reference`]:"unresolvedGuide"};}),
+  s=>{s.geometry="";s.customPaths=[clone(PresentationCustomGeometryPathSchema,polygon)];s.textRectangle={leftEmu:emu(20),rightEmu:emu(10),bottomEmu:emu(10)};},
+]) {
+  const input=fixture(scene=>{const s=regionShape("rect",[]);edit(s);scene.presentation.slides[0].elements=[child("bad-region","shape",s)];});
+  const before=toBinary(PresentationPreviewSceneSchema,input.previewScene), result=paintPpjSceneSvg(input);
+  assert.equal(result.reliability.status,"failed");
+  assert.ok(result.diagnostics.some(d=>d.reason==="preview.scene.paint.text-rectangle"&&d.scenePath.endsWith(".shape.textRectangle")));
+  assert.match(result.pages[0].svg,/>F0<\/tspan>/,"literal text survives as explicitly unavailable layout");
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema,input.previewScene),before);
+}
 // Fixed point lists are independent expectations for three consumers. In
 // particular, trapezoid/parallelogram/chevron use the SHORT side for offsets.
 for (const join of [undefined, "round", "bevel", "miter"]) {
@@ -1290,6 +1385,31 @@ for (const alignment of ["left", "center", "right"]) for (const margins of [unde
   assert.ok(!result.diagnostics.some(d => d.reason === "preview.scene.paint.text-direction" || d.reason === "preview.scene.paint.unmapped" && d.scenePath.endsWith("verticalTextMode")));
   assert.ok(result.diagnostics.some(d => d.reason === "preview.scene.paint.text-layout"));
   assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+// Omitted DrawingML margins must equal explicit default values in every
+// writing direction; native presence remains different. Zero is not default.
+for(const mode of ["horizontal","vertical","vertical270"]) {
+  const defaults=[7.2,3.6,7.2,3.6],sides=["left","top","right","bottom"];
+  const make=(mask,values=defaults)=>fixture(scene=>{
+    const shape=scene.presentation.slides[0].elements[0].content.value;
+    const schema=content.get("shape").fields.find(f=>f.localName==="textBody").message;
+    shape.textBody.bodyProperties=create(schema.fields.find(f=>f.localName==="bodyProperties").message,{
+      verticalText:{case:"verticalTextMode",value:mode},anchor:{case:"verticalAnchor",value:"top"},
+      ...Object.fromEntries(sides.flatMap((side,i)=>mask&(1<<i)?[[`${side}Inset`,{case:`${side}InsetEmu`,value:emu(values[i])}]]:[]))
+    });
+  });
+  const expected=paintPpjSceneSvg(make(15)).pages[0].svg;
+  for(let mask=0;mask<16;mask++) {
+    const input=make(mask),before=toBinary(PresentationPreviewSceneSchema,input.previewScene),painted=paintPpjSceneSvg(input);
+    assert.equal(painted.pages[0].svg,expected,`${mode}/${mask}: implied defaults preserve actual drawing`);
+    const warnings=painted.diagnostics.filter(d=>d.reason==="preview.scene.paint.text-inset-default-review");
+    assert.deepEqual(warnings.map(d=>d.scenePath.split(".").at(-1)).sort(),
+      mode==="horizontal"?[]:sides.filter((side,i)=>!(mask&(1<<i))).map(side=>`${side}InsetEmu`).sort());
+    assert.deepEqual(toBinary(PresentationPreviewSceneSchema,input.previewScene),before);
+  }
+  const zero=paintPpjSceneSvg(make(15,[0,0,0,0]));
+  assert.notEqual(zero.pages[0].svg,expected,"explicit zero must remain visible");
+  assert.ok(!zero.diagnostics.some(d=>d.reason==="preview.scene.paint.text-inset-default-review"));
 }
 for (const mode of ["vertical", "vertical270"]) for (const angle of [-90, 0, 12.25, 90]) for (const flip of [false, true]) {
   const input = fixture(scene => {
@@ -2065,6 +2185,158 @@ for (const edit of [
 for (const hole of [0, 9, 91, 100]) {
   const failed = paintPpjSceneSvg(circularFixture(c => { c.doughnutHoleSize = hole; }, 5));
   assert.equal(failed.reliability.status, "failed");
+}
+// Outer-shadow filters preserve the actual paint alpha, offset quadrants and
+// optional-value presence. Unsupported composition never shadows a placeholder.
+function shadowFixture(edit = () => {}, kind = "shape") {
+  return fixture(scene => {
+    const value = kind === "shape"
+      ? { ...frame(100, 100, 100, 80), geometry: "rect", fillRgb: "0088FF", lineWidthEmu: 0n }
+      : { ...frame(100, 100, 100, 80), assetId: "native-asset" };
+    const node = child("shadow-owner", kind, { ...value, shadow: { colorRgb: "FF0000", distanceEmu: emu(20), opacityThousandthPercent: 50000 } });
+    edit(node.content.value, node);
+    scene.presentation.slides[0].elements = [node];
+  });
+}
+for (const kind of ["shape", "image"]) for (const [direction, dx, dy] of [[0,20,0],[90,0,20],[180,-20,0],[270,0,-20]]) {
+  const input = shadowFixture(s => { s.shadow.directionAngle60000 = direction * 60000; }, kind);
+  const before = toBinary(PresentationPreviewSceneSchema, input.previewScene), painted = paintPpjSceneSvg(input), svg = painted.pages[0].svg;
+  assert.match(svg, new RegExp(`<feOffset in="blur" dx="${dx}" dy="${dy}"`));
+  assert.match(svg, /<feGaussianBlur in="SourceAlpha" stdDeviation="0"/);
+  assert.match(svg, /<feFlood flood-color="#FF0000" flood-opacity="0.5"/);
+  assert.match(svg, /<feMergeNode in="shadow"\/><feMergeNode in="SourceGraphic"\/>/);
+  assert.ok(!painted.diagnostics.some(d => d.scenePath.includes(".shadow")));
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), before);
+}
+for (const alignment of [undefined,"tl","t","tr","l","ctr","r","bl","b","br"]) {
+  const painted = paintPpjSceneSvg(shadowFixture(s => {
+    if (alignment !== undefined) s.shadow.alignment = alignment;
+    s.shadow.scaleXThousandthPercent = 100000; s.shadow.scaleYThousandthPercent = 100000;
+    s.shadow.skewXAngle60000 = 0; s.shadow.skewYAngle60000 = 0;
+  }));
+  assert.match(painted.pages[0].svg, /data-officekit-shadow="outer"/);
+  assert.ok(!painted.diagnostics.some(d => d.scenePath.includes(".shadow")));
+}
+for (const opacity of [undefined,0,1,50000,100000]) {
+  const painted = paintPpjSceneSvg(shadowFixture(s => {
+    if (opacity === undefined) delete s.shadow.opacityThousandthPercent;
+    else s.shadow.opacityThousandthPercent = opacity;
+    s.shadow.distanceEmu = 0n;
+  }));
+  if (opacity === 0) {
+    assert.match(painted.pages[0].svg, /data-officekit-shadow="transparent"/);
+    assert.doesNotMatch(painted.pages[0].svg, /<filter /);
+  } else assert.match(painted.pages[0].svg, new RegExp(`flood-opacity="${(opacity ?? 100000) / 100000}"`));
+}
+for (const blur of [1,8,16,1000]) {
+  const painted = paintPpjSceneSvg(shadowFixture(s => { s.shadow.blurRadiusEmu = emu(blur); }));
+  assert.match(painted.pages[0].svg, new RegExp(`stdDeviation="${blur/2}"`));
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.shadow-blur-approximation"));
+}
+for (const rotateWithShape of [undefined,true,false]) for (const [rotation,flipH,flipV] of [[90,false,false],[0,true,false],[90,true,true]]) {
+  const painted = paintPpjSceneSvg(shadowFixture(s => {
+    s.transform = create(content.get("shape").fields.find(f=>f.localName==="transform").message,
+      {rotationAngle60000:rotation*60000,flipHorizontal:flipH,flipVertical:flipV});
+    if (rotateWithShape !== undefined) s.shadow.rotateWithShape = rotateWithShape;
+  }));
+  const expected = rotateWithShape !== false ? [20,0] : rotation === 0 ? [-20,0] : [0,flipV?20:-20];
+  assert.match(painted.pages[0].svg,new RegExp(`dx="${expected[0]}" dy="${expected[1]}"`));
+  assert.ok(painted.diagnostics.some(d=>d.reason==="preview.scene.paint.shadow-transform-review"));
+}
+for (const edit of [
+  s=>{s.shadow.colorScheme="accent1";}, s=>{s.shadow.colorRgb="bad";},
+  s=>{s.shadow.blurRadiusEmu=-1n;},s=>{s.shadow.distanceEmu=-1n;},s=>{s.shadow.opacityThousandthPercent=100001;},
+  s=>{s.shadow.directionAngle60000=21600000;},s=>{s.shadow.alignment="invalid";},
+  s=>{s.shadow.scaleXThousandthPercent=0;},s=>{s.shadow.scaleYThousandthPercent=-100000;},
+  s=>{s.shadow.skewXAngle60000=1;},s=>{s.shadow.skewYAngle60000=1;},
+  s=>{s.fillOpacityThousandthPercent=50000;},
+  s=>{s.geometry="star5";},s=>{s.fillScheme="accent1";},s=>{s.futureMask=1;},
+  s=>{s.shadow.futureEffect=1;},
+]) {
+  const input=shadowFixture(edit),painted=paintPpjSceneSvg(input);
+  assert.ok(painted.diagnostics.some(d=>d.reason==="preview.scene.paint.shadow"));
+  assert.doesNotMatch(painted.pages[0].svg,/<filter /);
+  assert.notEqual(painted.reliability.status,"passed");
+}
+for(const edit of [s=>{s.shadow.blurRadiusEmu=-1n;},s=>{s.shadow.opacityThousandthPercent=100001;},s=>{s.shadow.directionAngle60000=21600000;},s=>{s.shadow.futureEffect=1;},s=>{s.shadow.colorRgb="bad";}]) {
+  const painted=paintPpjSceneSvg(shadowFixture(edit));
+  assert.equal(painted.reliability.status,"failed");
+  assert.ok(painted.diagnostics.some(d=>d.reason==="preview.scene.paint.shadow"&&d.status==="unavailable"));
+}
+for(const empty of [[],[{runs:[]}],[{runs:[{content:{case:"text",value:""}}]}]]) {
+  const painted=paintPpjSceneSvg(shadowFixture(s=>{
+    s.textBody=create(content.get("shape").fields.find(f=>f.localName==="textBody").message,{paragraphs:empty});
+  }));
+  assert.match(painted.pages[0].svg,/data-officekit-shadow="outer"/);
+  assert.ok(!painted.diagnostics.some(d=>d.reason==="preview.scene.paint.shadow"));
+}
+for (const [text, blur, width, height] of [["F0",0,100,80],["WWWWWWWWWWWW",8,20,10],["F0\nIL\nF0",16,30,20]]) {
+  const input=shadowFixture(s=>{s.text=text;s.fillRgb="";s.widthEmu=emu(width);s.heightEmu=emu(height);s.shadow.blurRadiusEmu=emu(blur);});
+  const before=toBinary(PresentationPreviewSceneSchema,input.previewScene),painted=paintPpjSceneSvg(input),svg=painted.pages[0].svg;
+  assert.match(svg,/data-officekit-shadow-text="true"/);
+  assert.match(svg,/filterUnits="objectBoundingBox" primitiveUnits="userSpaceOnUse"/);
+  const sourceId=svg.match(/<g id="(officekit-shadow-\d+-source)">/)[1];
+  assert.equal([...svg.matchAll(new RegExp(`href="#${sourceId}"`,"g"))].length,2);
+  assert.match(svg,new RegExp(`<use href="#${sourceId}" filter="url\\(#officekit-shadow-\\d+\\)"/>`));
+  assert.match(svg,new RegExp(`<use href="#${sourceId}"/></g>`));
+  assert.doesNotMatch(svg,/<feOffset /,"text offset is outside the filter to avoid clipping/area amplification");
+  assert.ok(painted.diagnostics.some(d=>d.reason==="preview.scene.paint.shadow-text-layout"));
+  assert.ok(painted.diagnostics.some(d=>d.reason==="preview.scene.paint.text-layout"));
+  assert.ok(!painted.diagnostics.some(d=>d.reason==="preview.scene.paint.shadow"));
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema,input.previewScene),before);
+}
+for(const owner of ["run","default"])for(const language of ["en-US","tr-TR","zh-CN"]) {
+  const input=shadowFixture(s=>{
+    s.textBody=create(content.get("shape").fields.find(f=>f.localName==="textBody").message,{paragraphs:[{
+      runs:[{content:{case:"text",value:"F0"},...(owner==="run"?{language}:{})}],
+      ...(owner==="default"?{defaultRunStyle:{case:"defaultRunProperties",value:{language}}}:{})
+    }]});
+  });
+  const before=toBinary(PresentationPreviewSceneSchema,input.previewScene),painted=paintPpjSceneSvg(input);
+  assert.match(painted.pages[0].svg,/data-officekit-shadow-text="true"/);
+  assert.ok(painted.diagnostics.some(d=>d.reason==="preview.scene.paint.unmapped"&&d.scenePath.endsWith(".language")));
+  assert.ok(painted.diagnostics.some(d=>d.reason==="preview.scene.paint.shadow-text-layout"));
+  assert.ok(!painted.diagnostics.some(d=>d.reason==="preview.scene.paint.shadow"));
+  assert.notEqual(painted.reliability.status,"passed");
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema,input.previewScene),before);
+}
+for(const owner of ["run","default"])for(const sameFace of [true,false]) {
+  const input=shadowFixture(s=>{
+    const style={fontFamily:"Liberation Sans",fontFamilyEastAsia:sameFace?"Liberation Sans":"Different Face"};
+    s.textBody=create(content.get("shape").fields.find(f=>f.localName==="textBody").message,{paragraphs:[{
+      runs:[{content:{case:"text",value:"F0"},...(owner==="run"?style:{})}],
+      ...(owner==="default"?{defaultRunStyle:{case:"defaultRunProperties",value:style}}:{})
+    }]});
+  });
+  const painted=paintPpjSceneSvg(input);
+  assert.equal(painted.pages[0].svg.includes('data-officekit-shadow-text="true"'),sameFace);
+  assert.ok(painted.diagnostics.some(d=>d.reason==="preview.scene.paint.unmapped"&&d.scenePath.endsWith(".fontFamilyEastAsia")));
+  assert.equal(painted.diagnostics.some(d=>d.reason==="preview.scene.paint.shadow"),!sameFace);
+  assert.notEqual(painted.reliability.status,"passed");
+}
+for(const owner of ["run","default"])for(const field of ["shadow","futureLanguage"]) {
+  const painted=paintPpjSceneSvg(shadowFixture(s=>{
+    s.textBody=create(content.get("shape").fields.find(f=>f.localName==="textBody").message,{paragraphs:[{
+      runs:[{content:{case:"text",value:"F0"},language:"en-US"}],
+      defaultRunStyle:{case:"defaultRunProperties",value:{language:"en-US"}}
+    }]});
+    const p=s.textBody.paragraphs[0],target=owner==="run"?p.runs[0]:p.defaultRunStyle.value;
+    target[field]=field==="shadow"?s.shadow:"en-US";
+  }));
+  assert.doesNotMatch(painted.pages[0].svg,/data-officekit-shadow-text/);
+  assert.ok(painted.diagnostics.some(d=>d.reason==="preview.scene.paint.shadow"));
+  if(field==="futureLanguage")assert.equal(painted.reliability.status,"failed");
+}
+for(const partialOwner of ["run","default","bullet"]) {
+  const painted=paintPpjSceneSvg(shadowFixture(s=>{
+    s.textBody=create(content.get("shape").fields.find(f=>f.localName==="textBody").message,{paragraphs:[{
+      runs:[{content:{case:"text",value:"F0"},...(partialOwner==="run"?{colorOpacityThousandthPercent:50000}:{})}],
+      ...(partialOwner==="default"?{defaultRunStyle:{case:"defaultRunProperties",value:{colorOpacityThousandthPercent:50000}}}:{}),
+      ...(partialOwner==="bullet"?{bulletColorOpacityThousandthPercent:50000}:{})
+    }]});
+  }));
+  assert.ok(painted.diagnostics.some(d=>d.reason==="preview.scene.paint.shadow"));
+  assert.doesNotMatch(painted.pages[0].svg,/data-officekit-shadow-text/);
 }
 const limits = paintPpjSceneSvg(fixture(scene => {
   scene.presentation.slides[0].elements[0].content.value.shadow = create(

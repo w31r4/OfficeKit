@@ -334,6 +334,9 @@ try {
   const backgroundImageCases = [], backgroundImageFailures = [], backgroundImageRejections = [];
   const shapeImageCases = [], shapeImageFailures = [];
   const polygonPresetCases = [], polygonPresetFailures = [];
+  const textRegionCases = [], textRegionFailures = [];
+  const shadowCases = [], shadowFailures = [];
+  const textShadowCases = [], textShadowFailures = [];
   const radialGradientCases = [], radialGradientFailures = [], radialGeometryCases = [];
   const brightnessCases = [], brightnessFailures = [];
   async function backgroundGradientPixels(name, receipt, angle, alpha = 0, removed = false) {
@@ -864,6 +867,69 @@ try {
     assert.equal(sha256(source), sourceHash);
     assert.equal(JSON.stringify(program), programBefore);
   }
+  const localeCapsCases=[],localeCapsFailures=[];
+  const localeProfiles=[{name:"run-tr",language:"tr-TR",expected:"İ I SS"},
+    {name:"run-en",language:"en-US",expected:"I I SS"},
+    {name:"default-tr",defaultLanguage:"tr-TR",expected:"İ I SS"},
+    {name:"override-en",defaultLanguage:"tr-TR",language:"en-US",expected:"I I SS"}];
+  function localeProgram(profile,literal="i ı ß",caps="all") {
+    const p=structuredClone(formatProgram),paragraph=p.pages[0].elements[0].text.paragraphs[0],run=paragraph.runs[0];
+    run.text=literal;run.style.capitalization=caps;
+    if(profile.language)run.style.language=profile.language;
+    if(profile.defaultLanguage)paragraph.style={defaultText:{language:profile.defaultLanguage}};
+    return p;
+  }
+  async function checkLocale(name,input,receipt,profile,expected,caps="all") {
+    const native=receipt.previewScene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0];
+    const candidateFile=`locale-${name}-candidate.pptx`;await writeFile(path.join(artifacts,candidateFile),receipt.file,{flag:"wx"});
+    await writeFile(path.join(artifacts,`locale-${name}-input.ppj`),input.program,{flag:"wx"});
+    await writeFile(path.join(artifacts,`locale-${name}-state.json`),JSON.stringify({literal:native.runs[0].content.value,
+      runLanguage:native.runs[0].language,defaultLanguage:native.defaultRunStyle?.value?.language,
+      expectedLanguage:profile.language??profile.defaultLanguage,candidateSha256:sha256(receipt.file),inputSha256:sha256(input.program)},null,2),{flag:"wx"});
+    assert.equal(native.runs[0].content.value,"i ı ß");assert.equal(native.runs[0].fontCaps,caps);
+    assert.equal(native.runs[0].language??native.defaultRunStyle.value.language,profile.language??profile.defaultLanguage);
+    const referenceFile=`locale-${name}-reference.ppj`,referenceProgram=localeProgram(profile,expected,"none");
+    await writeFile(path.join(artifacts,referenceFile),JSON.stringify(referenceProgram),{flag:"wx"});
+    const reference=await compileFormat(referenceProgram),painted=await savePaint(`locale-${name}`,receipt);
+    assert.deepEqual(await capsPixels(`locale-${name}-actual`,receipt),await capsPixels(`locale-${name}-reference`,reference));
+    const publication=await assertProductionEntry(`locale-${name}`,input,receipt,painted);
+    assert.equal(publication.reliability.status,"requires-review");
+    localeCapsCases.push({name,profile,expected,caps,candidateFile,candidateSha256:sha256(receipt.file),inputSha256:sha256(input.program),
+      ...(input.source?.byteLength?{sourceSha256:sha256(input.source)}:{}),referenceFile,referenceSha256:sha256(await readFile(path.join(artifacts,referenceFile))),literalPreserved:true,exactReferencePixels:true});
+  }
+  for(const profile of localeProfiles)try {
+    const input={program:Buffer.from(JSON.stringify(localeProgram(profile))),assets:[]},inputHash=sha256(input.program);
+    const authored=await compilePpjWorkspace(input,{includePreviewScene:true});
+    await checkLocale(`${profile.name}-author`,input,authored,profile,profile.expected);
+    const source=await withoutAuthoredSnapshot(authored.file),sourceHash=sha256(source);
+    await writeFile(path.join(artifacts,`locale-${profile.name}-original.pptx`),source,{flag:"wx"});
+    const projected=await projectPptxToPpj(source,{sourceUri:"locale.pptx",assetRootUri:"assets"});
+    const bound={program:projected.programJson,source,assets:projected.assets},noop=await compilePpjWorkspace(bound,{includePreviewScene:true});
+    assert.deepEqual(noop.file,source);await checkLocale(`${profile.name}-source`,bound,noop,profile,profile.expected);
+    if(profile.name==="run-tr")for(const route of ["semantic","leaf"])for(const edit of ["language","caps"]){
+      let requestHash;
+      const requestFile=`locale-source-${route}-${edit}.request.ppj`;
+      try {
+      const request=JSON.parse(Buffer.from(projected.programJson).toString("utf8")),run=request.pages[0].elements[0].text.paragraphs[0].runs[0];
+      if(route==="leaf"){
+        const leaf=request.pages[0].elements[0].nativeRef.leaves.find(l=>l.kind===(edit==="language"?"fontLanguage":"fontCaps"));assert.ok(leaf);
+        leaf.value=edit==="language"?"en-US":"none";
+      }else if(edit==="language")run.style.language="en-US";else run.style.capitalization="none";
+      const work={...bound,program:Buffer.from(JSON.stringify(request))};requestHash=sha256(work.program);
+      await writeFile(path.join(artifacts,requestFile),work.program,{flag:"wx"});
+      const candidate=await compilePpjWorkspace(work,{includePreviewScene:true});
+      const expected=edit==="language"?"I I SS":"i ı ß",nextProfile=edit==="language"?{...profile,language:"en-US"}:profile;
+      await checkLocale(`source-${route}-${edit}`,work,candidate,nextProfile,expected,edit==="caps"?"none":"all");
+      const fresh=await projectPptxToPpj(candidate.file,{sourceUri:"locale-edit.pptx",assetRootUri:"assets"}),observed=JSON.parse(Buffer.from(fresh.programJson).toString("utf8")).pages[0].elements[0].text.paragraphs[0].runs[0];
+      assert.equal(observed.text,"i ı ß");assert.equal(observed.style.language,nextProfile.language);assert.equal(observed.style.capitalization,edit==="caps"?"none":"all");
+      const before=await JSZip.loadAsync(source),after=await JSZip.loadAsync(candidate.file),changed=[];assert.deepEqual(Object.keys(after.files).sort(),Object.keys(before.files).sort());
+      for(const file of Object.keys(before.files))if(!before.files[file].dir&&!Buffer.from(await before.file(file).async("uint8array")).equals(Buffer.from(await after.file(file).async("uint8array"))))changed.push(file);
+      assert.deepEqual(changed,["ppt/slides/slide1.xml"]);Object.assign(localeCapsCases.at(-1),{route,reprojection:true,changedParts:changed});assert.equal(sha256(work.program),requestHash);
+      }catch(error){localeCapsFailures.push({name:`source-${route}-${edit}`,message:error.message,code:error.code,requestFile,requestHash,
+        sourceFile:`locale-${profile.name}-original.pptx`,sourceSha256:sourceHash});console.error(`Locale source ${route}/${edit}: ${error.message}`);}
+    }
+    assert.equal(sha256(source),sourceHash);assert.equal(sha256(input.program),inputHash);
+  }catch(error){localeCapsFailures.push({name:profile.name,message:error.message,code:error.code});console.error(`Locale caps ${profile.name}: ${error.message}`);}
   const characterBulletCases = [];
   const bulletProgram = structuredClone(formatProgram);
   bulletProgram.pages[0].elements[0].text.paragraphs = [{ style: { indent: 30, hanging: 20,
@@ -1099,14 +1165,17 @@ try {
     const native = element.content.value;
     return owner === "table" ? native.rows[0].cells[0].textBody : native.textBody;
   };
-  async function rotationInk(painted) {
+  async function rotationInk(painted, fontSize = 24) {
     const { data, info } = await sharp(Buffer.from(painted.pages[0].svg)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     const points = [];
     for (let y = 24; y < info.height; y++) for (let x = 0; x < info.width; x++) {
       const i = (y * info.width + x) * info.channels;
       if (data[i] < 60 && data[i + 1] >= 50 && data[i + 1] < 150 && data[i + 2] > 140 && data[i + 3] > 200) points.push([x, y]);
     }
-    assert.ok(points.length > 100, "asymmetric text must actually have visible glyph pixels");
+    // Ink area scales with size squared. Retain the original >100 gate for
+    // every 24pt rotation/direction case; the narrow 14pt preset regions use
+    // the same density threshold, not an impossible fixed large-font count.
+    assert.ok(points.length > 100 * (fontSize / 24) ** 2, "asymmetric text must actually have visible glyph pixels");
     const i = (84 * info.width + 44) * info.channels;
     assert.deepEqual([...data.subarray(i, i + 4)], [204, 102, 0, 255], "unrelated foreground must not rotate");
     return { points, data, info };
@@ -1362,6 +1431,39 @@ try {
       } catch (error) { textDirectionFailures.push({ name, message: error.message, code: error.code ?? null }); }
     }
   }
+  const defaultInsetCases=[],defaultInsetFailures=[];
+  for(const owner of ["text","shape","table"])for(const mode of ["vertical","vertical270"])try {
+    const referenceProgram=directionProgram(owner,mode,"top"),defaults={left:7.2,top:3.6,right:7.2,bottom:3.6};
+    rotationStyle(referenceProgram,owner).margins=defaults;
+    const referenceFile=`default-inset-${owner}-${mode}-reference.ppj`;
+    await writeFile(path.join(artifacts,referenceFile),JSON.stringify(referenceProgram),{flag:"wx"});
+    const reference=await compileFormat(referenceProgram),referencePaint=await savePaint(`default-inset-${owner}-${mode}-reference`,reference);
+    const referencePixels=await sharp(Buffer.from(referencePaint.pages[0].svg)).removeAlpha().raw().toBuffer({resolveWithObject:true});
+    for(const explicit of [false,true]){
+      const program=structuredClone(referenceProgram);if(!explicit)delete rotationStyle(program,owner).margins;
+      const input={program:Buffer.from(JSON.stringify(program)),assets:[]},inputHash=sha256(input.program),author=await compilePpjWorkspace(input,{includePreviewScene:true});
+      const source=await withoutAuthoredSnapshot(author.file),sourceHash=sha256(source),projected=await projectPptxToPpj(source,{sourceUri:"default-inset.pptx",assetRootUri:"assets"});
+      const bound={program:projected.programJson,source,assets:projected.assets},noop=await compilePpjWorkspace(bound,{includePreviewScene:true});assert.deepEqual(noop.file,source);
+      for(const [origin,workspace,receipt]of [["author",input,author],["source",bound,noop]]){
+        const name=`${owner}-${mode}-${explicit?"explicit":"absent"}-${origin}`,painted=await savePaint(`default-inset-${name}`,receipt);
+        const actual=await sharp(Buffer.from(painted.pages[0].svg)).removeAlpha().raw().toBuffer({resolveWithObject:true});assert.deepEqual(actual.info,referencePixels.info);
+        assert.deepEqual(actual.data.subarray(24*actual.info.width*3),referencePixels.data.subarray(24*actual.info.width*3),`${name}: implicit and explicit defaults must have identical content pixels`);
+        const body=rotationBody(receipt,owner).bodyProperties;
+        const presence=Object.fromEntries(Object.entries(defaults).map(([side,value])=>{
+          const selected=body[`${side}Inset`];if(selected?.case===`${side}InsetEmu`)assert.equal(Number(selected.value)/12700,value);
+          return [side,selected?.case===`${side}InsetEmu`];
+        }));
+        if(origin==="author")assert.deepEqual(Object.values(presence),Array(4).fill(explicit));
+        const expectedWarnings=Object.values(presence).filter(p=>!p).length;
+        assert.equal(painted.diagnostics.filter(d=>d.reason==="preview.scene.paint.text-inset-default-review").length,expectedWarnings);
+        const publication=await assertProductionEntry(`default-inset-${name}`,workspace,receipt,painted);assert.equal(publication.reliability.status,"requires-review");
+        const candidateFile=`default-inset-${name}-candidate.pptx`;await writeFile(path.join(artifacts,candidateFile),receipt.file,{flag:"wx"});
+        defaultInsetCases.push({name,owner,mode,explicit,origin,presence,expectedWarnings,candidateFile,candidateSha256:sha256(receipt.file),inputSha256:sha256(workspace.program),
+          ...(workspace.source?.byteLength?{sourceSha256:sha256(source)}:{}),referenceFile,referenceSha256:sha256(await readFile(path.join(artifacts,referenceFile))),completeContentEqual:true});
+      }
+      assert.equal(sha256(source),sourceHash);assert.equal(sha256(input.program),inputHash);
+    }
+  }catch(error){defaultInsetFailures.push({owner,mode,message:error.message,code:error.code});console.error(`Default inset ${owner}/${mode}: ${error.message}`);}
   const textReflectionCases = [], textReflectionFailures = [];
   // Independent point-space reference, not SVG parsing or painter helpers.
   const transformPoint = ([x, y], frame) => {
@@ -3381,6 +3483,302 @@ try {
         console.error(`Polygon ${name}/${stage} failed: ${error.message}`);
       }
     }
+  // Independent rectangle children in the SAME outer transform provide a
+  // text-only reference for each preset region, not a copy of painter output.
+  const regionProfiles = [
+    ["rect", undefined, [0,0,240,120]], ["flowChartProcess", undefined, [0,0,240,120]],
+    ["roundRect", 50000, [17.5734,17.5734,222.4266,102.4266]],
+    ["ellipse", undefined, [35.14718625761429,17.573593128807147,204.8528137423857,102.42640687119285]],
+    ["diamond", undefined, [60,30,180,90]], ["flowChartDecision", undefined, [60,30,180,90]],
+    ...["triangle","rtTriangle","trapezoid","parallelogram","chevron"].map(preset => [preset,
+      preset === "rtTriangle" ? undefined : 75000, Object.values(polygonReferenceTextRectangle(preset,preset === "rtTriangle" ? undefined : 75000))]),
+    ["custom-literal", undefined, [30,40,170,110]], ["custom-builtins", undefined, [0,0,240,120]],
+  ];
+  const regionModes = [
+    { direction: "horizontal", anchor: "top", angle: 0, outer: 0, flipH: false, flipV: false },
+    { direction: "vertical", anchor: "middle", angle: 0, outer: 15, flipH: true, flipV: false },
+    { direction: "vertical270", anchor: "bottom", angle: -90, outer: 0, flipH: false, flipV: true },
+  ];
+  for (const [preset, adjustment, edges] of regionProfiles) for (const mode of regionModes) {
+    const name = `${preset}-${mode.direction}`;
+    let stage = "author";
+    try {
+      const program = rotationProgram("shape",mode.angle), e = program.pages[0].elements[0];
+      e.id = "region";
+      e.frame = {x:100,y:100,width:240,height:120,rotation:mode.outer,flipH:mode.flipH,flipV:mode.flipV};
+      e.textStyle = {rotation:mode.angle,verticalText:mode.direction,verticalAlignment:mode.anchor,margins:{left:2,top:1,right:3,bottom:2}};
+      for (const run of e.text.paragraphs[0].runs) if(run.style) run.style.size=14;
+      if (preset.startsWith("custom-")) {
+        e.geometry = shapeFillGeometry("custom");
+        e.geometry.textRectangle = preset === "custom-literal" ? {left:30,top:40,right:170,bottom:110} : {left:"l",top:"t",right:"w",bottom:"h"};
+      } else e.geometry = {kind:"preset",preset,...(adjustment===undefined?{}:{adjustments:[adjustment]})};
+      const referenceProgram = structuredClone(program), [l,t,r,b] = edges;
+      const referenceShape = {...structuredClone(e),id:"reference-text",frame:{x:l,y:t,width:r-l,height:b-t},geometry:{kind:"preset",preset:"rect"}};
+      referenceProgram.pages[0].elements[0] = {id:"reference-frame",type:"group",frame:structuredClone(e.frame),
+        childFrame:{x:0,y:0,width:240,height:120},elements:[referenceShape]};
+      const referenceInputFile = `text-region-${name}-reference.ppj`;
+      await writeFile(path.join(artifacts,referenceInputFile),JSON.stringify(referenceProgram),{flag:"wx"});
+      const reference = await compileFormat(referenceProgram), referencePaint = await savePaint(`text-region-${name}-reference`,reference);
+      const expected = await rotationInk(referencePaint,14);
+      const input = {program:Buffer.from(JSON.stringify(program)),assets:[]}, inputHash=sha256(input.program);
+      const authored = await compilePpjWorkspace(input,{includePreviewScene:true});
+      const source = await withoutAuthoredSnapshot(authored.file), sourceHash=sha256(source), sourceFile=`text-region-${name}-source.pptx`;
+      await writeFile(path.join(artifacts,sourceFile),source,{flag:"wx"});
+      const projection = await projectPptxToPpj(source,{sourceUri:sourceFile,assetRootUri:"assets"});
+      const sourceInput = {program:projection.programJson,source,assets:projection.assets};
+      const noop = await compilePpjWorkspace(sourceInput,{includePreviewScene:true});
+      assert.deepEqual(noop.file,source);
+      for(const [origin,receipt,workspace] of [["author",authored,input],["source",noop,sourceInput]]) {
+        stage=origin;
+        const native=createPpjSceneView(receipt).pages[0].nodes[0].native;
+        assert.equal(native.textBody.bodyProperties.verticalText.value,mode.direction);
+        assert.equal(native.textBody.bodyProperties.rotation.value,mode.angle*60000);
+        if(!preset.startsWith("custom-")) {
+          assert.equal(native.geometry,preset);
+          assert.deepEqual(native.presetAdjustments,adjustment===undefined?[]:[adjustment]);
+        } else assert.ok(native.textRectangle);
+        const painted=await savePaint(`text-region-${name}-${origin}`,receipt);
+        assert.ok(!painted.diagnostics.some(d=>["preview.scene.paint.text-rectangle","preview.scene.paint.text-direction","preview.scene.paint.text-anchor-overflow"].includes(d.reason)));
+        const actual=await rotationInk(painted,14), bounds=rotationBounds(actual.points), expectedBounds=rotationBounds(expected.points);
+        for(const key of Object.keys(bounds)) assert.ok(Math.abs(bounds[key]-expectedBounds[key])<=2,`${name}/${origin}/${key}`);
+        for(const axis of [0,1]) {
+          const mean=points=>points.reduce((sum,p)=>sum+p[axis],0)/points.length;
+          assert.ok(Math.abs(mean(actual.points)-mean(expected.points))<1.5);
+        }
+        for(const [points,other] of [[actual.points,expected.points],[expected.points,actual.points]]) {
+          const set=new Set(other.map(([x,y])=>`${x},${y}`));
+          for(const [x,y] of points) {
+            let found=false;
+            for(let dx=-2;dx<=2&&!found;dx++)for(let dy=-2;dy<=2&&!found;dy++)found=set.has(`${x+dx},${y+dy}`);
+            assert.ok(found,`${name}/${origin}: independent rectangle glyph at ${x},${y}`);
+          }
+        }
+        assert.ok(Math.abs(actual.points.length/expected.points.length-1)<.2);
+        const published=await assertProductionEntry(`text-region-${name}-${origin}`,workspace,receipt,painted);
+        assert.equal(published.reliability.status,"requires-review");
+        const candidateFile=`text-region-${name}-${origin}-candidate.pptx`;
+        await writeFile(path.join(artifacts,candidateFile),receipt.file,{flag:"wx"});
+        textRegionCases.push({name,origin,preset,mode,edges,sourceFile,sourceSha256:sourceHash,candidateFile,candidateSha256:sha256(receipt.file),
+          sceneSha256:receipt.previewScene.sha256,inputSha256:sha256(workspace.program),bounds,inkPixels:actual.points.length,independentRectangleReference:true,
+          referenceInputFile, referenceInputSha256:sha256(Buffer.from(JSON.stringify(referenceProgram))), reliability:published.reliability.status});
+      }
+      assert.equal(sha256(source),sourceHash); assert.equal(sha256(input.program),inputHash);
+    } catch(error) {
+      textRegionFailures.push({name,stage,code:error.code,message:error.message});
+      console.error(`Text region ${name}/${stage}: ${error.message}`);
+    }
+  }
+  // Actual shadow pixels, separate from receipt/transport checks. The image
+  // has independently fixed alpha bands (0/128/255), never an opaque box.
+  const shadowPixels = Buffer.alloc(40 * 20 * 4);
+  for (let y=0;y<20;y++) for (let x=0;x<40;x++) shadowPixels.set([0,136,255,x<10?0:x<20?128:255],(y*40+x)*4);
+  const shadowData = await sharp(shadowPixels,{raw:{width:40,height:20,channels:4}}).png().toBuffer();
+  const shadowAsset = {...cropAsset,id:"shadow-alpha",sha256:sha256(shadowData)};
+  const shadowProfiles = [
+    ...[0,90,180,270].map(angle=>({name:`angle-${angle}`,angle})),
+    {name:"zero",alpha:0},{name:"opaque",alpha:1},{name:"blur-8",blur:8},{name:"blur-16",blur:16},
+    {name:"rotate-true",rotation:90,rotate:true},{name:"rotate-false",rotation:90,rotate:false},
+    {name:"image",image:true},{name:"image-crop",image:true,crop:true},
+  ];
+  async function checkShadow(name,workspace,receipt,profile,removed=false,color=[255,0,0]) {
+    const painted=await savePaint(`shadow-${name}`,receipt),svg=painted.pages[0].svg;
+    const native=createPpjSceneView(receipt).pages[0].nodes[0].native;
+    assert.ok(!painted.diagnostics.some(d=>d.reason==="preview.scene.paint.shadow"),JSON.stringify(painted.diagnostics.filter(d=>d.reason.includes("shadow"))));
+    if(removed) {assert.equal(native.shadow,undefined);assert.doesNotMatch(svg,/data-officekit-shadow=/);}
+    else {assert.equal(native.shadow.opacityThousandthPercent,(profile.alpha??.5)*100000);
+      assert.equal(native.shadow.distanceEmu,1270000n);
+      assert.match(svg,new RegExp(`data-officekit-shadow="${profile.alpha===0?"transparent":"outer"}"`));}
+    const raster=await sharp(Buffer.from(svg)).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+    const pixel=(x,y)=>[...raster.data.subarray((Math.round(y)*raster.info.width+Math.round(x))*4,(Math.round(y)*raster.info.width+Math.round(x))*4+4)];
+    const rgba=(actual,expected)=>actual.forEach((v,i)=>assert.ok(Math.abs(v-expected[i])<=1,`${name}: ${actual} != ${expected}`));
+    const angle=(profile.angle??0)+(profile.rotate===true?profile.rotation:0),dx=Math.round(100*Math.cos(angle*Math.PI/180)),dy=Math.round(100*Math.sin(angle*Math.PI/180));
+    const alpha=removed?0:profile.alpha??.5;
+    const expected=a=>[...color.map(c=>Math.round(c*a+255*(1-a))),255];
+    if(profile.image) {
+      for(const [x,assetAlpha] of profile.crop?[[110,128/255],[155,1]]:[[110,0],[130,128/255],[160,1]])
+        rgba(pixel(x+dx,130+dy),expected(alpha*assetAlpha));
+      rgba(pixel(160,130),[0,136,255,255]);
+    } else {
+      rgba(pixel(140+dx,130+dy),expected(alpha));
+      rgba(pixel(140,130),[0,136,255,255]);
+    }
+    rgba(pixel(44,70),[204,85,0,255]);
+    if(profile.blur) {
+      const edge=pixel(197,130);assert.ok(edge[1]>128&&edge[1]<255,`${name}: actual soft shadow extends outside the translated frame`);
+      rgba(pixel(175,130),[0,136,255,255]);
+      assert.ok(painted.diagnostics.some(d=>d.reason==="preview.scene.paint.shadow-blur-approximation"));
+    }
+    const published=await assertProductionEntry(`shadow-${name}`,workspace,receipt,painted);
+    assert.equal(published.reliability.status,"requires-review");
+    const candidateFile=`shadow-${name}-candidate.pptx`;
+    await writeFile(path.join(artifacts,candidateFile),receipt.file,{flag:"wx"});
+    shadowCases.push({name,profile,removed,candidateFile,candidateSha256:sha256(receipt.file),sceneSha256:receipt.previewScene.sha256,
+      inputSha256:sha256(workspace.program),sourceSha256:workspace.source?sha256(workspace.source):undefined,
+      nativeAndRgba:true,controlPreserved:true,reliability:published.reliability.status});
+  }
+  for(const profile of shadowProfiles) {
+    let stage="author";
+    try {
+      const program=structuredClone(pairBase),style={shadow:{color:"#FF0000",opacity:profile.alpha??.5,blur:profile.blur??0,distance:100,angle:profile.angle??0,
+        ...(profile.rotate===undefined?{}:{rotateWithShape:profile.rotate})}};
+      program.assets=profile.image?[shadowAsset]:[];
+      program.pages[0].elements=[{id:"shadow-target",type:profile.image?"image":"shape",frame:{x:100,y:100,width:80,height:60,...(profile.rotation?{rotation:profile.rotation}:{})},
+        ...(profile.image?{asset:shadowAsset.id,fit:"stretch",...(profile.crop?{crop:{left:.25}}:{})}:
+          {geometry:{kind:"preset",preset:"rect"}}),style:profile.image?style:{...style,fill:{type:"solid",color:"#0088FF"}}},
+        {id:"shadow-control",type:"shape",frame:{x:30,y:60,width:24,height:20},geometry:{kind:"preset",preset:"rect"},style:{fill:{type:"solid",color:"#CC5500"}}}];
+      const input={...sourceWorkspace,program:Buffer.from(JSON.stringify(program)),assets:profile.image?[{...shadowAsset,data:shadowData}]:[]};
+      const inputHash=sha256(input.program),authored=await compilePpjWorkspace(input,{includePreviewScene:true});
+      await checkShadow(`${profile.name}-author`,input,authored,profile);
+      stage="source no-op";
+      const source=await withoutAuthoredSnapshot(authored.file),sourceHash=sha256(source);
+      const projected=await projectPptxToPpj(source,{sourceUri:`shadow-${profile.name}.pptx`,assetRootUri:"assets"});
+      const bound={program:projected.programJson,source,assets:projected.assets},noop=await compilePpjWorkspace(bound,{includePreviewScene:true});
+      assert.deepEqual(noop.file,source);
+      await checkShadow(`${profile.name}-source`,bound,noop,profile);
+      if(profile.name==="angle-0"||profile.name==="image")for(const edit of ["color","zero","delete"]) {
+        stage=`source ${edit}`;
+        const request=JSON.parse(Buffer.from(projected.programJson).toString("utf8")),target=request.pages[0].elements[0];
+        const paintOwner=profile.image?target:target.style;
+        if(edit==="delete")delete paintOwner.shadow;
+        else if(edit==="color")paintOwner.shadow.color="#00FF00";
+        else paintOwner.shadow.opacity=0;
+        const workspace={...bound,program:Buffer.from(JSON.stringify(request))},requestHash=sha256(workspace.program);
+        const candidate=await compilePpjWorkspace(workspace,{includePreviewScene:true});
+        await checkShadow(`${profile.name}-${edit}`,workspace,candidate,edit==="zero"?{...profile,alpha:0}:profile,edit==="delete",edit==="color"?[0,255,0]:[255,0,0]);
+        const fresh=await projectPptxToPpj(candidate.file,{sourceUri:"shadow-edited.pptx",assetRootUri:"assets"});
+        const freshTarget=JSON.parse(Buffer.from(fresh.programJson).toString("utf8")).pages[0].elements[0];
+        const observed=(profile.image?freshTarget:freshTarget.style)?.shadow;
+        if(edit==="delete")assert.equal(observed,undefined);else assert.equal(observed[edit==="color"?"color":"opacity"],edit==="color"?"#00FF00":0);
+        const oldZip=await JSZip.loadAsync(source),newZip=await JSZip.loadAsync(candidate.file),changed=[];
+        assert.deepEqual(Object.keys(newZip.files).sort(),Object.keys(oldZip.files).sort());
+        for(const file of Object.keys(oldZip.files))if(!oldZip.files[file].dir&&!Buffer.from(await oldZip.file(file).async("uint8array")).equals(Buffer.from(await newZip.file(file).async("uint8array"))))changed.push(file);
+        assert.deepEqual(changed,["ppt/slides/slide1.xml"]);
+        Object.assign(shadowCases.at(-1),{reprojection:true,changedParts:changed});
+        assert.equal(sha256(workspace.program),requestHash);
+      }
+      assert.equal(sha256(source),sourceHash);assert.equal(sha256(input.program),inputHash);
+    } catch(error) {shadowFailures.push({name:profile.name,stage,code:error.code,message:error.message});console.error(`Shadow ${profile.name}/${stage}: ${error.message}`);}
+  }
+  // Text shadows must preserve both glyphs and their projected silhouette,
+  // including ink outside the nominal frame. The independent reference is an
+  // ordinary unshadowed authoring input, not extracted filter markup.
+  const textShadowProfiles = [
+    {name:"plain",text:"F0"},{name:"overflow-right",text:"WWWWWWWWWWWW",width:20,height:20},
+    {name:"overflow-bottom",text:"F0\nIL\nF0",width:40,height:16},
+    {name:"baseline-top",text:"F0",baseline:150},{name:"body-90",text:"F0",body:90},
+    {name:"vertical",text:"F0",direction:"vertical"},{name:"vertical270",text:"F0",direction:"vertical270"},
+    {name:"outer-true",text:"F0",outer:90,rotate:true},{name:"outer-false",text:"F0",outer:90,rotate:false},
+    {name:"flip",text:"F0",flip:true},{name:"filled",text:"F0",fill:true},{name:"blur-8",text:"F0",blur:8},
+    {name:"blur-16-wide",text:"F0",blur:16,width:400,height:200},
+    {name:"overflow-blur",text:"WWWWWWWWWWWW",blur:8,width:20,height:20},
+    {name:"explicit-font",text:"F0",fontFamily:"Liberation Sans"},
+  ];
+  function textShadowProgram(profile, shadow=true) {
+    const program=structuredClone(pairBase);
+    program.design.canvas={width:960,height:720,unit:"pt"};
+    program.pages[0].elements=[{id:"text-shadow-target",type:"shape",
+      frame:{x:200,y:200,width:profile.width??120,height:profile.height??80,...(profile.outer?{rotation:profile.outer}:{}),...(profile.flip?{flipH:true}:{})},
+      geometry:{kind:"preset",preset:"rect"},
+      textStyle:{rotation:profile.body??0,verticalText:profile.direction??"horizontal",verticalAlignment:"top"},
+      style:{fill:profile.fill?{type:"solid",color:"#0088FF"}:{type:"none"},
+        ...(shadow?{shadow:{color:"#FF0000",opacity:.5,blur:profile.blur??0,distance:160,angle:0,...(profile.rotate===undefined?{}:{rotateWithShape:profile.rotate})}}:{})},
+      text:{paragraphs:[{runs:profile.text.split("\n").flatMap((text,i)=>[...(i?[{break:true}]:[]),
+        {text,style:{size:24,color:"#0088FF",...(profile.fontFamily?{fontFamily:profile.fontFamily}:{}),...(profile.baseline?{baseline:profile.baseline}:{})}}])}]}}];
+    if(shadow)program.pages[0].elements.push({id:"text-shadow-control",type:"shape",frame:{x:30,y:60,width:24,height:20},geometry:{kind:"preset",preset:"rect"},style:{fill:{type:"solid",color:"#CC5500"}}});
+    return program;
+  }
+  async function textShadowPixels(name,workspace,receipt,profile,reference,{removed=false,alpha=.5,color=[255,0,0]}={}) {
+    const painted=await savePaint(`text-shadow-${name}`,receipt),svg=painted.pages[0].svg;
+    assert.ok(!painted.diagnostics.some(d=>d.reason==="preview.scene.paint.shadow"),JSON.stringify(painted.diagnostics.filter(d=>d.reason.includes("shadow"))));
+    if(removed)assert.doesNotMatch(svg,/data-officekit-shadow=/);
+    else if(alpha===0)assert.match(svg,/data-officekit-shadow="transparent"/);
+    else {assert.match(svg,/data-officekit-shadow-text="true"/);assert.ok(painted.diagnostics.some(d=>d.reason==="preview.scene.paint.shadow-text-layout"));}
+    const actual=await sharp(Buffer.from(svg)).removeAlpha().raw().toBuffer({resolveWithObject:true});
+    assert.deepEqual(actual.info,reference.info);
+    const width=actual.info.width,height=actual.info.height;
+    let dx=160,dy=0;
+    if(profile.rotate!==false){if(profile.flip)dx=-160;if(profile.outer===90){dy=dx;dx=0;}}
+    const mask=Buffer.alloc(width*height);
+    for(let y=24;y<height;y++)for(let x=0;x<width;x++)mask[y*width+x]=255-reference.data[(y*width+x)*3];
+    // sharp expands a raw one-channel input to RGB unless output colourspace
+    // is explicit. The independent reference must stay one byte per pixel.
+    const blurred=profile.blur?await sharp(mask,{raw:{width,height,channels:1}}).blur(profile.blur/2).greyscale().raw().toBuffer({resolveWithObject:true}):undefined;
+    if(blurred)assert.equal(blurred.info.channels,1);
+    const softened=blurred?.data??mask;
+    assert.equal(softened.length,width*height);
+    let ink=0,shadowInk=0,maxDelta=0,outsideInk=0;
+    for(let y=24;y<height;y++)for(let x=0;x<width;x++) {
+      if(x>=30&&x<54&&y>=60&&y<80)continue;
+      const p=(y*width+x)*3,a=mask[y*width+x]/255;
+      const sx=x-dx,sy=y-dy,sa=!removed&&sx>=0&&sx<width&&sy>=24&&sy<height?softened[sy*width+sx]/255*alpha:0;
+      if(a>.1){ink++;if(x<200||x>=200+(profile.width??120)||y<200||y>=200+(profile.height??80))outsideInk++;}
+      if(sa>.02&&a<.9)shadowInk++;
+      for(let c=0;c<3;c++) {
+        const expected=Math.round(reference.data[p+c]-(255-color[c])*sa*(1-a));
+        maxDelta=Math.max(maxDelta,Math.abs(actual.data[p+c]-expected));
+      }
+    }
+    assert.ok(ink>30);if(!removed&&alpha>0)assert.ok(shadowInk>30);
+    if(profile.name.startsWith("overflow")||profile.name==="baseline-top")assert.ok(outsideInk>20,"fixture must exercise glyphs outside nominal frame");
+    assert.ok(maxDelta<=(profile.blur?8:2),`${name}: unshadowed-reference alpha composition delta ${maxDelta}`);
+    const control=(70*width+44)*3;assert.deepEqual([...actual.data.subarray(control,control+3)],[204,85,0]);
+    const native=createPpjSceneView(receipt).pages[0].nodes[0].native;
+    if(removed)assert.equal(native.shadow,undefined);else assert.equal(native.shadow.opacityThousandthPercent,alpha*100000);
+    const published=await assertProductionEntry(`text-shadow-${name}`,workspace,receipt,painted);
+    assert.equal(published.reliability.status,"requires-review");
+    const candidateFile=`text-shadow-${name}-candidate.pptx`;
+    await writeFile(path.join(artifacts,candidateFile),receipt.file,{flag:"wx"});
+    const referencePrefix=`text-shadow-${name==="plain-text"?"edited":profile.name}-reference`;
+    const referenceHashes=Object.fromEntries(await Promise.all([".ppj","-0.svg","-0.png"].map(async suffix=>{
+      const file=referencePrefix+suffix;return [file,sha256(await readFile(path.join(artifacts,file)))];
+    })));
+    textShadowCases.push({name,profile,candidateFile,candidateSha256:sha256(receipt.file),sceneSha256:receipt.previewScene.sha256,inputSha256:sha256(workspace.program),
+      ...(workspace.source?.byteLength?{sourceSha256:sha256(workspace.source)}:{}),referenceHashes,ink,shadowInk,outsideInk,maxDelta,removed,alpha,reliability:published.reliability.status});
+  }
+  for(const profile of textShadowProfiles) {
+    let stage="author";
+    try {
+      const referenceProgram=textShadowProgram(profile,false),referenceInputFile=`text-shadow-${profile.name}-reference.ppj`;
+      await writeFile(path.join(artifacts,referenceInputFile),JSON.stringify(referenceProgram),{flag:"wx"});
+      const referenceReceipt=await compileFormat(referenceProgram),referencePaint=await savePaint(`text-shadow-${profile.name}-reference`,referenceReceipt);
+      const reference=await sharp(Buffer.from(referencePaint.pages[0].svg)).removeAlpha().raw().toBuffer({resolveWithObject:true});
+      const input={program:Buffer.from(JSON.stringify(textShadowProgram(profile))),assets:[]},inputHash=sha256(input.program);
+      const author=await compilePpjWorkspace(input,{includePreviewScene:true});
+      await textShadowPixels(`${profile.name}-author`,input,author,profile,reference);
+      stage="source no-op";
+      const source=await withoutAuthoredSnapshot(author.file),sourceHash=sha256(source),projected=await projectPptxToPpj(source,{sourceUri:`text-shadow-${profile.name}.pptx`,assetRootUri:"assets"});
+      const bound={program:projected.programJson,source,assets:projected.assets},noop=await compilePpjWorkspace(bound,{includePreviewScene:true});
+      assert.deepEqual(noop.file,source);
+      await textShadowPixels(`${profile.name}-source`,bound,noop,profile,reference);
+      if(profile.name==="plain")for(const edit of ["color","zero","delete","text"]) {
+        stage=`source ${edit}`;
+        const request=JSON.parse(Buffer.from(projected.programJson).toString("utf8")),target=request.pages[0].elements[0];
+        if(edit==="delete")delete target.style.shadow;
+        else if(edit==="color")target.style.shadow.color="#00FF00";
+        else if(edit==="zero")target.style.shadow.opacity=0;
+        else if(typeof target.text==="string")target.text="IL";else target.text.paragraphs[0].runs[0].text="IL";
+        const workspace={...bound,program:Buffer.from(JSON.stringify(request))},requestHash=sha256(workspace.program),candidate=await compilePpjWorkspace(workspace,{includePreviewScene:true});
+        let expected=reference;
+        if(edit==="text"){
+          const referenceProgram=textShadowProgram({...profile,text:"IL"},false);
+          await writeFile(path.join(artifacts,"text-shadow-edited-reference.ppj"),JSON.stringify(referenceProgram),{flag:"wx"});
+          expected=await sharp(Buffer.from((await savePaint("text-shadow-edited-reference",await compileFormat(referenceProgram))).pages[0].svg)).removeAlpha().raw().toBuffer({resolveWithObject:true});
+        }
+        await textShadowPixels(`plain-${edit}`,workspace,candidate,profile,expected,{removed:edit==="delete",alpha:edit==="zero"?0:.5,color:edit==="color"?[0,255,0]:[255,0,0]});
+        const fresh=await projectPptxToPpj(candidate.file,{sourceUri:"text-shadow-edited.pptx",assetRootUri:"assets"}),observed=JSON.parse(Buffer.from(fresh.programJson).toString("utf8")).pages[0].elements[0];
+        if(edit==="delete")assert.equal(observed.style?.shadow,undefined);
+        else if(edit==="color")assert.equal(observed.style.shadow.color,"#00FF00");
+        else if(edit==="zero")assert.equal(observed.style.shadow.opacity,0);
+        else assert.ok(JSON.stringify(observed.text).includes("IL"));
+        const oldZip=await JSZip.loadAsync(source),newZip=await JSZip.loadAsync(candidate.file),changed=[];
+        assert.deepEqual(Object.keys(newZip.files).sort(),Object.keys(oldZip.files).sort());
+        for(const file of Object.keys(oldZip.files))if(!oldZip.files[file].dir&&!Buffer.from(await oldZip.file(file).async("uint8array")).equals(Buffer.from(await newZip.file(file).async("uint8array"))))changed.push(file);
+        assert.deepEqual(changed,["ppt/slides/slide1.xml"]);Object.assign(textShadowCases.at(-1),{reprojection:true,changedParts:changed});
+        assert.equal(sha256(workspace.program),requestHash);
+      }
+      assert.equal(sha256(source),sourceHash);assert.equal(sha256(input.program),inputHash);
+    }catch(error){textShadowFailures.push({name:profile.name,stage,code:error.code,message:error.message});console.error(`Text shadow ${profile.name}/${stage}: ${error.message}`);}
+  }
   cropProgram.assets = [cropAsset];
   cropProgram.pages[0].elements = [{ id: "crop-picture", type: "image", asset: cropAsset.id, frame: { x: 100, y: 100, width: 100, height: 100 }, fit: "stretch", crop: { left: 0.5 } }];
   cropProgram.pages[0].elements.unshift({ ...structuredClone(primitive), id: "crop-background", geometry: { kind: "preset", preset: "rect" }, frame: { x: 100, y: 100, width: 100, height: 100 }, text: undefined, style: { fill: { type: "solid", color: "#0000FF" } } });
@@ -3885,7 +4283,7 @@ try {
   for (const descriptor of descriptors) assert.equal(sha256(await readFile(descriptor.executablePath)),
     descriptor.manifest.files.find(file => file.path === descriptor.manifest.profiles[descriptor.profile].executable).sha256,
     "Executed package identity must still match its validated manifest");
-  const report = { status: polygonPresetFailures.length || relationFailures.length || diagramFailures.length || transformProfileFailures.length || nestedPairFailures.length || datasetPairFailures.length || stylePairFailures.length || textAnchorFailures.length || spacingDeletionFailures.length || backgroundGradientFailures.length || backgroundImageFailures.length || shapeImageFailures.length || radialGradientFailures.length || brightnessFailures.length || textRotationFailures.length || textReflectionFailures.length || textDirectionFailures.length ? "failed" : "passed", scope: "PPJ NativeAOT wire/view, internal painting and selected production entry cases; not complete paint or installed-package acceptance",
+  const report = { status: localeCapsFailures.length || defaultInsetFailures.length || textShadowFailures.length || shadowFailures.length || textRegionFailures.length || polygonPresetFailures.length || relationFailures.length || diagramFailures.length || transformProfileFailures.length || nestedPairFailures.length || datasetPairFailures.length || stylePairFailures.length || textAnchorFailures.length || spacingDeletionFailures.length || backgroundGradientFailures.length || backgroundImageFailures.length || shapeImageFailures.length || radialGradientFailures.length || brightnessFailures.length || textRotationFailures.length || textReflectionFailures.length || textDirectionFailures.length ? "failed" : "passed", scope: "PPJ NativeAOT wire/view, internal painting and selected production entry cases; not complete paint or installed-package acceptance",
     productionEntryCases,
     performance: { file: "performance.json", cases: performanceCases.map(c => ({ name: c.name, samples: c.samples.length })),
       sha256: sha256(await readFile(path.join(artifacts, "performance.json"))),
@@ -3900,12 +4298,22 @@ try {
     textRotationOpaqueCases,
     textReflectionCases,
     textReflectionFailures,
+    textRegionCases,
+    textRegionFailures,
+    shadowCases,
+    shadowFailures,
+    textShadowCases,
+    textShadowFailures,
     textDirectionCases,
     textDirectionFailures,
     polygonPresetCases,
     polygonPresetFailures,
     spacingDeletionFailures,
     capitalizationCases,
+    localeCapsCases,
+    localeCapsFailures,
+    defaultInsetCases,
+    defaultInsetFailures,
     mediaPosterCases,
     gradientCases,
     radialGradientCases,
@@ -3995,6 +4403,16 @@ try {
   assert.equal(textDirectionCases.length, 75, "all three text owners and directions, anchors, transforms and independent source edits must execute");
   if (polygonPresetFailures.length) throw new AggregateError(polygonPresetFailures.map(f => new Error(`${f.preset}/${f.consumer}/${f.stage}: ${f.message}`)), "Polygon preset regressions failed; independent checks executed.");
   assert.equal(polygonPresetCases.length, 66, "five presets, three consumers, authored/no-op and independent adjustment set/zero/delete edits");
+  if (textRegionFailures.length) throw new AggregateError(textRegionFailures.map(f=>new Error(`${f.name}/${f.stage}: ${f.message}`)), "Text rectangle regressions failed; independent checks executed.");
+  assert.equal(textRegionCases.length,78,"eleven public presets and two custom rectangles across three direction/anchor/transform profiles, author and source no-op");
+  if(shadowFailures.length)throw new AggregateError(shadowFailures.map(f=>new Error(`${f.name}/${f.stage}: ${f.message}`)),"Shadow regressions failed; independent checks executed.");
+  assert.equal(shadowCases.length,30,"twelve author/no-op profiles plus independent shape/image color, zero and deletion");
+  if(textShadowFailures.length)throw new AggregateError(textShadowFailures.map(f=>new Error(`${f.name}/${f.stage}: ${f.message}`)),"Text shadow regressions failed; independent checks executed.");
+  assert.equal(textShadowCases.length,34,"fifteen author/no-op text shadow profiles and four independent original-source edits");
+  if(localeCapsFailures.length)throw new AggregateError(localeCapsFailures.map(f=>new Error(f.message)),"Locale casing regressions failed");
+  assert.equal(localeCapsCases.length,12,"four locale author/no-op profiles plus four independent semantic/leaf source edits");
+  if(defaultInsetFailures.length)throw new AggregateError(defaultInsetFailures.map(f=>new Error(f.message)),"Default inset presence regressions failed");
+  assert.equal(defaultInsetCases.length,24,"three owners, two directions, absent/explicit defaults, author/source no-op");
   if (backgroundImageFailures.length) throw new AggregateError(backgroundImageFailures.map(f => new Error(`${f.name}: ${f.message}`)), "Background image regressions failed; independent checks executed, not a passing integration.");
   if (shapeImageFailures.length) throw new AggregateError(shapeImageFailures.map(f => new Error(`${f.preset}/${f.edit ?? f.stage}: ${f.message}`)), "Shape image regressions failed; independent checks executed, not a passing integration.");
   if (radialGradientFailures.length) throw new AggregateError(radialGradientFailures.map(f => new Error(`${f.name}: ${f.message}`)), "Radial gradient regressions failed; independent checks executed, not a passing integration.");
