@@ -176,6 +176,16 @@ remain. Unknown, malformed or duplicate native sizes stay source-owned and
 reject replacement. Direct point-size character preview retains glyph/layout
 limits; relative and follow-text sizing diagnose unavailable.
 
+Use `text.paragraphs[].style.fontAlignment` for within-line alignment of
+different font sizes: `auto`, `top`, `center`, `baseline` or `bottom`.
+Explicit `auto` and absence remain distinct. Horizontal paragraph alignment,
+direction and text-box anchoring are separate settings. Ordinary source-bound
+text/shape paragraphs support add/set/remove/restore under exact fontAlignment
+authority; deleting the field or its fontAlignment-only style clears the direct
+native attribute. Other paragraphs, runs and non-target XML/ZIP are preserved.
+Unknown native tokens survive unrelated edits and reject replacement. Preview
+reports this field as partial until font metrics and line layout are mapped.
+
 Use `text.paragraphs[].style.rightIndent` for the physical right paragraph
 inset in points, from 0 through 4032. It rounds to the nearest EMU with ties to
 even. Direction does not swap it with `indent`; hanging indent and text-box

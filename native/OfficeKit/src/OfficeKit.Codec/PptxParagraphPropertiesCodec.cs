@@ -15,6 +15,7 @@ internal static class PptxParagraphPropertiesCodec
         PptxPartContext? slideContext,
         bool readLevel)
     {
+        if (FontAlignmentName(source) is { Length: > 0 } fontAlignment) target.FontAlignment = fontAlignment;
         if (RightToLeft(source) is { } rightToLeft) target.RightToLeft = rightToLeft;
         if (readLevel && TryLevel(source, out var level)) target.Level = level;
         if (AlignmentName(source) is { Length: > 0 } name)
@@ -36,6 +37,7 @@ internal static class PptxParagraphPropertiesCodec
             throw Invalid("Presentation list style must identify a level from 0 through 8.");
         if (source.HasLevel && source.Level > 8)
             throw Invalid("Presentation paragraph level must be from 0 through 8.");
+        if (source.HasFontAlignment) _ = ParseFontAlignment(source.FontAlignment);
         if (source.HasAlignment) _ = ParseAlignment(source.Alignment);
         PptxParagraphLayoutCodec.Validate(source);
         PptxParagraphSpacingCodec.Validate(source);
@@ -47,7 +49,7 @@ internal static class PptxParagraphPropertiesCodec
 
     internal static bool HasAuthoredProperties(PresentationTextParagraph source, bool includeLevel) =>
         includeLevel && source.HasLevel ||
-        source.HasAlignment || source.HasRightToLeft ||
+        source.HasAlignment || source.HasRightToLeft || source.HasFontAlignment ||
         PptxParagraphLayoutCodec.HasAuthoredLayout(source) ||
         PptxParagraphSpacingCodec.HasAuthoredSpacing(source) ||
         PptxBulletCodec.HasModeledBullet(source) ||
@@ -56,7 +58,7 @@ internal static class PptxParagraphPropertiesCodec
         source.TabStops.Count > 0;
 
     internal static bool HasModeledProperties(PresentationTextParagraph source) =>
-        source.HasAlignment || source.HasRightToLeft ||
+        source.HasAlignment || source.HasRightToLeft || source.HasFontAlignment ||
         source.LeftMarginCase != PresentationTextParagraph.LeftMarginOneofCase.None ||
         source.RightMarginCase != PresentationTextParagraph.RightMarginOneofCase.None ||
         source.IndentationCase != PresentationTextParagraph.IndentationOneofCase.None ||
@@ -76,6 +78,7 @@ internal static class PptxParagraphPropertiesCodec
         PptxPartContext? slideContext,
         bool includeLevel)
     {
+        if (source.HasFontAlignment) target.FontAlignment = ParseFontAlignment(source.FontAlignment);
         if (source.HasRightToLeft) target.RightToLeft = source.RightToLeft;
         if (includeLevel && source.HasLevel) target.Level = checked((int)source.Level);
         if (source.HasAlignment) target.Alignment = ParseAlignment(source.Alignment);
@@ -104,6 +107,14 @@ internal static class PptxParagraphPropertiesCodec
             }
             else if (modeled) target.Level = null;
         }
+        var fontAlignment = FontAlignmentName(target);
+        if (source.HasFontAlignment)
+        {
+            if (fontAlignment.Length == 0 && target.GetAttributes().Any(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "fontAlgn"))
+                throw new CodecException("unsupported_presentation_edit", "Source-preserving PPTX export cannot replace an unmodeled paragraph font alignment.");
+            if (fontAlignment != source.FontAlignment) target.FontAlignment = ParseFontAlignment(source.FontAlignment);
+        }
+        else if (fontAlignment.Length > 0) target.FontAlignment = null;
         var rightToLeft = RightToLeft(target);
         if (source.HasRightToLeft)
         {
@@ -133,6 +144,7 @@ internal static class PptxParagraphPropertiesCodec
         if (includeLevel && TryLevel(target, out _)) target.Level = null;
         if (AlignmentName(target).Length > 0) target.Alignment = null;
         if (RightToLeft(target) is not null) target.RightToLeft = null;
+        if (FontAlignmentName(target).Length > 0) target.FontAlignment = null;
         PptxParagraphLayoutCodec.Scrub(target);
         PptxParagraphSpacingCodec.Scrub(target);
         PptxDefaultRunStyleCodec.Scrub(target);
@@ -140,6 +152,27 @@ internal static class PptxParagraphPropertiesCodec
         PptxBulletStyleCodec.Scrub(target);
         if (PptxTextCodec.SupportsTabStops(target)) target.GetFirstChild<A.TabStopList>()?.Remove();
     }
+
+    private static string FontAlignmentName(A.TextParagraphPropertiesType? source) =>
+        source?.GetAttributes().FirstOrDefault(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "fontAlgn").Value switch
+        {
+            "auto" => "auto",
+            "t" => "top",
+            "ctr" => "center",
+            "base" => "baseline",
+            "b" => "bottom",
+            _ => string.Empty,
+        };
+
+    private static A.TextFontAlignmentValues ParseFontAlignment(string value) => value switch
+    {
+        "auto" => A.TextFontAlignmentValues.Automatic,
+        "top" => A.TextFontAlignmentValues.Top,
+        "center" => A.TextFontAlignmentValues.Center,
+        "baseline" => A.TextFontAlignmentValues.Baseline,
+        "bottom" => A.TextFontAlignmentValues.Bottom,
+        _ => throw Invalid($"Unsupported Presentation paragraph font alignment {value}."),
+    };
 
     private static bool? RightToLeft(A.TextParagraphPropertiesType? source) =>
         source?.GetAttributes().FirstOrDefault(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "rtl").Value switch

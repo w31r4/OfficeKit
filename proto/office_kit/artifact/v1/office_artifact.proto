@@ -3682,6 +3682,9 @@ message PresentationTextParagraph {
     int64 margin_right_emu = 35;
     bool no_margin_right = 36;
   }
+  // Direct a:pPr/@fontAlgn. Unset clears a modeled direct attribute and
+  // preserves unknown source tokens, matching alignment/direction semantics.
+  optional string font_alignment = 37;
 }
 
 message PresentationPictureBullet {

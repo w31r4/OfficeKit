@@ -463,6 +463,21 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**段落字体对齐增量（2026-09-10）：**
+新增 `text.paragraphs[].style.fontAlignment`，表达同一行内不同字号文字的
+对齐方式：`auto`、`top`、`center`、`baseline`、`bottom`，对应直接
+`a:pPr/@fontAlgn`。显式自动与缺省分别保留；水平段落对齐、书写方向和
+文本框锚定各自独立。普通文本框和形状支持新增、赋值、删除和恢复，
+删除只含此字段的样式对象会清除直接属性。修改要求该字段自身权限，
+保留相邻段落、run、其他段落属性及非目标 XML/ZIP；未知原生取值在
+无操作和独立样式修改时保留，替换时拒绝。
+最小实验 **4/4** 通过，覆盖五种取值、混合字号、优先级及原始源文件上的
+删除恢复；相关回归 **22/22**、协议及资料同步检查通过。
+预览对五种值均保留明确的 partial 诊断；检查记录见
+`openspec/changes/ppj-paragraph-font-alignment-lifecycle/tasks.md`。
+本轮交付源码与生成绑定，未重建 NativeAOT；字体度量、继承与宿主行布局
+仍有缺口，F-03 继续开放。
+
 **段落右缩进增量（2026-09-10）：**
 新增 `text.paragraphs[].style.rightIndent`，以点表达物理右侧缩进，
 范围 0–4032，按 EMU 精度、最近偶数舍入。它对应直接 `a:pPr/@marR`，

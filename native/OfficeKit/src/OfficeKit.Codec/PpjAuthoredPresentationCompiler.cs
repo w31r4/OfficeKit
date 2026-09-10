@@ -2708,6 +2708,12 @@ internal static partial class PpjAuthoredPresentationCompiler
     {
         if (FirstProperty(direct, inline, middle, named, "alignment") is { } alignment)
             target.Alignment = alignment.GetString()!;
+        if (FirstProperty(direct, inline, middle, named, "fontAlignment") is { } fontAlignment)
+            target.FontAlignment = fontAlignment.GetString() switch
+            {
+                "auto" or "top" or "center" or "baseline" or "bottom" => fontAlignment.GetString(),
+                _ => throw Unsupported("paragraph", "fontAlignment must be auto, top, center, baseline or bottom"),
+            };
         if (FirstProperty(direct, inline, middle, named, "direction") is { } direction)
             target.RightToLeft = direction.GetString() switch
             {

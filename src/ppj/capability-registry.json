@@ -1079,6 +1079,13 @@
       "reason": "PpjBulletSizeLifecycleTests covers authored bounds/precision and fresh native text/shape lifecycle for character/number/picture markers, imported embedded media, authority and unmodeled source preservation. Numeric parsing avoids SDK conversion failures; lowering normalizes native precision before source postwrite checks. Preview retains direct point-size character painting and explicitly diagnoses unresolved relative/follow-text sizing; inherited metrics and host glyph/layout remain partial."
     },
     {
+      "feature": "source-bound paragraph font alignment",
+      "ppjPath": "pages[].elements[].text.paragraphs[].style.fontAlignment",
+      "behavior": "partial",
+      "sourceBound": "Ordinary recognized text/shape paragraphs issue setTextParagraphStyle with exact fontAlignment authority. Direct within-line font alignment accepts auto, top, center, baseline and bottom. Explicit auto differs from absence. Add/set/remove/restore and fontAlignment-only style removal patch only changed paragraphs, preserving horizontal alignment, direction, text-box anchoring, runs, neighbors and non-target XML/ZIP.",
+      "reason": "PpjParagraphFontAlignmentLifecycleTests verifies all five authored values, mixed font sizes, precedence, original-source removal/restoration, exact authority and unmodeled native token preservation/refusal. Shared paragraph/list/table/master paths reuse the native property. ppj-preview-input-assessment.mjs proves explicit partial diagnostics for the unmapped native field; font metrics, inherited alignment and host line layout remain unresolved."
+    },
+    {
       "feature": "source-bound paragraph right indent",
       "ppjPath": "pages[].elements[].text.paragraphs[].style.rightIndent",
       "behavior": "partial",

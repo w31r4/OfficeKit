@@ -1934,6 +1934,7 @@
               "text",
             "text.paragraphs[].style.alignment",
             "text.paragraphs[].style.level",
+            "text.paragraphs[].style.fontAlignment",
             "text.paragraphs[].style.direction",
             "text.paragraphs[].style.bullet.startAt",
             "text.paragraphs[].style.bullet.character",
@@ -3358,6 +3359,16 @@
           "minimum": 0,
           "maximum": 4032,
           "description": "Physical right paragraph inset in points, rounded to the nearest EMU with ties to even. Independent of paragraph direction, left indent, hanging indent and text-box insets. Explicit zero differs from absence. Ordinary source-bound text/shape owners support add/set/remove/restore and rightIndent-only style removal under exact rightIndent authority; deletion clears the modeled direct attribute. Preserve other paragraph state, native numeric spelling, runs, neighbors and unrelated XML/ZIP. Unknown/out-of-range native margins stay source-owned and reject replacement. Right-indent preview layout remains partial."
+        },
+        "fontAlignment": {
+          "enum": [
+            "auto",
+            "top",
+            "center",
+            "baseline",
+            "bottom"
+          ],
+          "description": "Direct within-line alignment of different font sizes: auto, top, center, baseline or bottom. Independent of horizontal paragraph alignment, direction and text-box anchoring. Explicit auto differs from absence. Ordinary source-bound text/shape owners support add/set/remove/restore and fontAlignment-only style removal under exact fontAlignment authority. Only changed paragraphs are patched, preserving other native state, runs, neighbors and non-target XML/ZIP. Unknown native tokens survive no-op and unrelated edits but reject replacement. Font-metric and line-layout preview remains partial."
         }
       },
       "allOf": [

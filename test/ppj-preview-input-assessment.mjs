@@ -95,6 +95,21 @@ for (const alignment of ["left", "center", "right", "justify", "distributed", "j
     assert.match(painted.pages[0].svg, /Paragraph alignment/);
   }
 }
+for (const fontAlignment of ["auto", "top", "center", "baseline", "bottom"]) {
+  const input = deck([{ ...text, text: { paragraphs: [
+    { style: { fontAlignment }, runs: [{ text: "Small", style: { size: 14 } },
+      { text: " Large", style: { size: 32 } }] }] } }]);
+  assert.ok(assessPpjPreviewInput(input).diagnostics.some(d =>
+    d.path.endsWith(".style.fontAlignment") && d.status !== "supported"));
+  const receipt = previewSceneFixture(input, [{ id: "p1", elements: [nativeElement("text", "shape", {
+    ...emuFrame(1, 2, 100, 60), geometry: "textbox", text: "Small Large",
+    textBody: { paragraphs: [{ fontAlignment,
+      runs: [{ content: { case: "text", value: "Small Large" } }] }] },
+  })] }], ["$.pages[0].elements[0]"]);
+  const painted = paintPpjSceneSvg(receipt);
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" &&
+    d.scenePath.endsWith(".fontAlignment") && d.status === "partial"));
+}
 for (const rightIndent of [0, 24]) {
   const input = deck([{ ...text, text: { paragraphs: [
     { style: { rightIndent }, runs: [{ text: "Right paragraph inset" }] }] } }]);
