@@ -239,6 +239,7 @@ public sealed partial class PptxCodecTests
                                     ["scaleX"] = -0.5,
                                     ["scaleY"] = 1.75,
                                     ["skewX"] = -12.5,
+                                    ["skewY"] = 8.25,
                                     ["rotateWithShape"] = true,
                                 },
                             },
@@ -373,6 +374,7 @@ public sealed partial class PptxCodecTests
             Assert.Equal(-50_000, defaultShadow.HorizontalRatio!.Value);
             Assert.Equal(175_000, defaultShadow.VerticalRatio!.Value);
             Assert.Equal(-750_000, defaultShadow.HorizontalSkew!.Value);
+            Assert.Equal(495_000, defaultShadow.VerticalSkew!.Value);
             Assert.True(defaultShadow.RotateWithShape!.Value);
             Assert.Equal(42_000, defaultShadow.Descendants<A.Alpha>().Single().Val!.Value);
             var defaultThemedShadowProperties = paragraphs[7]
@@ -528,6 +530,12 @@ public sealed partial class PptxCodecTests
             .ToArray();
         Assert.Single(defaultShadowSkewXLeaves);
         Assert.Equal(-12.5, defaultShadowSkewXLeaves[0]["value"]!.GetValue<double>(), precision: 6);
+        var defaultShadowSkewYLeaves = projectedShadowElement["nativeRef"]!["leaves"]!.AsArray()
+            .Select(leaf => leaf!.AsObject())
+            .Where(leaf => leaf["kind"]!.GetValue<string>() == "textDefaultShadowSkewY")
+            .ToArray();
+        Assert.Single(defaultShadowSkewYLeaves);
+        Assert.Equal(8.25, defaultShadowSkewYLeaves[0]["value"]!.GetValue<double>(), precision: 6);
         var defaultShadowAlignmentLeaves = projectedShadowElement["nativeRef"]!["leaves"]!.AsArray()
             .Select(leaf => leaf!.AsObject())
             .Where(leaf => leaf["kind"]!.GetValue<string>() == "textDefaultShadowAlignment")
@@ -609,6 +617,7 @@ public sealed partial class PptxCodecTests
         defaultShadowScaleXLeaves[0]["value"] = 1.25;
         defaultShadowScaleYLeaves[0]["value"] = -1.5;
         defaultShadowSkewXLeaves[0]["value"] = 20d;
+        defaultShadowSkewYLeaves[0]["value"] = -20d;
         defaultShadowAlignmentLeaves[0]["value"] = "tl";
         defaultShadowColorLeaves[0]["value"] = "#1A2B3C";
         defaultShadowOpacityLeaves[0]["value"] = 66_000;
@@ -684,6 +693,7 @@ public sealed partial class PptxCodecTests
             Assert.Equal(125_000, defaultShadow.HorizontalRatio!.Value);
             Assert.Equal(-150_000, defaultShadow.VerticalRatio!.Value);
             Assert.Equal(1_200_000, defaultShadow.HorizontalSkew!.Value);
+            Assert.Equal(-1_200_000, defaultShadow.VerticalSkew!.Value);
             Assert.Equal("1A2B3C", defaultShadow.GetFirstChild<A.RgbColorModelHex>()!.Val!.Value);
             Assert.Equal(66_000, defaultShadow.Descendants<A.Alpha>().Single().Val!.Value);
             Assert.False(defaultShadow.RotateWithShape!.Value);
@@ -743,6 +753,7 @@ public sealed partial class PptxCodecTests
         Assert.Equal(1.25, reprojectedProgram["pages"]![0]!["elements"]![2]!["text"]!["paragraphs"]![0]!["style"]!["defaultText"]!["shadow"]!["scaleX"]!.GetValue<double>(), precision: 6);
         Assert.Equal(-1.5, reprojectedProgram["pages"]![0]!["elements"]![2]!["text"]!["paragraphs"]![0]!["style"]!["defaultText"]!["shadow"]!["scaleY"]!.GetValue<double>(), precision: 6);
         Assert.Equal(20, reprojectedProgram["pages"]![0]!["elements"]![2]!["text"]!["paragraphs"]![0]!["style"]!["defaultText"]!["shadow"]!["skewX"]!.GetValue<double>(), precision: 6);
+        Assert.Equal(-20, reprojectedProgram["pages"]![0]!["elements"]![2]!["text"]!["paragraphs"]![0]!["style"]!["defaultText"]!["shadow"]!["skewY"]!.GetValue<double>(), precision: 6);
         Assert.Equal("tl", reprojectedProgram["pages"]![0]!["elements"]![2]!["text"]!["paragraphs"]![0]!["style"]!["defaultText"]!["shadow"]!["alignment"]!.GetValue<string>());
         Assert.Equal("#1A2B3C", reprojectedProgram["pages"]![0]!["elements"]![2]!["text"]!["paragraphs"]![0]!["style"]!["defaultText"]!["shadow"]!["color"]!.GetValue<string>());
         Assert.Equal(0.66, reprojectedProgram["pages"]![0]!["elements"]![2]!["text"]!["paragraphs"]![0]!["style"]!["defaultText"]!["shadow"]!["opacity"]!.GetValue<double>(), precision: 6);

@@ -2223,6 +2223,7 @@
             "textDefaultShadowScaleX",
             "textDefaultShadowScaleY",
             "textDefaultShadowSkewX",
+            "textDefaultShadowSkewY",
             "textDefaultShadowAlignment",
             "textDefaultShadowColorRgb",
             "textDefaultShadowColorScheme",
