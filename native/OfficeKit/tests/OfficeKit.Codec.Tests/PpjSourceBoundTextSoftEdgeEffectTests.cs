@@ -122,6 +122,9 @@ public sealed partial class PptxCodecTests
                         {
                             ["reflection"] = new JsonObject
                             {
+                                // This fixture exercises the existing full-span native leaves.
+                                ["startPosition"] = 0,
+                                ["endPosition"] = 1,
                                 ["blur"] = 5,
                                 ["startOpacity"] = 0.42,
                                 ["endOpacity"] = 0.08,

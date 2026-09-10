@@ -463,6 +463,19 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**段落默认文字反射增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.defaultText.reflection` 已接通全部 14 个可选值：
+blur、distance、angle、start/endOpacity、start/endPosition、fadeAngle、
+scaleX/Y、skewX/Y、alignment 和 rotateWithShape。支持独立赋值、删除、恢复，
+保留缺省、零、一和 false；空对象保留反射效果，删除字段或单效果包装则移除。
+几何、比例和透明度按原生精度归一化；opacity token、混合效果、相邻段落、
+直接 run 和非目标 XML/ZIP 均有实验。未知属性/子内容、非法值、重复节点和 DAG
+随无关编辑保留，拒绝覆盖。相关原生回归首次 323/324 通过；旧全跨度 leaf
+实验补上显式 startPosition/endPosition 后，与 14 个新增用例复跑 **15/15 通过**。
+沿用整组默认样式的已记录基线排除项。Help、schema、生成资料、预览诊断、
+可移植性、reference-sync 与 OpenSpec 检查通过；未重建 NativeAOT，
+反射预览仍为 partial，完整 F-03 和宿主显示继续开放。
+
 **段落默认文字内阴影增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.defaultText.innerShadow` 支持赋值、删除、恢复，
 以及仅含内阴影的包装删除。color 必填；blur 0–1000pt、distance 0–100000pt、

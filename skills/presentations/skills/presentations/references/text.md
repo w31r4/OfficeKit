@@ -192,6 +192,23 @@ effect DAGs and unmodeled native geometry/colors/descendants remain source-owned
 and reject replacement. Other run/shape/image inner-shadow syntax still requires
 its geometry. Preview remains partial and host rendering needs separate evidence.
 
+Use `defaultText.reflection` for paragraph reflection. All fields are optional:
+`blur`, `distance`, `angle`, `startOpacity`, `endOpacity`, `startPosition`,
+`endPosition`, `fadeAngle`, `scaleX`, `scaleY`, `skewX`, `skewY`, `alignment`
+and `rotateWithShape`. An empty object keeps the effect with native defaults.
+Remove a field to clear its direct value; explicit zero, one and false retain
+presence. Blur uses 0..1000pt and distance 0..100000pt. Direction and fade angles
+use -360..360 degrees and wrap after native rounding. Opacity and position use
+0..1; opacity also accepts an opacity token. Scale ratios use
+-21474.83648..21474.83647; skew must remain strictly within -90..90 degrees
+after rounding. Alignment is tl/t/tr/l/ctr/r/bl/b/br.
+Delete the effect or its reflection-only defaultText/style wrapper to remove it,
+then assign to restore it. Edits preserve mixed effects, list attributes,
+neighboring paragraphs and direct runs. Unknown/invalid source reflection
+content, duplicates and DAGs remain source-owned and reject replacement.
+Ordinary run/shape/image syntax keeps its required geometry. Preview is partial;
+host appearance needs separate evidence.
+
 
 `textWarpPreset`, `textWarpAdjustments`, `flatTextZ`, `fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.

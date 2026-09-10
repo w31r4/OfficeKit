@@ -2541,7 +2541,10 @@ internal static partial class PpjAuthoredPresentationCompiler
             output.InnerShadow = paragraphDefaults
                 ? BuildParagraphInnerShadow(innerShadow, catalog.Color, opacity => catalog.NumberToken(opacity, "opacity", "paragraph default inner shadow opacity"), catalog.HasGrammarToken)
                 : BuildInnerShadow(innerShadow, catalog);
-        if (value.TryGetProperty("reflection", out var reflection)) output.Reflection = BuildReflection(reflection, catalog);
+        if (value.TryGetProperty("reflection", out var reflection))
+            output.Reflection = paragraphDefaults
+                ? BuildChartTextReflection(reflection, opacity => catalog.NumberToken(opacity, "opacity", "paragraph default reflection opacity"))
+                : BuildReflection(reflection, catalog);
         if (value.TryGetProperty("softEdge", out var softEdge)) output.SoftEdge = BuildSoftEdge(softEdge);
         if (value.TryGetProperty("highlight", out var highlight))
         {

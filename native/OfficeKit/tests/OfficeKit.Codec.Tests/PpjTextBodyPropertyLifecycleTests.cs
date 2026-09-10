@@ -10,7 +10,7 @@ using A = DocumentFormat.OpenXml.Drawing;
 
 namespace OfficeKit.Codec.Tests;
 
-public sealed class PpjTextBodyPropertyLifecycleTests
+public sealed partial class PpjTextBodyPropertyLifecycleTests
 {
     [Theory]
     [InlineData("text", false, "bold")]
@@ -85,6 +85,10 @@ public sealed class PpjTextBodyPropertyLifecycleTests
     [InlineData("text", true, "innerShadow")]
     [InlineData("shape", false, "innerShadow")]
     [InlineData("shape", true, "innerShadow")]
+    [InlineData("text", false, "reflection")]
+    [InlineData("text", true, "reflection")]
+    [InlineData("shape", false, "reflection")]
+    [InlineData("shape", true, "reflection")]
     public void ParagraphDefaultScalarPresencePreservesOtherState(string kind, bool otherDefaults, string field)
     {
         var program = Program(kind);
@@ -103,6 +107,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             "gradient" => JsonNode.Parse(DefaultGradientJson),
             "glow" => JsonNode.Parse(DefaultGlowJson),
             "innerShadow" => JsonNode.Parse(DefaultInnerShadowJson),
+            "reflection" => JsonNode.Parse("{}"),
             "language" => JsonValue.Create("en-US"),
             "fontFamily" => JsonValue.Create("Arial"),
             "fontFamilyEastAsia" => JsonValue.Create("SimSun"),
@@ -132,11 +137,13 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                 new JsonObject { ["style"] = new JsonObject { ["defaultText"] = new JsonObject { ["bold"] = false } },
                     ["runs"] = new JsonArray(new JsonObject { ["text"] = "Second paragraph" }) })
         };
-        if (field is "gradient" or "glow" or "innerShadow")
+        if (field is "gradient" or "glow" or "innerShadow" or "reflection")
             program["pages"]![0]!["elements"]![0]!["text"]!["paragraphs"]![1]!["style"]!["defaultText"]![field] = initial.DeepClone();
         if (field == "glow") FirstTextParagraph(program)["runs"]![0]!["style"]!["glow"] = JsonNode.Parse(DefaultGlowJson);
         if (field == "innerShadow") FirstTextParagraph(program)["runs"]![0]!["style"]!["innerShadow"] =
             JsonNode.Parse("""{"color":"#778899","blur":3,"distance":4,"angle":90}""");
+        if (field == "reflection") FirstTextParagraph(program)["runs"]![0]!["style"]!["reflection"] =
+            JsonNode.Parse("""{"blur":3,"distance":4,"angle":90,"startOpacity":0.4,"endOpacity":0.1}""");
         var authored = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
         using var stream = new MemoryStream(); stream.Write(authored);
         using (var doc = PresentationDocument.Open(stream, true))
@@ -160,7 +167,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         var source = stream.ToArray(); var original = source.ToArray();
         var projected = Project(source);
         Assert.Equal(source, Compile(projected, source).File.ToByteArray());
-        if (field is "gradient" or "glow" or "innerShadow") Assert.True(JsonNode.DeepEquals(initial, ParagraphDefaultScalar(source, kind, field)));
+        if (field is "gradient" or "glow" or "innerShadow" or "reflection") Assert.True(JsonNode.DeepEquals(initial, ParagraphDefaultScalar(source, kind, field)));
         else Assert.Equal(initialJson, ParagraphDefaultScalar(source, kind, field)?.ToJsonString());
         foreach (var mode in otherDefaults ? new[] { "field" } : new[] { "field", "defaultText", "style" })
         {
@@ -177,6 +184,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                 "gradient" => DefaultGradientCases().Select(c => c.Input).ToArray(),
                 "glow" => DefaultGlowCases().Select(c => c.Input).ToArray(),
                 "innerShadow" => DefaultInnerShadowCases().Select(c => c.Input).ToArray(),
+                "reflection" => DefaultReflectionCases().Select(c => c.Input).ToArray(),
                 "size" => new[] { "1", "18.25", "18.256", "18.125", "768" },
                 "kerning" => new[] { "0", "0.001", "0.01", "12.25", "12.256", "12.125", "768" },
                 "letterSpacing" => new[] { "-768", "-1.256", "-1.125", "-0.001", "0", "0.01", "1.125", "1.256", "768" },
@@ -199,7 +207,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             })
             {
                 var restore = Project(deleted); var restoredParagraph = FirstTextParagraph(restore);
-                if (field is "highlight" or "color" or "gradient" or "glow" or "innerShadow")
+                if (field is "highlight" or "color" or "gradient" or "glow" or "innerShadow" or "reflection")
                     restore["design"]!["grammar"]!["tokens"] = JsonNode.Parse("""{"mark":{"kind":"color","value":"#000000"},"accent1":{"kind":"color","value":"#000000"},"fade":{"kind":"opacity","value":0.25}}""");
                 restoredParagraph["style"] ??= new JsonObject();
                 restoredParagraph["style"]!["defaultText"] ??= new JsonObject();
@@ -219,18 +227,18 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                 if (field == "color")
                     expected = JsonValue.Create(value.StartsWith("{", StringComparison.Ordinal) ? "#808080"
                         : JsonNode.Parse(value)!.GetValue<string>().ToUpperInvariant())!.ToJsonString();
-                if (field is "gradient" or "glow" or "innerShadow")
+                if (field is "gradient" or "glow" or "innerShadow" or "reflection")
                 {
-                    expected = (field == "gradient" ? DefaultGradientCases() : field == "glow" ? DefaultGlowCases() : DefaultInnerShadowCases()).Single(c => c.Input == value).Expected;
+                    expected = (field == "gradient" ? DefaultGradientCases() : field == "glow" ? DefaultGlowCases() : field == "innerShadow" ? DefaultInnerShadowCases() : DefaultReflectionCases()).Single(c => c.Input == value).Expected;
                     var nativeValue = ParagraphDefaultScalar(restored, kind, field);
-                    if (field is "glow" or "innerShadow") AssertDefaultEffectEquals(JsonNode.Parse(expected), nativeValue);
+                    if (field is "glow" or "innerShadow" or "reflection") AssertDefaultEffectEquals(JsonNode.Parse(expected), nativeValue);
                     else Assert.True(JsonNode.DeepEquals(JsonNode.Parse(expected), nativeValue));
                 }
                 else Assert.Equal(expected, ParagraphDefaultScalar(restored, kind, field)?.ToJsonString());
                 var expectedProjection = field == "underline"
                     ? JsonValue.Create(JsonNode.Parse(expected)!.GetValue<string>() switch
                     { "sng" => "single", "dbl" => "double", var token => token })!.ToJsonString() : expected;
-                if (field is "glow" or "innerShadow")
+                if (field is "glow" or "innerShadow" or "reflection")
                     AssertDefaultEffectEquals(JsonNode.Parse(expectedProjection), FirstTextParagraph(Project(restored))["style"]!["defaultText"]![field]);
                 else if (field == "gradient")
                     Assert.True(JsonNode.DeepEquals(JsonNode.Parse(expectedProjection), FirstTextParagraph(Project(restored))["style"]!["defaultText"]![field]));
@@ -273,6 +281,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             : field == "gradient" ? JsonNode.Parse(DefaultGradientCases().First().Input)
             : field == "glow" ? JsonNode.Parse(DefaultGlowCases().First().Input)
             : field == "innerShadow" ? JsonNode.Parse(DefaultInnerShadowCases().First().Input)
+            : field == "reflection" ? JsonNode.Parse(DefaultReflectionCases().First().Input)
             : field == "color" ? JsonValue.Create("#FF0000")
             : field == "highlight" ? JsonValue.Create("#112233")
             : field == "underline" ? JsonValue.Create("double")
@@ -286,7 +295,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
         fields.Remove(fields.Single(f => f!.GetValue<string>() == "text.paragraphs[].style.defaultText." + field));
         Assert.Empty(Compile(denied, source, success: false).File);
         var unsupported = Project(source);
-        FirstTextParagraph(unsupported)["style"]!["defaultText"]!["reflection"] = JsonNode.Parse("""{"blur":2,"distance":1,"angle":45,"startOpacity":0.5,"endOpacity":0}""");
+        FirstTextParagraph(unsupported)["style"]!["defaultText"]!["shadow"] = JsonNode.Parse("""{"color":"#112233","blur":2,"distance":1,"angle":45}""");
         Assert.Empty(Compile(unsupported, source, success: false).File);
         if (field == "glow")
             foreach (var invalid in new[] { "null", "false", "{}", """{"radius":-1,"color":"#112233"}""", """{"radius":1000.001,"color":"#112233"}""", """{"radius":2,"color":"#112233","opacity":1.1}""", """{"radius":2,"color":{"token":"missing"}}""", """{"radius":2,"color":"#112233","opacity":{"token":"paint"}}""" })
@@ -1211,12 +1220,18 @@ public sealed class PpjTextBodyPropertyLifecycleTests
 
     private static void AssertDefaultEffectEquals(JsonNode? expected, JsonNode? actual)
     {
-        Assert.NotNull(expected); Assert.NotNull(actual);
+        if (expected is null) { Assert.Null(actual); return; }
+        Assert.NotNull(actual);
         Assert.Equal(expected.AsObject().Count, actual.AsObject().Count);
-        Assert.True(JsonNode.DeepEquals(expected["color"], actual["color"]));
         // Compare numeric meaning and optional presence, not JSON spelling.
-        foreach (var field in new[] { "radius", "blur", "distance", "angle", "opacity" })
-            Assert.Equal(expected[field]?.GetValue<double>(), actual[field]?.GetValue<double>());
+        foreach (var (field, value) in expected.AsObject())
+        {
+            Assert.NotNull(actual[field]);
+            if (value!.GetValueKind() == System.Text.Json.JsonValueKind.Number)
+                Assert.Equal(double.Parse(value.ToJsonString(), System.Globalization.CultureInfo.InvariantCulture),
+                    double.Parse(actual[field]!.ToJsonString(), System.Globalization.CultureInfo.InvariantCulture));
+            else Assert.True(JsonNode.DeepEquals(value, actual[field]), field);
+        }
     }
 
     private static JsonNode? NativeDefaultGlow(A.DefaultRunProperties? defaults)
@@ -1374,6 +1389,7 @@ public sealed class PpjTextBodyPropertyLifecycleTests
             "gradient" => NativeDefaultGradient(defaults),
             "glow" => NativeDefaultGlow(defaults),
             "innerShadow" => NativeDefaultInnerShadow(defaults),
+            "reflection" => NativeDefaultReflection(defaults),
             "highlight" => defaults?.GetFirstChild<A.Highlight>() is { } highlight
                 ? highlight.GetFirstChild<A.SchemeColor>() is { } scheme
                     ? new JsonObject { ["token"] = scheme.Val!.InnerText }
@@ -2377,11 +2393,12 @@ public sealed class PpjTextBodyPropertyLifecycleTests
                     else if (field == "paragraphDefault.highlight") defaults.GetFirstChild<A.Highlight>()?.Remove();
                     else if (field == "paragraphDefault.color") defaults.GetFirstChild<A.SolidFill>()?.Remove();
                     else if (field == "paragraphDefault.gradient") defaults.GetFirstChild<A.GradientFill>()?.Remove();
-                    else if (field is "paragraphDefault.glow" or "paragraphDefault.innerShadow")
+                    else if (field is "paragraphDefault.glow" or "paragraphDefault.innerShadow" or "paragraphDefault.reflection")
                     {
                         var list = defaults.GetFirstChild<A.EffectList>();
                         if (field == "paragraphDefault.glow") list?.GetFirstChild<A.Glow>()?.Remove();
-                        else list?.GetFirstChild<A.InnerShadow>()?.Remove();
+                        else if (field == "paragraphDefault.innerShadow") list?.GetFirstChild<A.InnerShadow>()?.Remove();
+                        else list?.GetFirstChild<A.Reflection>()?.Remove();
                         if (list is not null && list.ChildElements.Count == 0 && list.GetAttributes().Count == 0) list.Remove();
                     }
                     else if (field == "paragraphDefault.paint")
