@@ -1,5 +1,5 @@
-// Internal scene painter under construction. The production preview switches
-// only after G-01's assessment/publication and end-to-end gates are complete.
+// Shared read-only scene painter. The production wrapper additionally requires
+// original-input assessment; paint-only results are internal review evidence.
 // No PPJ interpretation, OOXML parsing, filesystem or raster backend here.
 import { isFieldSet } from "@bufbuild/protobuf";
 import presetProfiles from "./preset-geometry-profiles.json" with { type: "json" };
@@ -35,6 +35,13 @@ const arcN = value => {
 };
 const rgb = (value, fallback = "none") => /^[0-9a-f]{6}$/iu.test(value || "") ? `#${value}` : fallback;
 const box = f => `x="${n(f.x)}" y="${n(f.y)}" width="${n(f.width)}" height="${n(f.height)}"`;
+// Fixed subdivision keeps SVG growth bounded: 33 stops for two colors, 65
+// for the symmetric three-color case. The gamma curve's worst chord error
+// at 32 segments is <0.088 in an 8-bit channel, before RGB rounding.
+const brightnessRamp = Array.from({ length: 31 }, (_, i) => {
+  const t = (i + 1) / 32;
+  return { t, falling: t ** 1.875, rising: 1 - (1 - t) ** 1.875 };
+});
 // roundRect: a = pin(0, adj, 50000), radius = min(w,h) * a / 100000.
 // Formula source is the pinned preset definition referenced by presetProfiles.
 function roundedRectangle(f, adjustments = [], paint = "") {
@@ -55,7 +62,7 @@ function roundedRectangle(f, adjustments = [], paint = "") {
  * be converted to the ellipse parameter angle before emitting SVG's A
  * command. This is the same distinction made by the established OOXML
  * implementations, and matters whenever the two radii differ. */
-export function nativePathData(path, frame) {
+export function nativePathData(path, frame, visitBoundsPoint) {
   const width = numeric(path.width), height = numeric(path.height);
   if (width < 0 || height < 0) throw new RangeError("Negative path viewport");
   const frameX = numeric(frame.x), frameY = numeric(frame.y);
@@ -68,6 +75,35 @@ export function nativePathData(path, frame) {
     return { x: numeric(value.x), y: numeric(value.y) };
   };
   const mappedPoint = value => ({ x: frameX + value.x * sx, y: frameY + value.y * sy });
+  const visit = value => { if (visitBoundsPoint) visitBoundsPoint(mappedPoint(value)); };
+  const curveBounds = points => {
+    if (!visitBoundsPoint) return;
+    visit(points[0]); visit(points.at(-1));
+    // Interior derivative roots give the curve's bounds. Control points are
+    // not on the curve and must not enlarge the radial gradient's anchor.
+    for (const axis of ["x", "y"]) {
+      const [p0, p1, p2, p3] = points.map(p => p[axis]);
+      const a = points.length === 4 ? -p0 + 3 * p1 - 3 * p2 + p3 : 0;
+      const b = points.length === 4 ? 2 * (p0 - 2 * p1 + p2) : p0 - 2 * p1 + p2;
+      const c = p1 - p0;
+      let roots = [];
+      if (a === 0) { if (b !== 0) roots = [-c / b]; }
+      else {
+        const discriminant = b * b - 4 * a * c;
+        if (discriminant >= 0) {
+          const q = -.5 * (b + (b < 0 ? -1 : 1) * Math.sqrt(discriminant));
+          roots = q === 0 ? [-b / (2 * a)] : [q / a, c / q];
+        }
+      }
+      for (const t of roots) if (t > 0 && t < 1) {
+        let level = points;
+        while (level.length > 1) level = level.slice(1).map((p, i) => ({
+          x: (1 - t) * level[i].x + t * p.x, y: (1 - t) * level[i].y + t * p.y,
+        }));
+        visit(level[0]);
+      }
+    }
+  };
   const ellipseParameterAngle = (viewAngle, radiusX, radiusY) =>
     Math.atan2(radiusX * Math.sin(viewAngle), radiusY * Math.cos(viewAngle));
   const arc = (value, current) => {
@@ -101,6 +137,15 @@ export function nativePathData(path, frame) {
       ? current
       : { x: center.x + radiusX * Math.cos(startParameter + parameterSweep),
           y: center.y + radiusY * Math.sin(startParameter + parameterSweep) };
+    if (visitBoundsPoint) {
+      visit(current); visit(end);
+      for (const theta of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) {
+        const turn = Math.PI * 2;
+        const distance = ((direction * (theta - startParameter)) % turn + turn) % turn;
+        if (distance <= Math.abs(parameterSweep) + 1e-12)
+          visit({ x: center.x + radiusX * Math.cos(theta), y: center.y + radiusY * Math.sin(theta) });
+      }
+    }
     const rx = radiusX * sx, ry = radiusY * sy;
     const mapped = p => mappedPoint(p);
     const fmt = p => {
@@ -133,16 +178,17 @@ export function nativePathData(path, frame) {
     if (!started) throw new TypeError("Path requires moveTo");
     switch (command.case) {
       case "lineTo": {
-        const value = localPoint(command.value); current = value;
+        const value = localPoint(command.value); visit(current); visit(value); current = value;
         return `L ${fmtPoint(mappedPoint(value))}`;
       }
       case "cubicBezierTo": {
         const control1 = localPoint(command.value.control1), control2 = localPoint(command.value.control2);
-        const end = localPoint(command.value.end); current = end;
+        const end = localPoint(command.value.end); curveBounds([current, control1, control2, end]); current = end;
         return `C ${fmtPoint(mappedPoint(control1))} ${fmtPoint(mappedPoint(control2))} ${fmtPoint(mappedPoint(end))}`;
       }
       case "quadraticBezierTo": {
-        const control = localPoint(command.value.control), end = localPoint(command.value.end); current = end;
+        const control = localPoint(command.value.control), end = localPoint(command.value.end);
+        curveBounds([current, control, end]); current = end;
         return `Q ${fmtPoint(mappedPoint(control))} ${fmtPoint(mappedPoint(end))}`;
       }
       case "arcTo": {
@@ -152,11 +198,26 @@ export function nativePathData(path, frame) {
       }
       case "close":
         if (command.value !== true) throw new TypeError("Invalid close command");
+        visit(current); visit(subpathStart);
         current = subpathStart;
         return "Z";
       default: throw new TypeError(`Unpainted native path command: ${command.case}`);
     }
   }).join(" ");
+}
+
+/** Bounds of the same literal paths consumed by the painter, excluding pen
+ * width. No SVG reparse, raster backend, or second DrawingML interpreter. */
+export function nativePathBounds(paths, frame) {
+  let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+  for (const path of paths) nativePathData(path, frame, point => {
+    const x = numeric(point.x), y = numeric(point.y);
+    left = Math.min(left, x); top = Math.min(top, y);
+    right = Math.max(right, x); bottom = Math.max(bottom, y);
+  });
+  if (!Number.isFinite(left) || !(right > left) || !(bottom > top))
+    throw new RangeError("Radial gradient requires nonempty two-dimensional path bounds");
+  return { x: left, y: top, width: numeric(right - left), height: numeric(bottom - top) };
 }
 
 const fmtPoint = value => `${n(value.x)} ${n(value.y)}`;
@@ -166,6 +227,8 @@ function frameTransform(f, transform) {
   const cx = f.x + f.width / 2, cy = f.y + f.height / 2;
   return `translate(${n(cx)} ${n(cy)}) rotate(${n(transform.rotation ?? 0)}) scale(${transform.flipH ? -1 : 1} ${transform.flipV ? -1 : 1}) translate(${n(-cx)} ${n(-cy)})`;
 }
+
+const reflected = transform => Boolean(transform?.flipH) !== Boolean(transform?.flipV);
 
 /** Actual native-state-to-SVG drawing; deliberately not a public publication
  * receipt. No support promotion or G-11 rule retirement is implied. */
@@ -186,6 +249,7 @@ function paintScene(receipt, { assessInput, integrated }) {
   const transformedScenePaths = new Set();
   const connectorScenePaths = new Set();
   const lineScenePaths = new Set();
+  const shapeGeometryScenePaths = new Set();
   const isolatedLinePoints = [];
   let imageMaskSequence = 0;
   let gradientSequence = 0;
@@ -209,27 +273,81 @@ function paintScene(receipt, { assessInput, integrated }) {
     return `<rect ${box(f)} fill="#FFF7ED" stroke="#9A3412" stroke-dasharray="3 2"/><text x="${n(f.x + 2)}" y="${n(f.y + 12)}" font-size="10" fill="#9A3412">${esc(label)}</text>`;
   }
   function text(node, source = node.native, ownerField = "shape", fallback = {}) {
-    const body = source.textBody, f = node.frame;
+    const body = source.textBody, physicalFrame = node.frame;
     if (!body && !source.text) return "";
     limit(node, `${ownerField}.textBody`, "preview.scene.paint.text-layout", "Font metrics, wrapping, AutoFit and inherited text state remain unverified.");
     // Rich paragraphs are authoritative. The compatibility string must never
     // duplicate or replace their run boundaries.
     const paragraphs = body?.paragraphs ?? [{ runs: [{ content: { case: "text", value: source.text } }] }];
     const properties = body?.bodyProperties;
+    const direction = properties?.verticalText?.case === "verticalTextMode" ? properties.verticalText.value : undefined;
+    const vertical = direction === "vertical" || direction === "vertical270";
+    const knownDirection = direction === undefined || direction === "horizontal" || vertical;
+    // Lay out in the reading coordinate system. Insets still denote the
+    // physical sides of the shape; they are remapped below, not rotated as
+    // if left/right always meant the start/end of a text line.
+    const f = vertical ? { x: physicalFrame.x + (physicalFrame.width - physicalFrame.height) / 2,
+      y: physicalFrame.y + (physicalFrame.height - physicalFrame.width) / 2,
+      width: physicalFrame.height, height: physicalFrame.width } : physicalFrame;
     const anchor = properties?.anchor?.case === "verticalAnchor" ? properties.anchor.value : undefined;
     const anchored = ["top", "center", "bottom"].includes(anchor);
     if (body) {
       unused(PresentationTextBodySchema, body, ["paragraphs", "bodyProperties"], node, `${ownerField}.textBody.`);
       if (body.bodyProperties) unused(PresentationTextBodySchema.fields.find(field => field.localName === "bodyProperties").message,
-        body.bodyProperties, ["leftInsetEmu", "rightInsetEmu", "topInsetEmu", ...(anchored ? ["verticalAnchor", "bottomInsetEmu"] : [])], node, `${ownerField}.textBody.bodyProperties.`);
+        body.bodyProperties, ["leftInsetEmu", "rightInsetEmu", "topInsetEmu", "rotationAngle60000",
+          ...(knownDirection ? ["verticalTextMode"] : []), ...(anchored ? ["verticalAnchor"] : []),
+          ...(anchored || vertical ? ["bottomInsetEmu"] : [])], node, `${ownerField}.textBody.bodyProperties.`);
     }
+    if (!knownDirection || vertical && (properties.uprightText?.case === "upright" && properties.uprightText.value === true ||
+        properties.textWarpPreset && properties.textWarpPreset !== "textNoShape" ||
+        properties.columnCount?.case === "columns" && properties.columnCount.value !== 1)) {
+      limit(node, `${ownerField}.textBody.bodyProperties.verticalTextMode`, "preview.scene.paint.text-direction",
+        "Unknown direction or unresolved upright, warped or multi-column vertical layout", "unavailable");
+      return placeholder(node, "Text direction layout unavailable");
+    }
+    const rotation = properties?.rotation?.case === "rotationAngle60000" ? properties.rotation.value : undefined;
+    if (rotation !== undefined && (!Number.isInteger(rotation) || Math.abs(rotation) > 21600000)) {
+      limit(node, `${ownerField}.textBody.bodyProperties.rotationAngle60000`, "preview.scene.paint.text-rotation", rotation, "unavailable");
+      return placeholder(node, "Text rotation unavailable");
+    }
+    // bodyPr/@rot rotates text independently of the enclosing shape. Rotate
+    // the anchored text block about its nominal frame, then let draw() apply
+    // the shape/group transform. Never rotate the fill or outline here.
+    // Upright/warped text still needs another layout mapping first.
+    if (rotation && (properties.uprightText?.case === "upright" && properties.uprightText.value === true ||
+        properties.textWarpPreset && properties.textWarpPreset !== "textNoShape")) {
+      limit(node, `${ownerField}.textBody.bodyProperties.rotationAngle60000`, "preview.scene.paint.text-rotation",
+        "Rotation with upright or warped text layout is unresolved", "unavailable");
+      return placeholder(node, "Text rotation layout unavailable");
+    }
+    const rotateText = svg => {
+      const directed = vertical
+        ? `<g data-officekit-text-direction="${direction}" transform="rotate(${direction === "vertical" ? 90 : -90} ${n(f.x + f.width / 2)} ${n(f.y + f.height / 2)})">${svg}</g>` : svg;
+      const rotated = rotation === undefined ? directed
+        : `<g data-officekit-text-rotation="${n(rotation / 60000)}" transform="rotate(${n(rotation / 60000)} ${n(f.x + f.width / 2)} ${n(f.y + f.height / 2)})">${directed}</g>`;
+      // DrawingML shape/group reflections move the text frame but must not
+      // mirror its glyphs. Cancel odd handedness about this text frame before
+      // the body rotation; retain the outer transforms of fill and outline.
+      return node.textReflected
+        ? `<g data-officekit-text-reflection="compensated" transform="translate(${n(2 * f.x + f.width)} 0) scale(-1 1)">${rotated}</g>`
+        : rotated;
+    };
     if (anchor !== undefined && !anchored) {
       limit(node, `${ownerField}.textBody.bodyProperties.verticalAnchor`, "preview.scene.paint.text-anchor", anchor, "unavailable");
       return placeholder(node, "Text anchor unavailable");
     }
     const inset = (key, selected, fallback) => properties?.[key]?.case === selected ? scenePoints(properties[key].value) : fallback;
-    const left = f.x + inset("leftInset", "leftInsetEmu", 7.2), right = f.x + f.width - inset("rightInset", "rightInsetEmu", 7.2);
-    let y = f.y + inset("topInset", "topInsetEmu", 3.6);
+    const physicalInsets = [inset("leftInset", "leftInsetEmu", 7.2), inset("topInset", "topInsetEmu", 3.6),
+      inset("rightInset", "rightInsetEmu", 7.2), inset("bottomInset", "bottomInsetEmu", 3.6)];
+    const insetOffset = direction === "vertical" ? 1 : direction === "vertical270" ? 3 : 0;
+    const [leftInset, topInset, rightInset, bottomInset] = physicalInsets.map((_, i) => physicalInsets[(i + insetOffset) % 4]);
+    if (vertical && (f.width - leftInset - rightInset <= 0 || f.height - topInset - bottomInset <= 0)) {
+      limit(node, `${ownerField}.textBody.bodyProperties.verticalTextMode`, "preview.scene.paint.text-direction",
+        "Vertical text has nonpositive inset bounds", "unavailable");
+      return placeholder(node, "Text direction bounds unavailable");
+    }
+    const left = f.x + leftInset, right = f.x + f.width - rightInset;
+    let y = f.y + topInset;
     const top = y;
     const paintedText = paragraphs.map((paragraph, pi) => {
       const defaults = paragraph.defaultRunStyle?.case === "defaultRunProperties" ? paragraph.defaultRunStyle.value : {};
@@ -357,18 +475,18 @@ function paintScene(receipt, { assessInput, integrated }) {
       y += previousSize * .2 + (spaceAfter ?? previousSize * 1.2 * afterMultiplier);
       return paragraphSvg;
     }).join("");
-    if (!anchored) return paintedText;
+    if (!anchored) return rotateText(paintedText);
     // Align the complete explicit-line block, including paragraph spacing and
     // our existing logical descent. This is not font-metric/AutoFit evidence:
     // the text-layout limitation remains even when direct anchoring is used.
-    const height = y - top, available = f.y + f.height - inset("bottomInset", "bottomInsetEmu", 3.6) - top;
+    const height = y - top, available = f.y + f.height - bottomInset - top;
     if (available < 0 || anchor !== "top" && height > available) {
       limit(node, `${ownerField}.textBody.bodyProperties.verticalAnchor`, "preview.scene.paint.text-anchor-overflow",
         "Text block exceeds inset bounds; overflow placement is unresolved", "unavailable");
       return placeholder(node, "Text anchor overflow unavailable");
     }
     const shift = anchor === "center" ? (available - height) / 2 : anchor === "bottom" ? available - height : 0;
-    return `<g data-officekit-text-anchor="${anchor}" transform="translate(0 ${n(shift)})">${paintedText}</g>`;
+    return rotateText(`<g data-officekit-text-anchor="${anchor}" transform="translate(0 ${n(shift)})">${paintedText}</g>`);
   }
   function gradient(node, field, value, frame) {
     unused(PresentationGradientFillSchema, value, ["kind", "stops", "angle60000"], node, `${field}.`);
@@ -376,29 +494,64 @@ function paintScene(receipt, { assessInput, integrated }) {
       limit(node, field, "preview.scene.paint.gradient", message, "unavailable");
       throw new TypeError(message);
     };
-    if (value.kind !== 1) fail("Only the native unscaled linear gradient is mapped");
+    if (![1, 2].includes(value.kind)) fail("Unknown native gradient kind");
+    if (value.kind === 2 && value.angle60000 !== undefined) fail("Radial gradient cannot carry a linear angle");
     const angle = value.angle60000 ?? 0;
     if (!Number.isSafeInteger(angle) || angle < 0 || angle >= 21600000 || frame.width <= 0 || frame.height <= 0)
-      fail("Invalid linear gradient direction or extent");
+      fail("Invalid gradient direction or extent");
     if (value.stops.length < 2 || value.stops.length > 16) fail("Gradient requires 2..16 ordered stops");
     let previous = -1;
-    const stops = value.stops.map((stop, index) => {
+    const stopMarkup = value.stops.map((stop, index) => {
       unused(PresentationGradientStopSchema, stop, ["positionThousandthPercent", "colorRgb", "opacityThousandthPercent"], node, `${field}.stops[${index}].`);
       const position = stop.positionThousandthPercent;
-      if (!Number.isSafeInteger(position) || position < previous || position > 100000 || !/^[0-9a-f]{6}$/iu.test(stop.colorRgb) ||
+      if (!Number.isSafeInteger(position) || position < 0 || position < previous || position > 100000 || !/^[0-9a-f]{6}$/iu.test(stop.colorRgb) ||
           stop.opacityThousandthPercent !== undefined && (!Number.isSafeInteger(stop.opacityThousandthPercent) || stop.opacityThousandthPercent < 0 || stop.opacityThousandthPercent > 100000))
         fail("Invalid gradient stop position or direct RGB color");
       previous = position;
       return `<stop offset="${n(position / 100000)}" stop-color="${rgb(stop.colorRgb)}" stop-opacity="${n(sceneOpacity(stop.opacityThousandthPercent ?? 100000))}"/>`;
-    }).join("");
+    });
+    let stops = stopMarkup.join("");
+    const first = value.stops[0], last = value.stops.at(-1);
+    // Office applies a special per-channel curve to these stop profiles.
+    // RGB channels use the bright-biased curve; alpha stays linear. Insert
+    // bounded SVG-only samples, leaving all native stops and presence intact.
+    if (first.positionThousandthPercent === 0 && last.positionThousandthPercent === 100000 &&
+        (value.stops.length === 2 && first.colorRgb.toUpperCase() !== last.colorRgb.toUpperCase() ||
+         value.stops.length === 3 && first.colorRgb.toUpperCase() === last.colorRgb.toUpperCase() &&
+         value.stops[1].positionThousandthPercent > 0 && value.stops[1].positionThousandthPercent < 100000 &&
+         first.colorRgb.toUpperCase() !== value.stops[1].colorRgb.toUpperCase())) {
+      const sampled = [stopMarkup[0]];
+      for (let index = 1; index < value.stops.length; index++) {
+        const start = value.stops[index - 1], end = value.stops[index];
+        const from = start.colorRgb.match(/../g).map(channel => parseInt(channel, 16));
+        const to = end.colorRgb.match(/../g).map(channel => parseInt(channel, 16));
+        const alpha0 = start.opacityThousandthPercent ?? 100000, alpha1 = end.opacityThousandthPercent ?? 100000;
+        for (const { t, falling, rising } of brightnessRamp) {
+          const color = from.map((channel, i) => Math.round(channel + (to[i] - channel) * (to[i] > channel ? rising : falling))
+            .toString(16).padStart(2, "0")).join("").toUpperCase();
+          const offset = (start.positionThousandthPercent + (end.positionThousandthPercent - start.positionThousandthPercent) * t) / 100000;
+          sampled.push(`<stop offset="${n(offset)}" stop-color="#${color}" stop-opacity="${n((alpha0 + (alpha1 - alpha0) * t) / 100000)}"/>`);
+        }
+        sampled.push(stopMarkup[index]);
+      }
+      stops = sampled.join("");
+      limit(node, field, "preview.scene.paint.gradient-interpolation", "Office brightness curve mapped with 32 SVG segments per interval; sub-byte RGB approximation, not host pixel acceptance.");
+    }
+    const cx = frame.x + frame.width / 2, cy = frame.y + frame.height / 2;
+    const id = `officekit-gradient-${gradientSequence++}`;
+    if (value.kind === 2) {
+      // The native codec only exposes path=circle with fillToRect=50% on
+      // every side. Its focus is the geometry center and its outer circle
+      // circumscribes those bounds, not a stretched inscribed ellipse.
+      const radius = Math.hypot(frame.width, frame.height) / 2;
+      return { fill: `url(#${id})`, definition: `<defs><radialGradient id="${id}" gradientUnits="userSpaceOnUse" color-interpolation="sRGB" cx="${n(cx)}" cy="${n(cy)}" r="${n(radius)}" fx="${n(cx)}" fy="${n(cy)}" spreadMethod="pad">${stops}</radialGradient></defs>` };
+    }
     const radians = angle / 60000 * Math.PI / 180;
     const snap = value => Math.abs(value) < 1e-12 ? 0 : value;
     const dx = snap(Math.cos(radians)), dy = snap(Math.sin(radians));
     // scaled=false keeps the direction in physical frame coordinates. The
     // projected rectangle span reaches its two extreme support lines.
     const half = (Math.abs(frame.width * dx) + Math.abs(frame.height * dy)) / 2;
-    const cx = frame.x + frame.width / 2, cy = frame.y + frame.height / 2;
-    const id = `officekit-gradient-${gradientSequence++}`;
     return { fill: `url(#${id})`, definition: `<defs><linearGradient id="${id}" gradientUnits="userSpaceOnUse" color-interpolation="sRGB" x1="${n(cx - dx * half)}" y1="${n(cy - dy * half)}" x2="${n(cx + dx * half)}" y2="${n(cy + dy * half)}">${stops}</linearGradient></defs>` };
   }
   function background(node, value) {
@@ -442,35 +595,91 @@ function paintScene(receipt, { assessInput, integrated }) {
   function shape(node) {
     const s = node.native, f = node.frame;
     unused(content.get("shape"), s, [...frameFields, "geometry", "text", "textBody", "fillRgb", "lineRgb", "lineWidthEmu",
-      "fillOpacityThousandthPercent", "lineOpacityThousandthPercent", "lineStyle", "lineCap", "lineJoin", "transform", "customPaths", "gradientFill",
+      "fillOpacityThousandthPercent", "lineOpacityThousandthPercent", "lineStyle", "lineCap", "lineJoin", "transform", "customPaths", "gradientFill", "imageFill", "imageFillAssetId",
       ...(s.geometry === "roundRect" && !s.customPaths.length ? ["presetAdjustments"] : [])], node, "shape.");
     const outline = linePaint(node, "shape", s.lineStyle === "none" ? "none" : rgb(s.lineRgb), scenePoints(s.lineWidthEmu),
       sceneOpacity(s.lineOpacityThousandthPercent ?? 100000), s.lineStyle === "none" ? "solid" : s.lineStyle || "solid", s.lineCap, s.lineJoin, "lineStyle");
+    if (s.imageFill || s.imageFillAssetId) {
+      let fill;
+      try {
+        if (s.fillRgb || s.fillScheme || s.gradientFill || s.fillOpacityThousandthPercent !== undefined || s.useBackgroundFill === true)
+          throw new TypeError("Image shape fill conflicts with solid, gradient or inherited background fill");
+        // This older source-owned descriptor does not carry the full paint
+        // contract (including rotation and alpha); asset identity alone is
+        // not permission to substitute a stretched picture.
+        if (s.imageFillAssetId) throw new TypeError("Source-owned image fill needs complete native paint state");
+        const paint = s.imageFill;
+        unused(PresentationImagePaintSchema, paint, ["assetId", "crop", "opacityThousandthPercent", "mode"], node, "shape.imageFill.");
+        if (![0, 1].includes(paint.mode)) {
+          limit(node, "shape.imageFill.mode", "preview.scene.paint.image-tile", "Native image fill mode or tile sizing is unresolved", "unavailable");
+          throw new TypeError("Image shape fill mode cannot be drawn as stretch");
+        }
+        const clip = shapeGeometry(node, "", true);
+        const image = imageSurface(node, "shape.imageFill", view.asset(paint.assetId), f, paint.crop, paint.opacityThousandthPercent);
+        if (image === null) throw new TypeError("Image shape asset, crop or opacity is unavailable");
+        const id = `officekit-shape-image-${imageMaskSequence++}`;
+        fill = `<defs><clipPath id="${id}" clipPathUnits="userSpaceOnUse">${clip}</clipPath></defs><g data-officekit-shape-image="true" clip-path="url(#${id})">${image}</g>`;
+      } catch (error) {
+        limit(node, s.imageFill ? "shape.imageFill" : "shape.imageFillAssetId", "preview.scene.paint.shape-image", error.message, "unavailable");
+        fill = placeholder(node, "Shape image fill unavailable");
+      }
+      // The picture is clipped to the fill only. Outline and text retain their
+      // own opacity and stay above it, including an entirely transparent fill.
+      return fill + shapeGeometry(node, `fill="none" ${outline}`) + text(node);
+    }
     if (s.gradientFill && (s.fillRgb || s.fillScheme || s.fillOpacityThousandthPercent !== undefined || s.imageFill || s.imageFillAssetId))
       throw new TypeError("Conflicting native shape fills");
-    const gradientFill = s.gradientFill ? gradient(node, "shape.gradientFill", s.gradientFill, f) : undefined;
-    const paint = `fill="${gradientFill?.fill ?? rgb(s.fillRgb)}" fill-opacity="${n(sceneOpacity(s.fillOpacityThousandthPercent ?? 100000))}" ${outline}`;
-    let geometry;
-    if (s.customPaths.length) geometry = s.customPaths.map((path, i) => {
-      const field = `shape.customPaths[${i}]`;
-      try {
-        if (![0, 1, 2].includes(path.fillMode)) throw new TypeError("Unknown path fill mode");
-        const d = nativePathData(path, f);
-        if (path.extrusionAllowed !== undefined) limit(node, `${field}.extrusionAllowed`, "preview.scene.paint.unmapped", path.extrusionAllowed);
-        // Override the paint on a child, avoiding duplicate XML attributes.
-        return `<g ${paint}><path data-officekit-path="${i}" d="${d}"${path.fillMode === 2 ? ' fill="none"' : ""}${path.stroke === false ? ' stroke="none"' : ""}/></g>`;
-      } catch (error) {
-        limit(node, field, "preview.scene.paint.path", error.message, "unavailable");
-        return placeholder(node, "path unavailable");
+    let gradientFrame = f;
+    if (s.gradientFill?.kind === 2 && s.customPaths.length) {
+      try { gradientFrame = nativePathBounds(s.customPaths, f); }
+      catch (error) {
+        limit(node, "shape.gradientFill", "preview.scene.paint.gradient-geometry", error.message, "unavailable");
+        return placeholder(node, "Gradient geometry unavailable") + shapeGeometry(node, `fill="none" ${outline}`) + text(node);
       }
-    }).join("");
+    }
+    const gradientFill = s.gradientFill ? gradient(node, "shape.gradientFill", s.gradientFill, gradientFrame) : undefined;
+    const paint = `fill="${gradientFill?.fill ?? rgb(s.fillRgb)}" fill-opacity="${n(sceneOpacity(s.fillOpacityThousandthPercent ?? 100000))}" ${outline}`;
+    return (gradientFill?.definition ?? "") + shapeGeometry(node, paint) + text(node);
+  }
+  function shapeGeometry(node, paint, clip = false) {
+    const s = node.native, f = node.frame;
+    const completed = svg => {
+      // A clip definition alone is not a drawn shape. Unmapped adjustments
+      // and any failed path must also retain the owner's geometry failure.
+      if (!clip && (!s.presetAdjustments.length || s.geometry === "roundRect" && !s.customPaths.length))
+        shapeGeometryScenePaths.add(node.scenePath);
+      return svg;
+    };
+    if (clip && s.presetAdjustments.length && s.geometry !== "roundRect")
+      throw new TypeError("Image fill mask has unresolved preset adjustments");
+    if (s.customPaths.length) {
+      let complete = true;
+      const svg = s.customPaths.map((path, i) => {
+        const field = `shape.customPaths[${i}]`;
+        try {
+          if (![0, 1, 2].includes(path.fillMode)) throw new TypeError("Unknown path fill mode");
+          const d = nativePathData(path, f);
+          if (clip) return path.fillMode === 2 ? "" : `<path d="${d}"/>`;
+          if (path.extrusionAllowed !== undefined) limit(node, `${field}.extrusionAllowed`, "preview.scene.paint.unmapped", path.extrusionAllowed);
+          // Override the paint on a child, avoiding duplicate XML attributes.
+          return `<g ${paint}><path data-officekit-path="${i}" d="${d}"${path.fillMode === 2 ? ' fill="none"' : ""}${path.stroke === false ? ' stroke="none"' : ""}/></g>`;
+        } catch (error) {
+          if (clip) throw error;
+          complete = false;
+          limit(node, field, "preview.scene.paint.path", error.message, "unavailable");
+          return placeholder(node, "path unavailable");
+        }
+      }).join("");
+      return complete ? completed(svg) : svg;
+    }
     // The codec lowers its "textbox" marker to native rect geometry too.
-    else if (["rect", "textbox", "flowChartProcess"].includes(s.geometry)) geometry = `<rect ${box(f)} ${paint}/>`;
-    else if (s.geometry === "roundRect") geometry = roundedRectangle(f, s.presetAdjustments, paint);
-    else if (s.geometry === "ellipse") geometry = `<ellipse cx="${n(f.x + f.width / 2)}" cy="${n(f.y + f.height / 2)}" rx="${n(f.width / 2)}" ry="${n(f.height / 2)}" ${paint}/>`;
-    else if (["diamond", "flowChartDecision"].includes(s.geometry)) geometry = `<path d="M ${n(f.x + f.width / 2)} ${n(f.y)} L ${n(f.x + f.width)} ${n(f.y + f.height / 2)} L ${n(f.x + f.width / 2)} ${n(f.y + f.height)} L ${n(f.x)} ${n(f.y + f.height / 2)} Z" ${paint}/>`;
-    else { limit(node, "shape.geometry", "preview.scene.paint.preset", s.geometry); geometry = placeholder(node, `geometry: ${s.geometry || "unresolved"}`); }
-    return (gradientFill?.definition ?? "") + geometry + text(node);
+    if (["rect", "textbox", "flowChartProcess"].includes(s.geometry)) return completed(`<rect ${box(f)} ${paint}/>`);
+    if (s.geometry === "roundRect") return completed(roundedRectangle(f, s.presetAdjustments, paint));
+    if (s.geometry === "ellipse") return completed(`<ellipse cx="${n(f.x + f.width / 2)}" cy="${n(f.y + f.height / 2)}" rx="${n(f.width / 2)}" ry="${n(f.height / 2)}" ${paint}/>`);
+    if (["diamond", "flowChartDecision"].includes(s.geometry)) return completed(`<path d="M ${n(f.x + f.width / 2)} ${n(f.y)} L ${n(f.x + f.width)} ${n(f.y + f.height / 2)} L ${n(f.x + f.width / 2)} ${n(f.y + f.height)} L ${n(f.x)} ${n(f.y + f.height / 2)} Z" ${paint}/>`);
+    if (clip) throw new TypeError(`Unmapped image fill geometry: ${s.geometry}`);
+    limit(node, "shape.geometry", "preview.scene.paint.preset", s.geometry);
+    return placeholder(node, `geometry: ${s.geometry || "unresolved"}`);
   }
   function media(node) {
     const s = node.native, f = node.frame, poster = view.asset(s.posterAssetId);
@@ -1274,16 +1483,18 @@ function paintScene(receipt, { assessInput, integrated }) {
     lineScenePaths.add(node.scenePath);
     return svg;
   }
-  function paintGroup(node, group, prefix) {
+  function paintGroup(node, group, prefix, textReflected = node.textReflected) {
     const f = group.frame, c = group.childFrame;
     unused(content.get("group"), group.native, [...frameFields, "childLeftEmu", "childTopEmu", "childWidthEmu", "childHeightEmu", "frameTransform", "children"], node, `${prefix}.`);
     if (!f || !c || c.width <= 0 || c.height <= 0) throw new RangeError("Nonpositive native group child extent");
     for (const value of Object.values(f)) numeric(value);
     if (f.width < 0 || f.height < 0) throw new RangeError("Negative native group frame");
     const matrix = `translate(${n(f.x)} ${n(f.y)}) scale(${n(f.width / c.width)} ${n(f.height / c.height)}) translate(${n(-c.x)} ${n(-c.y)})`;
-    return `<g transform="${matrix}">${group.children.map(draw).join("")}</g>`;
+    return `<g transform="${matrix}">${group.children.map(child => draw(child, textReflected)).join("")}</g>`;
   }
-  function draw(node) {
+  function draw(node, inheritedReflection = false) {
+    // Paint-local context only: never annotate the immutable native scene.
+    node = { ...node, textReflected: inheritedReflection !== reflected(node.transform) };
     visitedNodes.add(node.scenePath);
     const identity = `data-officekit-native-id="${esc(node.nativeId)}" data-officekit-scene-path="${esc(node.scenePath)}"${node.semanticId ? ` data-officekit-id="${esc(node.semanticId)}"` : ""}`;
     let svg;
@@ -1309,7 +1520,7 @@ function paintScene(receipt, { assessInput, integrated }) {
           svg = placeholder(node, "diagram: imported drawing incomplete");
         } else {
           limit(node, "diagram.drawing", "preview.scene.paint.diagram-cache-scope", "Displaying verified native cache; semantic layout/edit fidelity is not independently established by this image.");
-          svg = `<g data-officekit-diagram="verified-cache" transform="${frameTransform(node.drawing.frame, node.drawing.transform)}">${paintGroup(node, node.drawing, "diagram.drawing")}</g>`;
+          svg = `<g data-officekit-diagram="verified-cache" transform="${frameTransform(node.drawing.frame, node.drawing.transform)}">${paintGroup(node, node.drawing, "diagram.drawing", node.textReflected !== reflected(node.drawing.transform))}</g>`;
         }
       } else if (node.kind === "shape") svg = shape(node);
       else if (node.kind === "image") svg = image(node);
@@ -1335,13 +1546,14 @@ function paintScene(receipt, { assessInput, integrated }) {
   }
   // Complete actual drawing before the input profile can inspect successful
   // hidden/transform branches, including owners lowered across multiple pages.
-  const bodies = view.pages.map(page => page.nodes.map(draw).join(""));
+  const bodies = view.pages.map(page => page.nodes.map(node => draw(node)).join(""));
   const paintIdentity = { renderer: integrated ? "officekit-native-scene-svg" : "officekit-native-scene-svg-internal", scene: view.scene,
     sceneEvidence: ppjPreviewSceneIdentity(view.scene),
     hiddenScenePaths: Object.freeze([...hiddenScenePaths]),
     transformedScenePaths: Object.freeze([...transformedScenePaths]),
     connectorScenePaths: Object.freeze([...connectorScenePaths]),
     lineScenePaths: Object.freeze([...lineScenePaths]),
+    shapeGeometryScenePaths: Object.freeze([...shapeGeometryScenePaths]),
     isolatedLinePoints: Object.freeze(isolatedLinePoints.map(point => Object.freeze(point))) };
   let inputAssessment;
   if (assessInput) {

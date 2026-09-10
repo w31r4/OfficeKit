@@ -1,5 +1,17 @@
 # OfficeKit 本地 PPT 预览渲染器差距审计
 
+文字翻转修复（2026-09-10）：共享文字 painter 累计形状及祖先组的翻转，抵消镜像字形而保留外层位置、填充和轮廓变换。192 项合成组合通过；LBG93d 在同一默认 035472e9 包下新增 36 项真实形状/单元格作者、源 no-op 及嵌套源角度修改案例，均为 requires-review。旧旋转测试中四项镜像期望已纠正，原 47 项回归保留。正式入口共 190 项，十二项原生删除失败仍使整套退出 1；无 preload presentation 4/4。原生图表独立标签、竖排/upright、完整排版及导入 SmartArt 仍未完成，任务 10/15。详见[当前 G-02 文字翻转](ppj-preview-current-gaps.zh-CN.md#文字翻转抵消镜像但保留外层变换)。
+
+文字自身旋转进展（2026-09-10）：LU0TNH 在同一默认 035472e9 包下通过 47 项文本框、带文字形状、单元格的作者/源 no-op/独立源编辑案例。绘制先锚定文字，再施加文字自身角度和外层变换；填充不跟随文字角度。九项源修改、清零、删除核对真实墨迹、XML 存在性、重新投影和非目标保留。正式入口共 154 项，新增结果全部 requires-review；整套仍因原十二项删除失败退出 1，无 preload presentation 4/4。另保留两个单 run 内换行表格导入为 opaque 的反例，不把它们算成源渲染成功。完整文字布局、upright/竖排/扭曲组合及该导入差距仍开放，任务仍 10/15。详见[当前 G-02 文字旋转](ppj-preview-current-gaps.zh-CN.md#文字自身旋转独立于形状的变换)。
+
+渐变亮度插值进展（2026-09-10）：WQsUZk 在同一默认 035472e9 包下通过 36 项形状/单元格/背景的线性与径向案例。特殊两色/首尾同色三色采用每区间 32 段的亮度曲线，alpha 仍线性，原生色标不增加；普通插值与重复色标不改写。24 项独立源编辑重新投影并保留非目标内容，无文字形状全透明合并为 compositing.opacity=0 已经二次编译验证。正式入口共 107 项，新增结果均为 requires-review；原十二项删除失败仍使整套退出 1，无 preload presentation 4/4。任务 10/15 与完整目标保持开放；精度界限、测试纠错及剩余范围见[当前 G-04 亮度插值](ppj-preview-current-gaps.zh-CN.md#渐变亮度插值颜色与透明度分开计算)。下方“特殊插值未实现”属于此前阶段。
+
+径向渐变进展（2026-09-10）：TZi2W5 在同一默认 035472e9 包下通过 14 项形状/单元格/背景生命周期，以及 8 项自定义路径实际范围案例。路径求值复用现有直线/Bezier/圆弧实现；中心和半径使用实际几何范围，透明度、重复色标、前景及源编辑保留已验证。特殊颜色插值仍有 partial 提示，非居中/其他路径类型、主题/继承和其余消费者未完成。正式入口共 71 项，新增 22 项均为 requires-review；原十二项源删除失败仍使集成退出 1。无 preload presentation 4/4，原生包没有重建，任务 10/15 和完整目标保持开放；证据及测试纠错见[当前 G-04](ppj-preview-current-gaps.zh-CN.md#径向渐变实际路径范围和源编辑)。下方径向“未实现”属于此进展之前的历史阶段。
+
+形状事实检查更新（2026-09-10）：7pSsUc 按实际完成的几何及自身/祖先变换记录，解除十六项形状图片案例的旧几何遗漏误报；缺记录、未映射/部分路径、混合 owner 和失败节点保留错误。十六张正式 PNG 除警示条外与 1A1hYE 内容像素相同，结果为 requires-review，文字/效果/opaque 等限制未解除。49 项入口、2 项平铺拒绝及既有十二项删除失败保留，完整集成仍退出 1；无 preload presentation 4/4。10/15 与完整目标仍开放，见[当前 G-11/G-12](ppj-preview-current-gaps.zh-CN.md#g-11g-12已有检查和发布契约不是绘制完成)。
+
+形状图片填充进展（2026-09-10，1A1hYE 历史阶段）：完整原生 imageFill 复用资产/裁切/alpha，并裁到实际几何；轮廓、文字和 stroke-only 路径保持独立。五种几何作者/源 no-op 与六项独立源编辑共十六例通过 native、RGBA、正式入口和保留断言；整个 fill 删除仅清理候选内独占图片及对应关系，原源保留。正式入口案例增至 49 项，整套仍因既有十二项删除失败退出 1；该阶段仍保留旧几何误报，后续有界修正见上段。细节见[当前差距 G-04](ppj-preview-current-gaps.zh-CN.md#形状图片填充有界几何独立轮廓与源编辑)。
+
 提交快照复验（2026-09-10）：1fIaRG 记录 33 项正式入口案例，新增的 12 项直接图片背景状态通过原生与 RGBA 检查，透明像素、裁切、opacity 和共享前景保留；两项平铺反例继续明确拒绝。共享图片背景的整个删除在原生编译时被 capability 校验拒绝，整套现有四项变换、七项间距、一项背景删除失败，仍退出 1。完整任务保持开放；以[当前差距摘要](ppj-preview-current-gaps.zh-CN.md)为准，下方较早轮次的数量保留为历史记录。
 
 直接背景线性渐变进展（2026-09-10）：复用形状/表格渐变函数，保留方向、重复色标、alpha 与前景层次；非法/径向/冲突背景失败只影响所属页。aVCT4i 的九项作者、源 no-op、原源背景改方向/透明度/删除案例通过 native、RGBA、重新投影、仅目标 slide 改变和正式发布断言，正式入口案例增至 21 项。原生包未变，完整集成仍因原十一项编辑删除失败退出 1，10/15 任务与整体目标保持开放；范围见[当前差距 G-04](ppj-preview-current-gaps.zh-CN.md#g-04样式主题和效果)。
@@ -637,7 +649,7 @@ G-01 即使完成，也只解决共用输入边界；文本排版、preset、效
 
 ## 3. 元素与页面视觉差距
 
-下表对齐 [PPJ schema](../src/ppj/ppj-v1.schema.json) 中的 16 类元素，描述**当前生产 CLI 路线**，不是内部 painter 的映射表。声明状态来自当前 [preview capabilities](../src/ppj/svg-preview-capabilities.json)，描述整个类型的保守边界；运行时还会检查实际字段与继承状态。内部有限修复见第 2.3～2.7 节，尚未切换生产入口。当前没有任何整个元素或图表类型被声明为 supported；这不表示连一个简单原语也画不出来。
+下表对齐 [PPJ schema](../src/ppj/ppj-v1.schema.json) 中的 16 类元素，保留初次审计的旧 canonical CLI 行为，不代表已接入 native scene 的当前路线。当前映射与回归以[当前能力和差距](ppj-preview-current-gaps.zh-CN.md)为准；[preview capabilities](../src/ppj/svg-preview-capabilities.json) 描述整个类型的保守边界，不能代替逐字段证据。当前没有整个元素或图表类型被声明为 supported；这不表示简单原语也无法绘制。
 
 | 元素 | 声明状态 | 实际行为和未覆盖范围 |
 | --- | --- | --- |
@@ -662,7 +674,7 @@ G-01 即使完成，也只解决共用输入边界；文本排版、preset、效
 
 ### 3.1 G-02：文字和形状内容缺失
 
-代码中的 `if (e.type === "text" || e.text)` 位于 shape 分支之前。任何带真值 `text` 的形状都会只输出文字。
+旧 canonical 代码中的 `if (e.type === "text" || e.text)` 位于 shape 分支之前，导致带真值 `text` 的形状只输出文字。该分支已从正式入口移除；下文保留原始问题现场。
 
 初次审计的 canonical fixture 决策节点 `decision-flow-gate` 本来是 `flowChartDecision`，有填充、白色文字和居中设置；当时实际 SVG 摘录为：
 
@@ -670,9 +682,9 @@ G-01 即使完成，也只解决共用输入边界；文本排版、preset、效
 <g data-officekit-id="decision-flow-gate"><text x="806" y="302" font-family="Arial, sans-serif" font-size="18" fill="#172033"><tspan x="806" dy="0">Pass?</tspan></text></g>
 ```
 
-该组没有菱形或背景。初次审计时此节点也没有出现在 diagnostics 中；当前 G-11 已为此类几何丢失报告 `preview.fact.shape-geometry-omitted` 并使可靠性失败，但尚未补画几何。
+该旧输出没有菱形或背景，初次审计时也没有诊断。G-11 随后增加 `preview.fact.shape-geometry-omitted`；当前 native painter 已有有限几何绘制，并仅在完整几何及自身/祖先变换都有实际记录时解除此错误。未知几何和失败路径仍保留错误，完整文字排版也未完成，详见[当前 G-11/G-12](ppj-preview-current-gaps.zh-CN.md#g-11g-12已有检查和发布契约不是绘制完成)。
 
-其他代码确认的差距：
+同次旧代码审计确认的其他差距（当前进展见上方链接）：
 
 - `textValue` 把每个 run 用换行连接；同一段内“普通字 + 加粗字”会被错误拆行。
 - 字号读取 `textStyle.fontSize`，没有完整消费实际 `defaultText.size`、run style 和命名样式。

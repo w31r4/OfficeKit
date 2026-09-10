@@ -8,7 +8,7 @@ import { PresentationPreviewSceneSchema, PresentationElementSchema, Presentation
   SpreadsheetChartSeriesArtifactSchema, SpreadsheetChartPointStyleArtifactSchema,
   PresentationGradientFillSchema, PresentationBackgroundSchema, PresentationSlideSchema,
   SpreadsheetChartSurfaceFillSchema, SpreadsheetChartAxisArtifactSchema } from "../src/generated/office_kit/artifact/v1/office_artifact_pb.js";
-import { nativePathData, paintPpjSceneSvg } from "../src/ppj/preview-scene-svg.mjs";
+import { nativePathBounds, nativePathData, paintPpjSceneSvg } from "../src/ppj/preview-scene-svg.mjs";
 import { assessPpjPreviewInput } from "../src/ppj/preview-input-assessment.mjs";
 import capabilityRegistry from "../src/ppj/capability-registry.json" with { type: "json" };
 
@@ -65,6 +65,35 @@ for (const bad of [
   path({ width: 100n, height: 100n, commands: [command("moveTo", { x: 50n, y: 0n }), arcCommand(50, 50, 0, 90), command("close", false)] }),
   path({ width: 100n, height: 100n, commands: [command("moveTo", { x: 50n, y: 0n }), command("arcTo", { widthRadius: 50n, heightRadius: 50n, startAngle: 0, sweepAngle: 90, widthRadiusReference: "guide" })] }),
 ]) assert.throws(() => nativePathData(bad, { x: 0, y: 0, width: 100, height: 100 }));
+
+const quadraticBoundsPath = path({ width: 100n, height: 100n, commands: [command("moveTo", { x: 0n, y: 0n }),
+  command("quadraticBezierTo", { control: { x: 50n, y: 100n }, end: { x: 100n, y: 0n } })] });
+const cubicBoundsPath = path({ width: 100n, height: 100n, commands: [command("moveTo", { x: 0n, y: 0n }),
+  command("cubicBezierTo", { control1: { x: 0n, y: 100n }, control2: { x: 100n, y: 100n }, end: { x: 100n, y: 0n } })] });
+const doubleExtremaPath = path({ width: 100n, height: 100n, commands: [command("moveTo", { x: 0n, y: 0n }),
+  command("cubicBezierTo", { control1: { x: 100n, y: 0n }, control2: { x: -100n, y: 100n }, end: { x: 0n, y: 100n } })] });
+const pathFrame = { x: 10, y: 20, width: 200, height: 100 };
+for (const [paths, expected] of [
+  [[quadraticBoundsPath], { x: 10, y: 20, width: 200, height: 50 }],
+  [[cubicBoundsPath], { x: 10, y: 20, width: 200, height: 75 }],
+  [[doubleExtremaPath], { x: 10 - 100 / Math.sqrt(3), y: 20, width: 200 / Math.sqrt(3), height: 100 }],
+  [[quarterArc], { x: 10, y: 20, width: 100, height: 50 }],
+  [[reverseArc], { x: 10, y: -30, width: 100, height: 50 }],
+  [[anisotropicArc], { x: 110 - 200 / Math.sqrt(5), y: 20, width: 200 / Math.sqrt(5), height: 25 - 50 / Math.sqrt(5) }],
+  [[fullArc], { x: -90, y: -30, width: 200, height: 100 }],
+  [[closeThenArc], { x: 10, y: -30, width: 200, height: 50 }],
+  [[quarterArc, reverseArc], { x: 10, y: -30, width: 100, height: 100 }],
+  [[noViewport], { x: 11, y: 20, width: 2, height: 2 }],
+]) {
+  const originals = paths.map(p => toBinary(PresentationCustomGeometryPathSchema, p));
+  const actual = nativePathBounds(paths, pathFrame);
+  for (const key of Object.keys(expected)) assert.ok(Math.abs(actual[key] - expected[key]) < 1e-9, `${key}: ${actual[key]} != ${expected[key]}`);
+  assert.deepEqual(paths.map(p => toBinary(PresentationCustomGeometryPathSchema, p)), originals);
+}
+for (const paths of [[], [path({ commands: [command("moveTo", { x: 0n, y: 0n })] })],
+  [path({ commands: [command("moveTo", { x: 0n, y: 0n }), command("lineTo", { x: 10n, y: 0n })] })],
+  [polygon, path({ commands: [command("moveTo", { xReference: "guide" })] })],
+]) assert.throws(() => nativePathBounds(paths, pathFrame));
 
 // Synthetic native receipts isolate drawing semantics; real compiler coverage
 // lives in the explicitly selected NativeAOT integration test.
@@ -144,7 +173,7 @@ for (const [angle, expected] of [[0, [10, 90, 210, 90]], [90, [110, 40, 110, 140
   assert.ok(!painted.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && d.scenePath.includes("gradientFill")));
   assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
 }
-for (const edit of [g => { g.kind = 2; delete g.angle60000; }, g => { g.angle60000 = 21600000; },
+for (const edit of [g => { g.kind = 9; delete g.angle60000; }, g => { g.angle60000 = 21600000; },
   g => { g.stops.reverse(); }, g => { g.stops.length = 1; }, g => { g.stops[0].opacityThousandthPercent = 100001; },
   (g, s) => { s.fillRgb = "FFFFFF"; }]) {
   const painted = paintPpjSceneSvg(gradientFixture(0, edit));
@@ -184,7 +213,7 @@ for (const [angle, coordinates] of [[0, [0, 200, 600, 200]], [90, [300, 0, 300, 
   assert.ok(svg.indexOf('data-officekit-background="gradient"') < svg.indexOf('data-officekit-native-id="box"'), "background precedes foreground nodes");
   assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), before);
 }
-for (const edit of [b => { b.gradientFill.kind = 2; delete b.gradientFill.angle60000; },
+for (const edit of [b => { b.gradientFill.kind = 9; delete b.gradientFill.angle60000; },
   b => { b.gradientFill.stops.length = 1; }, b => { b.gradientFill.stops.reverse(); },
   b => { b.gradientFill.angle60000 = 21600000; }, b => { b.gradientFill.stops[1].opacityThousandthPercent = 100001; },
   b => { b.color = { case: "colorRgb", value: "CC5500" }; }, b => { b.kind = { case: "solid", value: false }; },
@@ -208,6 +237,185 @@ const mixedGradientInput = backgroundGradientFixture(0, (background, scene) => {
 const mixedGradientSvg = paintPpjSceneSvg(mixedGradientInput).pages[0].svg;
 assert.equal(mixedGradientSvg.match(/<linearGradient/g)?.length, 2);
 assert.equal(new Set([...mixedGradientSvg.matchAll(/<linearGradient id="([^"]+)"/g)].map(m => m[1])).size, 2);
+function radialGradientFixture(width = 160, height = 120, edit = () => {}, editScene = () => {}) {
+  return fixture(scene => {
+    const gradient = create(PresentationGradientFillSchema, { kind: 2, stops: [
+      { positionThousandthPercent: 0, colorRgb: "FF0000" }, { positionThousandthPercent: 25000, colorRgb: "FF0000" },
+      { positionThousandthPercent: 25000, colorRgb: "00FF00", opacityThousandthPercent: 0 },
+      { positionThousandthPercent: 75000, colorRgb: "00FF00", opacityThousandthPercent: 0 },
+      { positionThousandthPercent: 75000, colorRgb: "0000FF" }, { positionThousandthPercent: 100000, colorRgb: "0000FF" },
+    ] });
+    edit(gradient);
+    scene.presentation.slides[0].elements = [
+      child("radial-shape", "shape", { ...frame(10, 40, width, height), geometry: "rect", gradientFill: clone(PresentationGradientFillSchema, gradient), text: "RADIAL" }),
+      child("radial-table", "table", { ...frame(250, 40, 160, 120), columnWidthsEmu: [emu(160)], rows: [{ heightEmu: emu(120),
+        cells: [{ fill: { kind: { case: "gradientFill", value: clone(PresentationGradientFillSchema, gradient) } } }] }] }),
+    ];
+    scene.presentation.slides[0].background = create(PresentationBackgroundSchema, { gradientFill: gradient });
+    editScene(scene);
+  });
+}
+for (const [width, height, radius] of [[160, 120, 100], [120, 160, 100], [100, 100, Math.sqrt(5000)]]) {
+  const input = radialGradientFixture(width, height), original = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const painted = paintPpjSceneSvg(input), svg = painted.pages[0].svg;
+  const gradients = [...svg.matchAll(/<radialGradient\b([^>]*)>([\s\S]*?)<\/radialGradient>/g)];
+  assert.equal(gradients.length, 3, "shape, cell and background use the shared radial painter");
+  const fields = gradients.map(g => Object.fromEntries([...g[1].matchAll(/([\w-]+)="([^"]*)"/g)].map(m => [m[1], m[2]])));
+  const shape = fields.find(f => Number(f.cx) === 10 + width / 2 && Number(f.cy) === 40 + height / 2);
+  assert.ok(shape);
+  assert.ok(Math.abs(Number(shape.r) - radius) < 1e-10, "physical circumscribed-circle radius, not stretched bbox ellipse");
+  assert.equal(shape.gradientUnits, "userSpaceOnUse");
+  assert.equal(shape.spreadMethod, "pad");
+  assert.equal(shape.fx, shape.cx); assert.equal(shape.fy, shape.cy);
+  assert.equal(new Set(fields.map(f => f.id)).size, 3);
+  for (const g of gradients) {
+    assert.equal((g[2].match(/<stop/g) || []).length, 6, "duplicate stop order and explicit alpha are preserved");
+    assert.match(g[2], /^<stop offset="0" stop-color="#FF0000" stop-opacity="1"/);
+    assert.match(g[2], /offset="0.25" stop-color="#FF0000"[^>]*\/><stop offset="0.25" stop-color="#00FF00" stop-opacity="0"/);
+  }
+  assert.ok(!painted.diagnostics.some(d => ["preview.scene.paint.gradient", "preview.scene.paint.background"].includes(d.reason)));
+  assert.match(svg, /RADIAL/);
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+// The path occupies only the left half of its declared viewport. Its actual
+// bounds, not the frame or a control-point box, determine the radial focus.
+{
+  const input = radialGradientFixture(200, 100, undefined, scene => {
+    const shape = scene.presentation.slides[0].elements[0].content.value;
+    shape.geometry = "custom";
+    shape.customPaths = [path({ width: 100n, height: 100n, commands: [
+      command("moveTo", { x: 0n, y: 0n }), command("lineTo", { x: 50n, y: 0n }),
+      command("lineTo", { x: 50n, y: 100n }), command("lineTo", { x: 0n, y: 100n }), command("close", true),
+    ] })];
+  });
+  const original = toBinary(PresentationPreviewSceneSchema, input.previewScene), svg = paintPpjSceneSvg(input).pages[0].svg;
+  assert.match(svg, /<radialGradient[^>]* cx="60" cy="90" r="70\.71067811865476" fx="60" fy="90"/);
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+for (const paths of [[quadraticBoundsPath], [cubicBoundsPath], [fullArc], [quarterArc, reverseArc]]) {
+  const input = radialGradientFixture(200, 100, undefined, scene => {
+    Object.assign(scene.presentation.slides[0].elements[0].content.value, { geometry: "custom", customPaths: paths });
+  });
+  const original = toBinary(PresentationPreviewSceneSchema, input.previewScene), painted = paintPpjSceneSvg(input);
+  assert.ok(!painted.diagnostics.some(d => d.reason === "preview.scene.paint.gradient-geometry"));
+  assert.match(painted.pages[0].svg, /data-officekit-path="0"/);
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+for (const paths of [[path({})], [path({ commands: [command("moveTo", { xReference: "guide" })] })],
+  [polygon, path({ commands: [command("moveTo", { xReference: "guide" })] })]]) {
+  const input = radialGradientFixture(200, 100, undefined, scene => {
+    Object.assign(scene.presentation.slides[0].elements[0].content.value, { geometry: "custom", customPaths: paths });
+  });
+  const original = toBinary(PresentationPreviewSceneSchema, input.previewScene), painted = paintPpjSceneSvg(input);
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.gradient-geometry" && d.status === "unavailable"));
+  assert.equal((painted.pages[0].svg.match(/<radialGradient/g) || []).length, 2, "no invented frame gradient for an unresolved shape");
+  assert.match(painted.pages[0].svg, /RADIAL/);
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+for (const edit of [g => { g.angle60000 = 0; }, g => { g.angle60000 = 5400000; },
+  g => { g.stops[1].positionThousandthPercent = 100001; }, g => { g.stops[1].opacityThousandthPercent = 100001; },
+  g => { g.stops[1].colorRgb = "bad"; }, g => { g.stops.reverse(); }, g => { g.stops.length = 1; }]) {
+  const input = radialGradientFixture(160, 120, edit), original = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const painted = paintPpjSceneSvg(input);
+  assert.equal(painted.reliability.status, "failed");
+  assert.doesNotMatch(painted.pages[0].svg, /<radialGradient/);
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.gradient"));
+  assert.match(painted.pages[0].svg, /data-officekit-background="unavailable"/);
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+// Office's two-color midpoint is brighter than ordinary SVG interpolation.
+for (const kind of [1, 2]) {
+  const input = radialGradientFixture(160, 120, g => {
+    g.kind = kind; if (kind === 1) g.angle60000 = 0;
+    g.stops = create(PresentationGradientFillSchema, { stops: [
+      { positionThousandthPercent: 0, colorRgb: "FF0000", opacityThousandthPercent: 0 },
+      { positionThousandthPercent: 100000, colorRgb: "0000FF" },
+    ] }).stops;
+  });
+  const original = toBinary(PresentationPreviewSceneSchema, input.previewScene), svg = paintPpjSceneSvg(input).pages[0].svg;
+  assert.equal((svg.match(/<stop offset="0.5" stop-color="#B900B9" stop-opacity="0.5"/g) || []).length, 3,
+    "shape, table and background map RGB brightness independently of linear alpha");
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+for (const kind of [1, 2]) for (const [positions, colors, limited] of [
+  [[0, 100000], ["FF0000", "0000FF"], true],
+  [[0, 50000, 100000], ["FF0000", "00FF00", "FF0000"], true],
+  [[0, 50000, 100000], ["FF0000", "00FF00", "0000FF"], false],
+  [[10000, 100000], ["FF0000", "0000FF"], false],
+]) {
+  const input = radialGradientFixture(160, 120, g => {
+    g.kind = kind; if (kind === 1) g.angle60000 = 0;
+    g.stops = positions.map((position, i) => create(PresentationGradientFillSchema, { stops: [
+      { positionThousandthPercent: position, colorRgb: colors[i], opacityThousandthPercent: i === 0 ? 0 : 100000 },
+    ] }).stops[0]);
+  });
+  const original = toBinary(PresentationPreviewSceneSchema, input.previewScene), painted = paintPpjSceneSvg(input);
+  const diagnostics = painted.diagnostics.filter(d => d.reason === "preview.scene.paint.gradient-interpolation");
+  assert.equal(diagnostics.length, limited ? 3 : 0, "only Office-specific interpolation profiles retain this limitation");
+  assert.ok(diagnostics.every(d => d.status === "partial" && d.scenePath.includes("gradientFill")));
+  assert.ok(diagnostics.every(d => d.valueSummary.includes("32 SVG segments")));
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+// Independent chord-error bound for f(t)=t^(15/8), then dense checks of the
+// emitted, quantized SVG interpolation (not just its explicitly added stops).
+let worstChordError = 0;
+for (let i = 0; i < 32; i++) {
+  const a = i / 32, b = (i + 1) / 32, slope = (b ** (15 / 8) - a ** (15 / 8)) / (b - a);
+  const extremum = (slope / (15 / 8)) ** (8 / 7);
+  worstChordError = Math.max(worstChordError, 255 * (a ** (15 / 8) + slope * (extremum - a) - extremum ** (15 / 8)));
+}
+assert.ok(worstChordError < .088);
+for (const kind of [1, 2]) for (const [positions, colors, alphas, sampled] of [
+  [[0, 100000], ["C02010", "1050E0"], [0, 100000], true],
+  [[0, 100000], ["1050E0", "C02010"], [100000, 0], true],
+  [[0, 100000], ["CC5500", "cc5500"], [0, 100000], false],
+  [[1, 100000], ["FF0000", "0000FF"], [25000, 75000], false],
+  [[0, 99999], ["FF0000", "0000FF"], [25000, 75000], false],
+  [[0, 25000, 100000], ["CC5500", "0066CC", "cc5500"], [0, 100000, 50000], true],
+  [[0, 75000, 100000], ["0066CC", "CC5500", "0066CC"], [100000, 0, 100000], true],
+  [[0, 1, 100000], ["FF0000", "0000FF", "FF0000"], [0, 50000, 100000], true],
+  [[0, 99999, 100000], ["FF0000", "0000FF", "FF0000"], [100000, 50000, 0], true],
+  [[0, 0, 100000], ["FF0000", "0000FF", "FF0000"], [0, 50000, 100000], false],
+  [[0, 100000, 100000], ["FF0000", "0000FF", "FF0000"], [100000, 50000, 0], false],
+  [[0, 25000, 75000, 100000], ["FF0000", "0000FF", "0000FF", "FF0000"], [0, 100000, 100000, 0], false],
+]) {
+  const input = radialGradientFixture(160, 120, g => {
+    g.kind = kind; if (kind === 1) g.angle60000 = 0;
+    g.stops = create(PresentationGradientFillSchema, { stops: positions.map((p, i) => ({
+      positionThousandthPercent: p, colorRgb: colors[i], opacityThousandthPercent: alphas[i],
+    })) }).stops;
+  });
+  const before = toBinary(PresentationPreviewSceneSchema, input.previewScene), painted = paintPpjSceneSvg(input);
+  const gradients = [...painted.pages[0].svg.matchAll(/<(?:linear|radial)Gradient\b[^>]*>([\s\S]*?)<\/(?:linear|radial)Gradient>/g)];
+  assert.equal(gradients.length, 3);
+  for (const gradient of gradients) {
+    const stops = [...gradient[1].matchAll(/<stop offset="([^"]+)" stop-color="#([0-9a-f]{6})" stop-opacity="([^"]+)"\/>/gi)]
+      .map(m => ({ offset: Number(m[1]), rgb: m[2].match(/../g).map(h => parseInt(h, 16)), alpha: Number(m[3]) }));
+    assert.equal(stops.length, sampled ? 32 * (positions.length - 1) + 1 : positions.length);
+    for (let i = 1; i < stops.length; i++) assert.ok(stops[i].offset >= stops[i - 1].offset);
+    const indexes = positions.map((_, i) => sampled ? i * 32 : i);
+    for (let i = 0; i < positions.length; i++) {
+      assert.equal(stops[indexes[i]].offset, positions[i] / 100000);
+      assert.equal(stops[indexes[i]].alpha, alphas[i] / 100000);
+    }
+    if (sampled) for (let interval = 0; interval < positions.length - 1; interval++) {
+      const from = colors[interval].match(/../g).map(h => parseInt(h, 16));
+      const to = colors[interval + 1].match(/../g).map(h => parseInt(h, 16));
+      for (let step = 0; step <= 1024; step++) {
+        const t = step / 1024, index = Math.min(31, Math.floor(t * 32)), mix = t * 32 - index;
+        const a = stops[interval * 32 + index], b = stops[interval * 32 + index + 1];
+        for (let channel = 0; channel < 3; channel++) {
+          const target = Math.max(from[channel], to[channel]) - Math.abs(to[channel] - from[channel]) *
+            (from[channel] < to[channel] ? 1 - t : t) ** (15 / 8);
+          assert.ok(Math.abs(a.rgb[channel] + (b.rgb[channel] - a.rgb[channel]) * mix - target) < .589);
+        }
+        const alpha = (alphas[interval] + (alphas[interval + 1] - alphas[interval]) * t) / 100000;
+        assert.ok(Math.abs(a.alpha + (b.alpha - a.alpha) * mix - alpha) < 1e-12);
+      }
+    }
+  }
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), before);
+}
 function backgroundImageFixture(paint = {}, edit = () => {}) {
   return fixture(scene => {
     const background = create(PresentationBackgroundSchema, { imagePaint: { assetId: "native-asset", mode: 1, ...paint } });
@@ -258,6 +466,61 @@ for (const edit of [
   assert.ok(result.pages[0].diagnostics.some(d => d.scenePath === "$.presentation.slides[0].background" && d.status === "unavailable"));
   assert.notEqual(result.pages[1].reliability.status, "failed");
   assert.match(result.pages[1].svg, /data-officekit-background="image"/);
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+function shapeImageFixture(geometry = "rect", edit = () => {}) {
+  return fixture(scene => {
+    const element = scene.presentation.slides[0].elements[0], shape = element.content.value;
+    scene.presentation.slides[0].elements = [element];
+    shape.geometry = geometry; shape.fillRgb = ""; delete shape.fillOpacityThousandthPercent;
+    delete shape.textBody; shape.text = "FILL LABEL";
+    shape.imageFill = create(PresentationBackgroundSchema, { imagePaint: {
+      assetId: "native-asset", mode: 1, opacityThousandthPercent: 50000,
+      crop: { leftThousandthPercent: -50000, rightThousandthPercent: -50000 },
+    } }).imagePaint;
+    edit(shape);
+  });
+}
+for (const [preset, geometry] of [["rect", "<rect"], ["textbox", "<rect"], ["flowChartProcess", "<rect"],
+  ["roundRect", "<rect"], ["ellipse", "<ellipse"], ["diamond", "<path"], ["flowChartDecision", "<path"]]) {
+  const input = shapeImageFixture(preset), original = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const painted = paintPpjSceneSvg(input), svg = painted.pages[0].svg;
+  assert.match(svg, /data-officekit-shape-image="true"/);
+  const clip = svg.match(/<clipPath[^>]*>([\s\S]*?)<\/clipPath>/)?.[1];
+  assert.ok(clip?.includes(geometry), `${preset}: use native shape geometry as the image clip`);
+  assert.doesNotMatch(clip, /stroke=/, "shape outline must not enlarge the image clip");
+  assert.match(svg, /<image x="50" y="0" width="100" height="100"[^>]*opacity="0.5"/);
+  assert.match(svg, /fill="none"[^>]*stroke="#AA2200"/);
+  assert.match(svg, /FILL LABEL/);
+  assert.ok(svg.indexOf('data-officekit-shape-image="true"') < svg.indexOf("FILL LABEL"));
+  assert.ok(!painted.diagnostics.some(d => d.scenePath?.includes(".imageFill")));
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+const customImageFill = shapeImageFixture("custom", s => {
+  s.imageFill.opacityThousandthPercent = 0;
+  s.useBackgroundFill = false;
+  s.customPaths = [clone(PresentationCustomGeometryPathSchema, polygon), clone(PresentationCustomGeometryPathSchema, polygon)];
+  s.customPaths[0].fillMode = 2; s.customPaths[0].stroke = true;
+});
+const customImageSvg = paintPpjSceneSvg(customImageFill).pages[0].svg;
+assert.equal(customImageSvg.match(/<clipPath[^>]*>([\s\S]*?)<\/clipPath>/)?.[1].match(/<path /g)?.length, 1, "stroke-only paths do not become filled image masks");
+assert.match(customImageSvg, /<image [^>]*opacity="0"/);
+for (const edit of [
+  s => { s.imageFill.mode = 2; }, s => { s.imageFill.mode = 9; },
+  s => { s.imageFill.opacityThousandthPercent = 100001; },
+  s => { s.imageFill.crop.leftThousandthPercent = 100000; s.imageFill.crop.rightThousandthPercent = 0; },
+  s => { s.fillRgb = "0000FF"; }, s => { s.fillScheme = "accent1"; },
+  s => { s.fillOpacityThousandthPercent = 0; }, s => { s.useBackgroundFill = true; },
+  s => { delete s.imageFill; s.imageFillAssetId = "native-asset"; },
+  s => { s.geometry = "unmappedShape"; }, s => { s.presetAdjustments = [10000]; },
+  s => { s.customPaths = [clone(PresentationCustomGeometryPathSchema, polygon)]; s.customPaths[0].commands[0].command.value.xReference = "unresolved"; },
+]) {
+  const input = shapeImageFixture("rect", edit), original = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const painted = paintPpjSceneSvg(input), svg = painted.pages[0].svg;
+  assert.equal(painted.reliability.status, "failed");
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.shape-image" && d.status === "unavailable"));
+  assert.doesNotMatch(svg, /data-officekit-shape-image="true"/);
+  assert.match(svg, /FILL LABEL/, "unavailable fill does not erase readable foreground text");
   assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
 }
 for (const mediaType of ["audio", "video"]) {
@@ -370,6 +633,73 @@ const missingReason = "preview.fact.missing-observation-misrepresented";
 // exercise only the evidence boundary, not a second JavaScript data compiler.
 const datasetReason = "preview.fact.chart-channel-ignored";
 const datasetPath = "$.pages[0].elements[0].data.dataset";
+const shapeGeometryReason = "preview.fact.shape-geometry-omitted";
+function shapeGeometryProfileFixture({ preset = "ellipse", hidden = false, nested = false, failedParent = false,
+  extraOwner, edit = () => {} } = {}) {
+  return fixture(scene => {
+    const shape = child("shape", "shape", { ...frame(100, 100, 200, 100), geometry: preset,
+      fillRgb: "CC5500", text: "SHAPE TEXT", ...(preset === "custom" ? { customPaths: [clone(PresentationCustomGeometryPathSchema, polygon)] } : {}) }, hidden);
+    edit(shape.content.value);
+    const siblings = [shape];
+    if (extraOwner) siblings.push(extraOwner === "kind" ? child("other", "image", { ...frame(0, 0, 20, 20), assetId: "native-asset" })
+      : child("other", "shape", { ...frame(0, 0, 20, 20), geometry: extraOwner === "unmapped" ? "unknown" : "rect" }, extraOwner === "hidden"));
+    scene.presentation.slides[0].elements = nested || failedParent ? [child("parent", "group", {
+      ...frame(0, 0, 600, 400), childWidthEmu: emu(failedParent ? 0 : 600), childHeightEmu: emu(400), children: siblings,
+    })] : siblings;
+  }, { pages: [{ id: "page", elements: [{ id: "shape", type: "shape", geometry: { kind: "preset", preset }, text: "SHAPE TEXT" }] }] },
+  bindings => { for (const binding of bindings) binding.programPath = binding.nativeId === "parent" ? "$.pages[0]" : "$.pages[0].elements[0]"; });
+}
+for (const preset of ["rect", "textbox", "flowChartProcess", "roundRect", "ellipse", "diamond", "flowChartDecision", "custom"]) {
+  const input = shapeGeometryProfileFixture({ preset }), original = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const canonical = JSON.parse(input.programJson), legacy = assessPpjPreviewInput(canonical);
+  assert.ok(legacy.diagnostics.some(d => d.reason === shapeGeometryReason));
+  const painted = paintPpjSceneSvg(input, { assessInput: true });
+  assert.ok(!painted.diagnostics.some(d => d.reason === shapeGeometryReason), `${preset}: completed geometry retires only the old omission`);
+  assert.equal(painted.shapeGeometryScenePaths.length, 1);
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.text-layout"));
+  assert.match(painted.pages[0].svg, /SHAPE TEXT/);
+  const options = { rendererProfile: "native-scene-svg", sceneReceipt: input, scenePaint: painted };
+  const mapped = assessPpjPreviewInput(canonical, options);
+  assert.deepEqual(mapped.diagnostics, legacy.diagnostics.filter(d => d.reason !== shapeGeometryReason));
+  for (const missing of [{ shapeGeometryScenePaths: [] }, { transformedScenePaths: [] }])
+    assert.ok(assessPpjPreviewInput(canonical, { ...options, scenePaint: { ...painted, ...missing } })
+      .diagnostics.some(d => d.reason === shapeGeometryReason));
+  const registry = structuredClone(capabilityRegistry);
+  delete registry.previewScene.factualMappings.shapeGeometry;
+  assert.throws(() => assessPpjPreviewInput(canonical, { ...options, registry }), /shape geometry mapping/);
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+const badGeometryCases = [
+  { hidden: true }, { preset: "unknown" }, { extraOwner: "kind" }, { extraOwner: "hidden" }, { extraOwner: "unmapped" },
+  { failedParent: true }, { edit: s => { s.presetAdjustments = [10000]; } },
+  { preset: "roundRect", edit: s => { s.presetAdjustments = [10000, 20000]; } },
+  { preset: "custom", edit: s => { s.customPaths[0].commands[0].command.value.xReference = "unresolved"; } },
+  { preset: "custom", edit: s => { s.customPaths.push(clone(PresentationCustomGeometryPathSchema, polygon)); s.customPaths[1].fillMode = 9; } },
+  { edit: s => { s.textBody = create(content.get("shape"), { textBody: { paragraphs: [{ lineSpacing: { case: "lineSpacingMultiplier", value: 0 },
+    runs: [{ content: { case: "text", value: "DISCARDED TEXT" } }] }] } }).textBody; } },
+];
+for (const [index, options] of badGeometryCases.entries()) {
+  const input = shapeGeometryProfileFixture(options), original = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const painted = paintPpjSceneSvg(input, { assessInput: true });
+  assert.ok(painted.diagnostics.some(d => d.reason === shapeGeometryReason), `unresolved/discarded geometry case ${index}`);
+  assert.equal(painted.reliability.status, "failed");
+  if (index === badGeometryCases.length - 1) {
+    assert.equal(painted.shapeGeometryScenePaths.length, 1, "geometry was constructed before text failed");
+    assert.equal(painted.transformedScenePaths.length, 0, "discarded node must not count as painted geometry");
+    assert.doesNotMatch(painted.pages[0].svg, /DISCARDED TEXT|<ellipse/);
+  }
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+const nestedShapeInput = shapeGeometryProfileFixture({ nested: true, extraOwner: "painted" });
+const nestedShapePaint = paintPpjSceneSvg(nestedShapeInput, { assessInput: true });
+assert.equal(nestedShapePaint.shapeGeometryScenePaths.length, 2, "every generated shape for the owner is painted");
+assert.ok(!nestedShapePaint.diagnostics.some(d => d.reason === shapeGeometryReason));
+for (const missing of [
+  { transformedScenePaths: nestedShapePaint.transformedScenePaths.filter(p => p !== "$.presentation.slides[0].elements[0]") },
+  { shapeGeometryScenePaths: nestedShapePaint.shapeGeometryScenePaths.slice(0, 1) },
+]) assert.ok(assessPpjPreviewInput(JSON.parse(nestedShapeInput.programJson), { rendererProfile: "native-scene-svg",
+  sceneReceipt: nestedShapeInput, scenePaint: { ...nestedShapePaint, ...missing },
+}).diagnostics.some(d => d.reason === shapeGeometryReason), "missing ancestor or sibling evidence retains the owner failure");
 function datasetProfileFixture({ hidden = false, smooth = false, badChannels = false, extraOwner = false,
   chartType = "line", failedParent = false, nested = false } = {}) {
   const program = { pages: [{ id: "page", elements: [{ id: "line", type: "chart", chartType,
@@ -827,6 +1157,151 @@ for (const alignment of ["left", "center", "right"]) for (const rightInset of [0
   assert.ok(!result.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && /\.(leftInsetEmu|rightInsetEmu|topInsetEmu)$/.test(d.scenePath)));
   assert.ok(result.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && d.scenePath?.endsWith("bodyProperties.bottomInsetEmu")), "unpainted body properties remain field-addressable");
   assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+for (const angle of [-360, -90, -12.25, 0, 12.25, 90, 180, 360]) for (const anchor of [undefined, "top", "center", "bottom"]) {
+  const input = fixture(scene => {
+    const shape = scene.presentation.slides[0].elements[0].content.value;
+    const bodySchema = content.get("shape").fields.find(f => f.localName === "textBody").message;
+    shape.textBody.bodyProperties = create(bodySchema.fields.find(f => f.localName === "bodyProperties").message, {
+      rotation: { case: "rotationAngle60000", value: angle * 60000 },
+      ...(anchor ? { anchor: { case: "verticalAnchor", value: anchor } } : {}),
+    });
+    shape.transform = create(content.get("shape").fields.find(f => f.localName === "transform").message,
+      { rotationAngle60000: 5400000, flipHorizontal: true });
+  });
+  const original = toBinary(PresentationPreviewSceneSchema, input.previewScene), result = paintPpjSceneSvg(input);
+  const svg = result.pages[0].svg;
+  assert.ok(svg.includes(`data-officekit-text-rotation="${angle}" transform="rotate(${angle} 110 90)"`));
+  assert.ok(svg.includes('translate(110 90) rotate(90) scale(-1 1) translate(-110 -90)'));
+  assert.ok(svg.includes(`<g data-officekit-text-reflection="compensated" transform="translate(220 0) scale(-1 1)"><g data-officekit-text-rotation="${angle}"`),
+    "shape reflection must be compensated outside the independent text rotation");
+  assert.ok(!result.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && d.scenePath.endsWith("bodyProperties.rotationAngle60000")));
+  assert.ok(result.diagnostics.some(d => d.reason === "preview.scene.paint.text-layout"));
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+for (const mode of ["vertical", "vertical270"]) for (const anchor of [undefined, "top", "center", "bottom"])
+for (const alignment of ["left", "center", "right"]) for (const margins of [undefined, [0, 0, 0, 0], [10, 20, 30, 40]]) {
+  const input = fixture(scene => {
+    const shape = scene.presentation.slides[0].elements[0].content.value;
+    const schema = content.get("shape").fields.find(f => f.localName === "textBody").message;
+    shape.textBody.bodyProperties = create(schema.fields.find(f => f.localName === "bodyProperties").message, {
+      verticalText: { case: "verticalTextMode", value: mode },
+      ...(anchor ? { anchor: { case: "verticalAnchor", value: anchor } } : {}),
+      ...(margins ? Object.fromEntries(["left", "top", "right", "bottom"].map((side, i) => [`${side}Inset`, { case: `${side}InsetEmu`, value: emu(margins[i]) }])) : {}),
+    });
+    shape.textBody.paragraphs[0].alignment = alignment;
+    shape.textBody.paragraphs[0].runs = [create(PresentationTextRunSchema, { content: { case: "text", value: "F0" }, fontSizePoints: 20 }),
+      create(PresentationTextRunSchema, { content: { case: "lineBreak", value: true } }),
+      create(PresentationTextRunSchema, { content: { case: "text", value: "IL" }, fontSizePoints: 20 })];
+  });
+  const original = toBinary(PresentationPreviewSceneSchema, input.previewScene), result = paintPpjSceneSvg(input), svg = result.pages[0].svg;
+  assert.ok(svg.includes(`data-officekit-text-direction="${mode}" transform="rotate(${mode === "vertical" ? 90 : -90} 110 90)"`));
+  // Physical insets [L,T,R,B] -> reading coordinates, independently stated.
+  const physical = margins || [7.2, 3.6, 7.2, 3.6];
+  const [l, t, r, b] = (mode === "vertical" ? [1, 2, 3, 0] : [3, 0, 1, 2]).map(i => physical[i]);
+  const x = alignment === "left" ? 60 + l : alignment === "right" ? 160 - r : (220 + l - r) / 2;
+  assert.ok(svg.includes(`<text x="${x}" y="${10 + t}"`), `${mode}/${anchor}/${alignment}/${margins}`);
+  if (anchor) {
+    const shift = anchor === "center" ? (200 - t - b - 48) / 2 : anchor === "bottom" ? 200 - t - b - 48 : 0;
+    assert.ok(svg.includes(`data-officekit-text-anchor="${anchor}" transform="translate(0 ${shift})"`));
+  }
+  assert.ok(!result.diagnostics.some(d => d.reason === "preview.scene.paint.text-direction" || d.reason === "preview.scene.paint.unmapped" && d.scenePath.endsWith("verticalTextMode")));
+  assert.ok(result.diagnostics.some(d => d.reason === "preview.scene.paint.text-layout"));
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+for (const mode of ["vertical", "vertical270"]) for (const angle of [-90, 0, 12.25, 90]) for (const flip of [false, true]) {
+  const input = fixture(scene => {
+    const shape = scene.presentation.slides[0].elements[0].content.value;
+    const schema = content.get("shape").fields.find(f => f.localName === "textBody").message;
+    shape.textBody.bodyProperties = create(schema.fields.find(f => f.localName === "bodyProperties").message, {
+      verticalText: { case: "verticalTextMode", value: mode }, rotation: { case: "rotationAngle60000", value: angle * 60000 },
+    });
+    shape.transform = create(content.get("shape").fields.find(f => f.localName === "transform").message, { flipHorizontal: flip, rotationAngle60000: 5400000 });
+  });
+  const svg = paintPpjSceneSvg(input).pages[0].svg;
+  assert.ok(svg.includes(`data-officekit-text-rotation="${angle}" transform="rotate(${angle} 110 90)"><g data-officekit-text-direction="${mode}"`));
+  assert.equal(svg.includes('data-officekit-text-reflection="compensated"'), flip);
+}
+for (const properties of [
+  { verticalText: { case: "verticalTextMode", value: "eastAsianVertical" } },
+  ...[{ uprightText: { case: "upright", value: true } }, { textWarpPreset: "textArchUp" },
+    { columnCount: { case: "columns", value: 2 } }, { columnCount: { case: "columns", value: 0 } },
+    { topInset: { case: "topInsetEmu", value: emu(100) } },
+  ].map(value => ({ verticalText: { case: "verticalTextMode", value: "vertical" }, ...value })),
+]) {
+  const input = fixture(scene => {
+    const body = scene.presentation.slides[0].elements[0].content.value.textBody;
+    const schema = content.get("shape").fields.find(f => f.localName === "textBody").message;
+    body.bodyProperties = create(schema.fields.find(f => f.localName === "bodyProperties").message, properties);
+  });
+  const original = toBinary(PresentationPreviewSceneSchema, input.previewScene), painted = paintPpjSceneSvg(input);
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.text-direction" && d.status === "unavailable" && d.scenePath.endsWith("verticalTextMode")));
+  assert.doesNotMatch(painted.pages[0].svg, /data-officekit-text-direction=/);
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+// Exhaustive handedness across a text owner and two rotated/scaled groups.
+// A second top-level sibling catches accidental Array.map index propagation.
+for (const kind of ["shape", "table", "diagram"]) for (let mask = 0; mask < 64; mask++) {
+  const transform = bits => ({ rotationAngle60000: 17 * 60000, flipHorizontal: !!(bits & 1), flipVertical: !!(bits & 2) });
+  const input = fixture(scene => {
+    const elements = scene.presentation.slides[0].elements;
+    const shape = clone(PresentationElementSchema, elements[0]);
+    let leaf;
+    if (kind === "shape") {
+      leaf = shape;
+      leaf.content.value.transform = create(content.get("shape").fields.find(f => f.localName === "transform").message, transform(mask));
+    } else if (kind === "table") {
+      leaf = child("cell-owner", "table", { ...frame(10, 40, 200, 100), columnWidthsEmu: [emu(200)],
+        frameTransform: transform(mask), rows: [{ heightEmu: emu(100), cells: [{ textBody: shape.content.value.textBody }] }] });
+    } else {
+      leaf = child("cache-owner", "diagram", { ...frame(10, 40, 200, 100), drawingCacheVerified: true,
+        drawing: { ...frame(10, 40, 200, 100), childLeftEmu: emu(10), childTopEmu: emu(40),
+          childWidthEmu: emu(200), childHeightEmu: emu(100), frameTransform: transform(mask), children: [shape] } });
+    }
+    const group = (id, nested, bits) => child(id, "group", { ...frame(30, 50, 250, 120), childLeftEmu: emu(10), childTopEmu: emu(20),
+      childWidthEmu: emu(200), childHeightEmu: emu(100), frameTransform: transform(bits), children: [nested] });
+    elements.splice(0, elements.length, group("outer-reflection", group("inner-reflection", leaf, mask >> 2), mask >> 4),
+      child("unflipped-sibling", "shape", { ...frame(400, 40, 100, 50), geometry: "rect", text: "F0 IL" }));
+  });
+  const original = toBinary(PresentationPreviewSceneSchema, input.previewScene), painted = paintPpjSceneSvg(input);
+  const odd = [...mask.toString(2)].filter(bit => bit === "1").length % 2 === 1;
+  assert.equal((painted.pages[0].svg.match(/data-officekit-text-reflection="compensated"/g) || []).length, odd ? 1 : 0, `${kind}/${mask}`);
+  if (odd) assert.match(painted.pages[0].svg, /data-officekit-text-reflection="compensated" transform="translate\(220 0\) scale\(-1 1\)"/);
+  assert.ok(!painted.diagnostics.some(d => d.reason === "preview.scene.paint.failed"));
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.text-layout"));
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+for (const properties of [
+  { rotation: { case: "rotationAngle60000", value: 21600001 } },
+  { rotation: { case: "rotationAngle60000", value: -21600001 } },
+  ...[{ uprightText: { case: "upright", value: true } },
+    { textWarpPreset: "textArchUp" }].map(value => ({ ...value, rotation: { case: "rotationAngle60000", value: 5400000 } })),
+]) {
+  const input = fixture(scene => {
+    const body = scene.presentation.slides[0].elements[0].content.value.textBody;
+    const schema = content.get("shape").fields.find(f => f.localName === "textBody").message;
+    body.bodyProperties = create(schema.fields.find(f => f.localName === "bodyProperties").message, properties);
+  });
+  const original = toBinary(PresentationPreviewSceneSchema, input.previewScene), result = paintPpjSceneSvg(input);
+  assert.ok(result.diagnostics.some(d => d.reason === "preview.scene.paint.text-rotation" && d.status === "unavailable" && d.scenePath.endsWith("bodyProperties.rotationAngle60000")));
+  assert.match(result.pages[0].svg, /Text rotation.*unavailable/);
+  assert.doesNotMatch(result.pages[0].svg, /data-officekit-text-rotation=/);
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+for (const rotation of [undefined, { case: "rotationAngle60000", value: 0 }, { case: "rotationAngle60000", value: 90000 }]) {
+  const input = fixture(scene => {
+    const body = scene.presentation.slides[0].elements[0].content.value.textBody;
+    const schema = content.get("shape").fields.find(f => f.localName === "textBody").message;
+    body.bodyProperties = create(schema.fields.find(f => f.localName === "bodyProperties").message, {
+      rotation, uprightText: { case: "upright", value: false },
+      verticalText: { case: "verticalTextMode", value: "horizontal" }, textWarpPreset: "textNoShape",
+    });
+  });
+  const result = paintPpjSceneSvg(input);
+  assert.equal(result.pages[0].svg.includes("data-officekit-text-rotation="), rotation !== undefined);
+  assert.ok(!result.diagnostics.some(d => d.reason === "preview.scene.paint.text-rotation"));
+  assert.ok(!result.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && d.scenePath.endsWith("verticalTextMode")), "explicit horizontal direction is consumed");
+  assert.ok(result.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && d.scenePath.endsWith("upright")), "direction does not clear other layout rules");
 }
 for (const anchor of ["top", "center", "bottom"]) for (const bottom of [0, 10, 30]) {
   const input = fixture(scene => {

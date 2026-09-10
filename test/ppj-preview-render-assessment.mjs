@@ -10,10 +10,10 @@ const program = {
   design: { canvas: { width: 400, height: 240 } },
   pages: [
     { id: "first", elements: [{ id: "group", type: "group", frame, elements: [
-      { id: "same", type: "shape", frame, geometry: { kind: "preset", preset: "rect" }, text: "shape lost" },
+      { id: "same", type: "shape", frame, geometry: { kind: "preset", preset: "star5" }, text: "shape lost" },
       { id: "nested-source", type: "opaque", frame, nativeRef: { owner: "opaque", payload: "do-not-disclose" } },
     ] }] },
-    { id: "second", elements: [{ id: "same", type: "shape", frame, geometry: { kind: "preset", preset: "rect" }, text: "also lost" }] },
+    { id: "second", elements: [{ id: "same", type: "shape", frame, geometry: { kind: "preset", preset: "star5" }, text: "also lost" }] },
   ],
 };
 async function render(input, pages, owners, options = {}) {
@@ -27,14 +27,18 @@ async function render(input, pages, owners, options = {}) {
   assert.equal(JSON.stringify(input), bytes.toString());
   return result;
 }
-const result = await render(program, [
+const scenePages = preset => [
   { id: "first", elements: [nativeElement("group", "group", { ...emuFrame(),
     childWidthEmu: 2540000n, childHeightEmu: 1270000n, children: [
-      nativeElement("same", "shape", { ...emuFrame(), geometry: "rect", text: "shape lost" }),
+      nativeElement("same", "shape", { ...emuFrame(), geometry: preset, text: "shape lost" }),
       nativeElement("nested-source", "opaque", emuFrame()),
     ] })] },
-  { id: "second", elements: [nativeElement("same", "shape", { ...emuFrame(), geometry: "rect", text: "also lost" })] },
-], ["$.pages[0].elements[0]", "$.pages[0].elements[0].elements[0]", "$.pages[0].elements[0].elements[1]", "$.pages[1].elements[0]"]);
+  { id: "second", elements: [nativeElement("same", "shape", { ...emuFrame(), geometry: preset, text: "also lost" })] },
+];
+const owners = ["$.pages[0].elements[0]", "$.pages[0].elements[0].elements[0]", "$.pages[0].elements[0].elements[1]", "$.pages[1].elements[0]"];
+// Keep two genuine omitted-geometry failures after rect/text painting gains
+// verified profile support. Do not drop the nested identity or red-banner gate.
+const result = await render(program, scenePages("star5"), owners);
 assert.doesNotThrow(() => JSON.stringify(result), "the public in-memory result must not leak protobuf BigInts");
 const violations = result.reliability.violations.filter((d) => d.reason === "preview.fact.shape-geometry-omitted");
 assert.equal(violations.length, 2);
@@ -52,6 +56,18 @@ for (const page of result.pages) {
   assert.match(page.svg, /width="400" height="240" viewBox="0 0 400 240"/);
   assert.equal((page.svg.match(/data-officekit-id="same"/g) || []).length, 1);
   assert.equal((page.svg.match(/data-officekit-review="failed"/g) || []).length, 1);
+}
+const mappedProgram = structuredClone(program);
+mappedProgram.pages[0].elements[0].elements[0].geometry.preset = "rect";
+mappedProgram.pages[1].elements[0].geometry.preset = "rect";
+const mapped = await render(mappedProgram, scenePages("rect"), owners);
+assert.ok(!mapped.diagnostics.some(d => d.reason === "preview.fact.shape-geometry-omitted"));
+assert.equal(mapped.status, "opaque", "painting the shape cannot promote the opaque sibling");
+assert.ok(mapped.diagnostics.some(d => d.reason === "preview.scene.paint.text-layout"));
+assert.doesNotMatch(JSON.stringify(mapped.assessment), /do-not-disclose/);
+for (const page of mapped.pages) {
+  assert.equal(page.reliability.status, "requires-review");
+  assert.equal((page.svg.match(/data-officekit-id="same"/g) || []).length, 1);
 }
 
 // Malformed native scatter channels must not abort other pages or be

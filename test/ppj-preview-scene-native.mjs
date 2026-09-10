@@ -18,6 +18,7 @@ import { createHash } from "node:crypto";
 
 assert.ok(process.argv[2], "Pass the directory produced by npm run build:office-kit -- --output <new-directory>.");
 const evidenceFiles = ["../src/ppj/preview-scene-svg.mjs", "./ppj-preview-scene-native.mjs",
+  "./ppj-preview-scene-svg.mjs", "./ppj-preview-render-assessment.mjs",
   "../src/ppj/svg-preview.mjs",
   "../src/ppj/preview-scene.mjs", "../src/ppj/preview-scene-view.mjs", "../src/ppj/preview-diagnostics.mjs", "../src/ppj/preview-output.mjs",
   "../src/ppj/preview-input-assessment.mjs", "../src/ppj/preview-factual-errors.mjs", "../src/ppj/capability-registry.json",
@@ -150,6 +151,12 @@ try {
       /<Override\b(?=[^>]*\bPartName="\/officeKit\/)[^>]*(?:\/>|>[\s\S]*?<\/Override>)/g, ""));
     return archive.generateAsync({ type: "uint8array" });
   }
+  const xmlAttributes = tag => Object.fromEntries([...tag.matchAll(/([\w:]+)="([^"]*)"/g)].map(m => [m[1], m[2]]));
+  // Controlled SDK fixtures may reorder attributes and add the same a
+  // namespace at the root. Preserve all other names, values and content.
+  const orderedXml = xml => xml.replace(/<p:sld\b[^>]*>/, tag => tag.replace(' xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"', ""))
+    .replace(/<([\w:.-]+)(\s[^<>]*?)?(\/?)>/g, (tag, name, _, close) =>
+    `<${name} ${JSON.stringify(Object.entries(xmlAttributes(tag)).sort(([a],[b]) => a.localeCompare(b)))}${close}>`);
   const fullWireCompile = async (workspace, { includePreviewScene = true, validationOnly = false, measureNativeMemory = false } = {}) => {
     const request = create(CodecRequestSchema, {
     protocolVersion: 2, operation: 11, family: 2,
@@ -324,6 +331,9 @@ try {
   }
   const backgroundGradientCases = [], backgroundGradientFailures = [];
   const backgroundImageCases = [], backgroundImageFailures = [], backgroundImageRejections = [];
+  const shapeImageCases = [], shapeImageFailures = [];
+  const radialGradientCases = [], radialGradientFailures = [], radialGeometryCases = [];
+  const brightnessCases = [], brightnessFailures = [];
   async function backgroundGradientPixels(name, receipt, angle, alpha = 0, removed = false) {
     const painted = await savePaint(`background-gradient-${name}`, receipt), svg = painted.pages[0].svg;
     const background = createPpjSceneView(receipt).pages[0].native.background;
@@ -405,6 +415,361 @@ try {
   } catch (error) {
     backgroundGradientFailures.push({ angle, code: error.code, message: error.message });
     console.error(`Background gradient ${angle} failed: ${error.message}`);
+  }
+  // One original source contains all three consumers. Every edit starts from
+  // that original projection and must preserve the other two gradients.
+  try {
+    const radialFill = { type: "gradient", kind: "radial", stops: structuredClone(gradientStops) };
+    const program = structuredClone(pairBase);
+    program.pages[0].background = structuredClone(radialFill);
+    program.pages[0].elements = [
+      { id: "radial-shape", type: "shape", frame: { x: 200, y: 140, width: 200, height: 100 },
+        geometry: { kind: "preset", preset: "rect" }, style: { fill: structuredClone(radialFill), stroke: { color: "#FF00FF", width: 2 } },
+        text: { paragraphs: [{ runs: [{ text: "HHHH", style: { size: 12, color: "#000000" } }] }] } },
+      { id: "radial-table", type: "table", frame: { x: 600, y: 140, width: 200, height: 100 }, columns: [{ id: "col", width: 200 }],
+        rows: [{ id: "row", height: 100, cells: [{ id: "cell", text: "", fill: structuredClone(radialFill) }] }] },
+      { id: "radial-control", type: "shape", frame: { x: 40, y: 350, width: 20, height: 20 },
+        geometry: { kind: "preset", preset: "rect" }, style: { fill: { type: "solid", color: "#CC5500" } } },
+    ];
+    const input = { ...sourceWorkspace, program: Buffer.from(JSON.stringify(program)) }, inputHash = sha256(input.program);
+    const authored = await compilePpjWorkspace(input, { includePreviewScene: true });
+    const source = await withoutAuthoredSnapshot(authored.file), sourceHash = sha256(source);
+    await writeFile(path.join(artifacts, "radial-source.pptx"), source, { flag: "wx" });
+    const projection = await projectPptxToPpj(source, { sourceUri: "radial-source.pptx", assetRootUri: "assets" });
+    const projectionHash = sha256(projection.programJson), originalZip = await JSZip.loadAsync(source);
+    const bound = { source, assets: projection.assets, program: projection.programJson };
+    const noop = await compilePpjWorkspace(bound, { includePreviewScene: true });
+    assert.deepEqual(noop.file, source);
+    const fillAt = (p, owner) => owner === "background" ? p.pages[0].background : owner === "shape"
+      ? p.pages[0].elements[0].style.fill : p.pages[0].elements[1].rows[0].cells[0].fill;
+    async function radialPixels(name, receipt, owner, edit) {
+      const painted = await savePaint(`radial-${name}`, receipt), view = createPpjSceneView(receipt), page = view.pages[0];
+      const shape = page.nodes[0].native, tableFill = page.nodes.find(n => n.kind === "table").native.rows[0].cells[0].fill;
+      const fills = { shape: shape.gradientFill, table: tableFill?.kind.case === "gradientFill" ? tableFill.kind.value : undefined,
+        background: page.native.background?.gradientFill };
+      for (const [consumer, fill] of Object.entries(fills)) {
+        if (consumer === owner && edit === "delete") { assert.equal(fill, undefined); continue; }
+        const linear = consumer === owner && edit === "linear";
+        assert.equal(fill.kind, linear ? 1 : 2);
+        assert.equal(fill.angle60000, linear ? 0 : undefined);
+        assert.deepEqual(fill.stops.map(s => s.positionThousandthPercent), [0, 25000, 25000, 75000, 75000, 100000]);
+        assert.deepEqual(fill.stops.map(s => s.colorRgb), [0, 1].map(() => consumer === owner && edit === "color" ? "FFFF00" : "FF0000").concat(["00FF00", "00FF00", "0000FF", "0000FF"]));
+        for (const index of [2, 3]) assert.equal(fill.stops[index].opacityThousandthPercent, consumer === owner && edit === "alpha" ? 50000 : 0);
+      }
+      const svg = painted.pages[0].svg;
+      assert.equal((svg.match(/<radialGradient/g) || []).length, edit === "delete" || edit === "linear" ? 2 : 3);
+      assert.equal((svg.match(/<linearGradient/g) || []).length, edit === "linear" ? 1 : 0);
+      const raster = await sharp(Buffer.from(svg)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      const pixel = (x, y) => [...raster.data.subarray((y * raster.info.width + x) * 4, (y * raster.info.width + x) * 4 + 4)];
+      const red = [255, 0, 0, 255], blue = [0, 0, 255, 255], clear = [0, 0, 0, 0], green = [0, 255, 0, 128], white = [255, 255, 255, 255];
+      const underlay = owner === "background" && edit === "delete" ? white : owner === "background" && edit === "alpha" ? green : clear;
+      for (const [consumer, cx, cy] of [["shape", 300, 190], ["table", 700, 190], ["background", 480, 270]]) {
+        const changed = consumer === owner;
+        let center = changed && edit === "color" ? [255, 255, 0, 255] : red;
+        let middle = consumer === "background" ? clear : underlay;
+        let edge = blue;
+        if (changed && edit === "alpha") middle = green;
+        if (changed && edit === "delete") center = middle = edge = consumer === "background" ? white : clear;
+        if (changed && edit === "linear") { center = middle; edge = red; }
+        // Equal physical-distance X/Y probes distinguish the circumscribed
+        // circle from an inscribed ellipse on these non-square frames.
+        assert.deepEqual(pixel(cx, cy), center, `${name}/${consumer}: center stop`);
+        assert.deepEqual(pixel(cx, consumer === "background" ? 50 : 145), middle, `${name}/${consumer}: transparent/alpha ring`);
+        if (consumer !== "background") for (const x of [cx - 45, cx + 45]) {
+          // The transparent right-hand table sample reveals the blue final
+          // plateau of the edited linear background: 745/960 > 0.75.
+          const expected = owner === "background" && edit === "linear" && consumer === "table" && x === 745 ? blue : middle;
+          assert.deepEqual(pixel(x, cy), expected, `${name}/${consumer}: equal physical radius at x=${x}`);
+        }
+        assert.deepEqual(pixel(consumer === "background" ? 30 : cx - 95, consumer === "background" ? 30 : cy), edge, `${name}/${consumer}: outer stop`);
+      }
+      assert.deepEqual(pixel(50, 360), [204, 85, 0, 255]);
+      assert.deepEqual(pixel(300, 140), [255, 0, 255, 255]);
+      assert.match(svg, /HHHH/);
+      assert.ok(!painted.diagnostics.some(d => ["preview.scene.paint.gradient", "preview.scene.paint.background"].includes(d.reason)));
+      return painted;
+    }
+    for (const [name, receipt, workspace] of [["authored", authored, input], ["source", noop, bound]]) {
+      const painted = await radialPixels(name, receipt);
+      await assertProductionEntry(`radial-${name}`, workspace, receipt, painted);
+      radialGradientCases.push({ name, allThreeConsumers: true, nativeAndRgbaPixels: true, sourceNoop: name === "source",
+        candidateSha256: sha256(receipt.file), sceneSha256: receipt.previewScene.sha256, sourceSha256: sourceHash });
+    }
+    for (const owner of ["shape", "table", "background"]) for (const edit of ["color", "alpha", "linear", "delete"]) {
+      const request = JSON.parse(Buffer.from(projection.programJson).toString("utf8")), fill = fillAt(request, owner);
+      if (edit === "color") for (const index of [0, 1]) fill.stops[index].color = "#FFFF00";
+      if (edit === "alpha") for (const index of [2, 3]) fill.stops[index].opacity = .5;
+      if (edit === "linear") { fill.kind = "linear"; fill.angle = 0; }
+      if (edit === "delete") {
+        if (owner === "background") delete request.pages[0].background;
+        else if (owner === "shape") delete request.pages[0].elements[0].style.fill;
+        else delete request.pages[0].elements[1].rows[0].cells[0].fill;
+      }
+      const name = `${owner}-${edit}`, edited = { ...bound, program: Buffer.from(JSON.stringify(request)) };
+      const requestHash = sha256(edited.program), requestFile = `radial-${name}.ppj`, evidence = { name, stage: "compile", sourceSha256: sourceHash, requestSha256: requestHash, requestFile };
+      await writeFile(path.join(artifacts, requestFile), edited.program, { flag: "wx" });
+      try {
+        const candidate = await compilePpjWorkspace(edited, { includePreviewScene: true });
+        const candidateFile = `radial-${name}.pptx`;
+        await writeFile(path.join(artifacts, candidateFile), candidate.file, { flag: "wx" });
+        Object.assign(evidence, { stage: "paint", candidateFile, candidateSha256: sha256(candidate.file) });
+        const painted = await radialPixels(name, candidate, owner, edit);
+        await assertProductionEntry(`radial-${name}`, edited, candidate, painted);
+        evidence.stage = "reprojection";
+        const fresh = await projectPptxToPpj(candidate.file, { sourceUri: candidateFile, assetRootUri: "assets" });
+        const observed = JSON.parse(Buffer.from(fresh.programJson).toString("utf8"));
+        for (const consumer of ["shape", "table", "background"]) assert.deepEqual(fillAt(observed, consumer), fillAt(request, consumer), `${name}: fresh ${consumer} fill`);
+        const candidateZip = await JSZip.loadAsync(candidate.file), changed = [];
+        assert.deepEqual(Object.keys(candidateZip.files).sort(), Object.keys(originalZip.files).sort());
+        for (const part of Object.keys(originalZip.files)) if (!originalZip.files[part].dir &&
+          !Buffer.from(await originalZip.file(part).async("uint8array")).equals(Buffer.from(await candidateZip.file(part).async("uint8array")))) changed.push(part);
+        assert.deepEqual(changed, ["ppt/slides/slide1.xml"]);
+        radialGradientCases.push({ ...evidence, stage: "verified", nativeAndRgbaPixels: true, allThreeConsumers: true, reprojection: true, changedParts: changed });
+      } catch (error) {
+        radialGradientFailures.push({ ...evidence, code: error.code, message: error.message });
+        console.error(`Radial gradient ${name} failed at ${evidence.stage}: ${error.message}`);
+      }
+      assert.equal(sha256(source), sourceHash); assert.equal(sha256(edited.program), requestHash);
+    }
+    const geometryFixtures = [
+      { name: "partial-rect", width: 100, height: 100, commands: [
+        { op: "moveTo", x: 0, y: 0 }, { op: "lineTo", x: 50, y: 0 },
+        { op: "lineTo", x: 50, y: 100 }, { op: "lineTo", x: 0, y: 100 }, { op: "close" }] },
+      { name: "quadratic", width: 200, height: 50, commands: [
+        { op: "moveTo", x: 0, y: 0 }, { op: "quadraticTo", x1: 50, y1: 100, x: 100, y: 0 }, { op: "close" }] },
+      { name: "cubic", width: 200, height: 75, commands: [
+        { op: "moveTo", x: 0, y: 0 }, { op: "cubicTo", x1: 0, y1: 100, x2: 100, y2: 100, x: 100, y: 0 }, { op: "close" }] },
+    ];
+    for (const geometry of geometryFixtures) {
+      try {
+        const geometryProgram = structuredClone(program);
+        geometryProgram.pages[0].elements[0].geometry = { kind: "custom", viewBox: { x: 0, y: 0, width: 100, height: 100 },
+          paths: [{ fill: true, stroke: true, commands: geometry.commands }] };
+        const geometryInput = { ...sourceWorkspace, program: Buffer.from(JSON.stringify(geometryProgram)) };
+        const geometryInputHash = sha256(geometryInput.program);
+        const author = await compilePpjWorkspace(geometryInput, { includePreviewScene: true });
+        const sourceBytes = await withoutAuthoredSnapshot(author.file), sourceDigest = sha256(sourceBytes);
+        const sourceFile = `radial-geometry-${geometry.name}-source.pptx`;
+        await writeFile(path.join(artifacts, sourceFile), sourceBytes, { flag: "wx" });
+        const projected = await projectPptxToPpj(sourceBytes, { sourceUri: sourceFile, assetRootUri: "assets" });
+        const projectedHash = sha256(projected.programJson), geometryBound = { source: sourceBytes, assets: projected.assets, program: projected.programJson };
+        const sourceNoop = await compilePpjWorkspace(geometryBound, { includePreviewScene: true });
+        assert.deepEqual(sourceNoop.file, sourceBytes);
+        const scenarios = [
+          { name: "authored", workspace: geometryInput, receipt: author },
+          { name: "source", workspace: geometryBound, receipt: sourceNoop },
+        ];
+        // Two independent source edits keep the custom geometry rather than
+        // substituting a smaller rectangle to make the preview agree.
+        if (geometry.name === "partial-rect") for (const edit of ["color", "frame"]) {
+          const request = JSON.parse(Buffer.from(projected.programJson).toString("utf8"));
+          if (edit === "color") for (const index of [0, 1]) request.pages[0].elements[0].style.fill.stops[index].color = "#FFFF00";
+          else Object.assign(request.pages[0].elements[0].frame, { x: 240, width: 400 });
+          const workspace = { ...geometryBound, program: Buffer.from(JSON.stringify(request)) };
+          const requestFile = `radial-geometry-${geometry.name}-${edit}.ppj`;
+          await writeFile(path.join(artifacts, requestFile), workspace.program, { flag: "wx" });
+          const requestSha256 = sha256(workspace.program), receipt = await compilePpjWorkspace(workspace, { includePreviewScene: true });
+          assert.equal(sha256(workspace.program), requestSha256);
+          scenarios.push({ name: edit, workspace, receipt, request, requestFile, requestSha256 });
+        }
+        for (const scenario of scenarios) {
+          const name = `geometry-${geometry.name}-${scenario.name}`, receipt = scenario.receipt;
+          const candidateFile = `radial-${name}-candidate.pptx`;
+          await writeFile(path.join(artifacts, candidateFile), receipt.file, { flag: "wx" });
+          const painted = await savePaint(`radial-${name}`, receipt), native = createPpjSceneView(receipt).pages[0].nodes[0].native;
+          assert.equal(native.customPaths.length, 1); assert.equal(native.gradientFill.kind, 2);
+          const bounds = { x: scenario.name === "frame" ? 240 : 200, y: 140,
+            width: scenario.name === "frame" ? 200 : geometry.width, height: geometry.height };
+          const cx = bounds.x + bounds.width / 2, cy = bounds.y + bounds.height / 2;
+          const svg = painted.pages[0].svg;
+          const gradient = [...svg.matchAll(/<radialGradient\b([^>]*)>/g)]
+            .map(g => Object.fromEntries([...g[1].matchAll(/([\w-]+)="([^"]*)"/g)].map(m => [m[1], m[2]])))
+            .find(g => Number(g.cx) === cx && Number(g.cy) === cy);
+          assert.ok(gradient, `${name}: actual path-bounds center`);
+          assert.ok(Math.abs(Number(gradient.r) - Math.hypot(bounds.width, bounds.height) / 2) < 1e-9);
+          const raster = await sharp(Buffer.from(svg)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+          const pixel = (x, y) => [...raster.data.subarray((y * raster.info.width + x) * 4, (y * raster.info.width + x) * 4 + 4)];
+          assert.deepEqual(pixel(cx, Math.floor(cy)), scenario.name === "color" ? [255, 255, 0, 255] : [255, 0, 0, 255]);
+          assert.deepEqual(pixel(cx - bounds.width * .2, Math.floor(cy)), [0, 0, 0, 0], `${name}: transparent ring uses curve extrema`);
+          assert.deepEqual(pixel(50, 360), [204, 85, 0, 255]);
+          assert.match(svg, /HHHH/);
+          assert.ok(!painted.diagnostics.some(d => ["preview.scene.paint.gradient-geometry", "preview.scene.paint.path"].includes(d.reason)));
+          await assertProductionEntry(`radial-${name}`, scenario.workspace, receipt, painted);
+          const record = { name, candidateFile, candidateSha256: sha256(receipt.file), sourceFile, sourceSha256: sourceDigest,
+            actualPathBounds: bounds, nativeAndRgbaPixels: true, sourceNoop: scenario.name === "source" };
+          if (scenario.request) {
+            const fresh = await projectPptxToPpj(receipt.file, { sourceUri: candidateFile, assetRootUri: "assets" });
+            // A new candidate gets new source-bound handles/revision hashes.
+            // Compare the whole semantic page plus capability scopes and
+            // ordered leaf kinds/values after checking candidate provenance;
+            // native leaf IDs, like handles, are source-revision scoped.
+            const comparablePage = (page, expectedSource) => {
+              const copy = structuredClone(page);
+              for (const owner of [copy, ...copy.elements]) {
+                const ref = owner.nativeRef;
+                assert.equal(ref.sourceSha256, expectedSource);
+                assert.equal(ref.revision, `pptx-${expectedSource.slice(0, 16)}`);
+                assert.match(ref.handle, /^nr-[0-9a-f]{64}$/);
+                assert.match(ref.objectHash, /^[0-9a-f]{64}$/);
+                assert.ok(ref.capabilities.every(c => c.expectedHash === ref.objectHash));
+                for (const leaf of ref.leaves || []) assert.match(leaf.id, /^nl_[0-9a-f]{32}$/);
+                owner.nativeRef = { capabilities: ref.capabilities.map(({ expectedHash, ...scope }) => scope),
+                  leaves: ref.leaves?.map(({ expectedHash, id, ...leaf }) => leaf) };
+              }
+              return copy;
+            };
+            const expectedPage = comparablePage(scenario.request.pages[0], sourceDigest);
+            if (scenario.name === "frame") for (const leaf of expectedPage.elements[0].nativeRef.leaves) {
+              if (leaf.kind === "leftEmu") leaf.value = 240 * 12700;
+              if (leaf.kind === "widthEmu") leaf.value = 400 * 12700;
+            }
+            assert.deepEqual(comparablePage(JSON.parse(Buffer.from(fresh.programJson).toString("utf8")).pages[0], sha256(receipt.file)), expectedPage);
+            const freshNoop = await compilePpjWorkspace({ source: receipt.file, assets: fresh.assets, program: fresh.programJson });
+            assert.deepEqual(freshNoop.file, receipt.file);
+            const originalZip = await JSZip.loadAsync(sourceBytes), candidateZip = await JSZip.loadAsync(receipt.file), changedParts = [];
+            assert.deepEqual(Object.keys(candidateZip.files).sort(), Object.keys(originalZip.files).sort());
+            for (const part of Object.keys(originalZip.files)) if (!originalZip.files[part].dir &&
+              !Buffer.from(await originalZip.file(part).async("uint8array")).equals(Buffer.from(await candidateZip.file(part).async("uint8array")))) changedParts.push(part);
+            assert.deepEqual(changedParts, ["ppt/slides/slide1.xml"]);
+            Object.assign(record, { reprojection: true, changedParts, requestFile: scenario.requestFile, requestSha256: scenario.requestSha256 });
+          }
+          radialGeometryCases.push(record);
+        }
+        assert.equal(sha256(geometryInput.program), geometryInputHash);
+        assert.equal(sha256(projected.programJson), projectedHash); assert.equal(sha256(sourceBytes), sourceDigest);
+      } catch (error) {
+        radialGradientFailures.push({ name: `geometry-${geometry.name}`, code: error.code, message: error.message });
+      }
+    }
+    assert.equal(sha256(input.program), inputHash); assert.equal(sha256(projection.programJson), projectionHash); assert.equal(sha256(source), sourceHash);
+  } catch (error) {
+    radialGradientFailures.push({ name: "authored/source foundation", code: error.code, message: error.message });
+    console.error(`Radial gradient foundation failed: ${error.message}`);
+  }
+  // One gradient consumer per fixture makes background compositing explicit:
+  // shapes/cells sit on white; a page gradient keeps its own transparent alpha.
+  for (const owner of ["shape", "table", "background"]) for (const kind of ["linear", "radial"]) {
+    const fixtureName = `${owner}-${kind}`;
+    try {
+      const fill = { type: "gradient", kind, ...(kind === "linear" ? { angle: 0 } : {}), stops: [
+        { offset: 0, color: "#C02010", opacity: .25 }, { offset: 1, color: "#1050E0", opacity: .75 },
+      ] };
+      const program = structuredClone(pairBase), page = program.pages[0], frame = { x: 128, y: 96, width: 256, height: 128 };
+      page.background = owner === "background" ? fill : { type: "solid", color: "#FFFFFF" };
+      page.elements = owner === "background" ? [] : owner === "shape" ? [{ id: "brightness-shape", type: "shape", frame,
+        geometry: { kind: "preset", preset: "rect" }, style: { fill } }] : [{ id: "brightness-table", type: "table", frame,
+        columns: [{ id: "column", width: frame.width }], rows: [{ id: "row", height: frame.height, cells: [{ id: "cell", text: "", fill }] }] }];
+      page.elements.push({ id: "brightness-control", type: "shape", frame: { x: 32, y: 40, width: 20, height: 20 },
+        geometry: { kind: "preset", preset: "rect" }, style: { fill: { type: "solid", color: "#CC5500" } } });
+      const input = { ...sourceWorkspace, program: Buffer.from(JSON.stringify(program)) }, inputHash = sha256(input.program);
+      const authored = await compilePpjWorkspace(input, { includePreviewScene: true });
+      const source = await withoutAuthoredSnapshot(authored.file), sourceHash = sha256(source), sourceFile = `brightness-${fixtureName}-source.pptx`;
+      await writeFile(path.join(artifacts, sourceFile), source, { flag: "wx" });
+      const projection = await projectPptxToPpj(source, { sourceUri: sourceFile, assetRootUri: "assets" });
+      const projectionHash = sha256(projection.programJson), bound = { source, assets: projection.assets, program: projection.programJson };
+      const sourceNoop = await compilePpjWorkspace(bound, { includePreviewScene: true });
+      assert.deepEqual(sourceNoop.file, source);
+      const fillAt = p => owner === "background" ? p.pages[0].background : owner === "shape"
+        ? p.pages[0].elements[0].style.fill : p.pages[0].elements[0].rows[0].cells[0].fill;
+      async function brightnessPixels(name, compiled, requestedFill) {
+        const painted = await savePaint(`brightness-${name}`, compiled), view = createPpjSceneView(compiled);
+        const native = owner === "background" ? view.pages[0].native.background.gradientFill : owner === "shape"
+          ? view.pages[0].nodes[0].native.gradientFill : view.pages[0].nodes[0].native.rows[0].cells[0].fill.kind.value;
+        assert.equal(native.kind, kind === "linear" ? 1 : 2);
+        assert.equal(native.stops.length, requestedFill.stops.length, "SVG samples must not be written into the PPTX");
+        for (let i = 0; i < native.stops.length; i++) {
+          const expected = requestedFill.stops[i], actual = native.stops[i];
+          assert.equal(actual.positionThousandthPercent, Math.round(expected.offset * 100000));
+          assert.equal(actual.colorRgb, expected.color.slice(1).toUpperCase());
+          assert.equal(actual.opacityThousandthPercent, Math.round(expected.opacity * 100000));
+        }
+        const sampled = requestedFill.stops.at(-1).offset === 1;
+        const svg = painted.pages[0].svg;
+        assert.equal((svg.match(/<stop /g) || []).length, sampled ? 32 * (native.stops.length - 1) + 1 : native.stops.length);
+        const diagnostic = painted.diagnostics.filter(d => d.reason === "preview.scene.paint.gradient-interpolation");
+        assert.equal(diagnostic.length, sampled ? 1 : 0);
+        assert.ok(diagnostic.every(d => d.status === "partial" && d.valueSummary.includes("32 SVG segments")));
+        const { data, info } = await sharp(Buffer.from(svg)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+        const pixel = (x, y) => [...data.subarray((y * info.width + x) * 4, (y * info.width + x) * 4 + 4)];
+        const f = owner === "background" ? { x: 0, y: 0, width: 960, height: 540 } : frame;
+        const cx = f.x + f.width / 2, cy = f.y + f.height / 2, radius = Math.hypot(f.width, f.height) / 2;
+        const colors = requestedFill.stops.map(s => s.color.slice(1).match(/../g).map(h => parseInt(h, 16)));
+        for (const fraction of [0, .125, .25, .5, .75]) {
+          const x = kind === "linear" ? Math.floor(f.x + f.width * Math.max(fraction, .015625)) : Math.floor(cx + radius * fraction);
+          const y = Math.floor(cy), position = kind === "linear" ? (x + .5 - f.x) / f.width : Math.hypot(x + .5 - cx, y + .5 - cy) / radius;
+          let interval = requestedFill.stops.findIndex(s => s.offset >= position) - 1;
+          if (interval < 0) interval = requestedFill.stops.length - 2;
+          const a = requestedFill.stops[interval], b = requestedFill.stops[interval + 1];
+          const t = Math.max(0, Math.min(1, (position - a.offset) / (b.offset - a.offset)));
+          const alpha = a.opacity + (b.opacity - a.opacity) * t;
+          const expected = colors[interval].map((v, c) => sampled
+            ? Math.max(v, colors[interval + 1][c]) - Math.abs(v - colors[interval + 1][c]) * (v < colors[interval + 1][c] ? 1 - t : t) ** (15 / 8)
+            : v + (colors[interval + 1][c] - v) * t);
+          const actual = pixel(x, y), destinationAlpha = owner === "background" ? alpha : 1;
+          assert.ok(Math.abs(actual[3] - destinationAlpha * 255) <= 1, `${name}: linear alpha at ${x},${y}`);
+          for (let c = 0; c < 3; c++) {
+            const premultiplied = expected[c] * alpha + (owner === "background" ? 0 : 255 * (1 - alpha));
+            assert.ok(Math.abs(actual[c] * actual[3] / 255 - premultiplied) <= 2,
+              `${name}: composited RGB channel ${c} at ${x},${y}: ${actual} != ${expected}, alpha=${alpha}`);
+          }
+          if (alpha === 0) assert.deepEqual(actual, owner === "background" ? [0, 0, 0, 0] : [255, 255, 255, 255]);
+        }
+        assert.deepEqual(pixel(40, 48), [204, 85, 0, 255]);
+        return painted;
+      }
+      for (const [name, workspace, compiled] of [["authored", input, authored], ["source", bound, sourceNoop]]) {
+        const fullName = `${fixtureName}-${name}`, painted = await brightnessPixels(fullName, compiled, fill);
+        await assertProductionEntry(`brightness-${fullName}`, workspace, compiled, painted);
+        brightnessCases.push({ name: fullName, nativeAndCompositedRgbaPixels: true, sourceNoop: name === "source", sourceFile, sourceSha256: sourceHash,
+          candidateSha256: sha256(compiled.file), originalStopCount: 2, svgStopCount: 33 });
+      }
+      for (const edit of ["reverse", "zero-alpha", "three-color", "non-endpoint"]) {
+        const request = JSON.parse(Buffer.from(projection.programJson).toString("utf8")), editedFill = fillAt(request);
+        if (edit === "reverse") [editedFill.stops[0].color, editedFill.stops[1].color] = [editedFill.stops[1].color, editedFill.stops[0].color];
+        if (edit === "zero-alpha") for (const stop of editedFill.stops) stop.opacity = 0;
+        if (edit === "three-color") editedFill.stops = [{ ...editedFill.stops[0] }, { ...editedFill.stops[1], offset: .25, opacity: 1 },
+          { ...editedFill.stops[0], offset: 1, opacity: .5 }];
+        if (edit === "non-endpoint") editedFill.stops[1].offset = .9;
+        const name = `${fixtureName}-${edit}`, requestFile = `brightness-${name}.ppj`;
+        const edited = { ...bound, program: Buffer.from(JSON.stringify(request)) }, requestHash = sha256(edited.program);
+        await writeFile(path.join(artifacts, requestFile), edited.program, { flag: "wx" });
+        const evidence = { name, stage: "compile", sourceFile, sourceSha256: sourceHash, requestFile, requestSha256: requestHash };
+        try {
+          const candidate = await compilePpjWorkspace(edited, { includePreviewScene: true }), candidateFile = `brightness-${name}-candidate.pptx`;
+          await writeFile(path.join(artifacts, candidateFile), candidate.file, { flag: "wx" });
+          Object.assign(evidence, { stage: "paint", candidateFile, candidateSha256: sha256(candidate.file) });
+          const painted = await brightnessPixels(name, candidate, editedFill);
+          await assertProductionEntry(`brightness-${name}`, edited, candidate, painted);
+          evidence.stage = "reprojection";
+          const fresh = await projectPptxToPpj(candidate.file, { sourceUri: candidateFile, assetRootUri: "assets" });
+          const reprojected = JSON.parse(Buffer.from(fresh.programJson).toString("utf8"));
+          const reprojectedFile = `brightness-${name}-reprojected.ppj`;
+          await writeFile(path.join(artifacts, reprojectedFile), fresh.programJson, { flag: "wx" });
+          if (owner === "shape" && edit === "zero-alpha") {
+            // The established projector factors equal paint opacity on a
+            // textless shape into compositing.opacity. Check that exact
+            // normalization, not an arbitrary omitted-alpha exception.
+            assert.deepEqual(reprojected.pages[0].elements[0].compositing, { opacity: 0 });
+            const normalizedFill = { ...editedFill, stops: editedFill.stops.map(({ opacity, ...stop }) => stop) };
+            assert.deepEqual(fillAt(reprojected), normalizedFill);
+            const freshNoop = await compilePpjWorkspace({ source: candidate.file, assets: fresh.assets, program: fresh.programJson }, { includePreviewScene: true });
+            assert.deepEqual(freshNoop.file, candidate.file);
+            await brightnessPixels(`${name}-reprojected`, freshNoop, editedFill);
+            evidence.compoundZeroOpacityPreserved = true;
+          } else assert.deepEqual(fillAt(reprojected), editedFill);
+          const originalZip = await JSZip.loadAsync(source), candidateZip = await JSZip.loadAsync(candidate.file), changedParts = [];
+          assert.deepEqual(Object.keys(candidateZip.files).sort(), Object.keys(originalZip.files).sort());
+          for (const part of Object.keys(originalZip.files)) if (!originalZip.files[part].dir &&
+            !Buffer.from(await originalZip.file(part).async("uint8array")).equals(Buffer.from(await candidateZip.file(part).async("uint8array")))) changedParts.push(part);
+          assert.deepEqual(changedParts, ["ppt/slides/slide1.xml"]);
+          brightnessCases.push({ ...evidence, stage: "verified", nativeAndCompositedRgbaPixels: true, reprojection: true,
+            reprojectedFile, reprojectedSha256: sha256(fresh.programJson), changedParts,
+            originalStopCount: editedFill.stops.length, svgStopCount: edit === "non-endpoint" ? 2 : edit === "three-color" ? 65 : 33 });
+        } catch (error) { brightnessFailures.push({ ...evidence, code: error.code, message: error.message }); }
+        assert.equal(sha256(source), sourceHash); assert.equal(sha256(edited.program), requestHash);
+      }
+      assert.equal(sha256(input.program), inputHash); assert.equal(sha256(projection.programJson), projectionHash);
+    } catch (error) { brightnessFailures.push({ name: fixtureName, code: error.code, message: error.message }); }
   }
   const mediaPosterCases = [];
   // Container header only: enough for the codec's embedded-media contract,
@@ -703,6 +1068,435 @@ try {
     assert.equal(row.min - top.min, row.shift);
     assert.equal(row.max - top.max, row.shift);
     assert.equal(row.pixels, top.pixels);
+  }
+  const textRotationCases = [], textRotationFailures = [], textRotationOpaqueCases = [];
+  const rotationFrame = { x: 128, y: 160, width: 256, height: 128 };
+  const rotationProgram = (owner, angle, outer = 0, flip = false) => {
+    const program = structuredClone(pairBase), frame = { ...rotationFrame, rotation: outer, flipH: flip };
+    const style = { rotation: angle, verticalAlignment: "middle", margins: { left: 8, right: 12, top: 10, bottom: 14 } };
+    const text = { paragraphs: [{ runs: [{ text: "F0", style: { size: 24, color: "#0055CC" } }, { break: true },
+      { text: "IL", style: { size: 24, color: "#0055CC" } }] }] };
+    let element;
+    if (owner === "text") element = { id: "rotation", type: "text", frame, style, text };
+    if (owner === "shape") element = { id: "rotation", type: "shape", frame,
+      geometry: { kind: "preset", preset: "rect" }, style: { fill: { type: "solid", color: "#F5F0E0" } }, textStyle: style, text };
+    if (owner === "table") element = { id: "rotation", type: "table", frame: { ...rotationFrame },
+      columns: [{ id: "c", width: 256 }], rows: [{ id: "r", height: 128, cells: [{ id: "cell",
+        fill: { type: "solid", color: "#F5F0E0" }, text: { ...text, style } }] }] };
+    program.pages[0].elements = [element, { id: "control", type: "shape", frame: { x: 40, y: 80, width: 24, height: 16 },
+      geometry: { kind: "preset", preset: "rect" }, style: { fill: { type: "solid", color: "#CC6600" } } }];
+    return program;
+  };
+  const rotationStyle = (program, owner) => {
+    const element = program.pages[0].elements[0];
+    return owner === "table" ? element.rows[0].cells[0].text.style : element.type === "text" ? element.style : element.textStyle;
+  };
+  const rotationBody = (receipt, owner) => {
+    const element = receipt.previewScene.presentation.slides[0].elements[0];
+    assert.equal(element.content.case, owner === "table" ? "table" : "shape", "source owner must retain its modeled kind before accessing text");
+    const native = element.content.value;
+    return owner === "table" ? native.rows[0].cells[0].textBody : native.textBody;
+  };
+  async function rotationInk(painted) {
+    const { data, info } = await sharp(Buffer.from(painted.pages[0].svg)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    const points = [];
+    for (let y = 24; y < info.height; y++) for (let x = 0; x < info.width; x++) {
+      const i = (y * info.width + x) * info.channels;
+      if (data[i] < 60 && data[i + 1] >= 50 && data[i + 1] < 150 && data[i + 2] > 140 && data[i + 3] > 200) points.push([x, y]);
+    }
+    assert.ok(points.length > 100, "asymmetric text must actually have visible glyph pixels");
+    const i = (84 * info.width + 44) * info.channels;
+    assert.deepEqual([...data.subarray(i, i + 4)], [204, 102, 0, 255], "unrelated foreground must not rotate");
+    return { points, data, info };
+  }
+  const rotationBounds = points => ({ left: Math.min(...points.map(p => p[0])), right: Math.max(...points.map(p => p[0])),
+    top: Math.min(...points.map(p => p[1])), bottom: Math.max(...points.map(p => p[1])) });
+  const exceptTextBodyAttribute = (s, owner, attribute) => {
+    assert.ok(["rot", "vert"].includes(attribute));
+    if (owner === "table") {
+      // Prove the inherited namespace before normalizing redundant SDK
+      // declarations in this one-cell fixture. Other XML stays significant.
+      const graphic = s.match(/<a:graphic\b[\s\S]*?<\/a:graphic>/u)?.[0];
+      assert.ok(graphic?.startsWith('<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'));
+      for (const m of graphic.matchAll(/\sxmlns:a="([^"]*)"/gu)) assert.equal(m[1], "http://schemas.openxmlformats.org/drawingml/2006/main");
+      const bodies = [...graphic.matchAll(/<a:txBody\b[\s\S]*?<\/a:txBody>/gu)];
+      assert.equal(bodies.length, 1);
+      const body = bodies[0][0], normalized = body.replace(/<a:(?:bodyPr|lstStyle|p)\b[^>]*>/gu,
+        tag => tag.replace(' xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"', ""));
+      s = s.replace(body, normalized);
+    }
+    return orderedXml(s.replace(/<a:bodyPr\b[^>]*>/u, tag => tag.replace(new RegExp(`\\s${attribute}="[^"]*"`, "u"), "")));
+  };
+  const exceptTextRotation = (s, owner) => exceptTextBodyAttribute(s, owner, "rot");
+  async function assertRotationPixels(name, receipt, input, owner, angle, reference, outer = 0, flip = false) {
+    const rotation = rotationBody(receipt, owner).bodyProperties.rotation;
+    assert.equal(rotation.case, angle === undefined ? undefined : "rotationAngle60000");
+    assert.equal(rotation.value, angle === undefined ? undefined : angle * 60000);
+    const painted = await savePaint(`text-rotation-${name}`, receipt), svg = painted.pages[0].svg;
+    assert.equal(svg.includes("data-officekit-text-rotation="), angle !== undefined);
+    if (angle !== undefined) assert.ok(svg.includes(`data-officekit-text-rotation="${angle}" transform="rotate(${angle} 256 224)"`));
+    assert.equal(svg.includes('data-officekit-text-reflection="compensated"'), flip,
+      "horizontal shape reflection must not mirror text glyphs");
+    assert.ok(!painted.diagnostics.some(d => d.reason === "preview.scene.paint.text-rotation" ||
+      d.reason === "preview.scene.paint.unmapped" && d.scenePath.endsWith("rotationAngle60000")));
+    assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.text-layout"));
+    const actual = await rotationInk(painted), a = (angle ?? 0) * Math.PI / 180, b = outer * Math.PI / 180;
+    // Independent point-space transform of the zero-angle glyph samples.
+    // Raster hinting may differ after rotation; compare bounds, centroids and
+    // bidirectional ink neighborhoods, not only SVG transform attributes.
+    const expected = reference.points.map(([x, y]) => {
+      const dx = x + .5 - 256, dy = y + .5 - 224;
+      // Horizontal shape flip is compensated for text, unlike its outline.
+      const tx = dx * Math.cos(a) - dy * Math.sin(a), ty = dx * Math.sin(a) + dy * Math.cos(a);
+      return [256 + tx * Math.cos(b) - ty * Math.sin(b) - .5, 224 + tx * Math.sin(b) + ty * Math.cos(b) - .5];
+    });
+    const bounds = rotationBounds(actual.points), expectedBounds = rotationBounds(expected);
+    for (const key of Object.keys(bounds)) assert.ok(Math.abs(bounds[key] - expectedBounds[key]) <= 2, `${name}/${key}: actual ${bounds[key]}, expected ${expectedBounds[key]}`);
+    for (const axis of [0, 1]) {
+      const mean = points => points.reduce((sum, p) => sum + p[axis], 0) / points.length;
+      assert.ok(Math.abs(mean(actual.points) - mean(expected)) < 1.5, `${name}: glyph centroid must rotate about the text frame`);
+    }
+    const neighborhoods = points => new Set(points.map(([x, y]) => `${Math.round(x)},${Math.round(y)}`));
+    for (const [points, set] of [[expected, neighborhoods(actual.points)], [actual.points, neighborhoods(expected)]]) for (const [x, y] of points) {
+      let found = false;
+      for (let dx = -2; dx <= 2 && !found; dx++) for (let dy = -2; dy <= 2 && !found; dy++) found = set.has(`${Math.round(x) + dx},${Math.round(y) + dy}`);
+      assert.ok(found, `${name}: rotated glyph neighborhood missing at ${x},${y}`);
+    }
+    assert.ok(Math.abs(actual.points.length - reference.points.length) / reference.points.length < .2);
+    if (!outer && owner !== "text") {
+      const i = (162 * actual.info.width + 130) * actual.info.channels;
+      assert.deepEqual([...actual.data.subarray(i, i + 4)], [245, 240, 224, 255], "text rotation must leave its fill fixed");
+    }
+    const entry = await assertProductionEntry(`text-rotation-${name}`, input, receipt, painted);
+    return { name, owner, angle: angle ?? null, outer, flip, bounds, inkPixels: actual.points.length,
+      reliability: entry.reliability.status, candidateSha256: sha256(receipt.file), independentRotatedInk: true };
+  }
+  for (const owner of ["text", "shape", "table"]) {
+    const zero = await compileFormat(rotationProgram(owner, 0));
+    const reference = await rotationInk(await savePaint(`text-rotation-${owner}-reference`, zero));
+    const configurations = [-90, 0, 90, 180, 12.25].map(angle => ({ angle, outer: 0, flip: false }));
+    if (owner !== "table") configurations.push({ angle: -90, outer: 90, flip: false }, { angle: 90, outer: 90, flip: true });
+    for (const { angle, outer, flip } of configurations) {
+      const name = `${owner}-${angle}-${outer}-${flip}`;
+      try {
+        const program = rotationProgram(owner, angle, outer, flip), bytes = Buffer.from(JSON.stringify(program)), inputHash = sha256(bytes);
+        const authored = await compilePpjWorkspace({ program: bytes, assets: [] }, { includePreviewScene: true });
+        textRotationCases.push(await assertRotationPixels(`${name}-authored`, authored, { program: bytes, assets: [] }, owner, angle, reference, outer, flip));
+        const source = await withoutAuthoredSnapshot(authored.file), sourceHash = sha256(source);
+        await writeFile(path.join(artifacts, `text-rotation-${name}-source.pptx`), source, { flag: "wx" });
+        const projected = await projectPptxToPpj(source, { sourceUri: "text-rotation.pptx", assetRootUri: "assets" });
+        const input = { program: projected.programJson, source, assets: projected.assets };
+        const noop = await compilePpjWorkspace(input, { includePreviewScene: true });
+        assert.deepEqual(noop.file, source);
+        textRotationCases.push({ ...await assertRotationPixels(`${name}-source`, noop, input, owner, angle, reference, outer, flip), sourceSha256: sourceHash });
+        if (angle === 90 && !outer && !flip) for (const operation of ["negative", "zero", "delete"]) {
+          try {
+            const projection = await projectPptxToPpj(source, { sourceUri: "text-rotation.pptx", assetRootUri: "assets" });
+            const request = JSON.parse(Buffer.from(projection.programJson).toString("utf8")), style = rotationStyle(request, owner);
+            assert.equal(style.rotation, 90);
+            const value = operation === "negative" ? -90 : operation === "zero" ? 0 : undefined;
+            if (value === undefined) delete style.rotation; else style.rotation = value;
+            const requestBytes = Buffer.from(JSON.stringify(request)), requestHash = sha256(requestBytes), editName = `${owner}-${operation}`;
+            await writeFile(path.join(artifacts, `text-rotation-${editName}.request.ppj`), requestBytes, { flag: "wx" });
+            const editInput = { program: requestBytes, source, assets: projection.assets };
+            const candidate = await compilePpjWorkspace(editInput, { includePreviewScene: true });
+            await writeFile(path.join(artifacts, `text-rotation-${editName}.pptx`), candidate.file, { flag: "wx" });
+            const result = await assertRotationPixels(editName, candidate, editInput, owner, value, reference);
+            const fresh = await projectPptxToPpj(candidate.file, { sourceUri: "text-rotation-candidate.pptx", assetRootUri: "assets" });
+            await writeFile(path.join(artifacts, `text-rotation-${editName}.reprojected.ppj`), fresh.programJson, { flag: "wx" });
+            assert.deepEqual(rotationStyle(JSON.parse(Buffer.from(fresh.programJson).toString("utf8")), owner), style);
+            assert.deepEqual(rotationBody(candidate, owner).paragraphs, rotationBody(noop, owner).paragraphs,
+              "rotation edits must preserve every native paragraph, run, style and break");
+            const old = await JSZip.loadAsync(source), updated = await JSZip.loadAsync(candidate.file);
+            assert.deepEqual(Object.keys(updated.files).sort(), Object.keys(old.files).sort());
+            const changedParts = [];
+            for (const part of Object.keys(old.files)) if (!old.files[part].dir &&
+              !Buffer.from(await old.file(part).async("uint8array")).equals(Buffer.from(await updated.file(part).async("uint8array")))) changedParts.push(part);
+            assert.deepEqual(changedParts, ["ppt/slides/slide1.xml"]);
+            const xml = await updated.file(changedParts[0]).async("string"), bodyPr = xml.match(/<a:bodyPr\b[^>]*>/)?.[0];
+            assert.ok(bodyPr);
+            assert.equal(/\brot=/.test(bodyPr), value !== undefined);
+            if (value !== undefined) assert.ok(bodyPr.includes(`rot="${value * 60000}"`));
+            const originalXml = await old.file(changedParts[0]).async("string");
+            const exceptRotation = s => exceptTextRotation(s, owner);
+            assert.equal(exceptRotation(xml), exceptRotation(originalXml), "only the target bodyPr rot may change inside the slide");
+            assert.notEqual(exceptRotation(xml.replace(">F0<", ">ALTERED<")), exceptRotation(originalXml), "normalization must still detect changed text");
+            if (owner === "table") assert.throws(() => exceptRotation(xml.replace(
+              '<a:bodyPr xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"', '<a:bodyPr xmlns:a="urn:wrong"')),
+            "a changed namespace must not be normalized away");
+            assert.equal(sha256(source), sourceHash); assert.equal(sha256(requestBytes), requestHash);
+            textRotationCases.push({ ...result, sourceSha256: sourceHash, requestSha256: requestHash,
+              reprojectionSha256: sha256(fresh.programJson), changedParts, nativeParagraphsPreserved: true, onlyBodyRotationChanged: true });
+          } catch (error) { textRotationFailures.push({ name: `${owner}-${operation}`, message: error.message, code: error.code ?? null }); }
+        }
+        assert.equal(sha256(source), sourceHash); assert.equal(sha256(bytes), inputHash);
+      } catch (error) { textRotationFailures.push({ name, message: error.message, code: error.code ?? null }); }
+    }
+  }
+  // Retain the initially discovered input, not just its compatible explicit-
+  // break counterpart. Literal newlines in a table run currently make native
+  // import opaque. This proves preservation/refusal only, NOT source drawing.
+  for (const angle of [0, 90]) {
+    const program = rotationProgram("table", angle);
+    program.pages[0].elements[0].rows[0].cells[0].text.paragraphs[0].runs = [
+      { text: "F0\nIL", style: { size: 24, color: "#0055CC" } }];
+    const authored = await compileFormat(program), source = await withoutAuthoredSnapshot(authored.file), sourceHash = sha256(source);
+    await writeFile(path.join(artifacts, `text-rotation-table-literal-newline-${angle}.pptx`), source, { flag: "wx" });
+    const projection = await projectPptxToPpj(source, { sourceUri: "literal-newline.pptx", assetRootUri: "assets" });
+    const p = JSON.parse(Buffer.from(projection.programJson).toString("utf8"));
+    assert.equal(p.pages[0].elements[0].type, "opaque");
+    const noop = await compilePpjWorkspace({ program: projection.programJson, source, assets: projection.assets }, { includePreviewScene: true });
+    assert.deepEqual(noop.file, source);
+    assert.equal(noop.previewScene.presentation.slides[0].elements[0].content.case, "opaque");
+    const painted = await savePaint(`text-rotation-table-literal-newline-${angle}`, noop);
+    assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.content" && d.status === "opaque"));
+    assert.match(painted.pages[0].svg, /opaque: not painted/);
+    assert.doesNotMatch(painted.pages[0].svg, /data-officekit-text-rotation=/);
+    assert.equal(sha256(source), sourceHash);
+    textRotationOpaqueCases.push({ angle, status: "opaque", sourceSha256: sourceHash, exactNoop: true,
+      sourceDrawing: "unavailable: literal newline inside table run is outside native import profile" });
+  }
+  const textDirectionCases = [], textDirectionFailures = [];
+  const directionProgram = (owner, mode, anchor, angle = 0, outer = 0, flip = false, reference = false) => {
+    const p = rotationProgram(owner, angle, outer, flip), e = p.pages[0].elements[0], style = rotationStyle(p, owner);
+    Object.assign(e.frame, { rotation: outer, flipH: flip });
+    style.verticalAlignment = anchor;
+    if (mode !== undefined) style.verticalText = mode;
+    if (reference && ["vertical", "vertical270"].includes(mode)) {
+      // Independently authored horizontal equivalent: exchange frame extents
+      // about fixed center (256,224) and express physical margins in reading
+      // coordinates. Do not derive this reference from the rendered scene.
+      Object.assign(e.frame, { x: 192, y: 96, width: 128, height: 256 });
+      if (owner === "table") { e.columns[0].width = 128; e.rows[0].height = 256; }
+      style.margins = mode === "vertical" ? { left: 10, top: 12, right: 14, bottom: 8 }
+        : { left: 14, top: 8, right: 10, bottom: 12 };
+      style.rotation = angle + (mode === "vertical" ? 90 : -90);
+      delete style.verticalText;
+    }
+    return p;
+  };
+  async function assertDirectionPixels(name, receipt, input, owner, mode, reference) {
+    const body = rotationBody(receipt, owner), direction = body.bodyProperties.verticalText;
+    assert.equal(direction.case, mode === undefined ? undefined : "verticalTextMode");
+    assert.equal(direction.value, mode);
+    const painted = await savePaint(`text-direction-${name}`, receipt), svg = painted.pages[0].svg;
+    assert.equal(svg.includes("data-officekit-text-direction="), mode === "vertical" || mode === "vertical270");
+    if (mode === "vertical" || mode === "vertical270") assert.ok(svg.includes(`data-officekit-text-direction="${mode}"`));
+    assert.ok(!painted.diagnostics.some(d => ["preview.scene.paint.text-direction", "preview.scene.paint.text-rotation"].includes(d.reason) ||
+      d.reason === "preview.scene.paint.unmapped" && d.scenePath.endsWith("verticalTextMode")));
+    assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.text-layout"));
+    const actual = await rotationInk(painted), bounds = rotationBounds(actual.points), expectedBounds = rotationBounds(reference.points);
+    for (const key of Object.keys(bounds)) assert.ok(Math.abs(bounds[key] - expectedBounds[key]) <= 2, `${name}/${key}`);
+    for (const axis of [0, 1]) {
+      const mean = points => points.reduce((sum, p) => sum + p[axis], 0) / points.length;
+      assert.ok(Math.abs(mean(actual.points) - mean(reference.points)) < 1.5, `${name}: direction glyph centroid`);
+    }
+    for (const [points, other] of [[actual.points, reference.points], [reference.points, actual.points]]) {
+      const set = new Set(other.map(([x, y]) => `${x},${y}`));
+      for (const [x, y] of points) {
+        let found = false;
+        for (let dx = -2; dx <= 2 && !found; dx++) for (let dy = -2; dy <= 2 && !found; dy++) found = set.has(`${x + dx},${y + dy}`);
+        assert.ok(found, `${name}: independent horizontal-reference ink at ${x},${y}`);
+      }
+    }
+    assert.ok(Math.abs(actual.points.length / reference.points.length - 1) < .2);
+    const entry = await assertProductionEntry(`text-direction-${name}`, input, receipt, painted);
+    return { name, owner, mode: mode ?? null, bounds, inkPixels: actual.points.length, independentHorizontalReference: true,
+      candidateSha256: sha256(receipt.file), reliability: entry.reliability.status };
+  }
+  for (const owner of ["text", "shape", "table"]) {
+    const profiles = ["horizontal", "vertical", "vertical270"].flatMap(mode => ["top", "middle", "bottom"].map(anchor => ({ mode, anchor, angle: 0, outer: 0, flip: false })));
+    profiles.push({ mode: "vertical", anchor: "middle", angle: -90, outer: 90, flip: true },
+      { mode: "vertical270", anchor: "middle", angle: 12.25, outer: 90, flip: true });
+    for (const { mode, anchor, angle, outer, flip } of profiles) {
+      const name = `${owner}-${mode}-${anchor}-${angle}-${outer}-${flip}`;
+      try {
+        const program = directionProgram(owner, mode, anchor, angle, outer, flip), input = { program: Buffer.from(JSON.stringify(program)), assets: [] };
+        const inputHash = sha256(input.program), authored = await compilePpjWorkspace(input, { includePreviewScene: true });
+        const referenceReceipt = await compileFormat(directionProgram(owner, mode, anchor, angle, outer, flip, true));
+        const reference = await rotationInk(await savePaint(`text-direction-${name}-reference`, referenceReceipt));
+        const authoredFile = `text-direction-${name}-authored-candidate.pptx`;
+        await writeFile(path.join(artifacts, authoredFile), authored.file, { flag: "wx" });
+        textDirectionCases.push({ ...await assertDirectionPixels(`${name}-authored`, authored, input, owner, mode, reference), candidateFile: authoredFile });
+        const source = await withoutAuthoredSnapshot(authored.file), sourceHash = sha256(source), sourceFile = `text-direction-${name}-source.pptx`;
+        await writeFile(path.join(artifacts, sourceFile), source, { flag: "wx" });
+        const projection = await projectPptxToPpj(source, { sourceUri: sourceFile, assetRootUri: "assets" });
+        const sourceInput = { program: projection.programJson, source, assets: projection.assets };
+        const noop = await compilePpjWorkspace(sourceInput, { includePreviewScene: true });
+        assert.deepEqual(noop.file, source);
+        textDirectionCases.push({ ...await assertDirectionPixels(`${name}-source`, noop, sourceInput, owner, mode, reference), sourceFile, sourceSha256: sourceHash, candidateFile: sourceFile });
+        if (mode === "vertical" && anchor === "middle" && !angle && !outer && !flip) for (const target of ["vertical270", "horizontal", undefined]) {
+          const request = JSON.parse(Buffer.from(projection.programJson).toString("utf8")), style = rotationStyle(request, owner);
+          if (target === undefined) delete style.verticalText; else style.verticalText = target;
+          const editName = `${owner}-${target ?? "delete"}`, requestFile = `text-direction-${editName}.request.ppj`;
+          const requestBytes = Buffer.from(JSON.stringify(request)), requestHash = sha256(requestBytes);
+          await writeFile(path.join(artifacts, requestFile), requestBytes, { flag: "wx" });
+          const editInput = { ...sourceInput, program: requestBytes }, candidate = await compilePpjWorkspace(editInput, { includePreviewScene: true });
+          const candidateFile = `text-direction-${editName}-candidate.pptx`;
+          await writeFile(path.join(artifacts, candidateFile), candidate.file, { flag: "wx" });
+          const expected = await rotationInk(await savePaint(`text-direction-${editName}-reference`, await compileFormat(directionProgram(owner, target, anchor, 0, 0, false, true))));
+          const record = await assertDirectionPixels(editName, candidate, editInput, owner, target, expected);
+          const fresh = await projectPptxToPpj(candidate.file, { sourceUri: candidateFile, assetRootUri: "assets" });
+          const reprojectionFile = `text-direction-${editName}.reprojected.ppj`;
+          await writeFile(path.join(artifacts, reprojectionFile), fresh.programJson, { flag: "wx" });
+          assert.deepEqual(rotationStyle(JSON.parse(Buffer.from(fresh.programJson).toString("utf8")), owner), style);
+          assert.deepEqual(rotationBody(candidate, owner).paragraphs, rotationBody(noop, owner).paragraphs);
+          const oldZip = await JSZip.loadAsync(source), newZip = await JSZip.loadAsync(candidate.file);
+          assert.deepEqual(Object.keys(newZip.files).sort(), Object.keys(oldZip.files).sort());
+          const changedParts = [];
+          for (const part of Object.keys(oldZip.files)) if (!oldZip.files[part].dir &&
+            !Buffer.from(await oldZip.file(part).async("uint8array")).equals(Buffer.from(await newZip.file(part).async("uint8array")))) changedParts.push(part);
+          assert.deepEqual(changedParts, ["ppt/slides/slide1.xml"]);
+          const originalXml = await oldZip.file(changedParts[0]).async("string"), xml = await newZip.file(changedParts[0]).async("string");
+          const tag = xml.match(/<a:bodyPr\b[^>]*>/)?.[0]; assert.ok(tag);
+          assert.equal(xmlAttributes(tag).vert, target === "horizontal" ? "horz" : target === "vertical270" ? "vert270" : undefined);
+          assert.equal(exceptTextBodyAttribute(xml, owner, "vert"), exceptTextBodyAttribute(originalXml, owner, "vert"));
+          assert.notEqual(exceptTextBodyAttribute(xml.replace(">F0<", ">ALTERED<"), owner, "vert"), exceptTextBodyAttribute(originalXml, owner, "vert"));
+          assert.equal(sha256(requestBytes), requestHash);
+          textDirectionCases.push({ ...record, sourceFile, sourceSha256: sourceHash, candidateFile, requestFile, requestSha256: requestHash,
+            reprojectionFile, reprojectionSha256: sha256(fresh.programJson), onlyBodyDirectionChanged: true });
+        }
+        assert.equal(sha256(source), sourceHash); assert.equal(sha256(input.program), inputHash);
+      } catch (error) { textDirectionFailures.push({ name, message: error.message, code: error.code ?? null }); }
+    }
+  }
+  const textReflectionCases = [], textReflectionFailures = [];
+  // Independent point-space reference, not SVG parsing or painter helpers.
+  const transformPoint = ([x, y], frame) => {
+    const cx = frame.x + frame.width / 2, cy = frame.y + frame.height / 2;
+    const dx = (x - cx) * (frame.flipH ? -1 : 1), dy = (y - cy) * (frame.flipV ? -1 : 1);
+    const a = (frame.rotation || 0) * Math.PI / 180;
+    return [cx + dx * Math.cos(a) - dy * Math.sin(a), cy + dx * Math.sin(a) + dy * Math.cos(a)];
+  };
+  const reflectionProfiles = [
+    { name: "self-h", self: { flipH: true }, groups: [] },
+    { name: "self-v", self: { flipV: true }, groups: [] },
+    { name: "self-both", self: { flipH: true, flipV: true }, groups: [] },
+    { name: "group-h", self: {}, groups: [{ flipH: true }] },
+    { name: "group-v", self: {}, groups: [{ flipV: true }] },
+    { name: "nested-cancel", self: {}, groups: [{ flipH: true }, { flipH: true }] },
+    { name: "nested-rotated", self: { flipH: true, rotation: 30 }, groups: [{ flipV: true, rotation: -90 }, { flipH: true, rotation: 90 }] },
+    { name: "nested-scaled", self: { flipV: true }, groups: [{ flipH: true, rotation: 90 }, { flipV: true, rotation: -90, width: 320, x: 96 }] },
+  ];
+  for (const owner of ["shape", "table"]) {
+    const reference = await rotationInk(await savePaint(`text-reflection-${owner}-reference`, await compileFormat(rotationProgram(owner, 0))));
+    for (const profile of reflectionProfiles) {
+      const name = `${owner}-${profile.name}`;
+      try {
+        const program = rotationProgram(owner, 90), leaf = program.pages[0].elements[0];
+        Object.assign(leaf.frame, profile.self);
+        let root = leaf;
+        const groups = profile.groups.map((g, i) => ({ id: `reflection-group-${i}`, type: "group",
+          frame: { ...rotationFrame, ...g }, childFrame: { ...rotationFrame } }));
+        for (const group of groups) root = { ...group, elements: [root], readingOrder: [root.id] };
+        program.pages[0].elements[0] = root;
+        const input = { program: Buffer.from(JSON.stringify(program)), assets: [] }, inputHash = sha256(input.program);
+        const authored = await compilePpjWorkspace(input, { includePreviewScene: true });
+        const source = await withoutAuthoredSnapshot(authored.file), sourceHash = sha256(source);
+        const sourceFile = `text-reflection-${name}-source.pptx`;
+        await writeFile(path.join(artifacts, sourceFile), source, { flag: "wx" });
+        const projection = await projectPptxToPpj(source, { sourceUri: sourceFile, assetRootUri: "assets" });
+        const sourceInput = { program: projection.programJson, source, assets: projection.assets };
+        const noop = await compilePpjWorkspace(sourceInput, { includePreviewScene: true });
+        assert.deepEqual(noop.file, source);
+        const scenarios = [{ name: "authored", receipt: authored, input, angle: 90 }, { name: "source", receipt: noop, input: sourceInput, angle: 90 }];
+        const projectedLeaf = p => {
+          let e = p.pages[0].elements[0];
+          for (const group of groups) { assert.equal(e.type, "group"); assert.equal(e.elements.length, 1); e = e.elements[0]; }
+          assert.ok(owner === "table" ? e.type === "table" : ["shape", "text"].includes(e.type));
+          return e;
+        };
+        const leafStyle = e => owner === "table" ? e.rows[0].cells[0].text.style : e.type === "text" ? e.style : e.textStyle;
+        if (profile.name === "nested-rotated" || profile.name === "nested-scaled") {
+          const request = JSON.parse(Buffer.from(projection.programJson).toString("utf8"));
+          leafStyle(projectedLeaf(request)).rotation = -90;
+          const editInput = { ...sourceInput, program: Buffer.from(JSON.stringify(request)) };
+          const requestFile = `text-reflection-${name}-edit.ppj`, requestHash = sha256(editInput.program);
+          await writeFile(path.join(artifacts, requestFile), editInput.program, { flag: "wx" });
+          const receipt = await compilePpjWorkspace(editInput, { includePreviewScene: true });
+          assert.equal(sha256(editInput.program), requestHash);
+          const fresh = await projectPptxToPpj(receipt.file, { sourceUri: "reflection-edited.pptx", assetRootUri: "assets" });
+          assert.equal(leafStyle(projectedLeaf(JSON.parse(Buffer.from(fresh.programJson).toString("utf8")))).rotation, -90);
+          const beforeZip = await JSZip.loadAsync(source), afterZip = await JSZip.loadAsync(receipt.file);
+          assert.deepEqual(Object.keys(afterZip.files).sort(), Object.keys(beforeZip.files).sort());
+          const changes = [];
+          for (const file of Object.keys(beforeZip.files).filter(file => !beforeZip.files[file].dir)) {
+            if (!Buffer.from(await beforeZip.file(file).async("uint8array")).equals(Buffer.from(await afterZip.file(file).async("uint8array")))) changes.push(file);
+          }
+          assert.deepEqual(changes, ["ppt/slides/slide1.xml"]);
+          const oldXml = await beforeZip.file(changes[0]).async("string"), newXml = await afterZip.file(changes[0]).async("string");
+          assert.equal(exceptTextRotation(newXml, owner), exceptTextRotation(oldXml, owner), "only body rotation may change, including within nested groups");
+          assert.notEqual(exceptTextRotation(newXml.replace(">F0<", ">ALTERED<"), owner), exceptTextRotation(oldXml, owner));
+          scenarios.push({ name: "edit", receipt, input: editInput, angle: -90, requestFile, requestHash, reprojectedSha256: sha256(fresh.programJson) });
+          await writeFile(path.join(artifacts, `text-reflection-${name}-edit.reprojected.ppj`), fresh.programJson, { flag: "wx" });
+        }
+        const frames = [leaf.frame, ...groups.map(g => g.frame)];
+        const odd = frames.reduce((v, f) => v ^ Number(!!f.flipH) ^ Number(!!f.flipV), 0) === 1;
+        for (const scenario of scenarios) {
+          const caseName = `${name}-${scenario.name}`, compiled = scenario.receipt;
+          const candidateFile = `text-reflection-${caseName}-candidate.pptx`;
+          await writeFile(path.join(artifacts, candidateFile), compiled.file, { flag: "wx" });
+          let native = createPpjSceneView(compiled).pages[0].nodes[0];
+          for (const group of [...groups].reverse()) {
+            assert.equal(native.kind, "group");
+            for (const key of ["rotation", "flipH", "flipV"]) assert.equal(native.transform?.[key] ?? (key === "rotation" ? 0 : false), group.frame[key] ?? (key === "rotation" ? 0 : false));
+            assert.deepEqual(native.frame, Object.fromEntries(["x", "y", "width", "height"].map(k => [k, group.frame[k]])));
+            assert.deepEqual(native.childFrame, rotationFrame);
+            assert.equal(native.children.length, 1); native = native.children[0];
+          }
+          assert.equal(native.kind, owner === "table" ? "table" : "shape");
+          for (const key of ["rotation", "flipH", "flipV"]) assert.equal(native.transform?.[key] ?? (key === "rotation" ? 0 : false), leaf.frame[key] ?? (key === "rotation" ? 0 : false));
+          const body = owner === "table" ? native.native.rows[0].cells[0].textBody : native.native.textBody;
+          assert.equal(body.bodyProperties.rotation.value, scenario.angle * 60000);
+          if (scenario.name === "edit") {
+            let originalLeaf = createPpjSceneView(noop).pages[0].nodes[0];
+            for (const group of groups) originalLeaf = originalLeaf.children[0];
+            const originalBody = owner === "table" ? originalLeaf.native.rows[0].cells[0].textBody : originalLeaf.native.textBody;
+            assert.deepEqual(body.paragraphs, originalBody.paragraphs, "source rotation preserves every native paragraph/run/style/break");
+          }
+          const painted = await savePaint(`text-reflection-${caseName}`, compiled), svg = painted.pages[0].svg;
+          assert.equal((svg.match(/data-officekit-text-reflection="compensated"/g) || []).length, odd ? 1 : 0);
+          assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.text-layout"));
+          const actual = await rotationInk(painted);
+          const fillCenter = (224 * actual.info.width + 256) * actual.info.channels;
+          assert.deepEqual([...actual.data.subarray(fillCenter, fillCenter + 4)], [245, 240, 224, 255],
+            "shape/cell fill remains painted independently of reflected and rotated text");
+          const expected = reference.points.map(([x, y]) => {
+            let p = transformPoint([x + .5, y + .5], { ...rotationFrame, rotation: scenario.angle });
+            if (odd) p = [512 - p[0], p[1]];
+            p = transformPoint(p, leaf.frame);
+            for (const group of groups) {
+              p = [group.frame.x + (p[0] - rotationFrame.x) * group.frame.width / rotationFrame.width,
+                group.frame.y + (p[1] - rotationFrame.y) * group.frame.height / rotationFrame.height];
+              p = transformPoint(p, group.frame);
+            }
+            return [p[0] - .5, p[1] - .5];
+          });
+          const bounds = rotationBounds(actual.points), expectedBounds = rotationBounds(expected);
+          for (const key of Object.keys(bounds)) assert.ok(Math.abs(bounds[key] - expectedBounds[key]) <= 2, `${caseName}/${key}: actual ${bounds[key]}, expected ${expectedBounds[key]}`);
+          for (const axis of [0, 1]) {
+            const mean = points => points.reduce((sum, p) => sum + p[axis], 0) / points.length;
+            assert.ok(Math.abs(mean(actual.points) - mean(expected)) < 1.5, `${caseName}: glyph centroid`);
+          }
+          for (const [points, other] of [[expected, actual.points], [actual.points, expected]]) {
+            const pixels = new Set(other.map(([x, y]) => `${Math.round(x)},${Math.round(y)}`));
+            for (const [x, y] of points) {
+              let found = false;
+              for (let dx = -2; dx <= 2 && !found; dx++) for (let dy = -2; dy <= 2 && !found; dy++) found = pixels.has(`${Math.round(x) + dx},${Math.round(y) + dy}`);
+              assert.ok(found, `${caseName}: unmirrored glyph neighborhood at ${x},${y}`);
+            }
+          }
+          const areaScale = groups.reduce((scale, g) => scale * g.frame.width / rotationFrame.width * g.frame.height / rotationFrame.height, 1);
+          assert.ok(Math.abs(actual.points.length / (reference.points.length * areaScale) - 1) < .2);
+          const entry = await assertProductionEntry(`text-reflection-${caseName}`, scenario.input, compiled, painted);
+          textReflectionCases.push({ name: caseName, sourceFile, sourceSha256: sourceHash, candidateFile,
+            candidateSha256: sha256(compiled.file), requestFile: scenario.requestFile, requestSha256: scenario.requestHash,
+            reprojectedSha256: scenario.reprojectedSha256, oddReflection: odd, bounds, inkPixels: actual.points.length,
+            independentGlyphPixels: true, reliability: entry.reliability.status });
+        }
+        assert.equal(sha256(source), sourceHash); assert.equal(sha256(input.program), inputHash);
+      } catch (error) { textReflectionFailures.push({ name, message: error.message, code: error.code ?? null }); }
+    }
   }
   const { assessPpjPreviewInput } = await import("../src/ppj/preview-input-assessment.mjs");
   const hiddenProgram = structuredClone(pairBase);
@@ -1285,13 +2079,6 @@ try {
   // This controlled fixture has exactly one SmartArt. Its source editor
   // replaces an exclusively owned graph, not a single drawing XML leaf.
   // Resolve actual relationship targets instead of allowing a directory glob.
-  const xmlAttributes = tag => Object.fromEntries([...tag.matchAll(/([\w:]+)="([^"]*)"/g)].map(m => [m[1], m[2]]));
-  // The controlled SDK fixture may reorder attributes and add a redundant
-  // root declaration for the same a namespace already declared on children.
-  // Do not remove arbitrary namespaces or alter any content/attribute values.
-  const orderedXml = xml => xml.replace(/<p:sld\b[^>]*>/, tag => tag.replace(' xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"', ""))
-    .replace(/<([\w:.-]+)(\s[^<>]*?)?(\/?)>/g, (tag, name, _, close) =>
-    `<${name} ${JSON.stringify(Object.entries(xmlAttributes(tag)).sort(([a],[b]) => a.localeCompare(b)))}${close}>`);
   async function diagramGraph(zip) {
     const slide = await zip.file("ppt/slides/slide1.xml").async("string");
     const frames = [...slide.matchAll(/<(?:\w+:)?graphicFrame\b[\s\S]*?<\/(?:\w+:)?graphicFrame>/g)].map(m => m[0]);
@@ -2283,6 +3070,170 @@ try {
     backgroundImageFailures.push({ name, code: error.code, message: error.message });
     console.error(`Background image ${name} failed: ${error.message}`);
   }
+  const shapeBlue = [0, 0, 255, 255], shapeGreen = [0, 128, 127, 255], shapeRed = [128, 0, 127, 255];
+  const shapeGeometryReason = "preview.fact.shape-geometry-omitted";
+  async function shapeImageProduction(name, input, compiled, painted) {
+    const published = await assertProductionEntry(`shape-image-${name}`, input, compiled, painted);
+    assert.ok(!published.diagnostics.some(d => d.reason === shapeGeometryReason));
+    assert.equal(published.reliability.status, "requires-review", "mapped geometry does not establish complete text/fill fidelity");
+    return published;
+  }
+  const shapeFillGeometry = preset => preset === "custom" ? {
+    kind: "custom", viewBox: { x: 0, y: 0, width: 100, height: 100 }, paths: [{ fill: true, stroke: true,
+      commands: [{ op: "moveTo", x: 50, y: 0 }, { op: "lineTo", x: 100, y: 50 },
+        { op: "lineTo", x: 50, y: 100 }, { op: "lineTo", x: 0, y: 50 }, { op: "close" }] }],
+  } : { kind: "preset", preset };
+  async function shapeImagePixels(name, receipt, expected, samples) {
+    const painted = await savePaint(`shape-image-${name}`, receipt), view = createPpjSceneView(receipt);
+    const node = view.pages[0].nodes.find(n => n.kind === "shape"), shape = node.native;
+    const fill = shape.imageFill;
+    assert.equal(shape.lineRgb, "FF00FF");
+    assert.equal(shape.lineWidthEmu, 4n * 12700n);
+    if (expected === null) {
+      assert.equal(fill, undefined);
+      assert.doesNotMatch(painted.pages[0].svg, /data-officekit-shape-image="true"/);
+    } else {
+      assert.equal(fill.mode, 1);
+      assert.equal(fill.opacityThousandthPercent, expected.opacity === undefined ? undefined : expected.opacity * 100000);
+      if (!expected.crop) assert.equal(fill.crop, undefined);
+      else for (const side of ["left", "top", "right", "bottom"])
+        assert.equal(fill.crop[`${side}ThousandthPercent`], (expected.crop[side] ?? 0) * 100000);
+      assert.deepEqual(Buffer.from(view.asset(fill.assetId).data), backgroundData);
+      assert.match(painted.pages[0].svg, /data-officekit-shape-image="true"/);
+    }
+    const raster = await sharp(Buffer.from(painted.pages[0].svg)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    const pixel = (x, y) => [...raster.data.subarray((y * raster.info.width + x) * 4, (y * raster.info.width + x) * 4 + 4)];
+    for (const [x, y, rgba] of samples) assert.deepEqual(pixel(x, y), rgba, `${name}: clipped image pixel ${x},${y}`);
+    assert.deepEqual(pixel(220, 100), [255, 0, 255, 255], "shape outline retains independent full opacity");
+    let blackText = 0;
+    for (let y = 105; y < 150; y++) for (let x = 105; x < 335; x++) if (pixel(x, y).slice(0, 3).every(v => v === 0)) blackText++;
+    assert.ok(blackText > 50, `${name}: original text remains visible above the fill`);
+    assert.match(painted.pages[0].svg, /HHHH/);
+    assert.ok(!painted.diagnostics.some(d => d.reason === "preview.scene.paint.shape-image" || d.scenePath?.includes(".imageFill")));
+    const canonical = JSON.parse(new TextDecoder().decode(receipt.programJson));
+    const options = { rendererProfile: "native-scene-svg", sceneReceipt: receipt, scenePaint: painted };
+    const legacy = assessPpjPreviewInput(canonical), mapped = assessPpjPreviewInput(canonical, options);
+    assert.ok(legacy.diagnostics.some(d => d.reason === shapeGeometryReason));
+    assert.ok(!mapped.diagnostics.some(d => d.reason === shapeGeometryReason));
+    assert.ok(painted.shapeGeometryScenePaths.includes(node.scenePath));
+    const missing = assessPpjPreviewInput(canonical, { ...options, scenePaint: { ...painted, shapeGeometryScenePaths: [] } });
+    assert.ok(missing.diagnostics.some(d => d.reason === shapeGeometryReason));
+    assert.deepEqual(mapped.diagnostics, missing.diagnostics.filter(d => d.reason !== shapeGeometryReason), "no unrelated input rule is relaxed");
+    const combined = paintPpjSceneSvg(receipt, { assessInput: true });
+    assert.ok(!combined.diagnostics.some(d => d.reason === shapeGeometryReason));
+    for (const d of painted.diagnostics)
+      assert.ok(combined.diagnostics.some(a => a.scenePath === d.scenePath && a.reason === d.reason && a.status === d.status));
+    const registry = JSON.parse(await readFile("src/ppj/capability-registry.json", "utf8"));
+    delete registry.previewScene.factualMappings.shapeGeometry;
+    assert.throws(() => assessPpjPreviewInput(canonical, { ...options, registry }), /shape geometry mapping/);
+    return { painted, record: { name, nativeAndClippedRgbaPixels: true, independentOutlineAndText: true,
+      geometryErrorRetired: true, missingCaptureRetainsError: true, missingRegistryRejects: true, unrelatedRulesRetained: true,
+      candidateSha256: sha256(receipt.file), sceneSha256: receipt.previewScene.sha256 } };
+  }
+  for (const preset of ["rect", "roundRect", "ellipse", "diamond", "custom"]) {
+    const evidence = { preset, stage: "author compile" };
+    try {
+      const program = structuredClone(pairBase), fill = { type: "image", asset: backgroundAsset.id, fit: "stretch", opacity: .5, crop: { left: .5 } };
+      program.assets = [backgroundAsset]; program.pages[0].background = { type: "solid", color: "#0000FF" };
+      program.pages[0].elements = [{ id: "image-filled-shape", type: "shape", frame: { x: 100, y: 100, width: 240, height: 120 },
+        geometry: shapeFillGeometry(preset), style: { fill, stroke: { color: "#FF00FF", width: 4 } },
+        text: { paragraphs: [{ runs: [{ text: "HHHH", style: { size: 20, color: "#000000" } }] }] } }];
+      const input = { ...sourceWorkspace, program: Buffer.from(JSON.stringify(program)), assets: [{ ...backgroundAsset, data: backgroundData }] };
+      const inputHash = sha256(input.program), assetHash = sha256(backgroundData);
+      const authored = await compilePpjWorkspace(input, { includePreviewScene: true });
+      evidence.stage = "author paint";
+      const samples = [[124, 160, shapeBlue], [220, 160, shapeGreen], [316, 160, shapeGreen],
+        // Stay outside the curved pen's antialiased fringe, while remaining
+        // strictly inside the rect's fill, not its 4pt outline.
+        [336, 103, preset === "rect" ? shapeGreen : shapeBlue]];
+      const original = await shapeImagePixels(`${preset}-authored`, authored, fill, samples);
+      await shapeImageProduction(`${preset}-authored`, input, authored, original.painted);
+      shapeImageCases.push(original.record);
+      const source = await withoutAuthoredSnapshot(authored.file), sourceHash = sha256(source);
+      const sourceFile = `shape-image-${preset}-source.pptx`;
+      await writeFile(path.join(artifacts, sourceFile), source, { flag: "wx" });
+      evidence.stage = "source projection/no-op";
+      Object.assign(evidence, { sourceFile, sourceSha256: sourceHash });
+      const projection = await projectPptxToPpj(source, { sourceUri: sourceFile, assetRootUri: "assets" });
+      const bound = { source, assets: projection.assets, program: projection.programJson }, projectionHash = sha256(projection.programJson);
+      const noop = await compilePpjWorkspace(bound, { includePreviewScene: true });
+      assert.deepEqual(noop.file, source);
+      const originalSource = await shapeImagePixels(`${preset}-source`, noop, fill, samples);
+      await shapeImageProduction(`${preset}-source`, bound, noop, originalSource.painted);
+      shapeImageCases.push(originalSource.record);
+      if (preset === "rect") for (const [edit, expected, editSamples] of [
+        ["crop", { opacity: .5, crop: { left: -.5, right: -.5 } }, [[124, 160, shapeBlue], [170, 160, shapeRed], [220, 160, shapeBlue], [270, 160, shapeGreen], [316, 160, shapeBlue]]],
+        ["zero", { opacity: 0, crop: { left: .5 } }, [[124, 160, shapeBlue], [220, 160, shapeBlue], [316, 160, shapeBlue]]],
+        ["delete-opacity", { crop: { left: .5 } }, [[124, 160, shapeBlue], [220, 160, [0, 255, 0, 255]], [316, 160, [0, 255, 0, 255]]]],
+        ["delete-crop", { opacity: .5 }, [[124, 160, shapeRed], [220, 160, shapeBlue], [316, 160, shapeGreen]]],
+        ["flip", { opacity: .5, crop: { left: .5 } }, [[124, 160, shapeGreen], [220, 160, shapeGreen], [316, 160, shapeBlue]]],
+        ["delete-fill", null, [[124, 160, shapeBlue], [220, 160, shapeBlue], [316, 160, shapeBlue]]],
+      ]) {
+        const request = JSON.parse(Buffer.from(projection.programJson).toString("utf8"));
+        const target = request.pages[0].elements.find(e => e.type === "shape");
+        if (expected === null) delete target.style.fill;
+        else {
+          delete target.style.fill.crop; delete target.style.fill.opacity;
+          Object.assign(target.style.fill, expected);
+          if (edit === "flip") target.frame.flipH = true;
+        }
+        const edited = { ...bound, program: Buffer.from(JSON.stringify(request)) }, requestHash = sha256(edited.program);
+        const requestFile = `shape-image-source-${edit}.ppj`;
+        await writeFile(path.join(artifacts, requestFile), edited.program, { flag: "wx" });
+        const editEvidence = { preset, edit, sourceFile, sourceSha256: sourceHash, requestFile, requestSha256: requestHash, stage: "compile" };
+        try {
+          const candidate = await compilePpjWorkspace(edited, { includePreviewScene: true });
+          const candidateFile = `shape-image-source-${edit}.pptx`;
+          await writeFile(path.join(artifacts, candidateFile), candidate.file, { flag: "wx" });
+          editEvidence.stage = "paint/publication";
+          const result = await shapeImagePixels(`source-${edit}`, candidate, expected, editSamples);
+          if (edit === "flip") assert.equal(createPpjSceneView(candidate).pages[0].nodes[0].native.transform.flipHorizontal, true);
+          await shapeImageProduction(`source-${edit}`, edited, candidate, result.painted);
+          editEvidence.stage = "reprojection/preservation";
+          const fresh = await projectPptxToPpj(candidate.file, { sourceUri: `shape-image-${edit}.pptx`, assetRootUri: "assets" });
+          const observed = JSON.parse(Buffer.from(fresh.programJson).toString("utf8")).pages[0].elements.find(e => e.type === "shape");
+          if (expected === null) assert.equal(observed.style?.fill, undefined);
+          else {
+            assert.equal(observed.style.fill.opacity, expected.opacity);
+            if (!expected.crop) assert.equal(observed.style.fill.crop, undefined);
+            else for (const side of ["left", "top", "right", "bottom"])
+              assert.equal(observed.style.fill.crop[side] ?? 0, expected.crop[side] ?? 0);
+          }
+          if (edit === "flip") assert.equal(observed.frame.flipH, true);
+          const oldZip = await JSZip.loadAsync(source), newZip = await JSZip.loadAsync(candidate.file), changed = [];
+          const removed = Object.keys(oldZip.files).filter(part => !newZip.files[part]);
+          assert.deepEqual(removed, edit === "delete-fill" ? ["ppt/media/image.png"] : []);
+          assert.deepEqual(Object.keys(newZip.files).sort(), Object.keys(oldZip.files).filter(part => !removed.includes(part)).sort());
+          for (const part of Object.keys(oldZip.files)) if (!oldZip.files[part].dir && newZip.file(part) &&
+            !Buffer.from(await oldZip.file(part).async("uint8array")).equals(Buffer.from(await newZip.file(part).async("uint8array")))) changed.push(part);
+          if (edit === "delete-fill") {
+            // This sole-use media part belongs to the removed fill. Only that
+            // part and relationship may disappear; all non-target ZIP bytes
+            // are still compared above. Shared-media deletion is a separate
+            // retained background regression, not bypassed by this fixture.
+            assert.deepEqual(Buffer.from(await oldZip.file("ppt/media/image.png").async("uint8array")), backgroundData);
+            const rels = "ppt/slides/_rels/slide1.xml.rels", before = await oldZip.file(rels).async("string");
+            const owned = [...before.matchAll(/<Relationship\b(?=[^>]*Type="http:\/\/schemas.openxmlformats.org\/officeDocument\/2006\/relationships\/image")(?=[^>]*Target="\/ppt\/media\/image.png")[^>]*\/>/g)];
+            assert.equal(owned.length, 1);
+            assert.equal(await newZip.file(rels).async("string"), before.replace(owned[0][0], ""));
+            assert.doesNotMatch(await newZip.file("ppt/slides/slide1.xml").async("string"), /<a:blipFill\b/);
+            assert.deepEqual(changed.sort(), [rels, "ppt/slides/slide1.xml"].sort());
+          } else assert.deepEqual(changed, ["ppt/slides/slide1.xml"]);
+          shapeImageCases.push({ ...result.record, candidateFile, reprojection: true, changedParts: changed,
+            removedParts: removed, sourceSha256: sourceHash, requestSha256: requestHash });
+        } catch (error) {
+          shapeImageFailures.push({ ...editEvidence, code: error.code, message: error.message });
+        }
+        assert.equal(sha256(edited.program), requestHash);
+        assert.equal(sha256(source), sourceHash);
+      }
+      assert.equal(sha256(source), sourceHash); assert.equal(sha256(projection.programJson), projectionHash);
+      assert.equal(sha256(input.program), inputHash); assert.equal(sha256(backgroundData), assetHash);
+    } catch (error) {
+      shapeImageFailures.push({ ...evidence, code: error.code, message: error.message });
+      console.error(`Shape image ${preset} failed at ${evidence.stage}: ${error.message}`);
+    }
+  }
   cropProgram.assets = [cropAsset];
   cropProgram.pages[0].elements = [{ id: "crop-picture", type: "image", asset: cropAsset.id, frame: { x: 100, y: 100, width: 100, height: 100 }, fit: "stretch", crop: { left: 0.5 } }];
   cropProgram.pages[0].elements.unshift({ ...structuredClone(primitive), id: "crop-background", geometry: { kind: "preset", preset: "rect" }, frame: { x: 100, y: 100, width: 100, height: 100 }, text: undefined, style: { fill: { type: "solid", color: "#0000FF" } } });
@@ -2787,7 +3738,7 @@ try {
   for (const descriptor of descriptors) assert.equal(sha256(await readFile(descriptor.executablePath)),
     descriptor.manifest.files.find(file => file.path === descriptor.manifest.profiles[descriptor.profile].executable).sha256,
     "Executed package identity must still match its validated manifest");
-  const report = { status: relationFailures.length || diagramFailures.length || transformProfileFailures.length || nestedPairFailures.length || datasetPairFailures.length || stylePairFailures.length || textAnchorFailures.length || spacingDeletionFailures.length || backgroundGradientFailures.length || backgroundImageFailures.length ? "failed" : "passed", scope: "PPJ NativeAOT wire/view, internal painting and selected production entry cases; not complete paint or installed-package acceptance",
+  const report = { status: relationFailures.length || diagramFailures.length || transformProfileFailures.length || nestedPairFailures.length || datasetPairFailures.length || stylePairFailures.length || textAnchorFailures.length || spacingDeletionFailures.length || backgroundGradientFailures.length || backgroundImageFailures.length || shapeImageFailures.length || radialGradientFailures.length || brightnessFailures.length || textRotationFailures.length || textReflectionFailures.length || textDirectionFailures.length ? "failed" : "passed", scope: "PPJ NativeAOT wire/view, internal painting and selected production entry cases; not complete paint or installed-package acceptance",
     productionEntryCases,
     performance: { file: "performance.json", cases: performanceCases.map(c => ({ name: c.name, samples: c.samples.length })),
       sha256: sha256(await readFile(path.join(artifacts, "performance.json"))),
@@ -2797,15 +3748,29 @@ try {
     nestedPairFailures,
     transformProfileFailures,
     textAnchorFailures,
+    textRotationCases,
+    textRotationFailures,
+    textRotationOpaqueCases,
+    textReflectionCases,
+    textReflectionFailures,
+    textDirectionCases,
+    textDirectionFailures,
     spacingDeletionFailures,
     capitalizationCases,
     mediaPosterCases,
     gradientCases,
+    radialGradientCases,
+    radialGeometryCases,
+    radialGradientFailures,
+    brightnessCases,
+    brightnessFailures,
     backgroundGradientCases,
     backgroundGradientFailures,
     backgroundImageCases,
     backgroundImageFailures,
     backgroundImageRejections,
+    shapeImageCases,
+    shapeImageFailures,
     characterBullets: { cases: characterBulletCases, reprojection: true, changedParts: bulletChangedParts },
     isolatedLineProfileCases,
     datasetProfileCases,
@@ -2873,7 +3838,19 @@ try {
   if (datasetPairFailures.length) throw new AggregateError(datasetPairFailures.map(f => new Error(`${f.name}: ${f.message}`)), "Dataset equivalence failed; independent checks executed, not a passing integration.");
   if (nestedPairFailures.length) throw new AggregateError(nestedPairFailures.map(f => new Error(`${f.name}: ${f.message}`)), "Nested repeat equivalence failed; independent checks executed, not a passing integration.");
   if (backgroundGradientFailures.length) throw new AggregateError(backgroundGradientFailures.map(f => new Error(`${f.angle}: ${f.message}`)), "Background gradient regressions failed; independent checks executed, not a passing integration.");
+  if (textRotationFailures.length) throw new AggregateError(textRotationFailures.map(f => new Error(`${f.name}: ${f.message}`)), "Text rotation regressions failed; independent checks executed, not a passing integration.");
+  assert.equal(textRotationCases.length, 47, "all text, shape and table authored/source angles, composed transforms and independent source edits must execute");
+  if (textReflectionFailures.length) throw new AggregateError(textReflectionFailures.map(f => new Error(`${f.name}: ${f.message}`)), "Text reflection regressions failed; independent checks executed, not a passing integration.");
+  assert.equal(textReflectionCases.length, 36, "all shape/table self, group, nested and independently source-edited reflection cases must execute");
+  if (textDirectionFailures.length) throw new AggregateError(textDirectionFailures.map(f => new Error(`${f.name}: ${f.message}`)), "Text direction regressions failed; independent checks executed, not a passing integration.");
+  assert.equal(textDirectionCases.length, 75, "all three text owners and directions, anchors, transforms and independent source edits must execute");
   if (backgroundImageFailures.length) throw new AggregateError(backgroundImageFailures.map(f => new Error(`${f.name}: ${f.message}`)), "Background image regressions failed; independent checks executed, not a passing integration.");
+  if (shapeImageFailures.length) throw new AggregateError(shapeImageFailures.map(f => new Error(`${f.preset}/${f.edit ?? f.stage}: ${f.message}`)), "Shape image regressions failed; independent checks executed, not a passing integration.");
+  if (radialGradientFailures.length) throw new AggregateError(radialGradientFailures.map(f => new Error(`${f.name}: ${f.message}`)), "Radial gradient regressions failed; independent checks executed, not a passing integration.");
+  assert.equal(radialGradientCases.length, 14, "all three consumers and their independent source edits must execute");
+  assert.equal(radialGeometryCases.length, 8, "path bounds need native authored/source and independent source-edit evidence");
+  if (brightnessFailures.length) throw new AggregateError(brightnessFailures.map(f => new Error(`${f.name}: ${f.message}`)), "Gradient brightness regressions failed; independent checks executed, not a passing integration.");
+  assert.equal(brightnessCases.length, 36, "all consumers need both gradient kinds and independent source-stop edits");
   if (spacingDeletionFailures.length) throw new AggregateError(spacingDeletionFailures.map(f => new Error(`${f.mask}: ${f.message}`)), "Paragraph spacing deletion regressions failed; independent checks executed, not a passing integration.");
   assert.equal(spacingDeletionCases.length, 7);
   if (textAnchorFailures.length) throw new AggregateError(textAnchorFailures.map(f => new Error(`${f.operation}: ${f.message}`)), "Text anchor source regressions failed; independent checks executed, not a passing integration.");
