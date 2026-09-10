@@ -2354,6 +2354,8 @@ internal static partial class PpjPresentationProjector
         if (source.SoftEdge is not null) style["softEdge"] = SoftEdge(source.SoftEdge);
         if (source.HighlightCase == PresentationTextStyle.HighlightOneofCase.HighlightRgb && !string.IsNullOrEmpty(source.HighlightRgb))
             style["highlight"] = StringNode(Color(source.HighlightRgb));
+        else if (source.HighlightCase == PresentationTextStyle.HighlightOneofCase.HighlightScheme)
+            style["highlight"] = new JsonObject { ["token"] = StringNode(source.HighlightScheme) };
         if (source.HasUnderline) style["underline"] = StringNode(source.Underline switch { "sng" => "single", "dbl" => "double", _ => source.Underline });
         if (source.HasStrike) style["strike"] = JsonValue.Create(source.Strike);
         if (source.HasFontKerningPoints) style["kerning"] = JsonValue.Create(source.FontKerningPoints);
@@ -2966,6 +2968,7 @@ internal static partial class PpjPresentationProjector
                             "text.paragraphs[].style.defaultText.capitalization",
                             "text.paragraphs[].style.defaultText.strike",
                             "text.paragraphs[].style.defaultText.underline",
+                            "text.paragraphs[].style.defaultText.highlight",
                         ]));
                         if (PptxBodyPropertiesCodec.SupportsBoundedDirectLayout(element.Shape.TextBody?.BodyProperties))
                         {

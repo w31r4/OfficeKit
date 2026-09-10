@@ -115,8 +115,8 @@ internal static class PptxDefaultRunStyleCodec
         var after = source.DefaultRunProperties;
         var beforeWithoutScalars = before.Clone();
         var afterWithoutScalars = after.Clone();
-        beforeWithoutScalars.ClearBold(); beforeWithoutScalars.ClearItalic(); beforeWithoutScalars.ClearFontSizePoints(); beforeWithoutScalars.ClearFontFamily(); beforeWithoutScalars.ClearFontFamilyEastAsia(); beforeWithoutScalars.ClearFontFamilyComplexScript(); beforeWithoutScalars.ClearLanguage(); beforeWithoutScalars.ClearFontKerningPoints(); beforeWithoutScalars.ClearFontSpacingPoints(); beforeWithoutScalars.ClearFontBaselinePercent(); beforeWithoutScalars.ClearFontCaps(); beforeWithoutScalars.ClearStrike(); beforeWithoutScalars.ClearUnderline();
-        afterWithoutScalars.ClearBold(); afterWithoutScalars.ClearItalic(); afterWithoutScalars.ClearFontSizePoints(); afterWithoutScalars.ClearFontFamily(); afterWithoutScalars.ClearFontFamilyEastAsia(); afterWithoutScalars.ClearFontFamilyComplexScript(); afterWithoutScalars.ClearLanguage(); afterWithoutScalars.ClearFontKerningPoints(); afterWithoutScalars.ClearFontSpacingPoints(); afterWithoutScalars.ClearFontBaselinePercent(); afterWithoutScalars.ClearFontCaps(); afterWithoutScalars.ClearStrike(); afterWithoutScalars.ClearUnderline();
+        beforeWithoutScalars.ClearBold(); beforeWithoutScalars.ClearItalic(); beforeWithoutScalars.ClearFontSizePoints(); beforeWithoutScalars.ClearFontFamily(); beforeWithoutScalars.ClearFontFamilyEastAsia(); beforeWithoutScalars.ClearFontFamilyComplexScript(); beforeWithoutScalars.ClearLanguage(); beforeWithoutScalars.ClearFontKerningPoints(); beforeWithoutScalars.ClearFontSpacingPoints(); beforeWithoutScalars.ClearFontBaselinePercent(); beforeWithoutScalars.ClearFontCaps(); beforeWithoutScalars.ClearStrike(); beforeWithoutScalars.ClearUnderline(); beforeWithoutScalars.ClearHighlight();
+        afterWithoutScalars.ClearBold(); afterWithoutScalars.ClearItalic(); afterWithoutScalars.ClearFontSizePoints(); afterWithoutScalars.ClearFontFamily(); afterWithoutScalars.ClearFontFamilyEastAsia(); afterWithoutScalars.ClearFontFamilyComplexScript(); afterWithoutScalars.ClearLanguage(); afterWithoutScalars.ClearFontKerningPoints(); afterWithoutScalars.ClearFontSpacingPoints(); afterWithoutScalars.ClearFontBaselinePercent(); afterWithoutScalars.ClearFontCaps(); afterWithoutScalars.ClearStrike(); afterWithoutScalars.ClearUnderline(); afterWithoutScalars.ClearHighlight();
         if (beforeWithoutScalars.Equals(afterWithoutScalars))
         {
             // Patch changed scalars without rebuilding unrelated font/fill/effect
@@ -176,6 +176,9 @@ internal static class PptxDefaultRunStyleCodec
                 if (after.HasUnderline) properties.Underline = new A.TextUnderlineValues(PptxTextDecoration.NormalizeUnderline(after.Underline));
                 else properties.Underline = null;
             }
+            if (before.HighlightCase != after.HighlightCase || before.HighlightRgb != after.HighlightRgb ||
+                before.HighlightScheme != after.HighlightScheme)
+                ApplyHighlight(properties, after);
             if (before.HasLanguage != after.HasLanguage || before.Language != after.Language)
             {
                 if (properties.Language is { } nativeLanguage && !PptxLanguageTag.IsValid(nativeLanguage.Value))
@@ -284,20 +287,7 @@ internal static class PptxDefaultRunStyleCodec
         target.Capital = source.HasFontCaps ? new A.TextCapsValues(PptxTextDecoration.NormalizeCaps(source.FontCaps)) : null;
         if (source.HasLanguage) target.Language = PptxLanguageTag.Validate(source.Language);
         else if (PptxLanguageTag.IsValid(target.Language?.Value)) target.Language = null;
-        var existingHighlight = target.GetFirstChild<A.Highlight>();
-        if (source.HighlightCase != PresentationTextStyle.HighlightOneofCase.None)
-        {
-            if (existingHighlight is not null && !PptxTextDecoration.TryHighlight(target, out _, out _))
-                throw Unsupported("Source-preserving PPTX export cannot replace unmodeled default-run highlight properties.");
-            existingHighlight?.Remove();
-            target.AddChild(source.HighlightCase == PresentationTextStyle.HighlightOneofCase.HighlightRgb
-                ? new A.Highlight(new A.RgbColorModelHex { Val = PptxColor.Normalize(source.HighlightRgb) })
-                : new A.Highlight(new A.SchemeColor { Val = PptxColor.SchemeValue(source.HighlightScheme) }), true);
-        }
-        else if (existingHighlight is not null && PptxTextDecoration.TryHighlight(target, out _, out _))
-        {
-            existingHighlight.Remove();
-        }
+        ApplyHighlight(target, source);
         ApplyLatinFont(target, source);
         ApplyEastAsianFont(target, source);
         ApplyComplexScriptFont(target, source);
@@ -395,6 +385,24 @@ internal static class PptxDefaultRunStyleCodec
         else if (PptxShadowCodec.TryRead(target, out var existing) && existing is not null)
         {
             PptxShadowCodec.Apply(target, null);
+        }
+    }
+
+    private static void ApplyHighlight(A.DefaultRunProperties target, PresentationTextStyle source)
+    {
+        var existingHighlight = target.GetFirstChild<A.Highlight>();
+        if (source.HighlightCase != PresentationTextStyle.HighlightOneofCase.None)
+        {
+            if (existingHighlight is not null && !PptxTextDecoration.TryHighlight(target, out _, out _))
+                throw Unsupported("Source-preserving PPTX export cannot replace unmodeled default-run highlight properties.");
+            existingHighlight?.Remove();
+            target.AddChild(source.HighlightCase == PresentationTextStyle.HighlightOneofCase.HighlightRgb
+                ? new A.Highlight(new A.RgbColorModelHex { Val = PptxColor.Normalize(source.HighlightRgb) })
+                : new A.Highlight(new A.SchemeColor { Val = PptxColor.SchemeValue(source.HighlightScheme) }), true);
+        }
+        else if (existingHighlight is not null && PptxTextDecoration.TryHighlight(target, out _, out _))
+        {
+            existingHighlight.Remove();
         }
     }
 

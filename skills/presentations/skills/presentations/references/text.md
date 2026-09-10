@@ -127,6 +127,20 @@ u tokens and uFillTx/uFill/uLnTx/uLn children stay source-owned even when u is
 absent: no-op and unrelated scalar edits preserve them, replacement rejects.
 Host underline contours and inherited placeholder defaults need separate evidence.
 
+Use defaultText.highlight for an opaque color or color token. Delete it or
+its highlight-only defaultText/style wrapper to remove the direct highlight,
+then assign a color to restore it. Declared grammar color tokens and tint/shade
+resolve to RGB. Imported simple theme highlights project as token objects;
+untransformed standard theme tokens retain native scheme identity during
+source edits unless a declared grammar token shadows the name. Unchanged
+paragraphs retain their original bindings. Direct run highlights, foreground
+paint, other defaults and original text remain unchanged. Nonopaque results
+are rejected; source color transforms, duplicates and unknown nested elements
+remain source-owned during no-op/unrelated scalar edits and reject replacement.
+Illegal character data that the SDK cannot retain keeps source binding rejection
+for edits and byte-identical no-op. Host highlight geometry and placeholder
+inheritance need separate evidence.
+
 
 `textWarpPreset`, `textWarpAdjustments`, `flatTextZ`, `fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.

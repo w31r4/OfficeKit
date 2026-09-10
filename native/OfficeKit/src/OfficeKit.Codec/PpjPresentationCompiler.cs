@@ -5529,57 +5529,60 @@ internal static partial class PpjSourceBoundPresentationCompiler
     {
         if (JsonEqual(beforeRaw, afterRaw)) return false;
         var tabStopsChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true),
-            MaskTextValues(afterRaw, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true));
+            MaskTextValues(beforeRaw, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true),
+            MaskTextValues(afterRaw, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true));
         var alignmentChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true));
         var defaultBoldChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true));
         var defaultItalicChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true));
         var defaultSizeChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true));
         var defaultFontFamilyChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true));
         var defaultEastAsianFontChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true));
         var defaultComplexScriptFontChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true));
         var defaultLanguageChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true));
         var defaultKerningChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true));
         var defaultLetterSpacingChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true));
         var defaultBaselineChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true));
         var defaultCapitalizationChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultStrike: true, maskDefaultUnderline: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultStrike: true, maskDefaultUnderline: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true));
         var defaultStrikeChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultUnderline: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultUnderline: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultUnderline: true, maskDefaultHighlight: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultUnderline: true, maskDefaultHighlight: true));
         var defaultUnderlineChanged = !JsonEqual(
-            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true),
-            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true));
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultHighlight: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultHighlight: true));
+        var defaultHighlightChanged = !JsonEqual(
+            MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true),
+            MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true));
         if (!JsonEqual(
-                MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true),
-                MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true)))
+                MaskTextValues(beforeRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true),
+                MaskTextValues(afterRaw, maskTabStops: true, maskAlignment: true, maskDefaultBold: true, maskDefaultItalic: true, maskDefaultSize: true, maskDefaultFontFamily: true, maskDefaultEastAsianFont: true, maskDefaultComplexScriptFont: true, maskDefaultLanguage: true, maskDefaultKerning: true, maskDefaultLetterSpacing: true, maskDefaultBaseline: true, maskDefaultCapitalization: true, maskDefaultStrike: true, maskDefaultUnderline: true, maskDefaultHighlight: true)))
             throw Unsupported(path, "rich-text topology or styling change");
         if (target.TextBody is null)
             throw Unsupported(path, "text edit without one imported bounded text body");
-        if (tabStopsChanged || alignmentChanged || defaultBoldChanged || defaultItalicChanged || defaultSizeChanged || defaultFontFamilyChanged || defaultEastAsianFontChanged || defaultComplexScriptFontChanged || defaultLanguageChanged || defaultKerningChanged || defaultLetterSpacingChanged || defaultBaselineChanged || defaultCapitalizationChanged || defaultStrikeChanged || defaultUnderlineChanged)
+        if (tabStopsChanged || alignmentChanged || defaultBoldChanged || defaultItalicChanged || defaultSizeChanged || defaultFontFamilyChanged || defaultEastAsianFontChanged || defaultComplexScriptFontChanged || defaultLanguageChanged || defaultKerningChanged || defaultLetterSpacingChanged || defaultBaselineChanged || defaultCapitalizationChanged || defaultStrikeChanged || defaultUnderlineChanged || defaultHighlightChanged)
         {
             if (tabStopsChanged)
                 RequireCapabilityField(
@@ -5632,8 +5635,11 @@ internal static partial class PpjSourceBoundPresentationCompiler
             if (defaultUnderlineChanged)
                 RequireCapabilityField(nativeRef, "setTextParagraphStyle",
                     "text.paragraphs[].style.defaultText.underline", path + ".paragraphStyle.defaultText.underline");
-            ApplyTextParagraphStyleMutation(afterRaw, target, programRoot, path,
-                tabStopsChanged, alignmentChanged, defaultBoldChanged, defaultItalicChanged, defaultSizeChanged, defaultFontFamilyChanged, defaultEastAsianFontChanged, defaultComplexScriptFontChanged, defaultLanguageChanged, defaultKerningChanged, defaultLetterSpacingChanged, defaultBaselineChanged, defaultCapitalizationChanged, defaultStrikeChanged, defaultUnderlineChanged);
+            if (defaultHighlightChanged)
+                RequireCapabilityField(nativeRef, "setTextParagraphStyle",
+                    "text.paragraphs[].style.defaultText.highlight", path + ".paragraphStyle.defaultText.highlight");
+            ApplyTextParagraphStyleMutation(beforeRaw, afterRaw, target, programRoot, path,
+                tabStopsChanged, alignmentChanged, defaultBoldChanged, defaultItalicChanged, defaultSizeChanged, defaultFontFamilyChanged, defaultEastAsianFontChanged, defaultComplexScriptFontChanged, defaultLanguageChanged, defaultKerningChanged, defaultLetterSpacingChanged, defaultBaselineChanged, defaultCapitalizationChanged, defaultStrikeChanged, defaultUnderlineChanged, defaultHighlightChanged);
             mutations.SemanticChanges = true;
         }
 
@@ -6812,7 +6818,8 @@ internal static partial class PpjSourceBoundPresentationCompiler
         bool maskDefaultBaseline = false,
         bool maskDefaultCapitalization = false,
         bool maskDefaultStrike = false,
-        bool maskDefaultUnderline = false)
+        bool maskDefaultUnderline = false,
+        bool maskDefaultHighlight = false)
     {
         if (value.ValueKind == JsonValueKind.String)
         {
@@ -6832,7 +6839,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                         if (run["field"] is System.Text.Json.Nodes.JsonObject field)
                             field["text"] = string.Empty;
                     }
-                if ((maskTabStops || maskAlignment || maskDefaultBold || maskDefaultItalic || maskDefaultSize || maskDefaultFontFamily || maskDefaultEastAsianFont || maskDefaultComplexScriptFont || maskDefaultLanguage || maskDefaultKerning || maskDefaultLetterSpacing || maskDefaultBaseline || maskDefaultCapitalization || maskDefaultStrike || maskDefaultUnderline) && paragraph["style"] is System.Text.Json.Nodes.JsonObject style)
+                if ((maskTabStops || maskAlignment || maskDefaultBold || maskDefaultItalic || maskDefaultSize || maskDefaultFontFamily || maskDefaultEastAsianFont || maskDefaultComplexScriptFont || maskDefaultLanguage || maskDefaultKerning || maskDefaultLetterSpacing || maskDefaultBaseline || maskDefaultCapitalization || maskDefaultStrike || maskDefaultUnderline || maskDefaultHighlight) && paragraph["style"] is System.Text.Json.Nodes.JsonObject style)
                 {
                     if (maskTabStops)
                     {
@@ -6840,7 +6847,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                         style.Remove("noTabStops");
                     }
                     if (maskAlignment) style.Remove("alignment");
-                    if ((maskDefaultBold || maskDefaultItalic || maskDefaultSize || maskDefaultFontFamily || maskDefaultEastAsianFont || maskDefaultComplexScriptFont || maskDefaultLanguage || maskDefaultKerning || maskDefaultLetterSpacing || maskDefaultBaseline || maskDefaultCapitalization || maskDefaultStrike || maskDefaultUnderline) && style["defaultText"] is System.Text.Json.Nodes.JsonObject defaults)
+                    if ((maskDefaultBold || maskDefaultItalic || maskDefaultSize || maskDefaultFontFamily || maskDefaultEastAsianFont || maskDefaultComplexScriptFont || maskDefaultLanguage || maskDefaultKerning || maskDefaultLetterSpacing || maskDefaultBaseline || maskDefaultCapitalization || maskDefaultStrike || maskDefaultUnderline || maskDefaultHighlight) && style["defaultText"] is System.Text.Json.Nodes.JsonObject defaults)
                     {
                         if (maskDefaultBold) defaults.Remove("bold");
                         if (maskDefaultItalic) defaults.Remove("italic");
@@ -6855,6 +6862,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                         if (maskDefaultCapitalization) defaults.Remove("capitalization");
                         if (maskDefaultStrike) defaults.Remove("strike");
                         if (maskDefaultUnderline) defaults.Remove("underline");
+                        if (maskDefaultHighlight) defaults.Remove("highlight");
                         if (defaults.Count == 0) style.Remove("defaultText");
                     }
                     if (style.Count == 0) paragraph.Remove("style");
@@ -6865,7 +6873,13 @@ internal static partial class PpjSourceBoundPresentationCompiler
         return document.RootElement.Clone();
     }
 
+    private static JsonElement? ParagraphDefaultStyle(JsonElement text, int index) =>
+        text.ValueKind == JsonValueKind.Object && text.TryGetProperty("paragraphs", out var paragraphs) &&
+        index < paragraphs.GetArrayLength() && paragraphs[index].TryGetProperty("style", out var style) &&
+        style.TryGetProperty("defaultText", out var defaults) ? defaults : null;
+
     private static void ApplyTextParagraphStyleMutation(
+        JsonElement beforeRaw,
         JsonElement afterRaw,
         PresentationShape target,
         JsonElement programRoot,
@@ -6884,7 +6898,8 @@ internal static partial class PpjSourceBoundPresentationCompiler
         bool defaultBaselineChanged,
         bool defaultCapitalizationChanged,
         bool defaultStrikeChanged,
-        bool defaultUnderlineChanged)
+        bool defaultUnderlineChanged,
+        bool defaultHighlightChanged)
     {
         PresentationTextBody requested;
         try
@@ -6915,7 +6930,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 current.ClearNoTabStops();
                 if (next.HasNoTabStops && next.NoTabStops) current.NoTabStops = true;
             }
-            if (defaultBoldChanged || defaultItalicChanged || defaultSizeChanged || defaultFontFamilyChanged || defaultEastAsianFontChanged || defaultComplexScriptFontChanged || defaultLanguageChanged || defaultKerningChanged || defaultLetterSpacingChanged || defaultBaselineChanged || defaultCapitalizationChanged || defaultStrikeChanged || defaultUnderlineChanged)
+            if (defaultBoldChanged || defaultItalicChanged || defaultSizeChanged || defaultFontFamilyChanged || defaultEastAsianFontChanged || defaultComplexScriptFontChanged || defaultLanguageChanged || defaultKerningChanged || defaultLetterSpacingChanged || defaultBaselineChanged || defaultCapitalizationChanged || defaultStrikeChanged || defaultUnderlineChanged || defaultHighlightChanged)
             {
                 var defaults = current.DefaultRunProperties?.Clone() ?? new PresentationTextStyle();
                 if (defaultBoldChanged)
@@ -7025,6 +7040,30 @@ internal static partial class PpjSourceBoundPresentationCompiler
                     defaults.ClearUnderline();
                     if (next.DefaultRunProperties is { HasUnderline: true } nextUnderline)
                         defaults.Underline = nextUnderline.Underline;
+                }
+                if (defaultHighlightChanged && PropertyChanged(
+                    ParagraphDefaultStyle(beforeRaw, index), ParagraphDefaultStyle(afterRaw, index), "highlight"))
+                {
+                    defaults.ClearHighlight();
+                    if (next.DefaultRunProperties is { HighlightCase: PresentationTextStyle.HighlightOneofCase.HighlightRgb } nextHighlight)
+                    {
+                        defaults.HighlightRgb = nextHighlight.HighlightRgb;
+                        var raw = ParagraphDefaultStyle(afterRaw, index)!.Value.GetProperty("highlight");
+                        if (raw.ValueKind == JsonValueKind.Object && raw.TryGetProperty("token", out var token) &&
+                            token.ValueKind == JsonValueKind.String)
+                        {
+                            if (TryDeclaredGrammarToken(programRoot, token.GetString()!, out _))
+                            {
+                                var color = ResolveGrammarColorValue(programRoot, raw, path + ".paragraphStyle.defaultText.highlight");
+                                if (Math.Abs(color.Alpha - 1d) > 1e-9)
+                                    throw Unsupported(path, "paragraph default highlight must resolve to opaque color");
+                                defaults.HighlightRgb = color.Rgb;
+                            }
+                            else if (!raw.TryGetProperty("tint", out _) && !raw.TryGetProperty("shade", out _) &&
+                                PptxColor.TrySchemeToken(token.GetString()!, out var scheme))
+                                defaults.HighlightScheme = scheme;
+                        }
+                    }
                 }
                 if (PptxDefaultRunStyleCodec.HasFields(defaults))
                     current.DefaultRunProperties = defaults;

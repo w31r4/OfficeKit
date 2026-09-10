@@ -1,3 +1,4 @@
+using System.Xml.Linq;
 using A = DocumentFormat.OpenXml.Drawing;
 
 namespace OfficeKit.Codec;
@@ -97,14 +98,19 @@ internal static class PptxTextDecoration
     internal static bool TryHighlight(A.TextCharacterPropertiesType? source, out string kind, out string value)
     {
         var highlights = source?.Elements<A.Highlight>().ToArray() ?? Array.Empty<A.Highlight>();
-        if (highlights.Length != 1 || highlights[0].GetAttributes().Count != 0 || highlights[0].ChildElements.Count != 1)
+        if (highlights.Length != 1 || highlights[0].GetAttributes().Count != 0 || highlights[0].ChildElements.Count != 1 ||
+            XElement.Parse(highlights[0].OuterXml).Nodes().Any(node => node is not XElement &&
+                (node is not XText text || !string.IsNullOrWhiteSpace(text.Value))))
         {
             kind = string.Empty;
             value = string.Empty;
             return false;
         }
         var color = highlights[0].ChildElements[0];
-        if (color.ChildElements.Count != 0 || color.GetAttributes().Count != 1)
+        // Inspect the raw leaf before asking the SDK to parse its children:
+        // malformed nested content can otherwise alter its source serialization.
+        if (XElement.Parse(color.OuterXml).Nodes().Any() ||
+            color.ChildElements.Count != 0 || color.GetAttributes().Count != 1)
         {
             kind = string.Empty;
             value = string.Empty;

@@ -464,6 +464,19 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 ### F-03 文本、段落、列表、字段和 WordArt
 
 
+**段落默认高亮增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.defaultText.highlight`
+支持不透明 RGB、颜色 token、删除、恢复和单字段包装删除。直接原生主题色
+投影为 `{"token":"accent1"}`，源编辑保留未加变换的主题绑定；
+显式 grammar 同名颜色优先，tint/shade 解析成 RGB。修改一段保留其它段落的
+主题绑定、run 高亮、原文字、其它样式和非目标 XML/ZIP。
+透明度结果拒绝；带变换、重复节点或未知子元素的源高亮保留并拒绝覆盖。
+非法颜色裸文本会被 SDK 解析丢弃，因此无操作原字节保留、编辑拒绝输出。
+相关 **228/228 通过，0 跳过**，包括既有高亮回归；沿用已记录的整组默认样式
+基线排除项。资料、生成检查和 OpenSpec 已同步，宿主显示及完整 F-03 继续开放。
+
+
+
 **段落默认下划线增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.defaultText.underline`
 支持现有全部下划线枚举、single/double 别名、显式 none、删除、恢复和

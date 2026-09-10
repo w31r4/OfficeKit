@@ -4,6 +4,29 @@ This document describes the supported OfficeKit boundary. It is not a promise th
 
 
 
+
+PPJ paragraph default highlight (2026-09-10): ordinary text/shape paragraphs
+support independent opaque RGB/color-token assignment, deletion, highlight-only
+wrapper removal and restoration. Simple native scheme highlights now project
+as token objects; untransformed source theme tokens retain scheme identity,
+with explicit grammar color tokens taking precedence. Tint/shade resolve to
+RGB and nonopaque results reject. Per-paragraph comparison preserves untouched
+theme bindings and direct runs. The targeted writer retains native child order,
+other defaults and non-target XML/ZIP. Color transforms, duplicate highlights
+and unknown child elements survive no-op/unrelated scalar edits and reject
+replacement. Illegal bare text inside a color node is different: SDK parsing
+loses it, so source binding checks reject edits; no-op remains byte-identical.
+The shared reader checks original XML before typed child inspection.
+
+Related native tests pass 228/228, zero skipped (SDK 8.0.128), including existing
+highlight tests and the documented whole-default-style baseline exclusion.
+The initial token collision was fixed with explicit grammar resolution.
+A malformed-text preservation expectation was corrected to the repository's
+fail-closed rule; an unknown-element fixture proves actual preservation.
+Temporary hash diagnostics were removed. Schema/Help/registry/references,
+generated metadata, preview input/capability, portability/reference sync and
+strict OpenSpec pass. No wire change, NativeAOT rebuild or host acceptance.
+
 PPJ paragraph default underline (2026-09-10): ordinary text/shape paragraphs
 support every existing underline token and single/double aliases, explicit
 none, deletion, underline-only wrapper removal and restoration. Native XML
