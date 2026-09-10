@@ -9,7 +9,7 @@ namespace OfficeKit.Codec;
 // fade profile opts into fadeDir only. Ordinary imported proofs retain their
 // full-span profile.
 // Transforms remain opt-in per caller; direct runs selectively expose the
-// canonical horizontal scale profile in addition to fade direction.
+// canonical horizontal and vertical scale profiles in addition to fade direction.
 internal static class PptxReflectionCodec
 {
     private const long MaxBlurRadiusEmu = 12_700_000L;

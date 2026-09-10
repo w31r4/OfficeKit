@@ -442,8 +442,7 @@ internal static class PptxTextCodec
 
     private static bool IsSafeDirectRunReflection(PresentationReflection reflection)
     {
-        if (reflection.HasScaleYThousandthPercent ||
-            reflection.HasSkewXAngle60000 ||
+        if (reflection.HasSkewXAngle60000 ||
             reflection.HasSkewYAngle60000 ||
             reflection.HasAlignment ||
             reflection.HasRotateWithShape)
@@ -451,14 +450,18 @@ internal static class PptxTextCodec
 
         var fullSpan = (!reflection.HasStartPositionThousandthPercent || reflection.StartPositionThousandthPercent == 0) &&
                        (!reflection.HasEndPositionThousandthPercent || reflection.EndPositionThousandthPercent == 100_000);
-        if ((!reflection.HasStartPositionThousandthPercent || reflection.StartPositionThousandthPercent == 0) &&
-            (!reflection.HasEndPositionThousandthPercent || reflection.EndPositionThousandthPercent == 100_000))
-            return !(reflection.HasFadeDirectionAngle60000 && reflection.HasScaleXThousandthPercent);
+        if (fullSpan)
+        {
+            var hasUnsupportedScaleYCombination = reflection.HasScaleYThousandthPercent &&
+                                                  (reflection.HasFadeDirectionAngle60000 || reflection.HasScaleXThousandthPercent);
+            return !(reflection.HasFadeDirectionAngle60000 && reflection.HasScaleXThousandthPercent) &&
+                   !hasUnsupportedScaleYCombination;
+        }
 
-        return (!reflection.HasScaleXThousandthPercent &&
-                (!reflection.HasStartPositionThousandthPercent || reflection.StartPositionThousandthPercent == 0) ||
-                !reflection.HasScaleXThousandthPercent &&
-                (!reflection.HasEndPositionThousandthPercent || reflection.EndPositionThousandthPercent == 100_000)) &&
+        return !reflection.HasScaleXThousandthPercent &&
+               !reflection.HasScaleYThousandthPercent &&
+               (!reflection.HasStartPositionThousandthPercent || reflection.StartPositionThousandthPercent == 0 ||
+                !reflection.HasEndPositionThousandthPercent || reflection.EndPositionThousandthPercent == 100_000) &&
                !reflection.HasFadeDirectionAngle60000;
     }
 

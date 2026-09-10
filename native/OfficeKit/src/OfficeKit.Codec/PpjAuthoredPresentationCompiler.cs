@@ -5196,6 +5196,10 @@ internal static partial class PpjAuthoredPresentationCompiler
             output.ScaleXThousandthPercent = checked((int)Math.Round(
                 ChartEffectNumber(scaleX.GetDouble(), int.MinValue / 100000d, int.MaxValue / 100000d) * 100000d,
                 MidpointRounding.ToEven));
+        if (value.TryGetProperty("scaleY", out var scaleY))
+            output.ScaleYThousandthPercent = checked((int)Math.Round(
+                ChartEffectNumber(scaleY.GetDouble(), int.MinValue / 100000d, int.MaxValue / 100000d) * 100000d,
+                MidpointRounding.ToEven));
         return output;
     }
 
