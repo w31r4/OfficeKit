@@ -14,8 +14,8 @@
     "schemaDefinitions": 200,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 79,
-    "nativeLeafKinds": 278,
+    "authoredCompilerBoundaries": 81,
+    "nativeLeafKinds": 285,
     "helpApis": 151,
     "hostOnlyApis": 13
   },
@@ -354,6 +354,20 @@
         "status": "partial",
         "reason": "preview.text.unassessed",
         "test": "test/ppj-preview-capability-coverage.mjs"
+      },
+      "textFieldType": {
+        "schemaRef": "#/$defs/textField/properties/type",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.text.field-type-unassessed",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "tableTextFieldType": {
+        "schemaRef": "#/$defs/textField/properties/type",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.text.table-field-type-unassessed",
+        "test": "test/ppj-preview-input-assessment.mjs"
       },
       "textStyle": {
         "schemaRef": "#/$defs/textStyle",
@@ -836,6 +850,14 @@
   ],
   "authoredCompilerBoundaries": [
     {
+      "feature": "source-bound static table-cell field type",
+      "ppjPath": "pages[].elements[].rows[].cells[].text.paragraphs[].runs[].field.type",
+      "behavior": "partial",
+      "sourceBound": "Imported rectangular editable tables expose valid non-automatic field type tokens as native leaves and patch only the owning slide's direct a:fld/@type token. Field ID, cached text, automatic state, inline topology, table grid, merges, and other XML remain source-bound.",
+      "reason": "Automatic field evaluation, stale bindings, identity changes, cached-text/type combined edits, irregular tables, and unsupported field graphs fail closed. Preview rendering is assessed separately from package structure and host PowerPoint refresh behavior.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
       "feature": "bounded hierarchy display levels",
       "ppjPath": "pages[].elements[].data.series[0].levels for treemap and sunburst charts",
       "behavior": "partial",
@@ -1036,10 +1058,18 @@
       "visualStatus": "partial-or-opaque"
     },
     {
-      "feature": "source-bound paragraph default scalars",
-      "ppjPath": "pages[].elements[].text.paragraphs[].style.defaultText.bold, italic, size, fontFamily, fontFamilyEastAsia, fontFamilyComplexScript, language, kerning, letterSpacing, baseline, capitalization, strike, underline, highlight, color, gradient, glow, innerShadow, reflection, shadow and softEdge",
+      "feature": "source-bound static text field type",
+      "ppjPath": "pages[].elements[].text.paragraphs[].runs[].field.type",
       "behavior": "partial",
-      "sourceBound": "Ordinary text/shape owners issue independent setTextParagraphStyle fields for direct paragraph default bold, italic, size, fontFamily, fontFamilyEastAsia, fontFamilyComplexScript, language, kerning, letterSpacing, baseline, capitalization, strike, underline, highlight, color, gradient, glow, innerShadow, reflection, shadow and softEdge. Explicit booleans and sizes, omission and restoration retain native presence. Size accepts finite values from 1 to 768pt, rounds to native hundredths using nearest-even rounding, and rejects out-of-range sizes. Font family is a nonblank name of at most 255 characters; only a simple direct Latin, East Asian or complex-script font node is replaced or removed. East Asian removal follows explicit source-bound presence and does not regenerate the authored Latin fallback. Language accepts 2..63 characters: an initial 2..8-letter subtag followed by hyphen-separated 1..8-character alphanumeric subtags. Assignment/removal/restoration preserves spelling, altLang and direct run languages; replacement of an unmodeled native lang rejects, while unrelated scalar edits preserve it. Kerning is the minimum font-size threshold in points: finite 0..768, native hundredths with ties-to-even rounding, independent zero/removal/restoration. Direct run kerning and unmodeled native kern survive unrelated default changes; replacing unmodeled kern rejects. LetterSpacing is direct character spacing in points: finite -768..768, native hundredths with ties-to-even rounding, independent zero/removal/restoration. Direct run spacing and unmodeled native spc survive unrelated default changes; replacing unmodeled spc rejects. Baseline is the direct offset in percent: finite -400..400, native integer thousandths with ties-to-even rounding, independent zero/removal/restoration. Direct run baseline and unmodeled native baseline survive unrelated default changes; replacing unmodeled baseline rejects. Capitalization independently supports none/small/all, explicit none, removal and restoration without rewriting text or direct run styles. Unmodeled native cap remains source-owned during no-op and unrelated scalar assignment/removal; replacement rejects. defaultText.strike independently sets/removes/restores true/false or noStrike/sngStrike/dblStrike. Boolean aliases project as sngStrike/noStrike; explicit noStrike remains distinct from omission. Original text and direct run styles are preserved; unmodeled source strike survives no-op and unrelated scalar edits but rejects replacement. defaultText.underline independently sets/removes/restores the existing underline tokens and single/double aliases, which write native sng/dbl and reproject as single/double. Explicit none differs from omission. Unknown source u tokens or underline fill/line effect children, including children without u, survive no-op and unrelated scalar edits but reject replacement; direct run styles and original text are preserved. defaultText.highlight independently sets/removes/restores opaque RGB and color-token values, including tint/shade resolution. Simple native scheme highlights project as token objects. Untransformed standard source-bound theme tokens retain native scheme identity unless shadowed by declared grammar tokens. Only paragraphs whose highlight changes are rewritten; other defaults and direct run highlights remain unchanged. Nonopaque results reject, and transformed/duplicate/unknown-element source highlight graphs survive no-op and unrelated scalar edits but reject replacement. Illegal character data that the SDK cannot retain remains no-op preservable and fails closed on editing. defaultText.color independently sets/removes/restores RGB/RGBA and color tokens. Explicit direct alpha zero/one remains distinct from omission. Untransformed standard source-bound theme tokens retain scheme identity unless shadowed by declared grammar colors; tint/shade resolve to RGB. Only changed paragraph colors are rewritten, preserving neighboring theme/alpha precision and direct run paint. Source luminance transforms, duplicate fills and unmodeled paint survive unrelated scalar edits but reject solid-color replacement; projected transformed colors also reject deletion. defaultText.gradient independently sets/removes/restores linear or centered radial gradients with 2..16 ordered RGB/color-token stops, including duplicate offsets. Explicit stop opacity 0/1 retains presence; offsets and opacity use native 1/100000 precision, and linear angles normalize after rounding to 1/60000 degree. Declared grammar stop colors take precedence in source-bound edits. Only changed paragraphs are rewritten, preserving neighboring gradient decorations/precision and direct run paint. Switching color and gradient requires removing one and assigning the other with both field authorities. Unmodeled scaling, theme-stop graphs, duplicate fills and unknown nested content remain source-owned and reject replacement; unrelated scalar edits preserve them. defaultText.glow independently sets/removes/restores one direct glow with finite radius 0..1000pt at native EMU precision, RGB/RGBA/color tokens and optional opacity or opacity tokens. Omitted opacity and explicit zero/one retain presence. Plain source theme colors retain scheme identity; declared grammar colors take precedence and tint/shade resolve to RGB. Each bounded direct default effect is read independently, and a glow edit preserves sibling effect XML/attributes, neighboring paragraphs and direct runs. Duplicate lists/glows, effect DAGs and unmodeled glow descendants remain source-owned during unrelated scalar edits and reject replacement. defaultText.innerShadow independently sets/removes/restores one direct inner shadow. Color is required; blur (0..1000pt), distance (0..100000pt), angle (-360..360 degrees) and opacity/token are optional. Omission and explicit zero/one retain native presence; lengths round to EMU and angles wrap after native 1/60000-degree rounding. RGB/RGBA and plain theme identity are preserved, declared source grammar colors take precedence, and tint/shade resolve to RGB. Only changed paragraphs are rewritten; mixed effects, list attributes, direct runs and neighboring paragraphs are preserved. Duplicate lists/inner shadows, effect DAGs and unmodeled geometry/colors/descendants survive unrelated scalar edits and reject replacement. Ordinary run/shape/image inner-shadow syntax retains its existing required geometry. defaultText.reflection supports independent assignment, removal and restoration of all 14 optional reflection fields: blur, distance, angle, startOpacity/endOpacity, startPosition/endPosition, fadeAngle, scaleX/scaleY, skewX/skewY, alignment and rotateWithShape. Empty objects retain a native reflection; omission differs from zero, one and false. Blur accepts 0..1000pt, distance 0..100000pt, direction/fade angles -360..360 degrees, opacity/position 0..1, scale -21474.83648..21474.83647 and skew strictly between -90..90 degrees after rounding. Opacity tokens must declare kind opacity. Lengths round to EMU, angles to 1/60000 degree before wrapping, and scale/opacity/position to 1/100000. Only the changed direct reflection is patched, preserving sibling effects, list attributes, neighboring paragraphs and direct runs. Duplicate effect/list nodes, DAGs and unknown or invalid native reflection content remain source-owned during unrelated edits and reject replacement. Ordinary run/shape/image reflection syntax retains its existing required geometry. defaultText.shadow supports independent assignment, removal and restoration of all 11 direct outer-shadow fields. Color is required; opacity, blur, distance, angle, alignment, rotateWithShape, scaleX/scaleY and skewX/skewY are optional. Omission differs from explicit zero, one and false. Blur accepts 0..1000pt, distance 0..100000pt, direction -360..360 degrees, opacity 0..1 or an opacity token, scale -21474.83648..21474.83647 and skew strictly between -90..90 degrees after rounding. Lengths round to EMU, angles to 1/60000 degree before wrapping, and scale/opacity to 1/100000. RGB/RGBA and plain source theme identity are preserved; declared source grammar colors take precedence and tint/shade resolve to RGB. Only the changed direct shadow is patched, preserving sibling effects, list attributes, neighboring paragraphs and direct runs. Duplicate lists/shadows, DAGs, invalid geometry and unmodeled color descendants remain source-owned during unrelated edits and reject replacement. Ordinary run/shape/image shadow syntax retains its existing required geometry. defaultText.softEdge independently sets/removes/restores one direct soft edge with required finite radius 0..1000pt, rounded to the nearest EMU with ties to even. Explicit zero retains the effect; removing the field or a wrapper containing only it removes the direct effect. Only changed paragraphs are patched, preserving other effect XML, list attributes, direct runs and neighboring paragraphs. Missing/invalid radius, unknown attributes/children, duplicate lists/effects and DAGs remain source-owned during unrelated scalar edits and reject replacement. Preview remains partial. Existing validation warnings are retained without introducing new warnings.",
+      "sourceBound": "Existing ordinary text/shape fields issue setTextField for a changed non-automatic DrawingML type token. The source-bound edit patches only the target SlidePart a:fld/@type attribute and then reprojects the same field ID, cached display text, automatic marker and inline topology. Recognized automatic field types, field identity changes, cached-text changes in the same edit and unknown field graphs remain source-owned or use their existing boundaries.",
+      "reason": "The bounded leaf proves a valid 1..255 printable static token, a unique direct type attribute and the field ordinal against the exact source element. It does not evaluate, refresh or broaden PowerPoint field semantics; host PowerPoint acceptance is not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound paragraph default scalars",
+      "ppjPath": "pages[].elements[].text.paragraphs[].style.defaultText.bold, italic, size, fontFamily, fontFamilyEastAsia, fontFamilyComplexScript, language, kerning, letterSpacing, baseline, capitalization, strike, underline, highlight, color, gradient, glow, innerShadow, reflection, shadow (including scaleX/scaleY/skewX/skewY) and softEdge",
+      "behavior": "partial",
+      "sourceBound": "Ordinary text/shape owners issue independent setTextParagraphStyle fields for direct paragraph default bold, italic, size, fontFamily, fontFamilyEastAsia, fontFamilyComplexScript, language, kerning, letterSpacing, baseline, capitalization, strike, underline, highlight, color, gradient, glow, innerShadow, reflection, shadow and softEdge. Explicit booleans and sizes, omission and restoration retain native presence. Size accepts finite values from 1 to 768pt, rounds to native hundredths using nearest-even rounding, and rejects out-of-range sizes. Font family is a nonblank name of at most 255 characters; only a simple direct Latin, East Asian or complex-script font node is replaced or removed. East Asian removal follows explicit source-bound presence and does not regenerate the authored Latin fallback. Language accepts 2..63 characters: an initial 2..8-letter subtag followed by hyphen-separated 1..8-character alphanumeric subtags. Assignment/removal/restoration preserves spelling, altLang and direct run languages; replacement of an unmodeled native lang rejects, while unrelated scalar edits preserve it. Kerning is the minimum font-size threshold in points: finite 0..768, native hundredths with ties-to-even rounding, independent zero/removal/restoration. Direct run kerning and unmodeled native kern survive unrelated default changes; replacing unmodeled kern rejects. LetterSpacing is direct character spacing in points: finite -768..768, native hundredths with ties-to-even rounding, independent zero/removal/restoration. Direct run spacing and unmodeled native spc survive unrelated default changes; replacing unmodeled spc rejects. Baseline is the direct offset in percent: finite -400..400, native integer thousandths with ties-to-even rounding, independent zero/removal/restoration. Direct run baseline and unmodeled native baseline survive unrelated default changes; replacing unmodeled baseline rejects. Capitalization independently supports none/small/all, explicit none, removal and restoration without rewriting text or direct run styles. Unmodeled native cap remains source-owned during no-op and unrelated scalar assignment/removal; replacement rejects. defaultText.strike independently sets/removes/restores true/false or noStrike/sngStrike/dblStrike. Boolean aliases project as sngStrike/noStrike; explicit noStrike remains distinct from omission. Original text and direct run styles are preserved; unmodeled source strike survives no-op and unrelated scalar edits but rejects replacement. defaultText.underline independently sets/removes/restores the existing underline tokens and single/double aliases, which write native sng/dbl and reproject as single/double. Explicit none differs from omission. Unknown source u tokens or underline fill/line effect children, including children without u, survive no-op and unrelated scalar edits but reject replacement; direct run styles and original text are preserved. defaultText.highlight independently sets/removes/restores opaque RGB and color-token values, including tint/shade resolution. Simple native scheme highlights project as token objects. Untransformed standard source-bound theme tokens retain native scheme identity unless shadowed by declared grammar tokens. Only paragraphs whose highlight changes are rewritten; other defaults and direct run highlights remain unchanged. Nonopaque results reject, and transformed/duplicate/unknown-element source highlight graphs survive no-op and unrelated scalar edits but reject replacement. Illegal character data that the SDK cannot retain remains no-op preservable and fails closed on editing. defaultText.color independently sets/removes/restores RGB/RGBA and color tokens. Explicit direct alpha zero/one remains distinct from omission. Untransformed standard source-bound theme tokens retain scheme identity unless shadowed by declared grammar colors; tint/shade resolve to RGB. Only changed paragraph colors are rewritten, preserving neighboring theme/alpha precision and direct run paint. Source luminance transforms, duplicate fills and unmodeled paint survive unrelated scalar edits but reject solid-color replacement; projected transformed colors also reject deletion. defaultText.gradient independently sets/removes/restores linear or centered radial gradients with 2..16 ordered RGB/color-token stops, including duplicate offsets. Explicit stop opacity 0/1 retains presence; offsets and opacity use native 1/100000 precision, and linear angles normalize after rounding to 1/60000 degree. Declared grammar stop colors take precedence in source-bound edits. Only changed paragraphs are rewritten, preserving neighboring gradient decorations/precision and direct run paint. Switching color and gradient requires removing one and assigning the other with both field authorities. Unmodeled scaling, theme-stop graphs, duplicate fills and unknown nested content remain source-owned and reject replacement; unrelated scalar edits preserve them. defaultText.glow independently sets/removes/restores one direct glow with finite radius 0..1000pt at native EMU precision, RGB/RGBA/color tokens and optional opacity or opacity tokens. Omitted opacity and explicit zero/one retain presence. Plain source theme colors retain scheme identity; declared grammar colors take precedence and tint/shade resolve to RGB. Each bounded direct default effect is read independently, and a glow edit preserves sibling effect XML/attributes, neighboring paragraphs and direct runs. Duplicate lists/glows, effect DAGs and unmodeled glow descendants remain source-owned during unrelated scalar edits and reject replacement. defaultText.innerShadow independently sets/removes/restores one direct inner shadow. Color is required; blur (0..1000pt), distance (0..100000pt), angle (-360..360 degrees) and opacity/token are optional. Omission and explicit zero/one retain native presence; lengths round to EMU and angles wrap after native 1/60000-degree rounding. RGB/RGBA and plain theme identity are preserved, declared source grammar colors take precedence, and tint/shade resolve to RGB. Only changed paragraphs are rewritten; mixed effects, list attributes, direct runs and neighboring paragraphs are preserved. Duplicate lists/inner shadows, effect DAGs and unmodeled geometry/colors/descendants survive unrelated scalar edits and reject replacement. Ordinary run/shape/image inner-shadow syntax retains its existing required geometry. defaultText.reflection supports independent assignment, removal and restoration of all 14 optional reflection fields: blur, distance, angle, startOpacity/endOpacity, startPosition/endPosition, fadeAngle, scaleX/scaleY, skewX/skewY, alignment and rotateWithShape. Empty objects retain a native reflection; omission differs from zero, one and false. Blur accepts 0..1000pt, distance 0..100000pt, direction/fade angles -360..360 degrees, opacity/position 0..1, scale -21474.83648..21474.83647 and skew strictly between -90..90 degrees after rounding. Opacity tokens must declare kind opacity. Lengths round to EMU, angles to 1/60000 degree before wrapping, and scale/opacity/position to 1/100000. Only the changed direct reflection is patched, preserving sibling effects, list attributes, neighboring paragraphs and direct runs. Duplicate effect/list nodes, DAGs and unknown or invalid native reflection content remain source-owned during unrelated edits and reject replacement. Ordinary run/shape/image reflection syntax retains its existing required geometry. defaultText.shadow supports independent assignment, removal and restoration of all 11 direct outer-shadow fields. The source-bound native leaves `textDefaultShadowScaleX` and `textDefaultShadowScaleY` independently edit existing signed `outerShdw/@sx` and `outerShdw/@sy` tokens at 1/100000 precision; `textDefaultShadowSkewX` and `textDefaultShadowSkewY` independently edit existing signed `outerShdw/@kx` and `outerShdw/@ky` tokens at 1/60000-degree precision with a strict -90..90-degree bound, while preserving the other shadow fields. Color is required; opacity, blur, distance, angle, alignment, rotateWithShape, scaleX/scaleY and skewX/skewY are optional. Omission differs from explicit zero, one and false. Blur accepts 0..1000pt, distance 0..100000pt, direction -360..360 degrees, opacity 0..1 or an opacity token, scale -21474.83648..21474.83647 and skew strictly between -90..90 degrees after rounding. Lengths round to EMU, angles to 1/60000 degree before wrapping, and scale/opacity to 1/100000. RGB/RGBA and plain source theme identity are preserved; declared source grammar colors take precedence and tint/shade resolve to RGB. Only the changed direct shadow is patched, preserving sibling effects, list attributes, neighboring paragraphs and direct runs. Duplicate lists/shadows, DAGs, invalid geometry and unmodeled color descendants remain source-owned during unrelated edits and reject replacement. Ordinary run/shape/image shadow syntax retains its existing required geometry. defaultText.softEdge independently sets/removes/restores one direct soft edge with required finite radius 0..1000pt, rounded to the nearest EMU with ties to even. Explicit zero retains the effect; removing the field or a wrapper containing only it removes the direct effect. Only changed paragraphs are patched, preserving other effect XML, list attributes, direct runs and neighboring paragraphs. Missing/invalid radius, unknown attributes/children, duplicate lists/effects and DAGs remain source-owned during unrelated scalar edits and reject replacement. Preview remains partial. Existing validation warnings are retained without introducing new warnings.",
       "reason": "Fixed paragraph/run topology is preserved. Removing a defaultText wrapper containing only these scalars clears their direct values while retaining other defaults, direct runs and unknown native state. Unmodeled script-font metadata/children, missing field authority and unrelated defaultText changes fail closed. PpjTextBodyPropertyLifecycleTests verifies source XML/ZIP preservation; placeholder inheritance, table paragraph defaults and host reflow retain their separate boundaries.",
       "visualStatus": "partial-or-opaque"
     },
@@ -1295,8 +1325,8 @@
       "feature": "authored text reflection",
       "ppjPath": "textStyle.reflection across paragraph defaultText, rich-text run styles, named text styles and authored layout/master text defaults",
       "behavior": "partial",
-      "sourceBound": "Source-free PPJ owns a bounded direct text reflection for authored runs and paragraph default runs. A strict imported/source-bound profile now projects one full-span direct rich-text run reflection, optionally preceded by one valid outer shadow, and issues the existing scalar leaves; paragraph defaultText also exposes textDefaultReflectionBlurRadiusEmu, textDefaultReflectionDistanceEmu, textDefaultReflectionStartOpacityThousandthPercent, textDefaultReflectionEndOpacityThousandthPercent, and textDefaultReflectionDirectionDegrees alongside the separate glow, inner-shadow and soft-edge radius leaves documented below. Other text effect graphs remain source-preserved or fail closed.",
-      "reason": "The profile reuses bounded blur, start/end opacity, distance and angle, lowering to a:reflection with deterministic full-span positions after the bounded text glow, inner-shadow and outer-shadow owners. The source-bound profile accepts only a full-span reflection or outer-shadow→reflection, preserves the owner proof and token-splices the selected run scalar as proven by PpjSourceBoundTextReflectionEditsDirectRunOwnerAndReprojects; the paragraph defaultText profile proves the same full-span owner and token-splices only reflection/@blurRad, reflection/@dist, reflection/@stA, reflection/@endA, or reflection/@dir. 3-D, reflection transform variants, WordArt and arbitrary effect lists remain outside this owner.",
+      "sourceBound": "Source-free PPJ owns a bounded direct text reflection for authored runs and paragraph default runs. A strict imported/source-bound profile now projects one full-span direct rich-text run reflection, optionally preceded by one valid outer shadow, and issues the existing scalar leaves; paragraph defaultText also exposes textDefaultReflectionBlurRadiusEmu, textDefaultReflectionDistanceEmu, textDefaultReflectionStartOpacityThousandthPercent, textDefaultReflectionEndOpacityThousandthPercent, textDefaultReflectionDirectionDegrees, and textDefaultReflectionFadeAngleDegrees alongside the separate glow, inner-shadow and soft-edge radius leaves documented below. Other text effect graphs remain source-preserved or fail closed.",
+      "reason": "The profile reuses bounded blur, start/end opacity, distance and angle, lowering to a:reflection with deterministic full-span positions after the bounded text glow, inner-shadow and outer-shadow owners. The source-bound profile accepts only a full-span reflection or outer-shadow→reflection, preserves the owner proof and token-splices the selected run scalar as proven by PpjSourceBoundTextReflectionEditsDirectRunOwnerAndReprojects; the paragraph defaultText profile proves the same full-span owner and token-splices only reflection/@blurRad, reflection/@dist, reflection/@stA, reflection/@endA, reflection/@dir, or reflection/@fadeDir. 3-D, other reflection transform variants, WordArt and arbitrary effect lists remain outside this owner.",
       "visualStatus": "partial-or-opaque"
     },
     {
@@ -1684,6 +1714,22 @@
       "ppjLocation": "paragraph.style.level",
       "surface": "native-leaf",
       "boundary": "Paragraph outline level 0 through 8."
+    },
+    {
+      "name": "textFieldType",
+      "valueType": "string",
+      "unit": "token",
+      "ppjLocation": "text.paragraphs[].runs[].field.type",
+      "surface": "native-leaf",
+      "boundary": "Direct static DrawingML field type token; the field ID, cached text, automatic marker and inline topology remain source-bound, and recognized automatic field types stay source-owned."
+    },
+    {
+      "name": "tableTextFieldType",
+      "valueType": "string",
+      "unit": "token",
+      "ppjLocation": "table.rows[].cells[].text.paragraphs[].runs[].field.type",
+      "surface": "native-leaf",
+      "boundary": "Direct static DrawingML table-cell field type token; the physical cell and field ordinals are source-bound, as are field ID, cached text, automatic state, inline topology, table grid and merges."
     },
     {
       "name": "verticalAnchor",
@@ -2086,6 +2132,38 @@
       "boundary": "Direct imported paragraph default-text outer-shadow direction in 60000ths of a degree; the paragraph a:defRPr effect list must use one strict direct outerShdw with an existing dir."
     },
     {
+      "name": "textDefaultShadowScaleX",
+      "valueType": "number",
+      "unit": "ratio",
+      "ppjLocation": "paragraph.style.defaultText.shadow.scaleX",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text outer-shadow horizontal scale; the paragraph a:defRPr effect list must use one strict direct outerShdw with an existing signed sx token."
+    },
+    {
+      "name": "textDefaultShadowScaleY",
+      "valueType": "number",
+      "unit": "ratio",
+      "ppjLocation": "paragraph.style.defaultText.shadow.scaleY",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text outer-shadow vertical scale; the paragraph a:defRPr effect list must use one strict direct outerShdw with an existing signed sy token."
+    },
+    {
+      "name": "textDefaultShadowSkewX",
+      "valueType": "number",
+      "unit": "degrees",
+      "ppjLocation": "paragraph.style.defaultText.shadow.skewX",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text outer-shadow horizontal skew in 60000ths of a degree; the paragraph a:defRPr effect list must use one strict direct outerShdw with an existing signed kx token strictly between -5400000 and 5400000."
+    },
+    {
+      "name": "textDefaultShadowSkewY",
+      "valueType": "number",
+      "unit": "degrees",
+      "ppjLocation": "paragraph.style.defaultText.shadow.skewY",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text outer-shadow vertical skew in 60000ths of a degree; the paragraph a:defRPr effect list must use one strict direct outerShdw with an existing signed ky token strictly between -5400000 and 5400000."
+    },
+    {
       "name": "textDefaultShadowAlignment",
       "valueType": "string",
       "unit": "enum",
@@ -2324,6 +2402,14 @@
       "ppjLocation": "paragraph.style.defaultText.reflection.angle",
       "surface": "native-leaf",
       "boundary": "Direct imported paragraph default-text reflection direction; the paragraph a:defRPr effect list must use the strict full-span reflection profile."
+    },
+    {
+      "name": "textDefaultReflectionFadeAngleDegrees",
+      "valueType": "number",
+      "unit": "degrees",
+      "ppjLocation": "paragraph.style.defaultText.reflection.fadeAngle",
+      "surface": "native-leaf",
+      "boundary": "Direct imported paragraph default-text reflection fade direction; the paragraph a:defRPr effect list must use the strict full-span reflection profile with no transform other than fadeDir."
     },
     {
       "name": "textSoftEdgeRadiusEmu",

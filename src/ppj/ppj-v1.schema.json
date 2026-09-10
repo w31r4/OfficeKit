@@ -2254,6 +2254,7 @@
             "textDefaultReflectionDistanceEmu",
             "textReflectionDirectionDegrees",
             "textDefaultReflectionDirectionDegrees",
+            "textDefaultReflectionFadeAngleDegrees",
             "textSoftEdgeRadiusEmu",
             "textDefaultSoftEdgeRadiusEmu",
             "shapeGlowRadiusEmu",

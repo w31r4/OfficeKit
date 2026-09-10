@@ -130,6 +130,7 @@ public sealed partial class PptxCodecTests
                                 ["endOpacity"] = 0.08,
                                 ["distance"] = 12,
                                 ["angle"] = 45,
+                                ["fadeAngle"] = 30,
                             },
                         },
                     },
@@ -352,6 +353,7 @@ public sealed partial class PptxCodecTests
             Assert.Equal(100_000, defaultReflection.EndPosition!.Value);
             Assert.Equal(152_400, defaultReflection.Distance!.Value);
             Assert.Equal(2_700_000, defaultReflection.Direction!.Value);
+            Assert.Equal(1_800_000, defaultReflection.FadeDirection!.Value);
             var defaultThemedInnerShadowProperties = paragraphs[4]
                 .ParagraphProperties!.GetFirstChild<A.DefaultRunProperties>()!;
             var defaultThemedInnerShadowEffects = defaultThemedInnerShadowProperties.GetFirstChild<A.EffectList>()!;
@@ -414,6 +416,7 @@ public sealed partial class PptxCodecTests
         Assert.Equal(0.08, projectedReflectionParagraph["style"]!["defaultText"]!["reflection"]!["endOpacity"]!.GetValue<double>(), precision: 6);
         Assert.Equal(12, projectedReflectionParagraph["style"]!["defaultText"]!["reflection"]!["distance"]!.GetValue<double>());
         Assert.Equal(45, projectedReflectionParagraph["style"]!["defaultText"]!["reflection"]!["angle"]!.GetValue<double>());
+        Assert.Equal(30, projectedReflectionParagraph["style"]!["defaultText"]!["reflection"]!["fadeAngle"]!.GetValue<double>());
         var softEdgeLeaves = projectedElement["nativeRef"]!["leaves"]!.AsArray()
             .Select(leaf => leaf!.AsObject())
             .Where(leaf => leaf["kind"]!.GetValue<string>() == "textSoftEdgeRadiusEmu")
@@ -598,6 +601,12 @@ public sealed partial class PptxCodecTests
             .ToArray();
         Assert.Single(defaultReflectionDirectionLeaves);
         Assert.Equal(2_700_000, defaultReflectionDirectionLeaves[0]["value"]!.GetValue<long>());
+        var defaultReflectionFadeAngleLeaves = projectedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Select(leaf => leaf!.AsObject())
+            .Where(leaf => leaf["kind"]!.GetValue<string>() == "textDefaultReflectionFadeAngleDegrees")
+            .ToArray();
+        Assert.Single(defaultReflectionFadeAngleLeaves);
+        Assert.Equal(1_800_000, defaultReflectionFadeAngleLeaves[0]["value"]!.GetValue<long>());
 
         softEdgeLeaves[0]["value"] = 127_000;
         defaultSoftEdgeLeaves[0]["value"] = 76_200;
@@ -628,6 +637,7 @@ public sealed partial class PptxCodecTests
         defaultReflectionStartOpacityLeaves[0]["value"] = 50_000;
         defaultReflectionEndOpacityLeaves[0]["value"] = 20_000;
         defaultReflectionDirectionLeaves[0]["value"] = 5_400_000;
+        defaultReflectionFadeAngleLeaves[0]["value"] = 5_400_000;
         var edited = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
@@ -713,6 +723,7 @@ public sealed partial class PptxCodecTests
             Assert.Equal(100_000, defaultReflection.EndPosition!.Value);
             Assert.Equal(254_000, defaultReflection.Distance!.Value);
             Assert.Equal(5_400_000, defaultReflection.Direction!.Value);
+            Assert.Equal(5_400_000, defaultReflection.FadeDirection!.Value);
         }
 
         var editedBytes = edited.File.ToByteArray();
@@ -764,6 +775,7 @@ public sealed partial class PptxCodecTests
         Assert.Equal(0.5, reprojectedElement["text"]!["paragraphs"]![3]!["style"]!["defaultText"]!["reflection"]!["startOpacity"]!.GetValue<double>(), precision: 6);
         Assert.Equal(0.2, reprojectedElement["text"]!["paragraphs"]![3]!["style"]!["defaultText"]!["reflection"]!["endOpacity"]!.GetValue<double>(), precision: 6);
         Assert.Equal(90, reprojectedElement["text"]!["paragraphs"]![3]!["style"]!["defaultText"]!["reflection"]!["angle"]!.GetValue<double>());
+        Assert.Equal(90, reprojectedElement["text"]!["paragraphs"]![3]!["style"]!["defaultText"]!["reflection"]!["fadeAngle"]!.GetValue<double>());
     }
 
     [Fact]
@@ -842,5 +854,138 @@ public sealed partial class PptxCodecTests
         Assert.DoesNotContain(
             element["nativeRef"]!["leaves"]!.AsArray(),
             leaf => leaf!["kind"]!.GetValue<string>() == "textSoftEdgeRadiusEmu");
+    }
+
+    [Fact]
+    public void PpjSourceBoundTextDefaultReflectionFadeAngleRejectsUnmodeledSource()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "examples",
+            "ppj",
+            "minimum.ppj")))!.AsObject();
+        program["pages"]![0]!["elements"]![0]!["text"] = new JsonObject
+        {
+            ["paragraphs"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["style"] = new JsonObject
+                    {
+                        ["defaultText"] = new JsonObject
+                        {
+                            ["reflection"] = new JsonObject
+                            {
+                                ["blur"] = 2,
+                                ["startOpacity"] = 0.5,
+                                ["endOpacity"] = 0.1,
+                                ["distance"] = 3,
+                                ["angle"] = 45,
+                                ["fadeAngle"] = 30,
+                            },
+                        },
+                    },
+                    ["runs"] = new JsonArray { new JsonObject { ["text"] = "Reflection owner" } },
+                },
+            },
+        };
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var authoredSource = RemoveEmbeddedPpj(authored.File.ToByteArray());
+
+        foreach (var profile in new[] { "missing-fade", "negative-fade", "bound-fade", "invalid-fade", "attribute", "child", "duplicate-effect", "duplicate-list", "dag", "unsupported-transform" })
+        {
+            using var stream = new MemoryStream();
+            stream.Write(authoredSource);
+            using (var document = PresentationDocument.Open(stream, true))
+            {
+                var defaults = document.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.Paragraph>().Single()
+                    .ParagraphProperties!.GetFirstChild<A.DefaultRunProperties>()!;
+                var list = defaults.GetFirstChild<A.EffectList>()!;
+                var reflection = list.GetFirstChild<A.Reflection>()!;
+                if (profile == "missing-fade") reflection.RemoveAttribute("fadeDir", "");
+                else if (profile == "negative-fade") reflection.SetAttribute(new OpenXmlAttribute("fadeDir", "", "-1"));
+                else if (profile == "bound-fade") reflection.SetAttribute(new OpenXmlAttribute("fadeDir", "", "21600000"));
+                else if (profile == "invalid-fade") reflection.SetAttribute(new OpenXmlAttribute("fadeDir", "", "invalid"));
+                else if (profile == "attribute") reflection.SetAttribute(new OpenXmlAttribute("future", "keep", "urn:officekit:test", "retained"));
+                else if (profile == "child") list.InnerXml = """<a:reflection xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" blurRad="25400" stA="50000" stPos="0" endA="10000" endPos="100000" dist="38100" dir="2700000" fadeDir="1800000"><future:content xmlns:future="urn:officekit:test"/></a:reflection>""";
+                else if (profile == "duplicate-effect") list.Append(reflection.CloneNode(true));
+                else if (profile == "duplicate-list") defaults.Append(list.CloneNode(true));
+                else if (profile == "unsupported-transform") reflection.HorizontalRatio = 100_000;
+                else defaults.Append(new A.EffectDag());
+            }
+
+            var source = stream.ToArray();
+            var projected = Invoke(new CodecRequest
+            {
+                ProtocolVersion = CodecProtocol.ProtocolVersion,
+                Operation = CodecOperation.ProjectPptxToPpj,
+                Family = ArtifactFamily.Presentation,
+                File = ByteString.CopyFrom(source),
+                PresentationProgram = new PresentationProgramRequest
+                {
+                    SourceUri = "deck.assets/source/default-reflection-fade-angle.pptx",
+                },
+            });
+            Assert.True(projected.Ok, profile + ": " + Diagnostics(projected));
+            var projectedProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+            var projectedElement = projectedProgram["pages"]![0]!["elements"]![0]!.AsObject();
+            if (profile == "unsupported-transform")
+                Assert.Equal(30, projectedElement["text"]!["paragraphs"]![0]!["style"]!["defaultText"]!["reflection"]!["fadeAngle"]!.GetValue<double>());
+            else
+                Assert.True(projectedElement["text"]!["paragraphs"]![0]!["style"]?["defaultText"]?["reflection"]?["fadeAngle"] is null, profile);
+            if (profile != "unsupported-transform")
+                Assert.DoesNotContain(
+                    projectedElement["nativeRef"]!["leaves"]!.AsArray(),
+                    leaf => leaf!["kind"]!.GetValue<string>() == "textDefaultReflectionFadeAngleDegrees");
+
+            var noOp = Invoke(new CodecRequest
+            {
+                ProtocolVersion = CodecProtocol.ProtocolVersion,
+                Operation = CodecOperation.CompilePpjToPptx,
+                Family = ArtifactFamily.Presentation,
+                File = ByteString.CopyFrom(source),
+                PresentationProgram = new PresentationProgramRequest
+                {
+                    ProgramJson = projected.PresentationProgram.ProgramJson,
+                },
+            });
+            Assert.True(noOp.Ok, profile + ": " + Diagnostics(noOp));
+            Assert.Equal(source, noOp.File.ToByteArray());
+
+            if (profile == "unsupported-transform")
+            {
+                var fadeLeaf = projectedElement["nativeRef"]!["leaves"]!.AsArray()
+                    .Single(leaf => leaf!["kind"]!.GetValue<string>() == "textDefaultReflectionFadeAngleDegrees")!
+                    .AsObject();
+                fadeLeaf["value"] = 3_600_000;
+                var rejected = Invoke(new CodecRequest
+                {
+                    ProtocolVersion = CodecProtocol.ProtocolVersion,
+                    Operation = CodecOperation.CompilePpjToPptx,
+                    Family = ArtifactFamily.Presentation,
+                    File = ByteString.CopyFrom(source),
+                    PresentationProgram = new PresentationProgramRequest
+                    {
+                        ProgramJson = ByteString.CopyFromUtf8(projectedProgram.ToJsonString()),
+                    },
+                });
+                Assert.False(rejected.Ok, profile + ": " + Diagnostics(rejected));
+                Assert.Empty(rejected.File);
+            }
+        }
     }
 }

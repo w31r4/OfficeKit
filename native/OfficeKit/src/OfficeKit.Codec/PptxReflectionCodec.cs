@@ -13,7 +13,10 @@ internal static class PptxReflectionCodec
     private const int FullReflectionEndPosition = 100_000;
     private const int MaxDirectionAngle60000 = 21_600_000;
 
-    internal static bool TryRead(OpenXmlCompositeElement? properties, out PresentationReflection? reflection)
+    internal static bool TryRead(
+        OpenXmlCompositeElement? properties,
+        out PresentationReflection? reflection,
+        bool allowTransforms = false)
     {
         reflection = null;
         var lists = properties?.Elements<A.EffectList>().ToArray() ?? [];
@@ -34,7 +37,7 @@ internal static class PptxReflectionCodec
                  !PptxShadowCodec.TryReadOuterShadow(outerShadows[0], out _)))
             return false;
 
-        return TryReadDirectReflection(reflections[0], out reflection);
+        return TryReadDirectReflection(reflections[0], out reflection, allowTransforms: allowTransforms);
     }
 
     internal static void Apply(OpenXmlCompositeElement properties, PresentationReflection? reflection)
