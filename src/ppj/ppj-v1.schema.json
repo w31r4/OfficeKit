@@ -2262,6 +2262,7 @@
             "textDefaultReflectionAlignment",
             "textDefaultReflectionRotateWithShape",
             "textDefaultReflectionStartPosition",
+            "textDefaultReflectionEndPosition",
             "textSoftEdgeRadiusEmu",
             "textDefaultSoftEdgeRadiusEmu",
             "shapeGlowRadiusEmu",
