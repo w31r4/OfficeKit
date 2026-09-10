@@ -1,6 +1,7 @@
 // Explicit integration against a checked-in-build-command output. This does not
 // replace the installed package. Internal SVG foundations are exercised below;
-// production scene routing/publication (tasks 3.3/4.x/5.2) remain separate.
+// Selected production entry cases also execute real compilation/publication;
+// complete painting and installed-package availability remain separate.
 import assert from "node:assert/strict";
 import path from "node:path";
 import { registerHooks } from "node:module";
@@ -17,6 +18,7 @@ import { createHash } from "node:crypto";
 
 assert.ok(process.argv[2], "Pass the directory produced by npm run build:office-kit -- --output <new-directory>.");
 const evidenceFiles = ["../src/ppj/preview-scene-svg.mjs", "./ppj-preview-scene-native.mjs",
+  "../src/ppj/svg-preview.mjs",
   "../src/ppj/preview-scene.mjs", "../src/ppj/preview-scene-view.mjs", "../src/ppj/preview-diagnostics.mjs", "../src/ppj/preview-output.mjs",
   "../src/ppj/preview-input-assessment.mjs", "../src/ppj/preview-factual-errors.mjs", "../src/ppj/capability-registry.json",
   "../src/generated/office_kit/artifact/v1/office_artifact_pb.js",
@@ -102,7 +104,42 @@ try {
   const { loadPpjWorkspace, compilePpjWorkspace, validatePpjWorkspace, sha256, writeExclusiveFile } = await import("../src/ppj/workspace.mjs");
   const { publishPpjPreview, previewInputEvidence } = await import("../src/ppj/preview-output.mjs");
   const { projectPptxToPpj } = await import("../src/ppj/native.mjs");
+  const { renderPpjToSvg } = await import("../src/ppj/svg-preview.mjs");
   const { invokeOfficeKitLazy } = await import("../src/codecs/office-kit-runtime.mjs");
+  const productionEntryCases = [];
+  async function assertProductionEntry(name, input, compiled, painted) {
+    const inputPath = path.join(artifacts, `entry-${name}.ppj`), outputDir = path.join(artifacts, `entry-${name}`);
+    await writeFile(inputPath, input.program, { flag: "wx" });
+    const sourcePath = input.source?.byteLength ? path.join(artifacts, `entry-${name}.source.pptx`) : undefined;
+    if (sourcePath) await writeFile(sourcePath, input.source, { flag: "wx" });
+    // Only loading is supplied in memory; compilation, scene validation,
+    // mandatory combined assessment and SVG/PNG publication are the real path.
+    const result = await renderPpjToSvg(inputPath, { outputDir,
+      load: async () => ({ ...input, path: inputPath, sourcePath }),
+    });
+    assert.equal(result.renderer, "officekit-native-scene-svg");
+    assert.equal(result.scene.sha256, compiled.previewScene.sha256);
+    assert.equal(result.scene.candidateSha256, sha256(compiled.file));
+    assert.ok(result.inputAssessment, "original-input checks are mandatory");
+    assert.ok(!result.diagnostics.some(d => d.reason === "preview.scene.paint.integration-pending"));
+    const persisted = JSON.parse(await readFile(path.join(outputDir, "render.json"), "utf8"));
+    assert.deepEqual(result.receipt, persisted);
+    assert.deepEqual(result.assessment, persisted.assessment);
+    assert.doesNotThrow(() => JSON.stringify(result));
+    for (const [i, page] of result.pages.entries()) {
+      const actual = await readFile(path.join(outputDir, persisted.pages[i].png));
+      const region = { left: 0, top: 24, width: result.canvas.width, height: result.canvas.height - 24 };
+      assert.deepEqual(await sharp(actual).extract(region).raw().toBuffer(),
+        await sharp(Buffer.from(painted.pages[i].svg)).extract(region).raw().toBuffer(),
+        "public entry must consume the same proven native geometry/style, not canonical heuristics");
+      const pixel = await sharp(actual).extract({ left: 1, top: 1, width: 1, height: 1 }).removeAlpha().raw().toBuffer();
+      assert.deepEqual([...pixel], page.reliability.status === "failed" ? [153, 27, 27] : [146, 64, 14]);
+    }
+    assert.deepEqual(await readFile(inputPath), Buffer.from(input.program));
+    if (sourcePath) assert.deepEqual(await readFile(sourcePath), Buffer.from(input.source));
+    productionEntryCases.push({ name, scene: result.scene, reliability: result.reliability.status,
+      completeContentRasterEqual: true, mandatoryAssessment: true, returnedPersistedEqual: true, inputsPreserved: true });
+  }
   async function withoutAuthoredSnapshot(file) {
     const archive = await JSZip.loadAsync(file);
     for (const name of Object.keys(archive.files)) if (name.startsWith("officeKit/")) archive.remove(name);
@@ -227,6 +264,211 @@ try {
   formatProgram.pages[0].elements = [{ id: "formatted", type: "text", frame: { x: 100, y: 100, width: 300, height: 100 },
     text: { paragraphs: [{ runs: [{ text: "HHHH", style: { size: 40, color: "#000000", baseline: 0, letterSpacing: 0, underline: "none", strike: "noStrike" } }] }] } }];
   const compileFormat = program => compilePpjWorkspace({ ...sourceWorkspace, program: Buffer.from(JSON.stringify(program)) }, { includePreviewScene: true });
+  const gradientCases = [];
+  const gradientStops = [
+    { offset: 0, color: "#FF0000" }, { offset: .25, color: "#FF0000" },
+    { offset: .25, color: "#00FF00", opacity: 0 }, { offset: .75, color: "#00FF00", opacity: 0 },
+    { offset: .75, color: "#0000FF" }, { offset: 1, color: "#0000FF" },
+  ];
+  async function gradientPixels(name, receipt, shapeAngle, tableAngle = shapeAngle) {
+    const painted = await savePaint(`gradient-${name}`, receipt), svg = painted.pages[0].svg;
+    assert.equal(svg.match(/<linearGradient/g)?.length, 2);
+    assert.equal(new Set([...svg.matchAll(/<linearGradient id="([^"]+)"/g)].map(m => m[1])).size, 2);
+    const view = createPpjSceneView(receipt), shape = view.pages[0].nodes.find(n => n.kind === "shape").native;
+    const table = view.pages[0].nodes.find(n => n.kind === "table").native;
+    for (const [g, angle] of [[shape.gradientFill, shapeAngle], [table.rows[0].cells[0].fill.kind.value, tableAngle]]) {
+      assert.equal(g.angle60000, angle * 60000);
+      assert.deepEqual(g.stops.map(s => s.positionThousandthPercent), [0, 25000, 25000, 75000, 75000, 100000]);
+      assert.equal(g.stops[2].opacityThousandthPercent, 0);
+    }
+    const raster = await sharp(Buffer.from(svg)).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    for (const [x, angle] of [[100, shapeAngle], [400, tableAngle]]) for (const [fraction, rgb] of [[.1, [255, 0, 0]], [.5, [255, 255, 255]], [.9, [0, 0, 255]]]) {
+      const px = x + (angle === 90 ? 100 : 200 * fraction), py = 100 + (angle === 90 ? 100 * fraction : 50);
+      const offset = (py * raster.info.width + px) * raster.info.channels;
+      assert.deepEqual([...raster.data.subarray(offset, offset + 3)], rgb);
+    }
+    assert.ok(!painted.diagnostics.some(d => d.reason === "preview.scene.paint.gradient" || d.reason === "preview.scene.paint.failed"));
+    gradientCases.push({ name, shapeAngle, tableAngle, plateauAndTransparentPixels: true, candidateSha256: sha256(receipt.file) });
+  }
+  for (const angle of [0, 45, 90]) {
+    const program = structuredClone(pairBase), fill = { type: "gradient", kind: "linear", angle, stops: structuredClone(gradientStops) };
+    program.pages[0].elements = [
+      { id: "gradient-shape", type: "shape", frame: { x: 100, y: 100, width: 200, height: 100 }, geometry: { kind: "preset", preset: "rect" }, style: { fill } },
+      { id: "gradient-table", type: "table", frame: { x: 400, y: 100, width: 200, height: 100 }, columns: [{ id: "col", width: 200 }],
+        rows: [{ id: "row", height: 100, cells: [{ id: "cell", text: "", fill: structuredClone(fill) }] }] },
+    ];
+    const originalProgram = JSON.stringify(program), authored = await compileFormat(program);
+    await gradientPixels(`${angle}-authored`, authored, angle);
+    const source = await withoutAuthoredSnapshot(authored.file), sourceHash = sha256(source);
+    const projected = await projectPptxToPpj(source, { sourceUri: "gradient.pptx", assetRootUri: "assets" });
+    const input = { program: projected.programJson, source, assets: projected.assets };
+    const noop = await compilePpjWorkspace(input, { includePreviewScene: true });
+    assert.deepEqual(noop.file, source);
+    await gradientPixels(`${angle}-source`, noop, angle);
+    if (angle === 90) {
+      const request = JSON.parse(Buffer.from(projected.programJson).toString("utf8"));
+      request.pages[0].elements[0].style.fill.angle = 0;
+      const candidate = await compilePpjWorkspace({ ...input, program: Buffer.from(JSON.stringify(request)) }, { includePreviewScene: true });
+      await gradientPixels("source-edit", candidate, 0, 90);
+      const fresh = await projectPptxToPpj(candidate.file, { sourceUri: "gradient-edited.pptx", assetRootUri: "assets" });
+      assert.equal(JSON.parse(Buffer.from(fresh.programJson).toString("utf8")).pages[0].elements[0].style.fill.angle, 0);
+      const oldZip = await JSZip.loadAsync(source), newZip = await JSZip.loadAsync(candidate.file), changed = [];
+      assert.deepEqual(Object.keys(oldZip.files).sort(), Object.keys(newZip.files).sort());
+      for (const name of Object.keys(oldZip.files)) if (!oldZip.files[name].dir &&
+        !Buffer.from(await oldZip.file(name).async("uint8array")).equals(Buffer.from(await newZip.file(name).async("uint8array")))) changed.push(name);
+      assert.deepEqual(changed, ["ppt/slides/slide1.xml"]);
+    }
+    assert.equal(sha256(source), sourceHash);
+    assert.equal(JSON.stringify(program), originalProgram);
+  }
+  const mediaPosterCases = [];
+  // Container header only: enough for the codec's embedded-media contract,
+  // deliberately not a playable clip or playback acceptance fixture.
+  const mediaBytes = Buffer.from("000000186674797069736F6D0000020069736F6D6D703431", "hex");
+  for (const color of ["CC5500", "0066CC"]) {
+    const poster = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><rect width="100" height="100" fill="#${color}"/></svg>`);
+    const program = structuredClone(pairBase);
+    program.pages[0].elements = [{ id: "media", type: "media", mediaType: "video", asset: "clip", posterAsset: "poster",
+      frame: { x: 100, y: 100, width: 200, height: 100 }, playback: { trigger: "onSlideStart" } }];
+    program.pages[0].readingOrder = ["media"];
+    const assets = [{ id: "clip", uri: "assets/clip.mp4", mimeType: "video/mp4", data: mediaBytes },
+      { id: "poster", uri: "assets/poster.svg", mimeType: "image/svg+xml", data: poster }].map(asset => ({ ...asset, sha256: sha256(asset.data) }));
+    program.assets = assets.map(({ data, ...asset }) => ({ ...asset, rights: { status: "internal" },
+      accessibility: { decorative: false, description: `Synthetic ${asset.id} for static-poster checks` } }));
+    const input = { ...sourceWorkspace, program: Buffer.from(JSON.stringify(program)), assets };
+    const inputHash = sha256(input.program), authored = await compilePpjWorkspace(input, { includePreviewScene: true });
+    const native = authored.previewScene.presentation.slides[0].elements[0];
+    assert.equal(native.content.case, "media");
+    assert.equal(native.content.value.mediaType, "video");
+    const painted = await savePaint(`media-poster-${color}`, authored);
+    assert.match(painted.pages[0].svg, /data-officekit-media="static-poster"/);
+    assert.match(painted.pages[0].svg, /STATIC VIDEO POSTER/);
+    assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.media-static"));
+    assert.ok(painted.diagnostics.some(d => d.scenePath.endsWith("media.playbackTrigger")));
+    const raster = await sharp(Buffer.from(painted.pages[0].svg)).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const pixel = (x, y) => [...raster.data.subarray((y * raster.info.width + x) * raster.info.channels, (y * raster.info.width + x) * raster.info.channels + 3)];
+    assert.deepEqual(pixel(150, 140), color.match(/../g).map(value => parseInt(value, 16)));
+    assert.deepEqual(pixel(250, 140), [255, 255, 255], "Transparent poster half keeps the page background visible");
+    assert.deepEqual(pixel(290, 190), [146, 64, 14], "Static-poster warning is visible in the exported pixels");
+    const source = await withoutAuthoredSnapshot(authored.file), sourceHash = sha256(source);
+    const projected = await projectPptxToPpj(source, { sourceUri: "media-poster.pptx", assetRootUri: "assets" });
+    const noop = await compilePpjWorkspace({ program: projected.programJson, source, assets: projected.assets }, { includePreviewScene: true });
+    assert.deepEqual(noop.file, source);
+    const sourcePaint = await savePaint(`media-poster-${color}-source`, noop);
+    assert.equal(noop.previewScene.presentation.slides[0].elements[0].content.case, "opaque");
+    assert.ok(!sourcePaint.pages[0].svg.includes('data-officekit-media="static-poster"'));
+    assert.ok(sourcePaint.diagnostics.some(d => d.reason === "preview.scene.paint.content"));
+    assert.equal(sha256(source), sourceHash);
+    assert.equal(sha256(input.program), inputHash);
+    assert.equal(sha256(assets[0].data), assets[0].sha256);
+    assert.equal(sha256(assets[1].data), assets[1].sha256);
+    mediaPosterCases.push({ color, authoredPixels: true, transparency: true, visibleStaticWarning: true,
+      sourceNoopBytes: true, sourceOpaqueRetained: true, sourceSha256: sourceHash, candidateSha256: sha256(authored.file) });
+  }
+  const capitalizationCases = [];
+  const capsPixels = async (name, receipt) => {
+    const painted = await savePaint(name, receipt);
+    return sharp(Buffer.from(painted.pages[0].svg)).extract({ left: 100, top: 100, width: 300, height: 100 }).removeAlpha().raw().toBuffer();
+  };
+  for (const caps of ["none", "all"]) {
+    const program = structuredClone(formatProgram), run = program.pages[0].elements[0].text.paragraphs[0].runs[0];
+    run.text = "Hello abc";
+    run.style.capitalization = caps;
+    const programBefore = JSON.stringify(program), reference = structuredClone(program);
+    reference.pages[0].elements[0].text.paragraphs[0].runs[0].text = caps === "all" ? "HELLO ABC" : "Hello abc";
+    reference.pages[0].elements[0].text.paragraphs[0].runs[0].style.capitalization = "none";
+    const expected = await capsPixels(`caps-${caps}-reference`, await compileFormat(reference));
+    const authored = await compileFormat(program), source = await withoutAuthoredSnapshot(authored.file), sourceHash = sha256(source);
+    const projected = await projectPptxToPpj(source, { sourceUri: "caps.pptx", assetRootUri: "assets" });
+    const input = { program: projected.programJson, source, assets: projected.assets };
+    const noop = await compilePpjWorkspace(input, { includePreviewScene: true });
+    assert.deepEqual(noop.file, source);
+    for (const [origin, receipt] of [["authored", authored], ["source", noop]]) {
+      const nativeRun = receipt.previewScene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0].runs[0];
+      assert.equal(nativeRun.fontCaps, caps);
+      assert.equal(nativeRun.content.value, "Hello abc");
+      assert.deepEqual(await capsPixels(`caps-${caps}-${origin}`, receipt), expected);
+      capitalizationCases.push({ caps, origin, literalPreserved: true, pixels: true, candidateSha256: sha256(receipt.file) });
+    }
+    if (caps === "all") {
+      const request = JSON.parse(Buffer.from(projected.programJson).toString("utf8"));
+      const leaf = request.pages[0].elements[0].nativeRef.leaves.find(item => item.kind === "fontCaps");
+      assert.ok(leaf);
+      leaf.value = "none";
+      const candidate = await compilePpjWorkspace({ ...input, program: Buffer.from(JSON.stringify(request)) }, { includePreviewScene: true });
+      reference.pages[0].elements[0].text.paragraphs[0].runs[0].text = "Hello abc";
+      assert.deepEqual(await capsPixels("caps-source-edited", candidate), await capsPixels("caps-source-edited-reference", await compileFormat(reference)));
+      const fresh = await projectPptxToPpj(candidate.file, { sourceUri: "caps-edited.pptx", assetRootUri: "assets" });
+      const freshRun = JSON.parse(Buffer.from(fresh.programJson).toString("utf8")).pages[0].elements[0].text.paragraphs[0].runs[0];
+      assert.equal(freshRun.text, "Hello abc");
+      assert.equal(freshRun.style.capitalization, "none");
+      const before = await JSZip.loadAsync(source), after = await JSZip.loadAsync(candidate.file), changed = [];
+      assert.deepEqual(Object.keys(after.files).sort(), Object.keys(before.files).sort());
+      for (const name of Object.keys(before.files)) if (!before.files[name].dir &&
+        !Buffer.from(await before.file(name).async("uint8array")).equals(Buffer.from(await after.file(name).async("uint8array")))) changed.push(name);
+      assert.deepEqual(changed, ["ppt/slides/slide1.xml"]);
+      capitalizationCases.push({ caps: "none", origin: "source-edit", literalPreserved: true, pixels: true, changedParts: changed });
+    }
+    assert.equal(sha256(source), sourceHash);
+    assert.equal(JSON.stringify(program), programBefore);
+  }
+  const characterBulletCases = [];
+  const bulletProgram = structuredClone(formatProgram);
+  bulletProgram.pages[0].elements[0].text.paragraphs = [{ style: { indent: 30, hanging: 20,
+    bullet: { type: "character", character: "●", fontFamily: "DejaVu Sans", color: "#CC5500", size: 20 } },
+    runs: [{ text: "HH\nHH", style: { size: 20, color: "#000000" } }] }];
+  const bulletProgramHash = sha256(Buffer.from(JSON.stringify(bulletProgram)));
+  const bulletAuthored = await compileFormat(bulletProgram), bulletSource = await withoutAuthoredSnapshot(bulletAuthored.file), bulletSourceHash = sha256(bulletSource);
+  const bulletProjection = await projectPptxToPpj(bulletSource, { sourceUri: "character-bullet.pptx", assetRootUri: "assets" });
+  const bulletWorkspace = { program: bulletProjection.programJson, source: bulletSource, assets: bulletProjection.assets };
+  const bulletNoop = await compilePpjWorkspace(bulletWorkspace, { includePreviewScene: true });
+  assert.deepEqual(bulletNoop.file, bulletSource);
+  async function bulletPixels(origin, receipt, character = "●", color = "CC5500") {
+    const native = receipt.previewScene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0];
+    assert.equal(native.bullet.value, character);
+    assert.equal(native.bulletColor.value, color);
+    assert.equal(native.bulletSize.value, 20);
+    const painted = await savePaint(`bullet-${origin}`, receipt), svg = painted.pages[0].svg;
+    assert.equal(svg.match(/data-officekit-bullet="character"/g)?.length, 1);
+    assert.match(svg, /data-officekit-bullet="character" x="117.19999999999999" y="123.6"/);
+    assert.ok(svg.includes('<text x="137.2" y="123.6"'));
+    assert.ok(svg.includes('<text x="137.2" y="147.6"'));
+    const raster = await sharp(Buffer.from(svg)).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const rgb = color.match(/../g).map(value => parseInt(value, 16));
+    let first = 0, next = 0;
+    for (let y = 100; y < 160; y++) for (let x = 110; x < 137; x++) {
+      const offset = (y * raster.info.width + x) * raster.info.channels;
+      if (rgb.every((value, index) => raster.data[offset + index] === value)) {
+        if (y < 130) first++; else next++;
+      }
+    }
+    assert.ok(first > 0, "Bullet must have actual colored glyph pixels");
+    assert.equal(next, 0, "Explicit continuation line must not repeat the bullet");
+    characterBulletCases.push({ origin, character, color, glyphPixels: first, candidateSha256: sha256(receipt.file) });
+    return sharp(Buffer.from(svg)).extract({ left: 100, top: 100, width: 300, height: 100 }).removeAlpha().raw().toBuffer();
+  }
+  assert.deepEqual(await bulletPixels("authored", bulletAuthored), await bulletPixels("source", bulletNoop));
+  const bulletEdit = JSON.parse(Buffer.from(bulletProjection.programJson).toString("utf8"));
+  for (const [kind, value] of [["paragraphBulletCharacter", "■"], ["paragraphBulletColorRgb", "0066CC"]]) {
+    const leaf = bulletEdit.pages[0].elements[0].nativeRef.leaves.find(item => item.kind === kind);
+    assert.ok(leaf, `Source must issue ${kind}`);
+    leaf.value = value;
+  }
+  const bulletCandidate = await compilePpjWorkspace({ ...bulletWorkspace, program: Buffer.from(JSON.stringify(bulletEdit)) }, { includePreviewScene: true });
+  const bulletExpected = structuredClone(bulletProgram);
+  Object.assign(bulletExpected.pages[0].elements[0].text.paragraphs[0].style.bullet, { character: "■", color: "#0066CC" });
+  assert.deepEqual(await bulletPixels("source-edit", bulletCandidate, "■", "0066CC"),
+    await bulletPixels("explicit-reference", await compileFormat(bulletExpected), "■", "0066CC"));
+  const bulletFresh = await projectPptxToPpj(bulletCandidate.file, { sourceUri: "character-bullet-edited.pptx", assetRootUri: "assets" });
+  const freshBullet = JSON.parse(Buffer.from(bulletFresh.programJson).toString("utf8")).pages[0].elements[0].text.paragraphs[0].style.bullet;
+  assert.equal(freshBullet.character, "■");
+  const bulletBeforeZip = await JSZip.loadAsync(bulletSource), bulletAfterZip = await JSZip.loadAsync(bulletCandidate.file), bulletChangedParts = [];
+  assert.deepEqual(Object.keys(bulletAfterZip.files).sort(), Object.keys(bulletBeforeZip.files).sort());
+  for (const name of Object.keys(bulletBeforeZip.files)) if (!bulletBeforeZip.files[name].dir &&
+    !Buffer.from(await bulletBeforeZip.file(name).async("uint8array")).equals(Buffer.from(await bulletAfterZip.file(name).async("uint8array")))) bulletChangedParts.push(name);
+  assert.deepEqual(bulletChangedParts, ["ppt/slides/slide1.xml"]);
+  assert.equal(sha256(bulletSource), bulletSourceHash);
+  assert.equal(sha256(Buffer.from(JSON.stringify(bulletProgram))), bulletProgramHash);
   const smallTextProgram = structuredClone(formatProgram);
   smallTextProgram.pages[0].elements[0].text.paragraphs[0].runs[0].style.size = 8;
   const smallTextAuthored = await compileFormat(smallTextProgram);
@@ -1136,6 +1378,7 @@ try {
     // by construction and are asserted separately, not normalized into PPJ.
     nestedPair.push({ visual: nodes.map(node => ({ kind: node.kind, hidden: node.hidden,
       bytes: toBinary(nativeContentSchemas.get(node.kind), node.native) })), raster: raster.data });
+    await assertProductionEntry(`nested-${variant}-${name}`, { ...sourceWorkspace, program: Buffer.from(original) }, compiled, painted);
     } catch (error) {
       nestedPairFailures.push({ variant, name, code: error.code, message: error.message });
       console.error(`Nested repeat pair ${name} failed: ${error.message}`);
@@ -1196,6 +1439,7 @@ try {
     const raster = await sharp(Buffer.from(painted.pages[0].svg)).removeAlpha().raw().toBuffer();
     assert.equal(JSON.stringify(program), original);
     datasetPair.push({ visual: toBinary(nativeContentSchemas.get(node.kind), node.native), raster });
+    await assertProductionEntry(`dataset-${chartType}-${name}`, { ...sourceWorkspace, program: Buffer.from(original) }, compiled, painted);
   } catch (error) {
     datasetPairFailures.push({ chartType, name, code: error.code, message: error.message });
     console.error(`Dataset pair ${name} failed: ${error.message}`);
@@ -1319,6 +1563,34 @@ try {
     !Buffer.from(await scatterOldZip.file(name).async("uint8array")).equals(Buffer.from(await scatterNewZip.file(name).async("uint8array")))) scatterChangedParts.push(name);
   assert.deepEqual(scatterChangedParts, ["ppt/slides/charts/chart1.xml"]);
   assert.deepEqual(scatterSource, scatterBefore);
+  const isolatedLineProfileCases = [];
+  const isolatedLineRegistry = JSON.parse(await readFile("src/ppj/capability-registry.json", "utf8"));
+  function assertIsolatedLineProfile(receipt, painted) {
+    const reasons = new Set(["preview.fact.missing-observation-misrepresented", "preview.fact.series-type-not-inherited"]);
+    const program = JSON.parse(Buffer.from(receipt.programJson).toString("utf8"));
+    const before = sha256(receipt.file), canonical = assessPpjPreviewInput(program);
+    const errors = canonical.diagnostics.filter(d => reasons.has(d.reason));
+    assert.ok(errors.length > 0, "Original line-profile factual error must be exercised");
+    const options = { rendererProfile: "native-scene-svg", sceneReceipt: receipt, scenePaint: painted };
+    const actual = assessPpjPreviewInput(program, options);
+    assert.ok(!actual.diagnostics.some(d => reasons.has(d.reason)));
+    const missing = assessPpjPreviewInput(program, { ...options, scenePaint: { ...painted, isolatedLinePoints: [] } });
+    assert.deepEqual(missing.diagnostics.filter(d => reasons.has(d.reason)), errors);
+    // Bundled source fixtures also exercise the independently verified direct
+    // connector mapping below; it is no longer an unchanged legacy rule.
+    for (const diagnostic of canonical.diagnostics.filter(d => !reasons.has(d.reason) && d.reason !== "preview.fact.connector-endpoints-ignored"))
+      assert.ok(actual.diagnostics.some(d => d.reason === diagnostic.reason && d.path === diagnostic.path && d.severity === diagnostic.severity));
+    const registry = structuredClone(isolatedLineRegistry);
+    delete registry.previewScene.factualMappings.isolatedLinePoints;
+    assert.throws(() => assessPpjPreviewInput(program, { ...options, registry }), /isolated line point mapping/);
+    const combined = paintPpjSceneSvg(receipt, { assessInput: true });
+    assert.ok(!combined.diagnostics.some(d => reasons.has(d.reason)));
+    for (const diagnostic of painted.diagnostics)
+      assert.ok(combined.diagnostics.some(d => d.reason === diagnostic.reason && d.scenePath === diagnostic.scenePath));
+    assert.equal(sha256(receipt.file), before);
+    isolatedLineProfileCases.push({ origin: receipt.previewScene.origin, retiredErrors: errors.map(d => ({ reason: d.reason, path: d.path })),
+      points: painted.isolatedLinePoints, candidateSha256: before });
+  }
   const nativeLineInput = { id: "native-line", type: "chart", chartType: "line", title: "Missing is not zero",
     frame: { x: 500, y: 330, width: 400, height: 160 }, yAxis: { min: 0, max: 5 },
     data: { categories: ["A", "Missing", "Zero", "D", "E"], series: [{ id: "observed", name: "Observed",
@@ -1326,6 +1598,7 @@ try {
       marker: { symbol: "circle", size: 8, fill: "#047857", stroke: { color: "#114477", width: 2 } } },
       { id: "other", name: "Other series", values: [5, 4, null, 0, 1], stroke: { color: "#B45309", width: 2 }, marker: "none" }] } };
   async function assertNativeLine(receipt, painted, middle = 0) {
+    assertIsolatedLineProfile(receipt, painted);
     const native = createPpjSceneView(receipt).pages[0].nodes.find(n => n.kind === "chart").native;
     assert.deepEqual(native.series[0].values, [2, 0, middle, 4, 5]);
     assert.deepEqual(native.series[0].missingValueIndexes, [1]);
@@ -1700,7 +1973,10 @@ try {
     assert.ok(!actual.diagnostics.some(d => d.reason === reason));
     const missing = assessPpjPreviewInput(program, { ...options, scenePaint: { ...painted, connectorScenePaths: [] } });
     assert.equal(missing.diagnostics.filter(d => d.reason === reason).length, 2, "receipt alone is not actual route evidence");
-    for (const diagnostic of canonical.diagnostics.filter(d => d.reason !== reason))
+    // These exact line rules are now checked separately by assertNativeLine,
+    // including their missing-capture restoration and actual marker/gap pixels.
+    for (const diagnostic of canonical.diagnostics.filter(d => d.reason !== reason &&
+      !["preview.fact.missing-observation-misrepresented", "preview.fact.series-type-not-inherited"].includes(d.reason)))
       assert.ok(actual.diagnostics.some(d => d.reason === diagnostic.reason && d.path === diagnostic.path && d.severity === diagnostic.severity), "unrelated limitations must survive");
     const registry = structuredClone(connectorRegistry);
     delete registry.previewScene.factualMappings.connectorEndpoints;
@@ -1935,6 +2211,8 @@ try {
   const candidateView = createPpjSceneView(candidate);
   const candidatePaint = await savePaint("source-edited", candidate);
   assert.match(candidatePaint.pages[0].svg, /Actual candidate scene text/);
+  await assertProductionEntry("source-noop", sourceInput, noop, noopPaint);
+  await assertProductionEntry("source-edit", editInput, candidate, candidatePaint);
   const repeatedBenchmark = structuredClone(pairBase);
   repeatedBenchmark.design.canvas.width = 4000;
   repeatedBenchmark.components = structuredClone(nestedFixture.components);
@@ -2227,7 +2505,8 @@ try {
   for (const descriptor of descriptors) assert.equal(sha256(await readFile(descriptor.executablePath)),
     descriptor.manifest.files.find(file => file.path === descriptor.manifest.profiles[descriptor.profile].executable).sha256,
     "Executed package identity must still match its validated manifest");
-  const report = { status: relationFailures.length || diagramFailures.length || transformProfileFailures.length || nestedPairFailures.length || datasetPairFailures.length || stylePairFailures.length || textAnchorFailures.length || spacingDeletionFailures.length ? "failed" : "passed", scope: "PPJ NativeAOT wire/view and internal SVG foundations; not production scene routing or complete paint coverage",
+  const report = { status: relationFailures.length || diagramFailures.length || transformProfileFailures.length || nestedPairFailures.length || datasetPairFailures.length || stylePairFailures.length || textAnchorFailures.length || spacingDeletionFailures.length ? "failed" : "passed", scope: "PPJ NativeAOT wire/view, internal painting and selected production entry cases; not complete paint or installed-package acceptance",
+    productionEntryCases,
     performance: { file: "performance.json", cases: performanceCases.map(c => ({ name: c.name, samples: c.samples.length })),
       sha256: sha256(await readFile(path.join(artifacts, "performance.json"))),
       scope: "warm size/time plus isolated native RSS/high-water; retained-object release and full 5.3/G-16 remain unverified" },
@@ -2237,6 +2516,11 @@ try {
     transformProfileFailures,
     textAnchorFailures,
     spacingDeletionFailures,
+    capitalizationCases,
+    mediaPosterCases,
+    gradientCases,
+    characterBullets: { cases: characterBulletCases, reprojection: true, changedParts: bulletChangedParts },
+    isolatedLineProfileCases,
     spacingDeletions: { expectedCount: 7, cases: spacingDeletionCases },
     diagramFailures: diagramFailures.map(error => error.message),
     recordedAt: new Date().toISOString(),

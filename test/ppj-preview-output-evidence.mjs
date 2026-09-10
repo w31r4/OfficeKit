@@ -8,6 +8,7 @@ import { renderPpjToSvg } from "../src/ppj/svg-preview.mjs";
 import { sha256, writeExclusiveFile } from "../src/ppj/workspace.mjs";
 import { previewAssessment } from "../src/ppj/preview-diagnostics.mjs";
 import { ppjPreviewSceneIdentity } from "../src/ppj/preview-scene.mjs";
+import { previewSceneFixture, nativeElement, emuFrame } from "./helpers/ppj-preview-scene-fixture.mjs";
 
 const root = await mkdtemp(path.join(os.tmpdir(), "officekit-preview-evidence-"));
 const page = (id) => ({ id, svg: `<svg xmlns="http://www.w3.org/2000/svg"><text>${id}</text></svg>`, diagnostics: [] });
@@ -260,29 +261,46 @@ try {
     pages: [{ id: "image-page", elements: [{ id: "image", type: "image", asset: "asset", frame: { x: 0, y: 0, width: 20, height: 20 } }] }],
   }));
   const loaded = { ...workspace, program: imageProgram, assets: [{ id: "asset", data: originalAsset, mimeType: "image/png" }] };
+  const imageCompiled = previewSceneFixture(JSON.parse(imageProgram), [{ id: "image-page", elements: [
+    nativeElement("image", "image", { ...emuFrame(0, 0, 20, 20), assetId: "asset" }),
+  ] }], ["$.pages[0].elements[0]"], loaded.assets, { width: 20, height: 20 });
   let loads = 0;
   const snapshot = await renderPpjToSvg("unused.ppj", {
     load: async () => loaded,
-    compile: async (w) => {
+    compile: async (w, options) => {
+      assert.deepEqual(options, { includeNodeMap: false, includePreviewScene: true });
       assert.deepEqual(w.assets[0].data, originalAsset);
       await writeFile(assetPath, "changed later");
-      return { ...compiled, programJson: imageProgram };
+      return imageCompiled;
     },
     loadRaster: async () => { loads++; throw new Error("must remain lazy"); },
   });
   assert.equal(loads, 0);
   assert.match(snapshot.pages[0].svg, new RegExp(originalAsset.toString("base64")));
   assert.equal(previewInputEvidence(loaded, compiled).assets[0].sha256, sha256(originalAsset));
+  for (const [name, invalid, code] of [
+    ["missing", { ...imageCompiled, previewScene: undefined }, "preview.scene.missing"],
+    ["version", { ...imageCompiled, previewScene: { ...imageCompiled.previewScene, version: 99 } }, "preview.scene.version"],
+    ["digest", { ...imageCompiled, previewScene: { ...imageCompiled.previewScene, sha256: "0".repeat(64) } }, "preview.scene.digest-mismatch"],
+    ["candidate", { ...imageCompiled, file: Buffer.from("different candidate") }, "preview.scene.candidate-mismatch"],
+  ]) {
+    const outputDir = path.join(root, `entry-${name}`);
+    await assert.rejects(renderPpjToSvg("unused.ppj", { outputDir,
+      load: async () => loaded, compile: async () => invalid,
+      loadRaster: async () => { assert.fail("invalid scene must not load raster"); },
+    }), { code });
+    await assert.rejects(readdir(outputDir), { code: "ENOENT" });
+  }
   for (const data of [[], [{ id: "asset", data: Buffer.alloc(0), mimeType: "image/png" }]]) {
-    const unavailable = await renderPpjToSvg("unused.ppj", {
-      load: async () => ({ ...loaded, assets: data }), compile: async () => ({ ...compiled, programJson: imageProgram }),
-    });
-    assert.ok(unavailable.diagnostics.some((d) => d.reason === "asset-missing"
-      && d.path === "$.pages[0].elements[0].asset" && d.severity === "error" && d.status === "unavailable"));
-    assert.equal(unavailable.reliability.status, "failed");
-    assert.doesNotMatch(unavailable.pages[0].svg, /href=""/);
-    const error = await rejected(publish(`asset-${data.length}`, {}, unavailable), "preview.output.incomplete");
-    assert.equal(error.receipt.failures[0].stage, "asset");
+    // Missing compiler/candidate asset bytes now reject before any drawing or
+    // publication. There is no blank href or canonical/workspace fallback.
+    const outputDir = path.join(root, `asset-${data.length}`);
+    await assert.rejects(renderPpjToSvg("unused.ppj", {
+      outputDir, load: async () => ({ ...loaded, assets: data }),
+      compile: async () => ({ ...imageCompiled, assets: data.map(asset => ({ ...asset, sha256: sha256(asset.data) })) }),
+      loadRaster: async () => { assert.fail("invalid assets must not load raster"); },
+    }), { code: "preview.scene.asset-mismatch" });
+    await assert.rejects(readdir(outputDir), { code: "ENOENT" });
   }
 
   // Presence edits must not silently claim that the local SVG draws error
@@ -294,14 +312,19 @@ try {
         id: "errors", type: "chart", chartType, frame: { x: 0, y: 0, width: 200, height: 150 },
         data: { categories: ["A", "B"], series: [{ chartType: "line", values: [1, 2], errorBars }] },
       }] }] }));
+      const chartCompiled = previewSceneFixture(JSON.parse(programJson), [{ id: "chart-page", elements: [
+        nativeElement("errors", "chart", { ...emuFrame(0, 0, 200, 150), type: 2,
+          categories: ["A", "B"], series: [{ values: [1, 2], ...(errorBars ? { errorBars: { value: 0 } } : {}) }] }),
+      ] }], ["$.pages[0].elements[0]"]);
       const preview = await renderPpjToSvg("unused.ppj", {
         load: async () => ({ ...workspace, program: programJson }),
-        compile: async () => ({ ...compiled, programJson }),
+        compile: async () => chartCompiled,
       });
-      const diagnostic = preview.diagnostics.find((d) => d.id === "errors" && d.reason === "chart-error-bars-not-rendered");
+      const diagnostic = preview.diagnostics.find((d) => d.id === "errors" && d.reason === "preview.scene.paint.unmapped"
+        && d.scenePath.endsWith("series[0].errorBars"));
       if (errorBars) {
         assert.equal(diagnostic.status, "partial");
-        assert.equal(diagnostic.reason, "chart-error-bars-not-rendered");
+        assert.equal(diagnostic.reason, "preview.scene.paint.unmapped");
       } else assert.equal(diagnostic, undefined);
     }
   }

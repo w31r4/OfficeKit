@@ -2,175 +2,12 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import { compilePpjWorkspace, loadPpjWorkspace } from "./workspace.mjs";
 import { previewInputEvidence, publishPpjPreview } from "./preview-output.mjs";
-import { assessPpjPreviewInput } from "./preview-input-assessment.mjs";
-import { previewAssessment, previewDiagnostic } from "./preview-diagnostics.mjs";
+import { renderPpjSceneSvg } from "./preview-scene-svg.mjs";
 
 const require = createRequire(import.meta.url);
 const PREVIEW_CAPABILITIES = require("./svg-preview-capabilities.json");
+// Whole-family coverage stays registry-owned even when more native fields paint.
 export const SVG_PREVIEW_SUPPORTED_TYPES = new Set(PREVIEW_CAPABILITIES.supported.filter((value) => !value.includes(":")));
-const SVG_PREVIEW_SUPPORTED_CHARTS = new Set(PREVIEW_CAPABILITIES.supported.filter((value) => value.startsWith("chart:")).map((value) => value.slice(6)));
-
-const esc = (value) => String(value ?? "").replace(/[&<>"']/gu, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[c]);
-const num = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
-const frame = (e) => e?.frame || { x: 0, y: 0, width: 0, height: 0 };
-const color = (value, fallback = "#D9E2F3") => typeof value === "string" && value ? value : fallback;
-const paintColor = (paint, fallback = "#D9E2F3") => typeof paint === "string" ? paint : color(paint?.color?.hex || paint?.color?.value || paint?.hex, fallback);
-
-function textValue(text) {
-  if (typeof text === "string") return text;
-  if (!text || typeof text !== "object") return "";
-  if (typeof text.value === "string") return text.value;
-  return (text.paragraphs || []).flatMap((p) => (p.runs || []).map((r) => r.text || "")).join("\n");
-}
-
-function drawElement(e, assets, diagnostics, renderChild) {
-  const f = frame(e), id = esc(e.id || "element");
-  const common = ` data-officekit-id="${id}"`;
-  if (e.type === "group") {
-    const children = e.elements || e.children || [];
-    return `<g${common}>${children.map((child, index) => renderChild(child, index, e.elements ? "elements" : "children")).join("")}</g>`;
-  }
-  if (e.type === "placeholder") {
-    diagnostics.push({ id: e.id, status: "partial", reason: "placeholder-preview" });
-    return `<g${common}><rect x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="#F8FAFC" stroke="#98A2B3" stroke-dasharray="5 4"/><text x="${f.x + 8}" y="${f.y + 20}" font-size="13" fill="#667085">${esc(textValue(e.text) || e.name || "placeholder")}</text></g>`;
-  }
-  if (e.type === "component") {
-    const items = e.repeat?.items || [e.arguments || {}], gap = num(e.repeat?.layout?.gap, 6), rh = Math.max(18, (f.height - gap * (items.length - 1)) / Math.max(1, items.length));
-    diagnostics.push({ id: e.id, status: "partial", reason: "component-expanded-preview" });
-    return `<g${common}>${items.map((item, i) => `<text x="${f.x}" y="${f.y + i * (rh + gap) + 16}" font-size="13" fill="#172033">${esc(item.arguments?.label || item.label || "")} ${esc(item.arguments?.value || item.value || "")}</text>`).join("")}</g>`;
-  }
-  if (e.type === "text" || e.text) {
-    const lines = textValue(e.text).split("\n");
-    return `<g${common}><text x="${f.x}" y="${f.y + 18}" font-family="Arial, sans-serif" font-size="${num(e.textStyle?.fontSize, 18)}" fill="${color(e.textStyle?.color, "#172033")}">${lines.map((line, i) => `<tspan x="${f.x}" dy="${i ? 22 : 0}">${esc(line)}</tspan>`).join("")}</text></g>`;
-  }
-  if (e.type === "image" || (e.type === "opaque" && e.asset)) {
-    const asset = assets.get(e.asset); if (!asset?.href) { diagnostics.push({ id: e.id, status: "unavailable", reason: "asset-missing" }); return `<rect${common} x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="#F3F4F6" stroke="#B8C0CC"/><text x="${f.x + 6}" y="${f.y + 20}"${common} fill="#667085">image unavailable</text>`; }
-    return `<image${common} href="${esc(asset.href)}" x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" preserveAspectRatio="xMidYMid meet" opacity="${num(e.opacity, 1)}"/>`;
-  }
-  if (e.type === "connector") return `<line${common} x1="${f.x}" y1="${f.y + f.height / 2}" x2="${f.x + f.width}" y2="${f.y + f.height / 2}" stroke="${color(e.stroke?.color, "#667085")}" stroke-width="${num(e.stroke?.width, 2)}"/>`;
-  if (e.type === "table") {
-    const rows = e.rows || [], cols = Math.max(1, (e.columns || []).length || rows[0]?.cells?.length || 1), cw = f.width / cols, rh = f.height / Math.max(1, rows.length);
-    return `<g${common}>${rows.map((r, ri) => (r.cells || []).map((c, ci) => `<rect x="${f.x + ci * cw}" y="${f.y + ri * rh}" width="${cw}" height="${rh}" fill="${ri ? "#FFFFFF" : "#E8EEF7"}" stroke="#B8C0CC"/><text x="${f.x + ci * cw + 5}" y="${f.y + ri * rh + 18}" font-size="12">${esc(textValue(c.text ?? c.value))}</text>`).join("")).join("")}</g>`;
-  }
-  if (e.type === "chart") {
-    const series = e.data?.series || [], categories = e.data?.categories || [], values = series.flatMap((s) => (s.values || []).filter(Number.isFinite));
-    const max = Math.max(1, ...values), base = f.y + f.height - 28, plotH = f.height - 48, step = f.width / Math.max(1, categories.length);
-    const labels = categories.map((category, i) => `<text x="${f.x + i * step + step / 2}" y="${base + 16}" text-anchor="middle" font-size="10" fill="#667085">${esc(category)}</text>`).join("");
-    if (e.chartType === "heatmap") {
-      const rows = Math.max(1, series.length), cols = Math.max(1, categories.length), cw = f.width / cols, rh = Math.max(1, (f.height - 28) / rows);
-      const all = values.length ? values : [0], lo = Math.min(...all), hi = Math.max(...all), cells = series.flatMap((s, ri) => (s.values || []).map((v, ci) => { const ratio = hi === lo ? .5 : (Number(v) - lo) / (hi - lo); const shade = Math.round(245 - Math.max(0, Math.min(1, ratio)) * 150); return Number.isFinite(v) ? `<rect x="${f.x + ci * cw}" y="${f.y + ri * rh}" width="${cw}" height="${rh}" fill="rgb(${shade},${Math.round(shade + 5)},${Math.round(shade + 10)})" stroke="#FFFFFF"/>` : `<rect x="${f.x + ci * cw}" y="${f.y + ri * rh}" width="${cw}" height="${rh}" fill="#F8FAFC" stroke="#FFFFFF" stroke-dasharray="2 2"/>`; })).join("");
-      diagnostics.push({ id: e.id, status: "supported", reason: "bounded-heatmap-preview" });
-      return `<g${common}><rect x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="#F8FAFC" stroke="#98A2B3"/>${cells}${categories.map((c, i) => `<text x="${f.x + i * cw + cw / 2}" y="${f.y + f.height - 6}" text-anchor="middle" font-size="9" fill="#667085">${esc(c)}</text>`).join("")}</g>`;
-    }
-    if (e.chartType === "treemap") {
-      const vals = (series[0]?.values || []).map(Number), total = vals.reduce((a, v) => a + (Number.isFinite(v) && v > 0 ? v : 0), 0) || 1; let x = f.x;
-      const tiles = vals.map((v, i) => { const w = f.width * (Math.max(0, v) / total); const tile = `<rect x="${x}" y="${f.y}" width="${Math.max(0, w - 1)}" height="${f.height}" fill="hsl(${(i * 47) % 360} 45% 72%)" stroke="#FFFFFF"/><text x="${x + 5}" y="${f.y + 18}" font-size="11">${esc(categories[i] || String(i + 1))}</text>`; x += w; return tile; }).join("");
-      diagnostics.push({ id: e.id, status: "supported", reason: "bounded-treemap-preview" });
-      return `<g${common}><rect x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="#F8FAFC" stroke="#98A2B3"/>${tiles}</g>`;
-    }
-    if (e.chartType === "sunburst") {
-      const vals = (series[0]?.values || []).map(Number), total = vals.reduce((a, v) => a + (Number.isFinite(v) && v > 0 ? v : 0), 0) || 1, cx = f.x + f.width / 2, cy = f.y + f.height / 2, radius = Math.min(f.width, f.height) * .42; let start = -Math.PI / 2;
-      const arcs = vals.map((v, i) => { const end = start + Math.max(0, v) / total * Math.PI * 2, large = end - start > Math.PI ? 1 : 0, x1 = cx + radius * Math.cos(start), y1 = cy + radius * Math.sin(start), x2 = cx + radius * Math.cos(end), y2 = cy + radius * Math.sin(end); const d = `M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${large} 1 ${x2} ${y2} Z`; start = end; return `<path d="${d}" fill="hsl(${(i * 47) % 360} 45% 72%)" stroke="#FFFFFF"/>`; }).join("");
-      diagnostics.push({ id: e.id, status: "supported", reason: "bounded-sunburst-preview" });
-      return `<g${common}><rect x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="#F8FAFC" stroke="#98A2B3"/>${arcs}</g>`;
-    }
-    if (e.chartType === "waterfall") {
-      let running = 0; const vals = (series[0]?.values || []).map(Number), stepW = f.width / Math.max(1, vals.length), barsW = vals.map((v, i) => { const start = running; running += Number.isFinite(v) ? v : 0; const y = base - Math.max(start, running) / max * plotH, h = Math.abs(v || 0) / max * plotH; return Number.isFinite(v) ? `<rect x="${f.x + i * stepW + stepW * .15}" y="${y}" width="${stepW * .7}" height="${h}" fill="${v >= 0 ? "#6B8E9B" : "#C76B5C"}"/>` : ""; }).join("");
-      diagnostics.push({ id: e.id, status: "supported", reason: "bounded-waterfall-preview" });
-      return `<g${common}><rect x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="#F8FAFC" stroke="#98A2B3"/>${barsW}${labels}</g>`;
-    }
-    if (e.chartType === "candlestick") {
-      const vals = series[0]?.values || [], stepW = f.width / Math.max(1, vals.length), candles = vals.map((v, i) => { const o = Number(v?.open), h = Number(v?.high), l = Number(v?.low), c = Number(v?.close); if (![o, h, l, c].every(Number.isFinite)) return ""; const y = (n) => base - n / max * plotH; return `<line x1="${f.x + i * stepW + stepW / 2}" y1="${y(h)}" x2="${f.x + i * stepW + stepW / 2}" y2="${y(l)}" stroke="#344054"/><rect x="${f.x + i * stepW + stepW * .2}" y="${Math.min(y(o), y(c))}" width="${stepW * .6}" height="${Math.max(1, Math.abs(y(c) - y(o)))}" fill="${c >= o ? "#6B8E9B" : "#C76B5C"}"/>`; }).join("");
-      diagnostics.push({ id: e.id, status: "supported", reason: "bounded-candlestick-preview" });
-      return `<g${common}><rect x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="#F8FAFC" stroke="#98A2B3"/>${candles}</g>`;
-    }
-    if (e.chartType === "sankey") {
-      const nodes = e.data?.nodes || [], links = e.data?.links || [], col = Math.max(1, f.width / 3), nodeSvg = nodes.map((n, i) => `<rect x="${f.x + (n.x ?? (i % 2) * col)}" y="${f.y + (n.y ?? i * 24)}" width="${n.width ?? 56}" height="${n.height ?? 18}" fill="#B7C9D3"/><text x="${f.x + (n.x ?? (i % 2) * col) + 3}" y="${f.y + (n.y ?? i * 24) + 13}" font-size="10">${esc(n.label || n.name || i + 1)}</text>`).join("");
-      diagnostics.push({ id: e.id, status: "partial", reason: "bounded-sankey-node-preview" });
-      return `<g${common}><rect x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="#F8FAFC" stroke="#98A2B3"/>${nodeSvg}<text x="${f.x + 8}" y="${f.y + f.height - 8}" font-size="10" fill="#667085">${links.length} flows</text></g>`;
-    }
-    if (e.chartType === "pictographic" || e.style?.symbol || series.some((s) => s.symbol)) {
-      const vals = (series[0]?.values || []).map(Number), maxVal = Math.max(1, ...vals), unit = Math.max(1, Math.round(f.width / Math.max(1, vals.length * 8))), icons = vals.flatMap((v, i) => { const count = Math.min(32, Math.max(0, Math.round(v / maxVal * 12))); return Array.from({ length: count }, (_, j) => `<circle cx="${f.x + i * step + step * .2 + (j % 4) * unit}" cy="${f.y + f.height - 18 - Math.floor(j / 4) * unit}" r="${Math.max(3, unit * .28)}" fill="#6B8E9B"/>`); }).join("");
-      diagnostics.push({ id: e.id, status: "supported", reason: "bounded-pictographic-preview" });
-      return `<g${common}><rect x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="#F8FAFC" stroke="#98A2B3"/>${icons}${labels}</g>`;
-    }
-    if (e.chartType === "streamgraph" || e.style?.stacking === "stream") {
-      const bands = series.map((s, si) => { const points = (s.values || []).map((v, i) => `${f.x + i * step + step / 2},${base - num(v) / max * plotH - si * 8}`).join(" "); return `<polyline points="${points}" fill="none" stroke="hsl(${(si * 47) % 360} 45% 62%)" stroke-width="${Math.max(8, plotH / Math.max(2, series.length * 4))}" stroke-linecap="round"/>`; }).join("");
-      diagnostics.push({ id: e.id, status: "partial", reason: "bounded-streamgraph-band-preview" });
-      return `<g${common}><rect x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="#F8FAFC" stroke="#98A2B3"/>${bands}${labels}</g>`;
-    }
-    const bars = series.filter((s) => ["bar", "column"].includes(s.chartType)).flatMap((s) => (s.values || []).map((v, i) => `<rect x="${f.x + i * step + step * .18}" y="${base - num(v) / max * plotH}" width="${step * .64}" height="${num(v) / max * plotH}" fill="#98A2B3" opacity=".75"/>`)).join("");
-    const lines = series.filter((s) => ["line", "area"].includes(s.chartType)).flatMap((s) => { const segments = []; let current = []; for (let i = 0; i < (s.values || []).length; i += 1) { const v = s.values[i]; if (Number.isFinite(v)) current.push(`${f.x + i * step + step / 2},${base - num(v) / max * plotH}`); else if (current.length) { segments.push(current); current = []; } } if (current.length) segments.push(current); return segments.filter((seg) => seg.length > 1).map((points) => `<polyline fill="none" stroke="#172033" stroke-width="${num(s.stroke?.width, 2.5)}" points="${points.join(" ")}"/>`); }).join("");
-    const scatter = series.filter((s) => s.chartType === "scatter").flatMap((s) => (s.values || []).map((v, i) => { const y = typeof v === "object" ? v.y : v; const x = typeof v === "object" ? v.x : i; return Number.isFinite(y) ? `<circle cx="${f.x + (Number(x) / Math.max(1, categories.length - 1)) * f.width}" cy="${base - Number(y) / max * plotH}" r="3" fill="#0B5D5E"/>` : ""; })).join("");
-    const pie = e.chartType === "pie" && values.length ? `<circle cx="${f.x + f.width / 2}" cy="${f.y + f.height / 2}" r="${Math.min(f.width, f.height) * .28}" fill="#D9E2F3" stroke="#667085"/><text x="${f.x + 8}" y="${f.y + 20}" font-size="13" fill="#475467">pie · ${esc(categories.join(" / "))}</text>` : "";
-    const kind = pie ? "pie" : scatter ? "scatter" : "bounded-column-line";
-    const hasErrorBars = series.some((s) => s.errorBars != null);
-    const status = !hasErrorBars && SVG_PREVIEW_SUPPORTED_CHARTS.has(e.chartType) ? "supported" : "partial";
-    diagnostics.push({ id: e.id, status, reason: hasErrorBars ? "chart-error-bars-not-rendered" : SVG_PREVIEW_SUPPORTED_CHARTS.has(e.chartType) ? `${kind}-preview` : `chart-${e.chartType || "unknown"}-fallback` });
-    return `<g${common}><rect x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="#F8FAFC" stroke="#98A2B3"/><line x1="${f.x + 12}" y1="${base}" x2="${f.x + f.width - 8}" y2="${base}" stroke="#667085"/>${bars}${lines}${scatter}${labels}${pie}</g>`;
-  }
-  if (e.type === "shape" || e.geometry) {
-    const opacity = num(e.opacity ?? e.style?.opacity, 1);
-    if (e.geometry?.customPaths || e.geometry?.path) diagnostics.push({ id: e.id, status: "partial", reason: "custom-geometry-bounded-rect-fallback" });
-    return `<rect${common} x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" rx="${num(e.geometry?.radius, 0)}" fill="${paintColor(e.style?.fill, "#D9E2F3")}" fill-opacity="${opacity}" stroke="${paintColor(e.style?.stroke, "#667085")}" stroke-width="${num(e.style?.stroke?.width, 1)}"/>`;
-  }
-  if (e.type === "opaque" && e.previewAsset) {
-    const asset = assets.get(e.previewAsset);
-    if (asset?.href) { diagnostics.push({ id: e.id, status: "partial", reason: "opaque-source-preview" }); return `<image${common} href="${asset.href}" x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" preserveAspectRatio="xMidYMid meet"/>`; }
-  }
-  diagnostics.push({ id: e.id, status: "opaque", reason: `unsupported-${e.type || "unknown"}` });
-  return `<rect${common} x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="#F9FAFB" stroke="#D0D5DD" stroke-dasharray="4 3"/>`;
-}
-
-// The drawing functions may describe what they attempted, but only the actual
-// input assessment owns support grades. Keep errors addressable by tree path,
-// not local IDs (which may repeat on other pages).
-function assessedDrawing(inputAssessment, assets) {
-  const nodes = new Map(), additions = new Map();
-  function index(node) { nodes.set(node.path, node); node.children.forEach(index); }
-  index(inputAssessment);
-  function add(path, diagnostic) {
-    if (!additions.has(path)) additions.set(path, []);
-    additions.get(path).push(diagnostic);
-  }
-  function render(element, path, pageId) {
-    const assessment = nodes.get(path) || previewAssessment({ path, pageId });
-    const id = typeof element.id === "string" && element.id ? element.id : undefined;
-    const diagnostics = { push(...records) {
-      for (const record of records) add(path, previewDiagnostic({
-        pageId, id, path: record.reason === "asset-missing" ? `${path}.asset` : path,
-        status: record.status === "unavailable" ? "unavailable" : assessment.status,
-        reason: record.reason, value: element.type,
-        action: "Inspect the field assessment for this element; a drawing branch is not complete visual support.",
-      }));
-    } };
-    try {
-      return drawElement(element, assets, diagnostics, (child, i, field) => render(child, `${path}.${field}[${i}]`, pageId));
-    } catch (error) {
-      add(path, previewDiagnostic({ pageId, id, path, status: "unavailable", reason: "preview.draw.failed",
-        value: error.message, action: "Repair this element's drawing failure and rerun into a new output directory." }));
-      const f = frame(element);
-      return `<g data-officekit-id="${esc(id || "element")}"><rect x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="#FEF2F2" stroke="#B91C1C"/><text x="${f.x + 4}" y="${f.y + 16}" fill="#B91C1C" font-size="12">preview unavailable</text></g>`;
-    }
-  }
-  function finish(node = inputAssessment) {
-    return previewAssessment({ ...node, assessed: true,
-      diagnostics: [...node.diagnostics, ...(additions.get(node.path) || [])], children: node.children.map(finish) });
-  }
-  return { render, finish, add };
-}
-
-function reviewIndication(assessment, canvas) {
-  const state = assessment.reliability.status;
-  if (state === "passed") return "";
-  const errors = assessment.reliability.violations;
-  const diagnostic = errors[0] || assessment.diagnostics.find((item) => item.status !== "supported");
-  const label = state === "failed" ? "UNRELIABLE PREVIEW" : "PREVIEW REQUIRES REVIEW";
-  const height = Math.min(32, canvas.height * .12), font = height * .45;
-  // This banner is part of the exact SVG sent to the rasterizer. It neither
-  // changes the input layout nor reserves/renames an authored element ID.
-  return `<g data-officekit-review="${state}" data-officekit-assessment-path="${esc(assessment.path)}" data-officekit-diagnostic-path="${esc(diagnostic?.path || assessment.path)}" data-officekit-diagnostic-reason="${esc(diagnostic?.reason || "preview.state.unassessed")}"><title>${esc(`${label}: ${diagnostic?.reason || "unassessed"} at ${diagnostic?.path || assessment.path}; full evidence in render.json`)}</title><rect width="${canvas.width}" height="${height}" fill="${state === "failed" ? "#991B1B" : "#92400E"}"/><text x="${height * .2}" y="${height * .67}" font-family="sans-serif" font-size="${font}" fill="#FFFFFF" textLength="${Math.min(canvas.width * .94, font * (label.length + 14) * .65)}" lengthAdjust="spacingAndGlyphs">${label} · render.json</text></g>`;
-}
 
 export async function renderPpjToSvg(inputPath, {
   cwd = process.cwd(), outputDir,
@@ -178,38 +15,17 @@ export async function renderPpjToSvg(inputPath, {
 } = {}) {
   const absolute = path.resolve(cwd, inputPath);
   const workspace = await load(absolute, { cwd, retainRoot: true });
-  const compiled = await compile(workspace, { includeNodeMap: false });
-  const program = JSON.parse(Buffer.from(compiled.programJson).toString("utf8"));
-  const canvas = program.design?.canvas || { width: 1280, height: 720 }, assets = new Map();
-  for (const a of workspace.assets) {
-    assets.set(a.id, { href: a.data?.byteLength ? `data:${a.mimeType || "application/octet-stream"};base64,${Buffer.from(a.data).toString("base64")}` : "", mimeType: a.mimeType });
-  }
-  const inputAssessment = assessPpjPreviewInput(program, { assets: new Map(workspace.assets.map((asset) => [asset.id, asset])) });
-  const drawing = assessedDrawing(inputAssessment, assets), drawn = [];
-  for (const [pageIndex, page] of (program.pages || []).entries()) {
-    const pagePath = `$.pages[${pageIndex}]`;
-    const body = (page.elements || []).map((e, index) => drawing.render(e, `${pagePath}.elements[${index}]`, page.id)).join("\n");
-    for (const [index, element] of (page.elements || []).entries()) {
-      const f = frame(element);
-      if (f.x < 0 || f.y < 0 || f.x + f.width > canvas.width || f.y + f.height > canvas.height)
-        drawing.add(`${pagePath}.elements[${index}]`, previewDiagnostic({ pageId: page.id, id: element.id,
-          path: `${pagePath}.elements[${index}].frame`, reason: "element-out-of-canvas", value: f,
-          action: "Inspect this frame outside the canvas; this check does not resolve transformed or effect-expanded bounds." }));
-    }
-    const pageFill = page.background?.fill?.color || page.background?.color || program.design?.theme?.background || "#FFFFFF";
-    drawn.push({ id: page.id, path: pagePath, body, pageFill });
-  }
-  const assessment = drawing.finish();
-  const pages = drawn.map(({ id, path, body, pageFill }) => {
-    const page = assessment.children.find((node) => node.path === path);
-    return { id, assessment: page, status: page.status, reliability: page.reliability, diagnostics: page.diagnostics,
-      svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}"><rect width="100%" height="100%" fill="${esc(typeof pageFill === "string" ? pageFill : "#FFFFFF")}"/>${body}${reviewIndication(page, canvas)}</svg>` };
-  });
-  const result = { renderer: "officekit-svg-preview", canvas, pages, assessment,
-    diagnostics: assessment.diagnostics, status: assessment.status, reliability: assessment.reliability };
+  const compiled = await compile(workspace, { includeNodeMap: false, includePreviewScene: true });
+  // Scene/candidate/asset validation precedes painting and publication. Missing
+  // or incompatible native state never falls back to interpreting canonical PPJ.
+  // Input assessment is mandatory here; ordinary build/check remain scene-free.
+  const result = renderPpjSceneSvg(compiled);
+  // Do not expose protobuf BigInts/asset graphs through the JSON-facing CLI.
+  // The publisher receives the validated native scene; callers receive identity.
+  const publicResult = { ...result, scene: result.sceneEvidence };
   if (outputDir) {
     const { receipt, warnings } = await publishPpjPreview(result, previewInputEvidence(workspace, compiled), { cwd, outputDir, loadRaster });
-    return { ...result, ...receipt, pages: result.pages, receipt, warnings };
+    return { ...publicResult, ...receipt, pages: result.pages, receipt, warnings };
   }
-  return result;
+  return publicResult;
 }

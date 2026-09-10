@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import registry from "../src/ppj/capability-registry.json" with { type: "json" };
 import { assessPpjPreviewInput } from "../src/ppj/preview-input-assessment.mjs";
 import { renderPpjToSvg } from "../src/ppj/svg-preview.mjs";
-import { publishPpjPreview } from "../src/ppj/preview-output.mjs";
+import { previewSceneFixture, nativeElement, emuFrame } from "./helpers/ppj-preview-scene-fixture.mjs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -45,26 +45,34 @@ try { for (const [key, element, suffix] of samples) {
   assert.equal(assessPpjPreviewInput(input).reliability.status, "failed", "styling cannot clear a fact failure");
   for (const program of [JSON.parse(before), input]) {
     const bytes = Buffer.from(JSON.stringify(program));
+    // No verified mapping is supplied for these negative cases. A native
+    // opaque node must retain every original factual gate, even with styling.
+    const compiled = previewSceneFixture(program, [{ id: "page", elements: [
+      nativeElement(element.id || "target", "opaque", emuFrame()),
+    ] }], ["$.pages[0].elements[0]"]);
+    const outputDir = path.join(root, String(run++));
     const result = await renderPpjToSvg("diagnostic.ppj", {
-      load: async () => ({ assets: [] }), compile: async () => ({ programJson: bytes }),
+      outputDir, load: async () => ({ path: "diagnostic.ppj", program: bytes, assets: [] }), compile: async (_workspace, options) => {
+        assert.deepEqual(options, { includeNodeMap: false, includePreviewScene: true });
+        return compiled;
+      },
+      loadRaster: async () => ({ render: async svg => {
+        assert.match(svg.toString(), /UNRELIABLE PREVIEW/);
+        return Buffer.from("publication-only simulated PNG");
+      } }),
     });
     assert.equal(result.reliability.status, "failed", key);
     const violation = result.reliability.violations.find((d) => d.reason === registry.previewSupport.factual[key].reason && d.path.endsWith(suffix));
     assert.ok(violation, `${key}: actual renderer must retain the original factual path`);
     const page = result.pages[0];
     assert.deepEqual(page.reliability, page.assessment.reliability);
-    assert.deepEqual(page.assessment, result.assessment.children.find((child) => child.path === "$.pages[0]"));
+    assert.deepEqual(page.assessment, result.assessment.children.find((child) => child.pageId === "page"));
     assert.match(page.svg, /data-officekit-review="failed"/);
     assert.match(page.svg, /UNRELIABLE PREVIEW/);
     const linked = page.svg.match(/data-officekit-diagnostic-reason="([^"]+)"/)[1];
     assert.ok(page.reliability.violations.some((d) => d.reason === linked), "visible warning links to a real violation");
-    const outputDir = path.join(root, String(run++));
-    const { receipt } = await publishPpjPreview(result, {}, { outputDir, loadRaster: async () => ({
-      render: async (svg) => {
-        assert.equal(svg.toString(), page.svg, "the rasterizer must receive the labeled SVG");
-        return Buffer.from("publication-only simulated PNG");
-      },
-    }) });
+    const { receipt } = result;
+    assert.equal(await readFile(path.join(outputDir, receipt.pages[0].file), "utf8"), page.svg);
     assert.equal(receipt.ok, true);
     assert.equal(receipt.output.status, "complete");
     assert.equal(receipt.reliability.status, "failed", "successful publication and styling cannot clear factual failure");

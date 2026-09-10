@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { renderPpjToSvg } from "../src/ppj/svg-preview.mjs";
-import { publishPpjPreview } from "../src/ppj/preview-output.mjs";
+import { previewSceneFixture, nativeElement, emuFrame } from "./helpers/ppj-preview-scene-fixture.mjs";
 
 const frame = { x: 10, y: 40, width: 200, height: 100 };
 const program = {
@@ -16,16 +16,26 @@ const program = {
     { id: "second", elements: [{ id: "same", type: "shape", frame, geometry: { kind: "preset", preset: "rect" }, text: "also lost" }] },
   ],
 };
-async function render(input) {
+async function render(input, pages, owners, options = {}) {
   const bytes = Buffer.from(JSON.stringify(input));
+  const compiled = previewSceneFixture(input, pages, owners);
   const result = await renderPpjToSvg("in-memory.ppj", {
-    load: async () => ({ assets: [] }), compile: async () => ({ programJson: bytes }),
+    load: async () => ({ path: "in-memory.ppj", program: bytes, assets: [] }), compile: async () => compiled,
     loadRaster: async () => { throw new Error("in-memory drawing must stay raster-lazy"); },
+    ...options,
   });
   assert.equal(JSON.stringify(input), bytes.toString());
   return result;
 }
-const result = await render(program);
+const result = await render(program, [
+  { id: "first", elements: [nativeElement("group", "group", { ...emuFrame(),
+    childWidthEmu: 2540000n, childHeightEmu: 1270000n, children: [
+      nativeElement("same", "shape", { ...emuFrame(), geometry: "rect", text: "shape lost" }),
+      nativeElement("nested-source", "opaque", emuFrame()),
+    ] })] },
+  { id: "second", elements: [nativeElement("same", "shape", { ...emuFrame(), geometry: "rect", text: "also lost" })] },
+], ["$.pages[0].elements[0]", "$.pages[0].elements[0].elements[0]", "$.pages[0].elements[0].elements[1]", "$.pages[1].elements[0]"]);
+assert.doesNotThrow(() => JSON.stringify(result), "the public in-memory result must not leak protobuf BigInts");
 const violations = result.reliability.violations.filter((d) => d.reason === "preview.fact.shape-geometry-omitted");
 assert.equal(violations.length, 2);
 assert.deepEqual(new Set(violations.map((d) => d.pageId)), new Set(["first", "second"]));
@@ -44,23 +54,31 @@ for (const page of result.pages) {
   assert.equal((page.svg.match(/data-officekit-review="failed"/g) || []).length, 1);
 }
 
-// A real known draw exception (null scatter item) must not abort other pages
-// or be misclassified as a missing raster dependency / missing asset.
-const broken = await render({ pages: [
+// Malformed native scatter channels must not abort other pages or be
+// misclassified as a missing raster dependency / missing asset. Null itself
+// is now a preserved missing index, not the old canonical draw exception.
+const brokenProgram = { pages: [
   { id: "broken", elements: [{ type: "chart", id: "scatter", frame, chartType: "scatter",
     data: { categories: ["A", "B"], series: [{ chartType: "scatter", values: [1, null] }] } }] },
   { id: "later", elements: [{ id: "visible", type: "text", frame, text: "later page retained" }] },
-] });
+] };
+const brokenPages = [
+  { id: "broken", elements: [nativeElement("scatter", "chart", { ...emuFrame(), type: 6,
+    series: [{ values: [1, 0], xValues: [1], missingValueIndexes: [1] }] })] },
+  { id: "later", elements: [nativeElement("visible", "shape", { ...emuFrame(), geometry: "textbox", text: "later page retained" })] },
+];
+const brokenOwners = ["$.pages[0].elements[0]", "$.pages[1].elements[0]"];
+const broken = await render(brokenProgram, brokenPages, brokenOwners);
 assert.equal(broken.status, "unavailable");
 assert.equal(broken.pages[0].assessment.children[0].status, "unavailable");
 assert.equal(broken.pages[1].status, "partial", "a failed page must not invent failure on another page");
-assert.ok(broken.diagnostics.some((d) => d.reason === "preview.draw.failed" && d.path === "$.pages[0].elements[0]"));
+assert.ok(broken.diagnostics.some((d) => d.reason === "preview.scene.paint.failed" && d.path === "$.pages[0].elements[0]"));
 assert.match(broken.pages[0].svg, /data-officekit-id="scatter"/);
-assert.match(broken.pages[0].svg, /preview unavailable/);
+assert.match(broken.pages[0].svg, /native drawing unavailable/);
 assert.match(broken.pages[1].svg, /later page retained/);
 const root = await mkdtemp(path.join(os.tmpdir(), "officekit-preview-draw-failure-"));
 try {
-  await assert.rejects(publishPpjPreview(broken, {}, { outputDir: path.join(root, "out"),
+  await assert.rejects(render(brokenProgram, brokenPages, brokenOwners, { outputDir: path.join(root, "out"),
     loadRaster: async () => ({ render: async () => Buffer.from("test PNG only") }),
   }), asyncError => {
     assert.equal(asyncError.code, "preview.output.incomplete");
@@ -72,6 +90,6 @@ try {
   const receipt = JSON.parse(await readFile(path.join(root, "out", "render.json"), "utf8"));
   assert.equal(receipt.pages[0].reliability.status, "failed");
   assert.equal(receipt.pages[1].reliability.status, "requires-review");
-  assert.ok(receipt.diagnostics.some((d) => d.reason === "preview.draw.failed"));
+  assert.ok(receipt.diagnostics.some((d) => d.reason === "preview.scene.paint.failed"));
 } finally { await rm(root, { recursive: true, force: true }); }
 console.log("ppj preview render assessment ok: nested identities, warning linkage and retained draw failures");

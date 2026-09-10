@@ -3,7 +3,7 @@ import { previewDiagnostic } from "./preview-diagnostics.mjs";
 // These conditions describe the current SVG drawing branches. Removing a
 // limitation requires a drawing regression, not a weaker diagnostic severity.
 export function previewFactualErrors(element, { path, pageId, id }, support,
-  { hiddenOwnerPaths = new Set(), resolvedTransformPaths = new Set(), resolvedGroupCoordinates = false, resolvedConnectorPaths = new Set() } = {}) {
+  { hiddenOwnerPaths = new Set(), resolvedTransformPaths = new Set(), resolvedGroupCoordinates = false, resolvedConnectorPaths = new Set(), resolvedIsolatedLinePaths = new Set(), resolvedLineSeriesPaths = new Set() } = {}) {
   const diagnostics = [];
   const add = (name, suffix, value) => {
     const rule = support.factual[name];
@@ -59,7 +59,7 @@ export function previewFactualErrors(element, { path, pageId, id }, support,
   }
   series.forEach((s, index) => {
     const at = `.data.series[${index}]`, values = s.values || [];
-    if (cartesian && s.chartType === undefined && values.some(Number.isFinite)) add("chartSeriesType", `${at}.chartType`, undefined);
+    if (cartesian && s.chartType === undefined && values.some(Number.isFinite) && !resolvedLineSeriesPaths.has(`${path}${at}`)) add("chartSeriesType", `${at}.chartType`, undefined);
     for (const key of ["xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "sources", "targets"]) {
       if (s[key] !== undefined) add("chartChannels", `${at}.${key}`, s[key]);
     }
@@ -74,7 +74,8 @@ export function previewFactualErrors(element, { path, pageId, id }, support,
         || ["bar", "column", "scatter"].includes(s.chartType);
       if (!Number.isFinite(value) && coerced) add("chartMissing", `${at}.values[${point}]`, value);
       if (Number.isFinite(value) && ["line", "area"].includes(s.chartType)
-        && !Number.isFinite(values[point - 1]) && !Number.isFinite(values[point + 1])) add("chartMissing", `${at}.values[${point}]`, value);
+        && !Number.isFinite(values[point - 1]) && !Number.isFinite(values[point + 1])
+        && !resolvedIsolatedLinePaths.has(`${path}${at}.values[${point}]`)) add("chartMissing", `${at}.values[${point}]`, value);
       if (cartesian && Number.isFinite(value) && value < 0) add("chartScale", `${at}.values[${point}]`, value);
     });
     if (type === "waterfall") {

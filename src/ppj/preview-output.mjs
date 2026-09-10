@@ -55,7 +55,7 @@ async function implementationIdentity(renderer) {
   const files = ["svg-preview.mjs", "preview-output.mjs", "svg-preview-capabilities.json",
     "preview-diagnostics.mjs", "preview-input-assessment.mjs", "preview-factual-errors.mjs",
     "preview-capabilities.mjs", "capability-registry.json", "ppj-v1.schema.json"];
-  if (renderer === "officekit-native-scene-svg-internal") files.push("preview-scene-svg.mjs", "preview-scene-view.mjs", "preview-scene.mjs", "preset-geometry-profiles.json");
+  if (["officekit-native-scene-svg", "officekit-native-scene-svg-internal"].includes(renderer)) files.push("preview-scene-svg.mjs", "preview-scene-view.mjs", "preview-scene.mjs", "preset-geometry-profiles.json");
   return {
     version: 2,
     sources: await Promise.all(files.map(async (file) => ({
@@ -148,7 +148,7 @@ export async function publishPpjPreview(result, evidence, {
 
   // Match the identity captured by painting to independently validated compile
   // evidence. A scene renderer must never publish with a legacy/missing receipt.
-  if (result.renderer === "officekit-native-scene-svg-internal" || result.sceneEvidence || evidence.scene) {
+  if (["officekit-native-scene-svg", "officekit-native-scene-svg-internal"].includes(result.renderer) || result.sceneEvidence || evidence.scene) {
     try {
       const painted = ppjPreviewSceneIdentity(result.scene);
       const keys = Object.keys(painted);

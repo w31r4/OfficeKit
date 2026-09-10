@@ -7,6 +7,7 @@ import { PresentationElementSchema, PresentationSlideSchema, PresentationTextBod
   PresentationTextParagraphSchema, PresentationTextRunSchema, PresentationTextStyleSchema,
   PresentationBackgroundSchema, PresentationTableRowSchema, PresentationTableCellSchema,
   PresentationTableCellFillSchema, PresentationTableCellBordersSchema,
+  PresentationGradientFillSchema, PresentationGradientStopSchema,
   SpreadsheetChartLineStyleArtifactSchema, SpreadsheetColorSchema, SpreadsheetChartType,
   SpreadsheetChartSeriesArtifactSchema, SpreadsheetChartAxisArtifactSchema,
   SpreadsheetChartLineOptionsArtifactSchema, SpreadsheetChartMarkerArtifactSchema,
@@ -168,17 +169,29 @@ function frameTransform(f, transform) {
 /** Actual native-state-to-SVG drawing; deliberately not a public publication
  * receipt. No support promotion or G-11 rule retirement is implied. */
 export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
+  return paintScene(receipt, { assessInput, integrated: false });
+}
+
+// The production entry cannot opt out of the original-input checks. Internal
+// paint-only fixtures retain their separate, explicitly limited entry above.
+export function renderPpjSceneSvg(receipt) {
+  return paintScene(receipt, { assessInput: true, integrated: true });
+}
+
+function paintScene(receipt, { assessInput, integrated }) {
   const view = createPpjSceneView(receipt), diagnostics = [...view.diagnostics];
   const visitedNodes = new Set();
   const hiddenScenePaths = new Set();
   const transformedScenePaths = new Set();
   const connectorScenePaths = new Set();
+  const isolatedLinePoints = [];
   let imageMaskSequence = 0;
+  let gradientSequence = 0;
   const limit = (node, field, reason = "preview.scene.paint.unmapped", value, status = "partial") => {
     diagnostics.push(Object.freeze({ ...previewDiagnostic({
       pageId: node.pageId || undefined, id: node.pageId ? node.semanticId : undefined,
       path: node.path || "$", status, reason, value,
-      action: "Review the native scene field; this internal painter is not full visual or edit-fidelity acceptance.",
+      action: "Review the native scene field; local preview is not full visual or edit-fidelity acceptance.",
     }), scenePath: `${node.scenePath}${field ? `.${field}` : ""}` }));
   };
   // Generated descriptors, not a second feature vocabulary, determine which
@@ -220,15 +233,32 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
       const defaults = paragraph.defaultRunStyle?.case === "defaultRunProperties" ? paragraph.defaultRunStyle.value : {};
       const prefix = `${ownerField}.textBody.paragraphs[${pi}].`;
       const leftAligned = !paragraph.alignment || paragraph.alignment === "left";
+      const characterBullet = paragraph.bullet?.case === "bulletCharacter";
       if (body) {
-        unused(PresentationTextParagraphSchema, paragraph, ["runs", "alignment", "defaultRunProperties", "lineSpacingPoints", "lineSpacingMultiplier", "spaceBeforePoints", "spaceBeforeMultiplier", "spaceAfterPoints", "spaceAfterMultiplier", "marginLeftEmu", ...(leftAligned ? ["indentEmu"] : [])], node, prefix);
+        unused(PresentationTextParagraphSchema, paragraph, ["runs", "alignment", "defaultRunProperties", "lineSpacingPoints", "lineSpacingMultiplier", "spaceBeforePoints", "spaceBeforeMultiplier", "spaceAfterPoints", "spaceAfterMultiplier", "marginLeftEmu", ...(leftAligned ? ["indentEmu"] : []),
+          ...(paragraph.bullet?.case === "noBullet" && paragraph.bullet.value === true ? ["noBullet"] : []),
+          ...(characterBullet ? ["bulletCharacter", "bulletFontFamily", "bulletColorRgb", "bulletSizePoints", "bulletColorOpacityThousandthPercent"] : [])], node, prefix);
         if (defaults.$typeName) unused(PresentationTextStyleSchema, defaults,
-          ["fontSizePoints", "fontFamily", "bold", "italic", "colorRgb", "colorOpacityThousandthPercent", "underline", "strike", "fontBaselinePercent", "fontSpacingPoints"], node, `${prefix}defaultRunProperties.`);
+          ["fontSizePoints", "fontFamily", "bold", "italic", "colorRgb", "colorOpacityThousandthPercent", "underline", "strike", "fontBaselinePercent", "fontSpacingPoints", "fontCaps"], node, `${prefix}defaultRunProperties.`);
       }
       const align = paragraph.alignment;
       if (align && !["left", "center", "right"].includes(align)) limit(node, `${prefix}alignment`, "preview.scene.paint.text-alignment", align);
       const paragraphLeft = left + (paragraph.leftMargin?.case === "marginLeftEmu" ? scenePoints(paragraph.leftMargin.value) : 0);
       const firstLineIndent = leftAligned && paragraph.indentation?.case === "indentEmu" ? scenePoints(paragraph.indentation.value) : 0;
+      let bulletStyle;
+      if (characterBullet) {
+        // Direct character/paint plus an explicit hanging indent provide a
+        // position without a second inherited-list or tab-layout solver.
+        const font = paragraph.bulletFont, color = paragraph.bulletColor, size = paragraph.bulletSize;
+        if (!leftAligned || firstLineIndent >= 0 || font?.case !== "bulletFontFamily" || !font.value?.trim() ||
+            color?.case !== "bulletColorRgb" || size?.case !== "bulletSizePoints" ||
+            !paragraph.bullet.value || /[\r\n\t]/u.test(paragraph.bullet.value)) {
+          limit(node, `${prefix}bulletCharacter`, "preview.scene.paint.bullet-layout", "Character bullet requires direct font/RGB/point size and a left-aligned hanging indent", "unavailable");
+          throw new TypeError("Unresolved native character bullet layout or paint");
+        }
+        bulletStyle = `font-family="${esc(font.value)}" font-size="${n(sceneFontPoints(size.value))}" fill="${rgb(color.value)}" fill-opacity="${n(sceneOpacity(paragraph.bulletColorOpacityThousandthPercent ?? 100000))}"`;
+        limit(node, `${prefix}bulletCharacter`, "preview.scene.paint.bullet-metrics", "Direct glyph and hanging position mapped; exact font metrics and tab clearance remain unverified.");
+      }
       const x = align === "center" ? (paragraphLeft + right) / 2 : align === "right" ? right : paragraphLeft;
       const pointSpacing = (field, selected) => {
         const choice = paragraph[field];
@@ -250,7 +280,7 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
       for (const [ri, run] of paragraph.runs.entries()) {
         const rp = `${prefix}runs[${ri}].`;
         if (body) unused(PresentationTextRunSchema, run,
-          ["text", "lineBreak", "fontSizePoints", "fontFamily", "bold", "italic", "colorRgb", "colorOpacityThousandthPercent", "underline", "strike", "fontBaselinePercent", "fontSpacingPoints"], node, rp);
+          ["text", "lineBreak", "fontSizePoints", "fontFamily", "bold", "italic", "colorRgb", "colorOpacityThousandthPercent", "underline", "strike", "fontBaselinePercent", "fontSpacingPoints", "fontCaps"], node, rp);
         if (run.content.case === "lineBreak") { lines.push([]); continue; }
         if (run.content.case !== "text") { limit(node, `${rp}content`, "preview.scene.paint.text-content", run.content.case); continue; }
         const size = sceneFontPoints(run.fontSizePoints ?? defaults.fontSizePoints ?? fallback.fontSizePoints ?? 18);
@@ -274,8 +304,23 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
         }
         const defaultColor = defaults.color?.case === "colorRgb" ? defaults.color.value : fallback.color?.case === "colorRgb" ? fallback.color.value : undefined;
         const style = `font-family="${esc(run.fontFamily || defaults.fontFamily || fallback.fontFamily || "sans-serif")}" font-size="${n(size)}" font-weight="${(run.bold ?? defaults.bold ?? fallback.bold) ? "bold" : "normal"}" font-style="${(run.italic ?? defaults.italic ?? fallback.italic) ? "italic" : "normal"}" fill="${rgb(run.colorRgb || defaultColor, "#000000")}" fill-opacity="${n(sceneOpacity(run.colorOpacityThousandthPercent ?? defaults.colorOpacityThousandthPercent ?? fallback.colorOpacityThousandthPercent ?? 100000))}"`;
+        const caps = run.fontCaps ?? defaults.fontCaps ?? fallback.fontCaps ?? "none";
+        let displayed = run.content.value;
+        if (caps === "all") {
+          // Change only display text; keep the candidate's literal characters
+          // untouched. Language is used for casing, not claimed fully shaped.
+          const language = run.fontLanguage ?? defaults.fontLanguage ?? fallback.fontLanguage;
+          try { displayed = language ? displayed.toLocaleUpperCase(language) : displayed.toUpperCase(); }
+          catch {
+            limit(node, `${rp}fontCaps`, "preview.scene.paint.text-capitalization", "Unresolved casing language", "unavailable");
+            throw new RangeError("Invalid native capitalization language");
+          }
+        } else if (caps !== "none") {
+          limit(node, `${rp}fontCaps`, "preview.scene.paint.text-capitalization", caps, "unavailable");
+          throw new RangeError("Unsupported native capitalization");
+        }
         // Preserve explicit newlines as line boundaries, not one line per run.
-        run.content.value.split(/\r\n|\r|\n/u).forEach((segment, i) => {
+        displayed.split(/\r\n|\r|\n/u).forEach((segment, i) => {
           if (i) lines.push([]);
           lines.at(-1).push({ size, shift, spacing, style, decoration: decorations.join(" ") || "none", segment });
         });
@@ -302,7 +347,9 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
           previousShift = run.shift;
           return `<tspan text-decoration="${run.decoration}" dy="${n(dy)}"${run.spacing === undefined ? "" : ` letter-spacing="${n(run.spacing)}"`} ${run.style}>${esc(run.segment)}</tspan>`;
         }).join("");
-        const svg = `<text x="${n(x + (index === 0 ? firstLineIndent : 0))}" y="${n(y)}" text-anchor="${align === "center" ? "middle" : align === "right" ? "end" : "start"}" xml:space="preserve">${spans}</text>`;
+        const bullet = index === 0 && characterBullet
+          ? `<text data-officekit-bullet="character" x="${n(paragraphLeft + firstLineIndent)}" y="${n(y)}" ${bulletStyle}>${esc(paragraph.bullet.value)}</text>` : "";
+        const svg = `${bullet}<text x="${n(x + (index === 0 && !characterBullet ? firstLineIndent : 0))}" y="${n(y)}" text-anchor="${align === "center" ? "middle" : align === "right" ? "end" : "start"}" xml:space="preserve">${spans}</text>`;
         return svg;
       }).join("");
       y += previousSize * .2 + (spaceAfter ?? previousSize * 1.2 * afterMultiplier);
@@ -321,14 +368,48 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
     const shift = anchor === "center" ? (available - height) / 2 : anchor === "bottom" ? available - height : 0;
     return `<g data-officekit-text-anchor="${anchor}" transform="translate(0 ${n(shift)})">${paintedText}</g>`;
   }
+  function gradient(node, field, value, frame) {
+    unused(PresentationGradientFillSchema, value, ["kind", "stops", "angle60000"], node, `${field}.`);
+    const fail = message => {
+      limit(node, field, "preview.scene.paint.gradient", message, "unavailable");
+      throw new TypeError(message);
+    };
+    if (value.kind !== 1) fail("Only the native unscaled linear gradient is mapped");
+    const angle = value.angle60000 ?? 0;
+    if (!Number.isSafeInteger(angle) || angle < 0 || angle >= 21600000 || frame.width <= 0 || frame.height <= 0)
+      fail("Invalid linear gradient direction or extent");
+    if (value.stops.length < 2 || value.stops.length > 16) fail("Gradient requires 2..16 ordered stops");
+    let previous = -1;
+    const stops = value.stops.map((stop, index) => {
+      unused(PresentationGradientStopSchema, stop, ["positionThousandthPercent", "colorRgb", "opacityThousandthPercent"], node, `${field}.stops[${index}].`);
+      const position = stop.positionThousandthPercent;
+      if (!Number.isSafeInteger(position) || position < previous || position > 100000 || !/^[0-9a-f]{6}$/iu.test(stop.colorRgb) ||
+          stop.opacityThousandthPercent !== undefined && (!Number.isSafeInteger(stop.opacityThousandthPercent) || stop.opacityThousandthPercent < 0 || stop.opacityThousandthPercent > 100000))
+        fail("Invalid gradient stop position or direct RGB color");
+      previous = position;
+      return `<stop offset="${n(position / 100000)}" stop-color="${rgb(stop.colorRgb)}" stop-opacity="${n(sceneOpacity(stop.opacityThousandthPercent ?? 100000))}"/>`;
+    }).join("");
+    const radians = angle / 60000 * Math.PI / 180;
+    const snap = value => Math.abs(value) < 1e-12 ? 0 : value;
+    const dx = snap(Math.cos(radians)), dy = snap(Math.sin(radians));
+    // scaled=false keeps the direction in physical frame coordinates. The
+    // projected rectangle span reaches its two extreme support lines.
+    const half = (Math.abs(frame.width * dx) + Math.abs(frame.height * dy)) / 2;
+    const cx = frame.x + frame.width / 2, cy = frame.y + frame.height / 2;
+    const id = `officekit-gradient-${gradientSequence++}`;
+    return { fill: `url(#${id})`, definition: `<defs><linearGradient id="${id}" gradientUnits="userSpaceOnUse" color-interpolation="sRGB" x1="${n(cx - dx * half)}" y1="${n(cy - dy * half)}" x2="${n(cx + dx * half)}" y2="${n(cy + dy * half)}">${stops}</linearGradient></defs>` };
+  }
   function shape(node) {
     const s = node.native, f = node.frame;
     unused(content.get("shape"), s, [...frameFields, "geometry", "text", "textBody", "fillRgb", "lineRgb", "lineWidthEmu",
-      "fillOpacityThousandthPercent", "lineOpacityThousandthPercent", "lineStyle", "lineCap", "lineJoin", "transform", "customPaths",
+      "fillOpacityThousandthPercent", "lineOpacityThousandthPercent", "lineStyle", "lineCap", "lineJoin", "transform", "customPaths", "gradientFill",
       ...(s.geometry === "roundRect" && !s.customPaths.length ? ["presetAdjustments"] : [])], node, "shape.");
     const outline = linePaint(node, "shape", s.lineStyle === "none" ? "none" : rgb(s.lineRgb), scenePoints(s.lineWidthEmu),
       sceneOpacity(s.lineOpacityThousandthPercent ?? 100000), s.lineStyle === "none" ? "solid" : s.lineStyle || "solid", s.lineCap, s.lineJoin, "lineStyle");
-    const paint = `fill="${rgb(s.fillRgb)}" fill-opacity="${n(sceneOpacity(s.fillOpacityThousandthPercent ?? 100000))}" ${outline}`;
+    if (s.gradientFill && (s.fillRgb || s.fillScheme || s.fillOpacityThousandthPercent !== undefined || s.imageFill || s.imageFillAssetId))
+      throw new TypeError("Conflicting native shape fills");
+    const gradientFill = s.gradientFill ? gradient(node, "shape.gradientFill", s.gradientFill, f) : undefined;
+    const paint = `fill="${gradientFill?.fill ?? rgb(s.fillRgb)}" fill-opacity="${n(sceneOpacity(s.fillOpacityThousandthPercent ?? 100000))}" ${outline}`;
     let geometry;
     if (s.customPaths.length) geometry = s.customPaths.map((path, i) => {
       const field = `shape.customPaths[${i}]`;
@@ -349,7 +430,19 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
     else if (s.geometry === "ellipse") geometry = `<ellipse cx="${n(f.x + f.width / 2)}" cy="${n(f.y + f.height / 2)}" rx="${n(f.width / 2)}" ry="${n(f.height / 2)}" ${paint}/>`;
     else if (["diamond", "flowChartDecision"].includes(s.geometry)) geometry = `<path d="M ${n(f.x + f.width / 2)} ${n(f.y)} L ${n(f.x + f.width)} ${n(f.y + f.height / 2)} L ${n(f.x + f.width / 2)} ${n(f.y + f.height)} L ${n(f.x)} ${n(f.y + f.height / 2)} Z" ${paint}/>`;
     else { limit(node, "shape.geometry", "preview.scene.paint.preset", s.geometry); geometry = placeholder(node, `geometry: ${s.geometry || "unresolved"}`); }
-    return geometry + text(node);
+    return (gradientFill?.definition ?? "") + geometry + text(node);
+  }
+  function media(node) {
+    const s = node.native, f = node.frame, poster = view.asset(s.posterAssetId);
+    unused(content.get("media"), s, [...frameFields, "mediaType", "posterAssetId", "transform"], node, "media.");
+    if (!["audio", "video"].includes(s.mediaType) || !poster?.data?.byteLength || !poster.contentType.startsWith("image/")) {
+      limit(node, "media.posterAssetId", "preview.scene.paint.media-poster", "No verified image poster for this media type", "unavailable");
+      return placeholder(node, "Media poster unavailable");
+    }
+    limit(node, "media.posterAssetId", "preview.scene.paint.media-static", "Static poster only; payload appearance, playback and timing are not verified.");
+    const href = `data:${poster.contentType};base64,${Buffer.from(poster.data).toString("base64")}`;
+    const labelHeight = Math.min(18, f.height), labelSize = Math.min(10, labelHeight * .7);
+    return `<g data-officekit-media="static-poster" data-officekit-media-type="${esc(s.mediaType)}"><image ${box(f)} preserveAspectRatio="none" href="${href}"/><rect x="${n(f.x)}" y="${n(f.y + f.height - labelHeight)}" width="${n(f.width)}" height="${n(labelHeight)}" fill="#92400E"/><text x="${n(f.x + 2)}" y="${n(f.y + f.height - labelHeight * .25)}" font-size="${n(labelSize)}" fill="#FFFFFF">STATIC ${s.mediaType.toUpperCase()} POSTER</text></g>`;
   }
   function image(node) {
     const s = node.native, asset = view.asset(s.svgAssetId || s.assetId);
@@ -509,10 +602,15 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
         const cellFrame = { x: f.x + xs[c] * sx, y: f.y + ys[r] * sy, width: (xs[c1 + 1] - xs[c]) * sx, height: (ys[r1 + 1] - ys[r]) * sy };
         unused(PresentationTableCellSchema, cell, ["text", "textBody", "fill", "borders", "textStyle"], node, `${prefix}.`);
         const header = s.firstRow === true && r === 0, authored = view.scene.origin === 1;
-        let fill = "none", opacity = 1;
+        let fill = "none", opacity = 1, fillDefinition = "";
         if (cell.fill) {
-          unused(PresentationTableCellFillSchema, cell.fill, ["noFill", "solidRgb", "opacityThousandthPercent"], node, `${prefix}.fill.`);
+          unused(PresentationTableCellFillSchema, cell.fill, ["noFill", "solidRgb", "opacityThousandthPercent", "gradientFill"], node, `${prefix}.fill.`);
           if (cell.fill.kind.case === "solidRgb") { fill = rgb(cell.fill.kind.value); opacity = sceneOpacity(cell.fill.opacityThousandthPercent ?? 100000); }
+          else if (cell.fill.kind.case === "gradientFill") {
+            if (cell.fill.opacityThousandthPercent !== undefined) throw new TypeError("Gradient stops own their alpha; table solid alpha conflicts");
+            const painted = gradient(node, `${prefix}.fill.gradientFill`, cell.fill.kind.value, cellFrame);
+            fill = painted.fill; fillDefinition = painted.definition;
+          }
           else if (cell.fill.kind.case !== "noFill") limit(node, `${prefix}.fill`, "preview.scene.paint.table-fill", cell.fill.kind.case);
         } else if (authored) {
           if (s.defaultCellFill.case !== "noDefaultCellFill") fill = s.defaultCellFill.case === "defaultCellFillRgb" ? rgb(s.defaultCellFill.value) : header ? "#EDEDED" : "#FFFFFF";
@@ -540,7 +638,7 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
         const fallback = cell.textBody ? {} : { fontSizePoints: 13.5, ...directStyle,
           color: directStyle?.color?.case ? directStyle.color : { case: "colorRgb", value: header ? "000000" : "0F172A" },
           bold: cell.textStyle ? cell.textStyle.bold : (directStyle?.bold ?? false) || header };
-        return `<g data-officekit-table-cell="${r}:${c}" data-officekit-row-span="${r1 - r + 1}" data-officekit-column-span="${c1 - c + 1}"><rect ${box(cellFrame)} fill="${fill}" fill-opacity="${n(opacity)}"/>${borderSvg}${text({ ...node, frame: cellFrame }, cell, prefix, fallback)}</g>`;
+        return `<g data-officekit-table-cell="${r}:${c}" data-officekit-row-span="${r1 - r + 1}" data-officekit-column-span="${c1 - c + 1}">${fillDefinition}<rect ${box(cellFrame)} fill="${fill}" fill-opacity="${n(opacity)}"/>${borderSvg}${text({ ...node, frame: cellFrame }, cell, prefix, fallback)}</g>`;
       }).join("");
     }).join("");
   }
@@ -1017,6 +1115,7 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
       if (ya?.reverse !== true) yr = 1 - yr;
       return { x: plot.x + xr * plot.width, y: plot.y + yr * plot.height };
     };
+    const capturedIsolated = [];
     const output = series.map(({ entry, si, prefix, missing }) => {
       const line = entry.line, colors = ["#2563EB", "#B45309", "#047857", "#9333EA"];
       let color = colors[si % colors.length], width = 1.5, alpha = 1;
@@ -1075,6 +1174,10 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
             limit(node, `${prefix}.values[${p.index}]`, "preview.scene.paint.chart-isolated-review-point", "Isolated observation shown as a hollow review dot, not an authored marker.");
             mark = `<circle data-officekit-review-point="isolated" cx="${n(p.x)}" cy="${n(p.y)}" r="3" fill="none" stroke="${color}" stroke-dasharray="1 1"/>`;
           }
+          if (points.length === 1 && !outside && mark &&
+              ([2, 3, 4, 5, 6].includes(symbol) ? (marker?.fillOpacityThousandthPercent ?? 100000) > 0
+                : (marker?.line?.opacityThousandthPercent ?? 100000) > 0))
+            capturedIsolated.push({ scenePath: node.scenePath, seriesIndex: si, pointIndex: p.index });
           // A point whose centre is outside explicit axis bounds stays in the
           // evidence, but must not be projected onto the edge as a false value.
           // In-range markers can extend half their size beyond the plot edge.
@@ -1109,7 +1212,9 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
       }).join("");
     }
     const heading = text({ ...node, frame: { x: plot.x, y: f.y, width: plot.width, height: f.height * .15 } }, { text: s.title, textBody: s.titleBody }, "chart");
-    return `<g data-officekit-chart="line" data-officekit-blank-policy="${blank}" data-officekit-scale-min="${n(low)}" data-officekit-scale-max="${n(high)}" data-officekit-log-base="${logBase ?? "linear"}">${heading}${axes}<svg ${box(f)} viewBox="${n(f.x)} ${n(f.y)} ${n(f.width)} ${n(f.height)}" overflow="hidden">${output}</svg>${observed.length ? "" : `<text x="${n(plot.x)}" y="${n(plot.y + 12)}" font-size="10">No observed data</text>`}</g>`;
+    const svg = `<g data-officekit-chart="line" data-officekit-blank-policy="${blank}" data-officekit-scale-min="${n(low)}" data-officekit-scale-max="${n(high)}" data-officekit-log-base="${logBase ?? "linear"}">${heading}${axes}<svg ${box(f)} viewBox="${n(f.x)} ${n(f.y)} ${n(f.width)} ${n(f.height)}" overflow="hidden">${output}</svg>${observed.length ? "" : `<text x="${n(plot.x)}" y="${n(plot.y + 12)}" font-size="10">No observed data</text>`}</g>`;
+    isolatedLinePoints.push(...capturedIsolated);
+    return svg;
   }
   function paintGroup(node, group, prefix) {
     const f = group.frame, c = group.childFrame;
@@ -1150,6 +1255,7 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
         }
       } else if (node.kind === "shape") svg = shape(node);
       else if (node.kind === "image") svg = image(node);
+      else if (node.kind === "media") svg = media(node);
       else if (node.kind === "connector") svg = connector(node);
       else if (node.kind === "table") svg = table(node);
       else if (node.kind === "chart") svg = chart(node);
@@ -1172,11 +1278,12 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
   // Complete actual drawing before the input profile can inspect successful
   // hidden/transform branches, including owners lowered across multiple pages.
   const bodies = view.pages.map(page => page.nodes.map(draw).join(""));
-  const paintIdentity = { renderer: "officekit-native-scene-svg-internal", scene: view.scene,
+  const paintIdentity = { renderer: integrated ? "officekit-native-scene-svg" : "officekit-native-scene-svg-internal", scene: view.scene,
     sceneEvidence: ppjPreviewSceneIdentity(view.scene),
     hiddenScenePaths: Object.freeze([...hiddenScenePaths]),
     transformedScenePaths: Object.freeze([...transformedScenePaths]),
-    connectorScenePaths: Object.freeze([...connectorScenePaths]) };
+    connectorScenePaths: Object.freeze([...connectorScenePaths]),
+    isolatedLinePoints: Object.freeze(isolatedLinePoints.map(point => Object.freeze(point))) };
   let inputAssessment;
   if (assessInput) {
     const program = JSON.parse(new TextDecoder().decode(receipt.programJson));
@@ -1224,7 +1331,7 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
     d.scenePath === page.scenePath || d.scenePath.startsWith(`${page.scenePath}.`)));
   const pages = view.pages.map((page, index) => {
     const pageNode = { ...page, path: "$" };
-    limit(pageNode, "", "preview.scene.paint.integration-pending", "Internal scene painter: production G-11/G-12 integration and complete field coverage remain pending.");
+    if (!integrated) limit(pageNode, "", "preview.scene.paint.integration-pending", "Internal paint-only entry: use local preview for mandatory input assessment and publication evidence. Complete field coverage remains pending.");
     unused(PresentationSlideSchema, page.native, ["id", "elements", "background", "hidden"], pageNode);
     const background = page.native.background;
     if (background) unused(PresentationBackgroundSchema, background, ["colorRgb", "opacityThousandthPercent", "solid"], pageNode, "background.");
@@ -1258,7 +1365,9 @@ export function paintPpjSceneSvg(receipt, { assessInput = false } = {}) {
       assessed: true, diagnostics: pageDiagnostics, children: page.nodes.map(assessNode) });
     const { status, reliability } = assessment;
     const bannerHeight = Math.min(24, view.canvas.height * .12);
-    const banner = `<g data-officekit-review="${reliability.status}"><rect width="${n(view.canvas.width)}" height="${n(bannerHeight)}" fill="${reliability.status === "failed" ? "#991B1B" : "#92400E"}"/><text x="2" y="${n(bannerHeight * .7)}" font-size="${n(bannerHeight * .5)}" fill="#FFFFFF">INTERNAL SCENE PREVIEW · ${esc(reliability.status)}</text></g>`;
+    const diagnostic = reliability.violations[0] || assessment.diagnostics.find(d => d.status !== "supported");
+    const label = integrated ? (reliability.status === "failed" ? "UNRELIABLE PREVIEW" : "PREVIEW REQUIRES REVIEW") : `INTERNAL SCENE PREVIEW · ${reliability.status}`;
+    const banner = reliability.status === "passed" ? "" : `<g data-officekit-review="${reliability.status}" data-officekit-assessment-path="${esc(assessment.path)}" data-officekit-diagnostic-path="${esc(diagnostic?.path || assessment.path)}" data-officekit-diagnostic-reason="${esc(diagnostic?.reason || "unassessed")}"><rect width="${n(view.canvas.width)}" height="${n(bannerHeight)}" fill="${reliability.status === "failed" ? "#991B1B" : "#92400E"}"/><text x="2" y="${n(bannerHeight * .7)}" font-size="${n(bannerHeight * .5)}" fill="#FFFFFF">${esc(label)}</text></g>`;
     return Object.freeze({ id: page.pageId ?? page.nativeId, pageId: page.pageId, nativeId: page.nativeId, hidden: page.hidden,
       assessment, status, reliability, diagnostics: assessment.diagnostics,
       svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${n(view.canvas.width)}" height="${n(view.canvas.height)}" viewBox="0 0 ${n(view.canvas.width)} ${n(view.canvas.height)}"><rect width="100%" height="100%" fill="${fill}" fill-opacity="${n(sceneOpacity(background?.opacityThousandthPercent ?? 100000))}"/>${body}${banner}</svg>` });

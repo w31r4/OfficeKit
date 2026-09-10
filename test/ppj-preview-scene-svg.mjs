@@ -6,6 +6,7 @@ import { create, clone, toBinary } from "@bufbuild/protobuf";
 import { PresentationPreviewSceneSchema, PresentationElementSchema, PresentationTextParagraphSchema, PresentationTextRunSchema,
   PresentationCustomGeometryPathSchema, SpreadsheetChartMarkerArtifactSchema,
   SpreadsheetChartSeriesArtifactSchema, SpreadsheetChartPointStyleArtifactSchema,
+  PresentationGradientFillSchema,
   SpreadsheetChartSurfaceFillSchema, SpreadsheetChartAxisArtifactSchema } from "../src/generated/office_kit/artifact/v1/office_artifact_pb.js";
 import { nativePathData, paintPpjSceneSvg } from "../src/ppj/preview-scene-svg.mjs";
 
@@ -119,6 +120,69 @@ function fixture(edit = () => {}, program = { pages: [] }, editBindings = () => 
     assets: [{ id: "public-asset", mimeType: "image/png", sha256: sha(data), data }] };
 }
 const receipt = fixture(), before = toBinary(PresentationPreviewSceneSchema, receipt.previewScene);
+function gradientFixture(angle = 0, edit = () => {}) {
+  return fixture(scene => {
+    const shape = scene.presentation.slides[0].elements[0].content.value;
+    shape.fillRgb = ""; delete shape.fillOpacityThousandthPercent;
+    shape.gradientFill = create(PresentationGradientFillSchema, { kind: 1, angle60000: angle * 60000,
+      stops: [{ positionThousandthPercent: 0, colorRgb: "FF0000", opacityThousandthPercent: 0 },
+        { positionThousandthPercent: 50000, colorRgb: "00FF00" }, { positionThousandthPercent: 100000, colorRgb: "0000FF" }] });
+    edit(shape.gradientFill, shape);
+  });
+}
+for (const [angle, expected] of [[0, [10, 90, 210, 90]], [90, [110, 40, 110, 140]],
+  [180, [210, 90, 10, 90]], [270, [110, 140, 110, 40]], [45, [35, 15, 185, 165]]]) {
+  const input = gradientFixture(angle), original = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const painted = paintPpjSceneSvg(input), svg = painted.pages[0].svg;
+  const coordinates = svg.match(/<linearGradient[^>]* x1="([^"]+)" y1="([^"]+)" x2="([^"]+)" y2="([^"]+)"/);
+  assert.ok(coordinates);
+  expected.forEach((value, index) => assert.ok(Math.abs(Number(coordinates[index + 1]) - value) < 1e-9));
+  assert.match(svg, /<stop offset="0" stop-color="#FF0000" stop-opacity="0"/);
+  assert.match(svg, /fill="url\(#officekit-gradient-0\)"/);
+  assert.ok(!painted.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && d.scenePath.includes("gradientFill")));
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+for (const edit of [g => { g.kind = 2; delete g.angle60000; }, g => { g.angle60000 = 21600000; },
+  g => { g.stops.reverse(); }, g => { g.stops.length = 1; }, g => { g.stops[0].opacityThousandthPercent = 100001; },
+  (g, s) => { s.fillRgb = "FFFFFF"; }]) {
+  const painted = paintPpjSceneSvg(gradientFixture(0, edit));
+  assert.equal(painted.reliability.status, "failed");
+  assert.ok(!painted.pages[0].svg.includes("<linearGradient"));
+}
+const tableGradient = fixture(scene => {
+  for (const cell of scene.presentation.slides[0].elements.find(e => e.content.case === "table").content.value.rows[1].cells) {
+    cell.fill.kind = { case: "gradientFill", value: create(PresentationGradientFillSchema, { kind: 1, angle60000: 0,
+      stops: [{ positionThousandthPercent: 0, colorRgb: "CC5500" }, { positionThousandthPercent: 100000, colorRgb: "0066CC" }] }) };
+  }
+});
+const tableGradientSvg = paintPpjSceneSvg(tableGradient).pages[0].svg;
+assert.equal(tableGradientSvg.match(/<linearGradient/g)?.length, 2);
+assert.equal(new Set([...tableGradientSvg.matchAll(/<linearGradient id="([^"]+)"/g)].map(m => m[1])).size, 2);
+for (const mediaType of ["audio", "video"]) {
+  const input = fixture(scene => scene.presentation.slides[0].elements.push(child("media-poster", "media", {
+    ...frame(350, 40, 200, 100), mediaType, assetId: "native-asset", posterAssetId: "native-asset",
+    transform: { flipHorizontal: true }, loop: false,
+  })));
+  const original = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const painted = paintPpjSceneSvg(input);
+  assert.ok(painted.pages[0].svg.includes(`data-officekit-media="static-poster" data-officekit-media-type="${mediaType}"`));
+  assert.ok(painted.pages[0].svg.includes(`STATIC ${mediaType.toUpperCase()} POSTER`));
+  assert.ok(painted.pages[0].svg.includes('x="350" y="40" width="200" height="100" preserveAspectRatio="none" href="data:image/png;base64,'));
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.media-static" && d.scenePath.endsWith("media.posterAssetId")));
+  assert.ok(painted.diagnostics.some(d => d.scenePath.endsWith("media.loop")));
+  assert.notEqual(painted.reliability.status, "passed");
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+for (const posterAssetId of [""]) {
+  const painted = paintPpjSceneSvg(fixture(scene => scene.presentation.slides[0].elements.push(child("media-poster", "media", {
+    ...frame(350, 40, 200, 100), mediaType: "video", assetId: "native-asset", posterAssetId,
+  }))));
+  assert.equal(painted.reliability.status, "failed");
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.media-poster"));
+}
+assert.throws(() => paintPpjSceneSvg(fixture(scene => scene.presentation.slides[0].elements.push(child("media-poster", "media", {
+  ...frame(350, 40, 200, 100), mediaType: "video", assetId: "native-asset", posterAssetId: "missing-poster",
+})))), error => error.code === "preview.scene.asset-mismatch");
 const combinedInput = { pages: [{ id: "page", elements: [{ id: "owner", type: "shape",
   frame: { x: 10, y: 40, width: 100, height: 100, rotation: 30 },
   geometry: { kind: "preset", preset: "rect" }, futurePaint: "unmapped input" }] }],
@@ -187,6 +251,35 @@ function connectorProfileFixture({ requestedX = 100, type = "straight", hidden =
   bindings => { for (const binding of bindings) binding.programPath = "$.pages[0].elements[0]"; });
 }
 const connectorReason = "preview.fact.connector-endpoints-ignored";
+function isolatedProfileFixture({ requested = [2, null, 0], nativeValues = [2, 0, 0], hidden = false, extraOwner = false, outside = false, transparent = false, smooth = false, explicitType = true } = {}) {
+  return fixture(scene => {
+    scene.presentation.slides[0].elements = [child("line", "chart", { ...frame(100, 100, 300, 200), type: 2,
+      categories: ["A", "missing", "zero"], yAxis: { minimum: 0, maximum: outside ? 1 : 3 },
+      lineOptions: { smooth }, series: [{ name: "S", values: nativeValues, missingValueIndexes: [1],
+        marker: { symbol: 3, size: 8, fillOpacityThousandthPercent: transparent ? 0 : 100000 } }],
+    }, hidden)];
+    if (extraOwner) scene.presentation.slides[0].elements.push(child("extra", "shape", { ...frame(0, 0, 10, 10), geometry: "rect" }));
+  }, { pages: [{ id: "page", elements: [{ id: "line", type: "chart", chartType: "line",
+    data: { categories: ["A", "missing", "zero"], series: [{ name: "S", ...(explicitType ? { chartType: "line" } : {}), values: requested }] } }] }] },
+  bindings => { for (const binding of bindings) binding.programPath = "$.pages[0].elements[0]"; });
+}
+const missingReason = "preview.fact.missing-observation-misrepresented";
+const isolatedInput = isolatedProfileFixture(), isolatedBytes = toBinary(PresentationPreviewSceneSchema, isolatedInput.previewScene);
+const isolatedPaint = paintPpjSceneSvg(isolatedInput, { assessInput: true });
+assert.ok(!isolatedPaint.diagnostics.some(d => d.reason === missingReason));
+assert.equal(isolatedPaint.isolatedLinePoints.length, 2);
+assert.deepEqual(toBinary(PresentationPreviewSceneSchema, isolatedInput.previewScene), isolatedBytes);
+for (const options of [{ requested: [1, null, 0] }, { hidden: true }, { extraOwner: true }, { transparent: true }, { smooth: true }]) {
+  const painted = paintPpjSceneSvg(isolatedProfileFixture(options), { assessInput: true });
+  assert.equal(new Set(painted.diagnostics.filter(d => d.reason === missingReason).map(d => d.path)).size, 2);
+}
+const outsideIsolated = paintPpjSceneSvg(isolatedProfileFixture({ outside: true }), { assessInput: true });
+assert.ok(outsideIsolated.diagnostics.some(d => d.reason === missingReason && d.path.endsWith("values[0]")));
+assert.ok(!outsideIsolated.diagnostics.some(d => d.reason === missingReason && d.path.endsWith("values[2]")));
+for (const hidden of [false, true]) {
+  const painted = paintPpjSceneSvg(isolatedProfileFixture({ explicitType: false, hidden }), { assessInput: true });
+  assert.equal(painted.diagnostics.some(d => d.reason === "preview.fact.series-type-not-inherited"), hidden);
+}
 for (const type of ["straight", "elbow"]) {
   const input = connectorProfileFixture({ type }), original = toBinary(PresentationPreviewSceneSchema, input.previewScene);
   const result = paintPpjSceneSvg(input, { assessInput: true });
@@ -310,6 +403,66 @@ const centeredIndent = paintPpjSceneSvg(fixture(scene => {
   scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0].indentation = { case: "indentEmu", value: emu(10) };
 }));
 assert.ok(centeredIndent.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && d.scenePath.endsWith("indentEmu")));
+const bulletInput = fixture(scene => {
+  const p = scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0];
+  p.alignment = "left";
+  p.leftMargin = { case: "marginLeftEmu", value: emu(30) };
+  p.indentation = { case: "indentEmu", value: emu(-20) };
+  p.bullet = { case: "bulletCharacter", value: "●" };
+  p.bulletFont = { case: "bulletFontFamily", value: "DejaVu Sans" };
+  p.bulletColor = { case: "bulletColorRgb", value: "CC5500" };
+  p.bulletSize = { case: "bulletSizePoints", value: 20 };
+});
+const bulletOriginal = toBinary(PresentationPreviewSceneSchema, bulletInput.previewScene);
+const bulletPaint = paintPpjSceneSvg(bulletInput);
+assert.match(bulletPaint.pages[0].svg, /data-officekit-bullet="character" x="27.200000000000003" y="59.6"/);
+assert.match(bulletPaint.pages[0].svg, /<text x="47.2" y="59.6"/);
+assert.match(bulletPaint.pages[0].svg, /<text x="47.2" y="78.8"/);
+assert.equal(bulletPaint.pages[0].svg.match(/data-officekit-bullet="character"/g)?.length, 1);
+assert.ok(bulletPaint.pages[0].svg.includes('fill="#CC5500"'));
+assert.deepEqual(toBinary(PresentationPreviewSceneSchema, bulletInput.previewScene), bulletOriginal);
+for (const edit of [p => { p.bulletFont = { case: undefined }; },
+  p => { p.bulletColor = { case: "bulletColorScheme", value: "accent1" }; },
+  p => { p.bulletSize = { case: "bulletSizePercent", value: 100 }; },
+  p => { p.indentation = { case: "indentEmu", value: 0n }; }, p => { p.alignment = "center"; }]) {
+  const input = fixture(scene => {
+    scene.presentation.slides[0].elements = clone(PresentationPreviewSceneSchema, bulletInput.previewScene).presentation.slides[0].elements;
+    edit(scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0]);
+  });
+  const painted = paintPpjSceneSvg(input);
+  assert.equal(painted.reliability.status, "failed");
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.bullet-layout"));
+  assert.ok(!painted.pages[0].svg.includes('data-officekit-bullet="character"'));
+}
+for (const override of [undefined, "none", "all"]) {
+  const input = fixture(scene => {
+    const p = scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0];
+    p.defaultRunStyle.value.fontCaps = "all";
+    p.runs[0].content.value = "Mixed abc";
+    p.runs[0].fontCaps = override;
+  });
+  const before = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const painted = paintPpjSceneSvg(input);
+  assert.ok(painted.pages[0].svg.includes(`>${override === "none" ? "Mixed abc" : "MIXED ABC"}</tspan>`));
+  assert.ok(!painted.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && d.scenePath.endsWith("fontCaps")));
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), before);
+}
+for (const caps of ["small", "invalid"]) {
+  const painted = paintPpjSceneSvg(fixture(scene => {
+    scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0].runs[0].fontCaps = caps;
+  }));
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.text-capitalization" && d.scenePath.endsWith("fontCaps")));
+  assert.equal(painted.reliability.status, "failed");
+}
+const turkishCaps = paintPpjSceneSvg(fixture(scene => {
+  const p = scene.presentation.slides[0].elements[0].content.value.textBody.paragraphs[0];
+  p.runs[0].content.value = "i ı\nß & <";
+  p.runs[0].fontCaps = "all";
+  p.runs[0].fontLanguage = "tr-TR";
+}));
+assert.ok(turkishCaps.pages[0].svg.includes(">İ I</tspan>"));
+assert.ok(turkishCaps.pages[0].svg.includes(">SS &amp; &lt;</tspan>"));
+assert.ok(turkishCaps.diagnostics.some(d => d.scenePath.endsWith("fontLanguage")), "Casing is not full language/shaping support");
 const paragraphSpacing = fixture(scene => {
   const body = scene.presentation.slides[0].elements[0].content.value.textBody;
   const p = body.paragraphs[0];

@@ -1,23 +1,32 @@
 import assert from "node:assert/strict";
 import { assessPpjPreviewInput } from "../src/ppj/preview-input-assessment.mjs";
 import { renderPpjToSvg } from "../src/ppj/svg-preview.mjs";
+import { previewSceneFixture, nativeElement, emuFrame } from "./helpers/ppj-preview-scene-fixture.mjs";
+import { sha256 } from "../src/ppj/workspace.mjs";
 
 const frame = { x: 5, y: 8, width: 100, height: 60 };
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j5aUAAAAASUVORK5CYII=", "base64");
 const asset = { id: "pixel", mimeType: "image/png", data: png };
 const assets = new Map([[asset.id, asset]]);
 const image = { id: "picture", type: "image", frame, asset: "pixel", fit: "contain", opacity: 0.5 };
-const program = (element) => ({ pages: [{ id: "page", elements: [element] }] });
+const program = (element) => ({ assets: [{ id: asset.id, mimeType: asset.mimeType, sha256: sha256(png) }], pages: [{ id: "page", elements: [element] }] });
 const assess = (element) => assessPpjPreviewInput(program(element), { assets });
 const base = assess(image);
 assert.equal(base.children[0].children[0].status, "supported");
 assert.equal(base.reliability.status, "passed");
 const bytes = Buffer.from(JSON.stringify(program(image)));
+// Independent native effective geometry for a square image contained in the
+// 100x60 authored frame; the consumer must not apply contain a second time.
+const compiled = previewSceneFixture(program(image), [{ id: "page", elements: [
+  nativeElement("picture", "image", { ...emuFrame(25, 8, 60, 60), assetId: "pixel", opacityThousandthPercent: 50000 }),
+] }], ["$.pages[0].elements[0]"], [asset]);
 const drawn = await renderPpjToSvg("in-memory.ppj", {
-  load: async () => ({ assets: [asset] }), compile: async () => ({ programJson: bytes }),
+  load: async () => ({ program: bytes, assets: [asset] }), compile: async () => compiled,
 });
-assert.match(drawn.pages[0].svg, /<image data-officekit-id="picture" href="data:image\/png;base64,/u);
-assert.match(drawn.pages[0].svg, /x="5" y="8" width="100" height="60" preserveAspectRatio="xMidYMid meet" opacity="0.5"/u);
+assert.match(drawn.pages[0].svg, /data-officekit-id="picture"/u);
+assert.match(drawn.pages[0].svg, /href="data:image\/png;base64,/u);
+assert.match(drawn.pages[0].svg, /x="25" y="8" width="60" height="60"/u);
+assert.match(drawn.pages[0].svg, /preserveAspectRatio="none" opacity="0.5"/u);
 assert.ok(drawn.pages[0].svg.includes(png.toString("base64")));
 assert.equal(drawn.status, "supported");
 assert.equal(drawn.reliability.status, "passed");
@@ -29,12 +38,17 @@ assert.notEqual(limited.children[0].children[0].status, "supported");
 assert.ok(limited.diagnostics.some((d) => d.path.endsWith(".crop.left") && d.valueSummary === "0.25"));
 const croppedInput = program({ ...image, crop: { left: 0.25, top: 0, right: 0, bottom: 0 } });
 const croppedBytes = Buffer.from(JSON.stringify(croppedInput));
+const croppedCompiled = previewSceneFixture(croppedInput, [{ id: "page", elements: [
+  nativeElement("picture", "image", { ...emuFrame(25, 8, 60, 60), assetId: "pixel", opacityThousandthPercent: 50000,
+    crop: { leftThousandthPercent: 25000 } }),
+] }], ["$.pages[0].elements[0]"], [asset]);
 const cropped = await renderPpjToSvg("in-memory.ppj", {
-  load: async () => ({ assets: [asset] }), compile: async () => ({ programJson: croppedBytes }),
+  load: async () => ({ program: croppedBytes, assets: [asset] }), compile: async () => croppedCompiled,
 });
 assert.equal(cropped.reliability.status, "requires-review");
 assert.match(cropped.pages[0].svg, /data-officekit-review="requires-review"/);
 assert.match(cropped.pages[0].svg, /PREVIEW REQUIRES REVIEW/);
+assert.match(cropped.pages[0].svg, /<image x="-20" y="0" width="80" height="60"/);
 assert.deepEqual(cropped.canvas, drawn.canvas);
 assert.equal(JSON.stringify(croppedInput), croppedBytes.toString());
 const noFit = { ...image }; delete noFit.fit;

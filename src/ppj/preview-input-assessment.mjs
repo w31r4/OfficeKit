@@ -4,6 +4,7 @@ import { previewSchemaAt, validatePreviewSupport } from "./preview-capabilities.
 import { previewAssessment, previewDiagnostic, previewPath, mergePreviewDiagnostics } from "./preview-diagnostics.mjs";
 import { previewFactualErrors } from "./preview-factual-errors.mjs";
 import { readPpjPreviewReceiptScene } from "./preview-scene.mjs";
+import { SpreadsheetChartType } from "../generated/office_kit/artifact/v1/office_artifact_pb.js";
 
 const object = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const ref = (name) => ({ $ref: `#/$defs/${name}` });
@@ -50,6 +51,7 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
   const paintedOwnerTransforms = new Map();
   const paintedOwnerGroups = new Map();
   const paintedOwnerConnectors = new Map();
+  const paintedOwnerLines = new Map();
   if (rendererProfile === "native-scene-svg") {
     const mapping = registry.previewScene?.factualMappings?.visibility;
     if (mapping?.handler !== "all-owner-nodes-hidden" || mapping.test !== "test/ppj-preview-scene-native.mjs")
@@ -63,8 +65,11 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
     const connectorMapping = registry.previewScene?.factualMappings?.connectorEndpoints;
     if (connectorMapping?.handler !== "all-owner-direct-endpoints-painted" || connectorMapping.test !== "test/ppj-preview-scene-native.mjs")
       throw new Error("Missing verified native connector endpoint mapping in the preview registry");
+    const isolatedMapping = registry.previewScene?.factualMappings?.isolatedLinePoints;
+    if (isolatedMapping?.handler !== "all-owner-matching-line-points-painted" || isolatedMapping.test !== "test/ppj-preview-scene-native.mjs")
+      throw new Error("Missing verified native isolated line point mapping in the preview registry");
     const scene = readPpjPreviewReceiptScene(sceneReceipt ?? {});
-    if (scenePaint?.renderer !== "officekit-native-scene-svg-internal" || scenePaint.scene !== scene ||
+    if (!["officekit-native-scene-svg", "officekit-native-scene-svg-internal"].includes(scenePaint?.renderer) || scenePaint.scene !== scene ||
         scenePaint.sceneEvidence?.sha256 !== scene.sha256 || !Array.isArray(scenePaint.hiddenScenePaths) || !Array.isArray(scenePaint.transformedScenePaths) ||
         JSON.stringify(program) !== JSON.stringify(JSON.parse(new TextDecoder().decode(sceneReceipt.programJson))))
       throw new Error("Native preview input assessment requires the matching canonical input and painted scene");
@@ -74,6 +79,11 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
     const transformed = new Set(scenePaint.transformedScenePaths), nativeTransforms = new Map();
     const nativeGroups = new Map();
     const nativeConnectors = new Map(), connectors = new Set(scenePaint.connectorScenePaths ?? []);
+    const nativeLines = new Map(), isolated = new Map();
+    for (const point of scenePaint.isolatedLinePoints ?? []) {
+      if (!isolated.has(point.scenePath)) isolated.set(point.scenePath, new Set());
+      isolated.get(point.scenePath).add(`${point.seriesIndex}:${point.pointIndex}`);
+    }
     function visitNative(elements, prefix) {
       elements.forEach((element, index) => {
         const address = `${prefix}[${index}]`;
@@ -81,6 +91,7 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
         nativeTransforms.set(address, native?.transform ?? native?.frameTransform);
         if (element.content.case === "group") nativeGroups.set(address, native);
         if (element.content.case === "connector") nativeConnectors.set(address, native);
+        if (element.content.case === "chart" && native.type === SpreadsheetChartType.LINE) nativeLines.set(address, native);
         if (element.hidden === true) nativeHidden.add(address);
         if (element.content.case === "group") visitNative(element.content.value.children, `${address}.group.children`);
         if (element.content.case === "diagram" && element.content.value.drawing)
@@ -103,6 +114,9 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
     for (const [path, bindings] of owners)
       if (bindings.every(binding => transformed.has(binding.scenePath) && connectors.has(binding.scenePath) && nativeConnectors.has(binding.scenePath)))
         paintedOwnerConnectors.set(path, bindings.map(binding => nativeConnectors.get(binding.scenePath)));
+    for (const [path, bindings] of owners)
+      if (bindings.every(binding => transformed.has(binding.scenePath) && nativeLines.has(binding.scenePath) && isolated.has(binding.scenePath)))
+        paintedOwnerLines.set(path, bindings.map(binding => ({ native: nativeLines.get(binding.scenePath), points: isolated.get(binding.scenePath) })));
   }
   const rules = new Map(Object.values(support.fields).map((rule) => [previewSchemaAt(schema, rule.schemaRef), rule]));
   const metadata = new Set(Object.values(support.metadata).map((rule) => previewSchemaAt(schema, rule.schemaRef)));
@@ -237,8 +251,29 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
             return Number.isSafeInteger(Number(value)) && Number(value) / 12700 === endpoint[axis];
           }))) resolvedConnectorPaths.add(`${path}.${field}`);
     }
+    const resolvedIsolatedLinePaths = new Set(), resolvedLineSeriesPaths = new Set(), lines = paintedOwnerLines.get(path);
+    const data = element?.data;
+    // Match literal ordered channels, never independently evaluate datasets or
+    // reinterpret series topology. Every node owned by this input must agree.
+    if (element?.type === "chart" && element.chartType === "line" && data?.dataset === undefined &&
+        Array.isArray(data?.categories) && Array.isArray(data?.series) && lines?.length && lines.every(({ native }) =>
+          native.categories.length === data.categories.length && native.categories.every((value, i) => value === data.categories[i]) &&
+          native.series.length === data.series.length && native.series.every((series, si) => {
+            const input = data.series[si], missing = new Set(series.missingValueIndexes);
+            return (!input.chartType || input.chartType === "line") && (input.name ?? "") === series.name && Array.isArray(input.values) &&
+              input.values.length === series.values.length && input.values.every((value, i) =>
+                value === null ? missing.has(i) && series.values[i] === 0 : Number.isFinite(value) && !missing.has(i) && value === series.values[i]);
+          }))) {
+      data.series.forEach((series, si) => {
+        resolvedLineSeriesPaths.add(`${path}.data.series[${si}]`);
+        series.values.forEach((value, pi) => {
+          if (Number.isFinite(value) && lines.every(line => line.points.has(`${si}:${pi}`)))
+            resolvedIsolatedLinePaths.add(`${path}.data.series[${si}].values[${pi}]`);
+        });
+      });
+    }
     context.diagnostics.push(...previewFactualErrors(element, { path, pageId, id }, support,
-      { hiddenOwnerPaths, resolvedTransformPaths, resolvedGroupCoordinates, resolvedConnectorPaths }));
+      { hiddenOwnerPaths, resolvedTransformPaths, resolvedGroupCoordinates, resolvedConnectorPaths, resolvedIsolatedLinePaths, resolvedLineSeriesPaths }));
     const type = object(element) && Object.hasOwn(support.types, element.type) ? support.types[element.type] : undefined;
     if (!provenImage) emit(context, previewPath(path, "type"), element?.type, type, type ? {} : { status: "opaque", reason: "preview.element.unknown" });
     if (element?.type === "image" && !assets.get(element.asset)?.data?.byteLength) {

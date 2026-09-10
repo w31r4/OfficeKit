@@ -14,6 +14,8 @@ officekit ppj preview deck.ppj -o preview-new --json
 
 PNG 使用可选 sharp 依赖。命令不会自动下载依赖或切换到 LibreOffice；`ppj render` 是独立的外部渲染入口。缺少 sharp 时，可生成的 SVG 会保留，但请求的 SVG+PNG 发布返回失败。
 
+本地 preview 现要求匹配的原生 codec 返回 `PresentationPreviewScene` v1，renderer 为 `officekit-native-scene-svg`。编译器负责组件展开、数据映射和有效状态；JS 只绘制该场景，不再用 canonical PPJ 猜测布局。普通 build/check 不请求 scene。旧包不支持时明确报 `preview.scene.missing`，必须配套重建/更新 codec，没有旧绘制回退。本次真实验证使用独立构建包；当前默认安装包尚未更新，不能将测试环境成功当作默认安装成功。
+
 ## 目录内的证据
 
 | 文件 | 含义 |
@@ -52,11 +54,11 @@ schema 为 `office-kit/ppj-svg-preview-output/v1`。
 
 支持与可靠性检查已经接入真实 SVG 绘制和发布。字段限制、继承/全局状态、未知视觉后代以及已登记的事实错误汇入同一份检查结果。分支自报 supported 不能覆盖字段限制；错误级事实诊断或生产失败使可靠性为 failed。仅有 partial/opaque 限制时为 requires-review；passed 只说明这一套自动检查没有发现限制，仍不等于人工视觉或编辑保真通过。
 
-内部 scene painter 已复用上述发布基础，但正式 CLI 尚未切换。原生多页可以共享语义根 `$`，因此失败回填必须保留独立页身份与 `scenePath`；局部栅格/写盘失败不能把其他页的检查子树替换掉。全局依赖失败影响全部页面，以文档级地址记录。
+正式 CLI 已复用 scene painter 和上述发布基础。原生多页可以共享语义根 `$`，因此失败回填保留独立页身份与 `scenePath`；局部栅格/写盘失败不能把其他页的检查子树替换掉。全局依赖失败影响全部页面，以文档级地址记录。
 
 场景路线的输入证据通过共享 receipt 验证器检查真实候选字节、程序、场景摘要和资产，然后提取 JSON 安全的 `scene` 身份；painter 同时记录自己消费的场景身份。publisher 比对二者与 compile 摘要、源绑定模式。缺场景、版本不兼容或不匹配时返回 `preview.output.scene`，可靠性为 failed；此时尚未创建输出目录或加载栅格后端，失败证据位于调用异常 receipt 中，而非落盘清单。原源 hash 与编辑候选 hash 分别记录，不能用未编辑源的场景证明编辑候选正确。
 
-身份匹配只证明输出对应哪次场景，不证明全部绘制正确。内部警示和未支持字段诊断仍保留。真实集成已覆盖四个作者/源候选输入各六类操作故障，以及作者和源内容事实失败的红色警示；正式接入尚需继续验收。操作故障不反向修改已经生成的 SVG/PNG，最终发布状态以清单或调用异常为准。
+身份匹配只证明输出对应哪次场景，不证明全部绘制正确。正式入口移除内部入口提示，保留实际输入/场景限制及对应警示。真实集成保留四个作者/源候选输入各六类操作故障，以及事实失败红色警示；新增十个正式函数案例和 CLI 子进程回归，范围见当前差距第 2 节。操作故障不反向修改已经生成的 SVG/PNG，最终发布状态以清单或调用异常为准。
 
 能力声明描述真实类型的整体边界，不把“存在绘制分支”当作该类型完全支持。目前没有整个元素/图表类型被声明为 supported；个别受限状态可以通过，例如已验证的显式 contain PNG 映射。裁切、源绑定或其他未支持状态仍会降低实际结果的等级。诊断不修复绘制，已报告的文字、图表、图片等缺口仍需逐项实现。
 
@@ -66,11 +68,11 @@ schema 为 `office-kit/ppj-svg-preview-output/v1`。
 
 内部调用 `paintPpjSceneSvg(receipt, { assessInput: true })` 已可将该输入检查合入实际场景检查树。先完成所有页绘制，再检查原始输入；保留原始 `path`，按最近语义 owner 添加真实 `scenePath`，一个 owner 的多个生成节点各保留诊断。未映射的输入限制归到真实页或全局，不静默丢弃；最终 SVG/PNG 警示及发布清单使用合并后的状态。公共资产 ID 按已验证 MIME/hash 对应场景中的资产字节，不重新读取路径。结果另保留 `inputAssessment` 供内部检查；最终清单持久化合并后的 assessment，并非额外复制整个输入树。
 
-该选项目前默认关闭，供内部接入验收；正式 CLI 仍未切换。它不代表页面通过：其他旧事实规则没有被批量解除，未支持的输入或场景字段仍产生限制或失败。
+上述选项仅控制内部 paint-only 入口。正式函数使用 `renderPpjSceneSvg(receipt)`，强制执行输入合并检查，没有关闭选项。其他旧事实规则未批量解除，未知/未支持状态仍产生限制或失败。公共返回仅含 JSON 安全的场景身份，不暴露 protobuf BigInt 对象图；原始 scene 只传给验证器和 publisher。
 
 组坐标另有 registry 的 `groupCoordinates` 映射：只有某输入组的全部 owner 绑定均为实际成功绘制的原生组，且外框和 childFrame 的 x/y/width/height 与安全转换后的原生 EMU 值逐项相等，才解除 `preview.fact.group-coordinates-ignored`。隐藏组、零子尺寸导致的绘制失败、缺记录或坐标不匹配仍保留错误；缺 registry 映射直接拒绝该 profile。字段整体 partial、未知属性和其他事实规则不因此解除。
 
-内部 scene 路线的页面 assessment 下另保留真实原生节点层级。生成节点可以共用语义 ID，但 scenePath 独立；未访问的子节点明确记为 unassessed。节点局部状态不能抵消祖先、页面或全局限制，检查树不代表源编辑授权。正式路线尚未切换到这棵原生检查树。
+正式路线的页面 assessment 保留真实原生节点层级。生成节点可以共用语义 ID，但 scenePath 独立；未访问的子节点明确记为 unassessed。节点局部状态不能抵消祖先、页面或全局限制，检查树不代表源编辑授权。
 
 事实错误或绘制不可用的页面显示红色 `UNRELIABLE PREVIEW`；只有未实现/不透明限制的页面显示棕色 `PREVIEW REQUIRES REVIEW`。警示在栅格化前加入 SVG，PNG 使用同一份 SVG，保留原画布尺寸与元素 ID。警示覆盖页面顶部的一小条区域，是审查标记，不是修改输入中的版式或新增可编辑页面对象。
 
@@ -98,6 +100,9 @@ SVG 警示包含 `data-officekit-assessment-path`、`data-officekit-diagnostic-p
 
 | code | 处置 |
 | --- | --- |
+| `preview.scene.missing` / `preview.scene.version` | 原生包缺少场景或版本不匹配；配套重建/更新，禁止回退猜测 |
+| `preview.scene.*-mismatch` | 检查程序、候选、scene 或资产身份；绘制前拒绝，无输出目录 |
+| `preview.output.scene` | publisher 的场景身份交叉检查失败；查看异常 receipt，此时尚未发布文件 |
 | `preview.output.exists` | 已有目标路径受到保护；选择新输出路径 |
 | `preview.output.reserve` | 检查父目录、权限或路径错误 |
 | `preview.output.pending` | 尚未发布页面；检查初始清单写入错误 |
