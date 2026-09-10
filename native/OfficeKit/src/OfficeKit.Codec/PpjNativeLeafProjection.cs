@@ -139,6 +139,7 @@ internal static class PpjNativeLeafProjection
             ["textDefaultReflectionScaleX"] = 100_000,
             ["textDefaultReflectionScaleY"] = 100_000,
             ["textDefaultReflectionSkewX"] = 60_000,
+            ["textDefaultReflectionSkewY"] = 60_000,
             ["shapeInnerShadowDirectionDegrees"] = 60_000,
             ["imageInnerShadowDirectionDegrees"] = 60_000,
             ["shapeReflectionDirectionDegrees"] = 60_000,
@@ -1533,6 +1534,10 @@ internal static class PpjNativeLeafProjection
                 paragraph.DefaultRunProperties.Reflection is { HasSkewXAngle60000: true } reflectionSkewX)
                 AddScaled(add, "textDefaultReflectionSkewX",
                     reflectionSkewX.SkewXAngle60000 / 60_000d, 60_000, nativeIndex);
+            if (paragraph.DefaultRunStyleCase == PresentationTextParagraph.DefaultRunStyleOneofCase.DefaultRunProperties &&
+                paragraph.DefaultRunProperties.Reflection is { HasSkewYAngle60000: true } reflectionSkewY)
+                AddScaled(add, "textDefaultReflectionSkewY",
+                    reflectionSkewY.SkewYAngle60000 / 60_000d, 60_000, nativeIndex);
 
             foreach (var run in paragraph.Runs)
             {
