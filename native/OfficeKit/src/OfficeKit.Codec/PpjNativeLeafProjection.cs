@@ -64,7 +64,7 @@ internal static class PpjNativeLeafProjection
     private static readonly HashSet<string> BooleanKinds = new(StringComparer.Ordinal)
     {
         "textBodyColumnDirection", "textBodyUpright", "textBodyAnchorCenter", "textBodyForceAntiAlias", "textBodySpaceFirstLastParagraph", "textBodyCompatibleLineSpacing", "textBodyFromWordArt", "tableBandedRows", "tableBandedColumns", "tableFirstColumnEmphasis", "tableLastColumnEmphasis", "tableLastRow", "fontBold", "fontItalic", "flipHorizontal", "flipVertical", "customGeometryPathFill", "customGeometryPathStroke", "customGeometryPathExtrusionAllowed",
-        "textDefaultShadowRotateWithShape", "shadowRotateWithShape", "imageShadowRotateWithShape",
+        "textDefaultShadowRotateWithShape", "textDefaultReflectionRotateWithShape", "shadowRotateWithShape", "imageShadowRotateWithShape",
     };
 
     private static readonly HashSet<string> IntegerKinds = new(StringComparer.Ordinal)
@@ -1542,6 +1542,9 @@ internal static class PpjNativeLeafProjection
                 paragraph.DefaultRunProperties.Reflection is { HasAlignment: true } reflectionAlignment)
                 add("textDefaultReflectionAlignment", reflectionAlignment.Alignment,
                     JsonValue.Create(reflectionAlignment.Alignment), nativeIndex, 0);
+            if (paragraph.DefaultRunStyleCase == PresentationTextParagraph.DefaultRunStyleOneofCase.DefaultRunProperties &&
+                paragraph.DefaultRunProperties.Reflection is { HasRotateWithShape: true } reflectionRotation)
+                AddBoolean(add, "textDefaultReflectionRotateWithShape", reflectionRotation.RotateWithShape, nativeIndex);
 
             foreach (var run in paragraph.Runs)
             {

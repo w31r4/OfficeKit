@@ -402,6 +402,7 @@ public sealed partial class PptxCodecTests
                 reflection.HorizontalSkew = -750_000;
                 reflection.VerticalSkew = 495_000;
                 reflection.Alignment = A.RectangleAlignmentValues.Bottom;
+                reflection.RotateWithShape = true;
             }
             source = stream.ToArray();
         }
@@ -440,6 +441,7 @@ public sealed partial class PptxCodecTests
         Assert.Equal(-12.5, projectedReflectionParagraph["style"]!["defaultText"]!["reflection"]!["skewX"]!.GetValue<double>(), precision: 6);
         Assert.Equal(8.25, projectedReflectionParagraph["style"]!["defaultText"]!["reflection"]!["skewY"]!.GetValue<double>(), precision: 6);
         Assert.Equal("b", projectedReflectionParagraph["style"]!["defaultText"]!["reflection"]!["alignment"]!.GetValue<string>());
+        Assert.True(projectedReflectionParagraph["style"]!["defaultText"]!["reflection"]!["rotateWithShape"]!.GetValue<bool>());
         var softEdgeLeaves = projectedElement["nativeRef"]!["leaves"]!.AsArray()
             .Select(leaf => leaf!.AsObject())
             .Where(leaf => leaf["kind"]!.GetValue<string>() == "textSoftEdgeRadiusEmu")
@@ -660,6 +662,12 @@ public sealed partial class PptxCodecTests
             .ToArray();
         Assert.Single(defaultReflectionAlignmentLeaves);
         Assert.Equal("b", defaultReflectionAlignmentLeaves[0]["value"]!.GetValue<string>());
+        var defaultReflectionRotateWithShapeLeaves = projectedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Select(leaf => leaf!.AsObject())
+            .Where(leaf => leaf["kind"]!.GetValue<string>() == "textDefaultReflectionRotateWithShape")
+            .ToArray();
+        Assert.Single(defaultReflectionRotateWithShapeLeaves);
+        Assert.True(defaultReflectionRotateWithShapeLeaves[0]["value"]!.GetValue<bool>());
 
         softEdgeLeaves[0]["value"] = 127_000;
         defaultSoftEdgeLeaves[0]["value"] = 76_200;
@@ -696,6 +704,7 @@ public sealed partial class PptxCodecTests
         defaultReflectionSkewXLeaves[0]["value"] = 20d;
         defaultReflectionSkewYLeaves[0]["value"] = -20d;
         defaultReflectionAlignmentLeaves[0]["value"] = "tr";
+        defaultReflectionRotateWithShapeLeaves[0]["value"] = false;
         var edited = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
@@ -787,6 +796,7 @@ public sealed partial class PptxCodecTests
             Assert.Equal(1_200_000, defaultReflection.HorizontalSkew!.Value);
             Assert.Equal(-1_200_000, defaultReflection.VerticalSkew!.Value);
             Assert.Equal(A.RectangleAlignmentValues.TopRight, defaultReflection.Alignment!.Value);
+            Assert.False(defaultReflection.RotateWithShape!.Value);
         }
 
         var editedBytes = edited.File.ToByteArray();
@@ -844,6 +854,7 @@ public sealed partial class PptxCodecTests
         Assert.Equal(20, reprojectedElement["text"]!["paragraphs"]![3]!["style"]!["defaultText"]!["reflection"]!["skewX"]!.GetValue<double>(), precision: 6);
         Assert.Equal(-20, reprojectedElement["text"]!["paragraphs"]![3]!["style"]!["defaultText"]!["reflection"]!["skewY"]!.GetValue<double>(), precision: 6);
         Assert.Equal("tr", reprojectedElement["text"]!["paragraphs"]![3]!["style"]!["defaultText"]!["reflection"]!["alignment"]!.GetValue<string>());
+        Assert.False(reprojectedElement["text"]!["paragraphs"]![3]!["style"]!["defaultText"]!["reflection"]!["rotateWithShape"]!.GetValue<bool>());
     }
 
     [Fact]
@@ -974,7 +985,7 @@ public sealed partial class PptxCodecTests
         Assert.True(authored.Ok, Diagnostics(authored));
         var authoredSource = RemoveEmbeddedPpj(authored.File.ToByteArray());
 
-        foreach (var profile in new[] { "missing-fade", "negative-fade", "bound-fade", "invalid-fade", "attribute", "child", "duplicate-effect", "duplicate-list", "dag", "unsupported-transform" })
+        foreach (var profile in new[] { "missing-fade", "negative-fade", "bound-fade", "invalid-fade", "attribute", "child", "duplicate-effect", "duplicate-list", "dag", "non-full-span" })
         {
             using var stream = new MemoryStream();
             stream.Write(authoredSource);
@@ -992,7 +1003,7 @@ public sealed partial class PptxCodecTests
                 else if (profile == "child") list.InnerXml = """<a:reflection xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" blurRad="25400" stA="50000" stPos="0" endA="10000" endPos="100000" dist="38100" dir="2700000" fadeDir="1800000"><future:content xmlns:future="urn:officekit:test"/></a:reflection>""";
                 else if (profile == "duplicate-effect") list.Append(reflection.CloneNode(true));
                 else if (profile == "duplicate-list") defaults.Append(list.CloneNode(true));
-                else if (profile == "unsupported-transform") reflection.SetAttribute(new OpenXmlAttribute("rotWithShape", "", "1"));
+                else if (profile == "non-full-span") reflection.SetAttribute(new OpenXmlAttribute("stPos", "", "1"));
                 else defaults.Append(new A.EffectDag());
             }
 
@@ -1011,11 +1022,11 @@ public sealed partial class PptxCodecTests
             Assert.True(projected.Ok, profile + ": " + Diagnostics(projected));
             var projectedProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
             var projectedElement = projectedProgram["pages"]![0]!["elements"]![0]!.AsObject();
-            if (profile == "unsupported-transform")
+            if (profile == "non-full-span")
                 Assert.Equal(30, projectedElement["text"]!["paragraphs"]![0]!["style"]!["defaultText"]!["reflection"]!["fadeAngle"]!.GetValue<double>());
             else
                 Assert.True(projectedElement["text"]!["paragraphs"]![0]!["style"]?["defaultText"]?["reflection"]?["fadeAngle"] is null, profile);
-            if (profile != "unsupported-transform")
+            if (profile != "non-full-span")
                 Assert.DoesNotContain(
                     projectedElement["nativeRef"]!["leaves"]!.AsArray(),
                     leaf => leaf!["kind"]!.GetValue<string>() == "textDefaultReflectionFadeAngleDegrees");
@@ -1034,7 +1045,7 @@ public sealed partial class PptxCodecTests
             Assert.True(noOp.Ok, profile + ": " + Diagnostics(noOp));
             Assert.Equal(source, noOp.File.ToByteArray());
 
-            if (profile == "unsupported-transform")
+            if (profile == "non-full-span")
             {
                 var fadeLeaf = projectedElement["nativeRef"]!["leaves"]!.AsArray()
                     .Single(leaf => leaf!["kind"]!.GetValue<string>() == "textDefaultReflectionFadeAngleDegrees")!
