@@ -22,6 +22,7 @@ const evidenceFiles = ["../src/ppj/preview-scene-svg.mjs", "./ppj-preview-scene-
   "../src/ppj/svg-preview.mjs",
   "../src/ppj/preview-scene.mjs", "../src/ppj/preview-scene-view.mjs", "../src/ppj/preview-diagnostics.mjs", "../src/ppj/preview-output.mjs",
   "../src/ppj/preview-input-assessment.mjs", "../src/ppj/preview-factual-errors.mjs", "../src/ppj/capability-registry.json",
+  "../src/ppj/preset-geometry-profiles.json",
   "../src/generated/office_kit/artifact/v1/office_artifact_pb.js",
   "./fixtures/presentation/preview-nested-repeat-equivalence.json", "./fixtures/presentation/preview-dataset-equivalence.json",
   "./fixtures/presentation/preview-style-grammar-equivalence.json"];
@@ -332,6 +333,7 @@ try {
   const backgroundGradientCases = [], backgroundGradientFailures = [];
   const backgroundImageCases = [], backgroundImageFailures = [], backgroundImageRejections = [];
   const shapeImageCases = [], shapeImageFailures = [];
+  const polygonPresetCases = [], polygonPresetFailures = [];
   const radialGradientCases = [], radialGradientFailures = [], radialGeometryCases = [];
   const brightnessCases = [], brightnessFailures = [];
   async function backgroundGradientPixels(name, receipt, angle, alpha = 0, removed = false) {
@@ -3234,6 +3236,151 @@ try {
       console.error(`Shape image ${preset} failed at ${evidence.stage}: ${error.message}`);
     }
   }
+  // Independent literal paths, not output sampled from the polygon painter.
+  // The 240x120 frame makes short-side adjustment scaling distinguishable
+  // from the incorrect width-based construction.
+  const polygonReferencePoints = (preset, adjustment) => {
+    const offset = { undefined: preset === "chevron" ? 60 : preset === "triangle" ? 120 : 30,
+      75000: preset === "triangle" ? 180 : 90, 25000: preset === "triangle" ? 60 : 30, 0: 0 }[String(adjustment)];
+    switch (preset) {
+      case "triangle": return [[0,120],[offset,0],[240,120]];
+      case "rtTriangle": return [[0,120],[0,0],[240,120]];
+      case "trapezoid": return [[0,120],[offset,0],[240-offset,0],[240,120]];
+      case "parallelogram": return [[0,120],[offset,0],[240,0],[240-offset,120]];
+      case "chevron": return [[0,0],[240-offset,0],[240,60],[240-offset,120],[0,120],[offset,60]];
+    }
+  };
+  const polygonReferenceTextRectangle = (preset, adjustment) => {
+    const variant = String(adjustment);
+    let edges;
+    if (preset === "triangle") edges = { undefined: [60,60,180,120], 75000: [90,60,210,120], 25000: [30,60,150,120], 0: [0,60,120,120] }[variant];
+    if (preset === "rtTriangle") edges = [20,70,140,110];
+    if (preset === "trapezoid") edges = { undefined: [20,10,220,120], 75000: [60,30,180,120], 25000: [20,10,220,120], 0: [0,0,240,120] }[variant];
+    if (preset === "parallelogram") edges = { undefined: [32.5,16.25,207.5,103.75], 75000: [57.5,28.75,182.5,91.25], 25000: [32.5,16.25,207.5,103.75], 0: [20,10,220,110] }[variant];
+    if (preset === "chevron") edges = { undefined: [60,0,180,120], 75000: [90,0,150,120], 25000: [30,0,210,120], 0: [0,0,240,120] }[variant];
+    assert.ok(edges);
+    return Object.fromEntries(["left", "top", "right", "bottom"].map((k,i) => [k,edges[i]]));
+  };
+  const exceptFirstPresetAdjustments = xml => {
+    // Semantic image edits may add a redundant relationship namespace at the
+    // slide root. Prove every r-qualified use already declares that same URI
+    // locally before normalizing only this exact root declaration.
+    const relationships = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+    for (const [tag] of xml.matchAll(/<[^>]+>/g)) if (/\sr:[\w.-]+="/.test(tag))
+      assert.equal(xmlAttributes(tag)["xmlns:r"], relationships, "relationship prefix must already have the same local binding");
+    xml = xml.replace(/<p:sld\b[^>]*>/, tag => tag.replace(` xmlns:r="${relationships}"`, ""));
+    const drawing = "http://schemas.openxmlformats.org/drawingml/2006/main";
+    const rootDrawing = xmlAttributes(xml.match(/<p:sld\b[^>]*>/)[0])["xmlns:a"];
+    xml = xml.replace(/<p:blipFill\b[^>]*>[\s\S]*?<\/p:blipFill>/, fill =>
+      fill.replace(/<a:srcRect\b[^>]*\/>/, tag => {
+        const local = xmlAttributes(tag)["xmlns:a"];
+        assert.ok(local === drawing || local === undefined && rootDrawing === drawing,
+          "picture crop must have the same local or root DrawingML binding");
+        return tag.replace(` xmlns:a="${drawing}"`, "");
+      }));
+    let geometries = 0, lists = 0;
+    const masked = xml.replace(/<a:prstGeom\b[^>]*>[\s\S]*?<\/a:prstGeom>/, geometry => {
+      geometries++;
+      return geometry.replace(/<a:avLst\b[^>]*(?:\/>|>[\s\S]*?<\/a:avLst>)/, () => { lists++; return "<a:avLst/>"; });
+    });
+    assert.equal(geometries, 1); assert.equal(lists, 1);
+    return orderedXml(masked);
+  };
+  function polygonProgram(preset, consumer, adjustment, reference = false) {
+    const program = structuredClone(pairBase), points = polygonReferencePoints(preset, adjustment);
+    const geometry = reference ? { kind: "custom", viewBox: { x: 0, y: 0, width: 240, height: 120 }, paths: [{
+      fill: true, stroke: true, commands: [...points.map(([x,y],i) => ({ op: i ? "lineTo" : "moveTo", x,y })), { op: "close" }],
+    }], ...(consumer === "image" ? {} : { textRectangle: polygonReferenceTextRectangle(preset, adjustment) }) }
+      : { kind: "preset", preset, ...(adjustment === undefined ? {} : { adjustments: [adjustment] }) };
+    const frame = { x: 100, y: 100, width: 240, height: 120,
+      ...(preset === "chevron" ? { rotation: 15, flipH: true } : {}) };
+    const imageFill = { type: "image", asset: backgroundAsset.id, fit: "stretch", opacity: .5, crop: { left: -.5, right: -.5 } };
+    const stroke = { color: "#FF00FF", width: 4 };
+    const element = consumer === "image" ? { id: "polygon", type: "image", frame, mask: geometry,
+      asset: backgroundAsset.id, fit: "stretch", crop: imageFill.crop, opacity: .5, border: stroke }
+      : { id: "polygon", type: "shape", frame, geometry,
+        style: { fill: consumer === "shape-image" ? imageFill : { type: "solid", color: "#008800" }, stroke },
+        text: { paragraphs: [{ runs: [{ text: "F0", style: { size: 16, color: "#000000" } }] }] } };
+    program.assets = consumer === "shape" ? [] : [backgroundAsset];
+    program.pages[0].background = { type: "solid", color: "#0000FF" };
+    program.pages[0].elements = [element, { id: "unrelated", type: "shape", frame: { x: 400, y: 300, width: 50, height: 50 },
+      geometry: { kind: "preset", preset: "rect" }, style: { fill: { type: "solid", color: "#CC5500" } } }];
+    return { ...sourceWorkspace, program: Buffer.from(JSON.stringify(program)), assets: consumer === "shape" ? [] : [{ ...backgroundAsset, data: backgroundData }] };
+  }
+  async function polygonPixels(name, receipt, input, preset, consumer, adjustment) {
+    const view = createPpjSceneView(receipt), target = view.pages[0].nodes[0], native = target.native;
+    assert.equal(consumer === "image" ? native.maskPreset : native.geometry, preset);
+    assert.deepEqual(consumer === "image" ? native.maskPresetAdjustments : native.presetAdjustments, adjustment === undefined ? [] : [adjustment]);
+    const painted = await savePaint(`polygon-${name}`, receipt);
+    assert.ok(!painted.diagnostics.some(d => /preview.scene.paint.(preset|preset-adjustments|image-mask|shape-image)$/.test(d.reason)));
+    const referenceInput = polygonProgram(preset, consumer, adjustment, true);
+    const reference = await compilePpjWorkspace(referenceInput, { includePreviewScene: true });
+    const referencePaint = paintPpjSceneSvg(reference), region = { left: 0, top: 24, width: painted.canvas.width, height: painted.canvas.height - 24 };
+    const pixels = svg => sharp(Buffer.from(svg)).extract(region).ensureAlpha().raw().toBuffer();
+    assert.deepEqual(await pixels(painted.pages[0].svg), await pixels(referencePaint.pages[0].svg), `${name}: independent literal contour, fill/alpha/border/text and outer transform`);
+    const publicResult = await assertProductionEntry(`polygon-${name}`, input, receipt, painted);
+    assert.ok(!publicResult.diagnostics.some(d => d.reason === shapeGeometryReason));
+    const candidateFile = `polygon-${name}.pptx`;
+    await writeFile(path.join(artifacts, candidateFile), receipt.file, { flag: "wx" });
+    return { name, preset, consumer, adjustment, candidateFile, candidateSha256: sha256(receipt.file),
+      sceneSha256: receipt.previewScene.sha256, nativeAndLiteralContourRaster: true, publicReliability: publicResult.reliability.status };
+  }
+  for (const preset of ["triangle", "rtTriangle", "trapezoid", "parallelogram", "chevron"])
+    for (const consumer of ["shape", "shape-image", "image"]) {
+      const name = `${preset}-${consumer}`, adjustment = preset === "rtTriangle" ? undefined : 75000;
+      let stage = "author";
+      try {
+        const input = polygonProgram(preset, consumer, adjustment), inputHash = sha256(input.program);
+        const authored = await compilePpjWorkspace(input, { includePreviewScene: true });
+        polygonPresetCases.push(await polygonPixels(`${name}-author`, authored, input, preset, consumer, adjustment));
+        const source = await withoutAuthoredSnapshot(authored.file), sourceHash = sha256(source), sourceFile = `polygon-${name}-source.pptx`;
+        await writeFile(path.join(artifacts, sourceFile), source, { flag: "wx" });
+        stage = "source-noop";
+        const projected = await projectPptxToPpj(source, { sourceUri: sourceFile, assetRootUri: "assets" });
+        const sourceInput = { source, assets: projected.assets, program: projected.programJson };
+        const noop = await compilePpjWorkspace(sourceInput, { includePreviewScene: true });
+        assert.deepEqual(noop.file, source);
+        polygonPresetCases.push({ ...await polygonPixels(`${name}-noop`, noop, sourceInput, preset, consumer, adjustment), sourceFile, sourceSha256: sourceHash });
+        if (preset !== "rtTriangle") for (const value of [25000, 0, undefined]) {
+          stage = `source-${value ?? "delete"}`;
+          // Start each change from the original bytes, not the prior candidate.
+          const freshSource = await projectPptxToPpj(source, { sourceUri: sourceFile, assetRootUri: "assets" });
+          const program = JSON.parse(Buffer.from(freshSource.programJson).toString("utf8")), geometry = program.pages[0].elements[0][consumer === "image" ? "mask" : "geometry"];
+          if (value === undefined) delete geometry.adjustments; else geometry.adjustments = [value];
+          const edit = { source, assets: freshSource.assets, program: Buffer.from(JSON.stringify(program)) };
+          const requestFile = `polygon-${name}-${stage}.ppj`, requestHash = sha256(edit.program);
+          await writeFile(path.join(artifacts, requestFile), edit.program, { flag: "wx" });
+          const candidate = await compilePpjWorkspace(edit, { includePreviewScene: true });
+          const record = await polygonPixels(`${name}-${stage}`, candidate, edit, preset, consumer, value);
+          const fresh = await projectPptxToPpj(candidate.file, { sourceUri: record.candidateFile, assetRootUri: "assets" });
+          const target = JSON.parse(Buffer.from(fresh.programJson).toString("utf8")).pages[0].elements[0];
+          assert.deepEqual(target[consumer === "image" ? "mask" : "geometry"].adjustments, value === undefined ? undefined : [value]);
+          const before = createPpjSceneView(noop).pages[0].nodes[0].native, after = createPpjSceneView(candidate).pages[0].nodes[0].native;
+          const field = consumer === "image" ? "maskPresetAdjustments" : "presetAdjustments";
+          assert.deepEqual({ ...after, [field]: [] }, { ...before, [field]: [] }, "all non-adjustment native fields remain exact");
+          const oldZip = await JSZip.loadAsync(source), newZip = await JSZip.loadAsync(candidate.file), changed = [];
+          assert.deepEqual(Object.keys(newZip.files).sort(), Object.keys(oldZip.files).sort());
+          for (const file of Object.keys(oldZip.files)) if (!oldZip.files[file].dir &&
+            !Buffer.from(await oldZip.file(file).async("uint8array")).equals(Buffer.from(await newZip.file(file).async("uint8array")))) changed.push(file);
+          assert.deepEqual(changed, ["ppt/slides/slide1.xml"]);
+          const oldXml = await oldZip.file("ppt/slides/slide1.xml").async("string"), newXml = await newZip.file("ppt/slides/slide1.xml").async("string");
+          assert.equal(exceptFirstPresetAdjustments(newXml), exceptFirstPresetAdjustments(oldXml), "only the target preset adjustment list may change within the slide");
+          assert.notEqual(exceptFirstPresetAdjustments(newXml.replace('val="CC5500"', 'val="112233"')),
+            exceptFirstPresetAdjustments(oldXml), "unrelated sibling paint mutations remain detected");
+          if (consumer !== "shape") assert.throws(() => exceptFirstPresetAdjustments(newXml.replaceAll(
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships", "urn:changed-relationship-namespace")), /same local binding/);
+          const reprojectionFile = `polygon-${name}-${stage}-reprojected.ppj`;
+          await writeFile(path.join(artifacts, reprojectionFile), fresh.programJson, { flag: "wx" });
+          assert.equal(sha256(edit.program), requestHash); assert.equal(sha256(source), sourceHash);
+          polygonPresetCases.push({ ...record, sourceFile, sourceSha256: sourceHash, requestFile, requestSha256: requestHash,
+            reprojectionFile, reprojectionSha256: sha256(fresh.programJson), changedParts: changed, nonAdjustmentStatePreserved: true });
+        }
+        assert.equal(sha256(input.program), inputHash); assert.equal(sha256(source), sourceHash); assert.equal(sha256(backgroundData), backgroundAsset.sha256);
+      } catch (error) {
+        polygonPresetFailures.push({ preset, consumer, stage, code: error.code, message: error.message });
+        console.error(`Polygon ${name}/${stage} failed: ${error.message}`);
+      }
+    }
   cropProgram.assets = [cropAsset];
   cropProgram.pages[0].elements = [{ id: "crop-picture", type: "image", asset: cropAsset.id, frame: { x: 100, y: 100, width: 100, height: 100 }, fit: "stretch", crop: { left: 0.5 } }];
   cropProgram.pages[0].elements.unshift({ ...structuredClone(primitive), id: "crop-background", geometry: { kind: "preset", preset: "rect" }, frame: { x: 100, y: 100, width: 100, height: 100 }, text: undefined, style: { fill: { type: "solid", color: "#0000FF" } } });
@@ -3738,7 +3885,7 @@ try {
   for (const descriptor of descriptors) assert.equal(sha256(await readFile(descriptor.executablePath)),
     descriptor.manifest.files.find(file => file.path === descriptor.manifest.profiles[descriptor.profile].executable).sha256,
     "Executed package identity must still match its validated manifest");
-  const report = { status: relationFailures.length || diagramFailures.length || transformProfileFailures.length || nestedPairFailures.length || datasetPairFailures.length || stylePairFailures.length || textAnchorFailures.length || spacingDeletionFailures.length || backgroundGradientFailures.length || backgroundImageFailures.length || shapeImageFailures.length || radialGradientFailures.length || brightnessFailures.length || textRotationFailures.length || textReflectionFailures.length || textDirectionFailures.length ? "failed" : "passed", scope: "PPJ NativeAOT wire/view, internal painting and selected production entry cases; not complete paint or installed-package acceptance",
+  const report = { status: polygonPresetFailures.length || relationFailures.length || diagramFailures.length || transformProfileFailures.length || nestedPairFailures.length || datasetPairFailures.length || stylePairFailures.length || textAnchorFailures.length || spacingDeletionFailures.length || backgroundGradientFailures.length || backgroundImageFailures.length || shapeImageFailures.length || radialGradientFailures.length || brightnessFailures.length || textRotationFailures.length || textReflectionFailures.length || textDirectionFailures.length ? "failed" : "passed", scope: "PPJ NativeAOT wire/view, internal painting and selected production entry cases; not complete paint or installed-package acceptance",
     productionEntryCases,
     performance: { file: "performance.json", cases: performanceCases.map(c => ({ name: c.name, samples: c.samples.length })),
       sha256: sha256(await readFile(path.join(artifacts, "performance.json"))),
@@ -3755,6 +3902,8 @@ try {
     textReflectionFailures,
     textDirectionCases,
     textDirectionFailures,
+    polygonPresetCases,
+    polygonPresetFailures,
     spacingDeletionFailures,
     capitalizationCases,
     mediaPosterCases,
@@ -3844,6 +3993,8 @@ try {
   assert.equal(textReflectionCases.length, 36, "all shape/table self, group, nested and independently source-edited reflection cases must execute");
   if (textDirectionFailures.length) throw new AggregateError(textDirectionFailures.map(f => new Error(`${f.name}: ${f.message}`)), "Text direction regressions failed; independent checks executed, not a passing integration.");
   assert.equal(textDirectionCases.length, 75, "all three text owners and directions, anchors, transforms and independent source edits must execute");
+  if (polygonPresetFailures.length) throw new AggregateError(polygonPresetFailures.map(f => new Error(`${f.preset}/${f.consumer}/${f.stage}: ${f.message}`)), "Polygon preset regressions failed; independent checks executed.");
+  assert.equal(polygonPresetCases.length, 66, "five presets, three consumers, authored/no-op and independent adjustment set/zero/delete edits");
   if (backgroundImageFailures.length) throw new AggregateError(backgroundImageFailures.map(f => new Error(`${f.name}: ${f.message}`)), "Background image regressions failed; independent checks executed, not a passing integration.");
   if (shapeImageFailures.length) throw new AggregateError(shapeImageFailures.map(f => new Error(`${f.preset}/${f.edit ?? f.stage}: ${f.message}`)), "Shape image regressions failed; independent checks executed, not a passing integration.");
   if (radialGradientFailures.length) throw new AggregateError(radialGradientFailures.map(f => new Error(`${f.name}: ${f.message}`)), "Radial gradient regressions failed; independent checks executed, not a passing integration.");

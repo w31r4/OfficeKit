@@ -1092,12 +1092,12 @@ const schemeBorder = paintPpjSceneSvg(fixture(scene => {
 }));
 assert.equal(schemeBorder.reliability.status, "failed");
 assert.ok(schemeBorder.diagnostics.some(d => d.reason === "preview.scene.paint.image-border"));
-for (const preset of ["ellipse", "diamond", "rect", "triangle"]) {
+for (const preset of ["ellipse", "diamond", "rect", "star5"]) {
   const input = fixture(scene => {
     scene.presentation.slides[0].elements.find(e => e.content.case === "image").content.value.maskPreset = preset;
   });
   const result = paintPpjSceneSvg(input);
-  if (preset === "triangle") {
+  if (preset === "star5") {
     assert.equal(result.reliability.status, "failed");
     assert.match(result.pages[0].svg, /Image mask unavailable/);
   } else if (preset !== "rect") {
@@ -1106,6 +1106,88 @@ for (const preset of ["ellipse", "diamond", "rect", "triangle"]) {
     assert.equal(result.pages[0].svg, paintPpjSceneSvg(input).pages[0].svg);
   }
 }
+// The triangle's text rectangle is not its entire outer frame. This fixed
+// asymmetric case used to place text above/outside the painted triangle.
+const triangleTextRegion = fixture(scene => {
+  scene.presentation.slides[0].elements = [child("triangle-text", "shape", {
+    ...frame(10,40,200,120), geometry: "triangle", presetAdjustments: [75000], fillRgb: "008800",
+    textBody: { paragraphs: [{ runs: [{ content: { case: "text", value: "F0" }, fontSizePoints: 16 }] }] },
+  })];
+});
+const triangleTextBefore = toBinary(PresentationPreviewSceneSchema, triangleTextRegion.previewScene);
+assert.match(paintPpjSceneSvg(triangleTextRegion).pages[0].svg, /<text x="92\.2" y="119\.6"/);
+assert.deepEqual(toBinary(PresentationPreviewSceneSchema, triangleTextRegion.previewScene), triangleTextBefore);
+// Fixed point lists are independent expectations for three consumers. In
+// particular, trapezoid/parallelogram/chevron use the SHORT side for offsets.
+for (const join of [undefined, "round", "bevel", "miter"]) {
+  const result = paintPpjSceneSvg(fixture(scene => {
+    const s = scene.presentation.slides[0].elements[0].content.value;
+    s.geometry = "triangle"; s.lineJoin = join;
+  }));
+  assert.equal(result.diagnostics.some(d => d.reason === "preview.scene.paint.line-join-inherited" && d.scenePath.endsWith("shape.lineJoin")), join === undefined);
+}
+for (const [preset, adjustments, points] of [
+  ["triangle", [], [[0,100],[100,0],[200,100]]],
+  ["triangle", [0], [[0,100],[0,0],[200,100]]],
+  ["triangle", [75000], [[0,100],[150,0],[200,100]]],
+  ["rtTriangle", [], [[0,100],[0,0],[200,100]]],
+  ["trapezoid", [], [[0,100],[25,0],[175,0],[200,100]]],
+  ["trapezoid", [75000], [[0,100],[75,0],[125,0],[200,100]]],
+  ["parallelogram", [], [[0,100],[25,0],[200,0],[175,100]]],
+  ["parallelogram", [75000], [[0,100],[75,0],[200,0],[125,100]]],
+  ["chevron", [], [[0,0],[150,0],[200,50],[150,100],[0,100],[50,50]]],
+  ["chevron", [75000], [[0,0],[125,0],[200,50],[125,100],[0,100],[75,50]]],
+]) for (const consumer of ["shape", "image", "shape-image"]) {
+  const input = fixture(scene => {
+    const shape = scene.presentation.slides[0].elements[0].content.value;
+    const photo = scene.presentation.slides[0].elements.find(e => e.content.case === "image").content.value;
+    Object.assign(photo, frame(10,40,200,100));
+    if (consumer === "image") { photo.maskPreset = preset; photo.maskPresetAdjustments = adjustments; }
+    else {
+      shape.geometry = preset; shape.presetAdjustments = adjustments;
+      if (consumer === "shape-image") {
+        shape.fillRgb = ""; delete shape.fillOpacityThousandthPercent;
+        shape.imageFill = create(content.get("shape").fields.find(f => f.localName === "imageFill").message,
+          { assetId: photo.assetId, mode: 1 });
+      }
+    }
+  });
+  const before = toBinary(PresentationPreviewSceneSchema, input.previewScene), result = paintPpjSceneSvg(input);
+  const expected = points.map(([x,y],i) => `${i ? "L" : "M"} ${x+10} ${y+40}`).join(" ") + " Z";
+  assert.ok(result.pages[0].svg.includes(`d="${expected}"`), `${consumer}/${preset}/${adjustments}: actual polygon`);
+  assert.ok(!result.diagnostics.some(d => /preview.scene.paint.(preset|image-mask|shape-image)$/.test(d.reason)));
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), before);
+}
+for (const preset of ["triangle", "trapezoid", "parallelogram", "chevron"]) {
+  for (const [w,h] of [[200,100],[100,200],[100,100]]) for (const [value,clamped] of [
+    [-100,0], [21600000, preset === "triangle" ? 100000 : (preset === "trapezoid" ? 50000 : 100000) * w / Math.min(w,h)],
+  ]) for (const consumer of ["shape", "image"]) {
+    const make = adjustment => fixture(scene => {
+      const s = scene.presentation.slides[0].elements.find(e => e.content.case === consumer).content.value;
+      Object.assign(s, frame(10,40,w,h));
+      if (consumer === "shape") { s.geometry = preset; s.presetAdjustments = [adjustment]; }
+      else { s.maskPreset = preset; s.maskPresetAdjustments = [adjustment]; }
+    });
+    const paths = result => [...result.pages[0].svg.matchAll(/<path d="([^"]+)"/g)].map(m => m[1]);
+    const input = make(value), before = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+    assert.deepEqual(paths(paintPpjSceneSvg(input)), paths(paintPpjSceneSvg(make(clamped))), `${preset}/${consumer}/${w}:${h} pin`);
+    assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), before);
+  }
+}
+for (const preset of ["triangle", "rtTriangle", "trapezoid", "parallelogram", "chevron"])
+  for (const bad of preset === "rtTriangle" ? [[0]] : [[1,2],[21600001],[-21600001],[.5]])
+    for (const consumer of ["shape", "image"]) {
+      const make = () => fixture(scene => {
+        const s = scene.presentation.slides[0].elements.find(e => e.content.case === consumer).content.value;
+        if (consumer === "shape") { s.geometry = preset; s.presetAdjustments = bad; }
+        else { s.maskPreset = preset; s.maskPresetAdjustments = bad; }
+      });
+      // Fractional adjustments are rejected by the wire contract before paint.
+      if (bad.includes(.5)) { assert.throws(make, /invalid int32/); continue; }
+      const result = paintPpjSceneSvg(make());
+      assert.equal(result.reliability.status, "failed");
+      assert.ok(result.diagnostics.some(d => d.reason === `preview.scene.paint.${consumer === "shape" ? "preset-adjustments" : "image-mask"}`));
+    }
 const customMask = paintPpjSceneSvg(fixture(scene => {
   scene.presentation.slides[0].elements.find(e => e.content.case === "image").content.value.customMaskPaths = [polygon];
 }));

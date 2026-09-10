@@ -44,12 +44,94 @@ const brightnessRamp = Array.from({ length: 31 }, (_, i) => {
 });
 // roundRect: a = pin(0, adj, 50000), radius = min(w,h) * a / 100000.
 // Formula source is the pinned preset definition referenced by presetProfiles.
-function roundedRectangle(f, adjustments = [], paint = "") {
+function roundRectRadius(f, adjustments = []) {
   if (adjustments.length > 1 || adjustments.some(v => !Number.isInteger(v) ||
       v < presetProfiles.minimumValue || v > presetProfiles.maximumValue)) throw new TypeError("Invalid roundRect adjustment");
   const adjustment = adjustments[0] ?? presetProfiles.profiles.roundRect.defaults[0];
-  const radius = Math.min(f.width, f.height) * Math.max(0, Math.min(50000, adjustment)) / 100000;
+  return Math.min(f.width, f.height) * Math.max(0, Math.min(50000, adjustment)) / 100000;
+}
+function roundedRectangle(f, adjustments = [], paint = "") {
+  const radius = roundRectRadius(f, adjustments);
   return `<rect ${box(f)} rx="${n(radius)}" ry="${n(radius)}" ${paint}/>`;
+}
+
+const polygonPresets = new Set(["triangle", "rtTriangle", "trapezoid", "parallelogram", "chevron"]);
+// These straight-edge profiles use the same pinned definitions/defaults as
+// roundRect. Share adjustment clamping between contours and text rectangles;
+// neither connection sites nor text rectangles are inferred from path bounds.
+function polygonMetrics(f, preset, adjustments = []) {
+  const profile = presetProfiles.profiles[preset];
+  if (!polygonPresets.has(preset) || adjustments.length > profile.defaults.length ||
+      adjustments.some(v => !Number.isInteger(v) || v < presetProfiles.minimumValue || v > presetProfiles.maximumValue))
+    throw new TypeError(`Invalid ${preset} adjustment`);
+  const w = numeric(f.width), h = numeric(f.height);
+  if (w <= 0 || h <= 0) throw new RangeError("Polygon requires positive frame extents");
+  const short = Math.min(w, h), value = adjustments[0] ?? profile.defaults[0] ?? 0;
+  const limit = preset === "triangle" ? 100000 : (preset === "trapezoid" ? 50000 : 100000) * w / short;
+  const a = Math.max(0, Math.min(limit, value));
+  const offset = (preset === "triangle" ? w : short) * a / 100000;
+  return { w, h, a, limit, offset };
+}
+function presetPolygon(f, preset, adjustments = [], paint = "") {
+  const { w, h, offset } = polygonMetrics(f, preset, adjustments);
+  let points;
+  switch (preset) {
+    case "triangle": points = [[0,h],[offset,0],[w,h]]; break;
+    case "rtTriangle": points = [[0,h],[0,0],[w,h]]; break;
+    case "trapezoid": points = [[0,h],[offset,0],[w-offset,0],[w,h]]; break;
+    case "parallelogram": points = [[0,h],[offset,0],[w,0],[w-offset,h]]; break;
+    case "chevron": points = [[0,0],[w-offset,0],[w,h/2],[w-offset,h],[0,h],[offset,h/2]]; break;
+  }
+  const d = points.map(([x,y], i) => `${i ? "L" : "M"} ${n(f.x+x)} ${n(f.y+y)}`).join(" ") + " Z";
+  return `<path d="${d}" ${paint}/>`;
+}
+
+// Native custom text-rectangle edges are shape-local EMU, independent of the
+// custom path viewport. Presets use the pinned definition's explicit rect,
+// not the contour bounding box. No formula graph or PPJ is interpreted here.
+function shapeTextFrame(f, s) {
+  const w = numeric(f.width), h = numeric(f.height);
+  let l = 0, t = 0, r = w, b = h;
+  if (s.customPaths.length) {
+    const rect = s.textRectangle;
+    if (rect) {
+      const builtins = { l: 0, t: 0, r: w, b: h, w, h, hc: w / 2, vc: h / 2 };
+      const edge = name => {
+        const reference = rect[`${name}Reference`];
+        if (reference === undefined) return scenePoints(rect[`${name}Emu`]);
+        if (!Object.hasOwn(builtins, reference)) throw new TypeError(`Unresolved text rectangle ${name} reference: ${reference}`);
+        return builtins[reference];
+      };
+      [l,t,r,b] = ["left", "top", "right", "bottom"].map(edge);
+    }
+  } else {
+    if (s.textRectangle) throw new TypeError("Custom text rectangle conflicts with preset geometry");
+    const preset = s.geometry;
+    if (polygonPresets.has(preset)) {
+      const { a, limit, offset } = polygonMetrics(f, preset, s.presetAdjustments);
+      switch (preset) {
+        case "triangle": l = offset / 2; t = h / 2; r = l + w / 2; break;
+        case "rtTriangle": l = w / 12; t = h * 7 / 12; r = w * 7 / 12; b = h * 11 / 12; break;
+        case "trapezoid": l = w * a / limit / 3; t = h * a / limit / 3; r = w - l; break;
+        case "parallelogram": {
+          const q = (1 + 5 * a / limit) / 12;
+          l = w * q; t = h * q; r = w - l; b = h - t; break;
+        }
+        case "chevron": if (w - 2 * offset > 0) { l = offset; r = w - offset; } break;
+      }
+    } else if (preset === "roundRect") {
+      l = t = roundRectRadius(f, s.presetAdjustments) * 29289 / 100000; r = w - l; b = h - t;
+    } else {
+      if (s.presetAdjustments.length) throw new TypeError("Text rectangle has unmapped preset adjustments");
+      if (preset === "ellipse") {
+        l = w / 2 * (1 - Math.SQRT1_2); t = h / 2 * (1 - Math.SQRT1_2); r = w - l; b = h - t;
+      } else if (["diamond", "flowChartDecision"].includes(preset)) {
+        l = w / 4; t = h / 4; r = w * 3 / 4; b = h * 3 / 4;
+      } else if (!["rect", "textbox", "flowChartProcess"].includes(preset)) throw new TypeError(`Unmapped text rectangle preset: ${preset}`);
+    }
+  }
+  if (![l,t,r,b].every(Number.isFinite) || r <= l || b <= t) throw new RangeError("Text rectangle has nonpositive or invalid extents");
+  return { x: f.x + l, y: f.y + t, width: r - l, height: b - t };
 }
 
 /** Literal native paths only. An unresolved command fails the whole path,
@@ -273,8 +355,17 @@ function paintScene(receipt, { assessInput, integrated }) {
     return `<rect ${box(f)} fill="#FFF7ED" stroke="#9A3412" stroke-dasharray="3 2"/><text x="${n(f.x + 2)}" y="${n(f.y + 12)}" font-size="10" fill="#9A3412">${esc(label)}</text>`;
   }
   function text(node, source = node.native, ownerField = "shape", fallback = {}) {
-    const body = source.textBody, physicalFrame = node.frame;
+    const body = source.textBody;
+    let physicalFrame = node.frame;
     if (!body && !source.text) return "";
+    if (ownerField === "shape") {
+      try { physicalFrame = shapeTextFrame(node.frame, source); }
+      catch (error) {
+        // Retain readable source text in the nominal frame as explicitly
+        // unavailable layout evidence, never as a successful region mapping.
+        limit(node, "shape.textRectangle", "preview.scene.paint.text-rectangle", error.message, "unavailable");
+      }
+    }
     limit(node, `${ownerField}.textBody`, "preview.scene.paint.text-layout", "Font metrics, wrapping, AutoFit and inherited text state remain unverified.");
     // Rich paragraphs are authoritative. The compatibility string must never
     // duplicate or replace their run boundaries.
@@ -596,7 +687,8 @@ function paintScene(receipt, { assessInput, integrated }) {
     const s = node.native, f = node.frame;
     unused(content.get("shape"), s, [...frameFields, "geometry", "text", "textBody", "fillRgb", "lineRgb", "lineWidthEmu",
       "fillOpacityThousandthPercent", "lineOpacityThousandthPercent", "lineStyle", "lineCap", "lineJoin", "transform", "customPaths", "gradientFill", "imageFill", "imageFillAssetId",
-      ...(s.geometry === "roundRect" && !s.customPaths.length ? ["presetAdjustments"] : [])], node, "shape.");
+      ...(s.textBody || s.text ? ["textRectangle"] : []),
+      ...((s.geometry === "roundRect" || polygonPresets.has(s.geometry)) && !s.customPaths.length ? ["presetAdjustments"] : [])], node, "shape.");
     const outline = linePaint(node, "shape", s.lineStyle === "none" ? "none" : rgb(s.lineRgb), scenePoints(s.lineWidthEmu),
       sceneOpacity(s.lineOpacityThousandthPercent ?? 100000), s.lineStyle === "none" ? "solid" : s.lineStyle || "solid", s.lineCap, s.lineJoin, "lineStyle");
     if (s.imageFill || s.imageFillAssetId) {
@@ -646,11 +738,11 @@ function paintScene(receipt, { assessInput, integrated }) {
     const completed = svg => {
       // A clip definition alone is not a drawn shape. Unmapped adjustments
       // and any failed path must also retain the owner's geometry failure.
-      if (!clip && (!s.presetAdjustments.length || s.geometry === "roundRect" && !s.customPaths.length))
+      if (!clip && (!s.presetAdjustments.length || (s.geometry === "roundRect" || polygonPresets.has(s.geometry)) && !s.customPaths.length))
         shapeGeometryScenePaths.add(node.scenePath);
       return svg;
     };
-    if (clip && s.presetAdjustments.length && s.geometry !== "roundRect")
+    if (clip && s.presetAdjustments.length && s.geometry !== "roundRect" && !polygonPresets.has(s.geometry))
       throw new TypeError("Image fill mask has unresolved preset adjustments");
     if (s.customPaths.length) {
       let complete = true;
@@ -675,6 +767,14 @@ function paintScene(receipt, { assessInput, integrated }) {
     // The codec lowers its "textbox" marker to native rect geometry too.
     if (["rect", "textbox", "flowChartProcess"].includes(s.geometry)) return completed(`<rect ${box(f)} ${paint}/>`);
     if (s.geometry === "roundRect") return completed(roundedRectangle(f, s.presetAdjustments, paint));
+    if (polygonPresets.has(s.geometry)) {
+      try { return completed(presetPolygon(f, s.geometry, s.presetAdjustments, paint)); }
+      catch (error) {
+        if (clip) throw error;
+        limit(node, "shape.presetAdjustments", "preview.scene.paint.preset-adjustments", error.message, "unavailable");
+        return placeholder(node, "Preset geometry unavailable");
+      }
+    }
     if (s.geometry === "ellipse") return completed(`<ellipse cx="${n(f.x + f.width / 2)}" cy="${n(f.y + f.height / 2)}" rx="${n(f.width / 2)}" ry="${n(f.height / 2)}" ${paint}/>`);
     if (["diamond", "flowChartDecision"].includes(s.geometry)) return completed(`<path d="M ${n(f.x + f.width / 2)} ${n(f.y)} L ${n(f.x + f.width)} ${n(f.y + f.height / 2)} L ${n(f.x + f.width / 2)} ${n(f.y + f.height)} L ${n(f.x)} ${n(f.y + f.height / 2)} Z" ${paint}/>`);
     if (clip) throw new TypeError(`Unmapped image fill geometry: ${s.geometry}`);
@@ -707,7 +807,7 @@ function paintScene(receipt, { assessInput, integrated }) {
     let mask = "";
     const f = node.frame;
     try {
-      if (s.maskPresetAdjustments.length && s.maskPreset !== "roundRect") throw new TypeError("Adjusted image preset is not mapped");
+      if (s.maskPresetAdjustments.length && s.maskPreset !== "roundRect" && !polygonPresets.has(s.maskPreset)) throw new TypeError("Adjusted image preset is not mapped");
       if (s.customMaskPaths.length) {
         if (s.maskPreset) throw new TypeError("Conflicting custom and preset masks");
         mask = s.customMaskPaths.map(p => {
@@ -715,6 +815,7 @@ function paintScene(receipt, { assessInput, integrated }) {
           return `<path d="${nativePathData(p, f)}"/>`;
         }).join("");
       } else if (s.maskPreset === "roundRect") mask = roundedRectangle(f, s.maskPresetAdjustments);
+      else if (polygonPresets.has(s.maskPreset)) mask = presetPolygon(f, s.maskPreset, s.maskPresetAdjustments);
       else if (s.maskPreset === "ellipse") mask = `<ellipse cx="${n(f.x + f.width / 2)}" cy="${n(f.y + f.height / 2)}" rx="${n(f.width / 2)}" ry="${n(f.height / 2)}"/>`;
       else if (s.maskPreset === "diamond") mask = `<path d="M ${n(f.x + f.width / 2)} ${n(f.y)} L ${n(f.x + f.width)} ${n(f.y + f.height / 2)} L ${n(f.x + f.width / 2)} ${n(f.y + f.height)} L ${n(f.x)} ${n(f.y + f.height / 2)} Z"/>`;
       else if (s.maskPreset && s.maskPreset !== "rect") throw new TypeError(`Unmapped image mask: ${s.maskPreset}`);
@@ -774,6 +875,9 @@ function paintScene(receipt, { assessInput, integrated }) {
     return `<image ${box(f)} ${attributes}`;
   }
   function linePaint(node, field, color, width, opacity, dash, cap, join, dashField = "dashStyle") {
+    if (!join && color !== "none" && width > 0 && opacity > 0)
+      limit(node, `${field}.${dashField === "lineStyle" ? "lineJoin" : "join"}`,
+        "preview.scene.paint.line-join-inherited", "No direct line join; the review miter may differ from inherited/native corner extents.");
     if (width < 0) throw new RangeError("Negative native line width");
     const patterns = { solid: [], dashed: [4, 3], dotted: [1, 3], "dash-dot": [4, 3, 1, 3], "dash-dot-dot": [8, 3, 1, 3, 1, 3] };
     if (!Object.hasOwn(patterns, dash) || cap && !["flat", "round", "square"].includes(cap) || join && !["miter", "round", "bevel"].includes(join))
