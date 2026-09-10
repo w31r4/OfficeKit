@@ -2349,7 +2349,7 @@ internal static partial class PpjPresentationProjector
             style["gradient"] = TextGradient(source.GradientFill);
         if (source.Shadow is not null) style["shadow"] = Shadow(source.Shadow);
         if (source.Glow is not null) style["glow"] = Glow(source.Glow);
-        if (source.InnerShadow is not null) style["innerShadow"] = InnerShadow(source.InnerShadow);
+        if (source.InnerShadow is not null) style["innerShadow"] = ChartTextInnerShadow(source.InnerShadow);
         if (source.Reflection is not null) style["reflection"] = Reflection(source.Reflection);
         if (source.SoftEdge is not null) style["softEdge"] = SoftEdge(source.SoftEdge);
         if (source.HighlightCase == PresentationTextStyle.HighlightOneofCase.HighlightRgb && !string.IsNullOrEmpty(source.HighlightRgb))
@@ -2972,6 +2972,7 @@ internal static partial class PpjPresentationProjector
                             "text.paragraphs[].style.defaultText.color",
                             "text.paragraphs[].style.defaultText.gradient",
                             "text.paragraphs[].style.defaultText.glow",
+                            "text.paragraphs[].style.defaultText.innerShadow",
                         ]));
                         if (PptxBodyPropertiesCodec.SupportsBoundedDirectLayout(element.Shape.TextBody?.BodyProperties))
                         {

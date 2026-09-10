@@ -630,9 +630,16 @@ internal static class PpjJsonSchemaValidator
         const string prefix = "#/$defs/";
         if (!reference.StartsWith(prefix, StringComparison.Ordinal))
             throw new InvalidOperationException($"Unsupported PPJ schema reference {reference}.");
-        var name = reference[prefix.Length..].Replace("~1", "/", StringComparison.Ordinal).Replace("~0", "~", StringComparison.Ordinal);
+        var parts = reference[prefix.Length..].Split('/');
+        var name = parts[0].Replace("~1", "/", StringComparison.Ordinal).Replace("~0", "~", StringComparison.Ordinal);
         if (!Definitions.Value.TryGetValue(name, out var result))
             throw new InvalidOperationException($"Missing PPJ schema definition {name}.");
+        foreach (var part in parts.Skip(1))
+        {
+            var property = part.Replace("~1", "/", StringComparison.Ordinal).Replace("~0", "~", StringComparison.Ordinal);
+            if (result.ValueKind != JsonValueKind.Object || !result.TryGetProperty(property, out result))
+                throw new InvalidOperationException($"Missing PPJ schema reference {reference}.");
+        }
         return result;
     }
 

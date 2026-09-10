@@ -593,8 +593,17 @@ function renderDefinition(name, definition, schema) {
   const summary = schemaSummary(definition);
   if (properties.size === 0)
     return `### \`${name}\`\n\n${summary}.`;
-  const rows = [...properties.entries()].map(([field, fieldSchema]) =>
-    `| \`${field}\` | ${required.has(field) ? "yes" : "no"} | ${schemaSummary(fieldSchema)} | ${schemaConstraints(fieldSchema)} |`).join("\n");
+  const rows = [...properties.entries()].map(([field, fieldSchema]) => {
+    // Property aliases share constraints without inventing a definition named
+    // after the final field segment (for example textStyle/properties/bold).
+    if (fieldSchema.$ref?.startsWith("#/$defs/") && fieldSchema.$ref.includes("/properties/")) {
+      const target = fieldSchema.$ref.slice(2).split("/").reduce((node, key) => node?.[key.replaceAll("~1", "/").replaceAll("~0", "~")], schema);
+      if (!target) throw new Error(`Missing schema field reference ${fieldSchema.$ref}`);
+      const { $ref, ...local } = fieldSchema;
+      fieldSchema = { ...target, ...local };
+    }
+    return `| \`${field}\` | ${required.has(field) ? "yes" : "no"} | ${schemaSummary(fieldSchema)} | ${schemaConstraints(fieldSchema)} |`;
+  }).join("\n");
   return `### \`${name}\`\n\n${summary}.\n\n| Field | Required | Type or allowed values | Constraints |\n| --- | --- | --- | --- |\n${rows}`;
 }
 function definitionProperties(definition, schema) {

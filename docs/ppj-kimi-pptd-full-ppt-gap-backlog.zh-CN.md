@@ -463,6 +463,18 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**段落默认文字内阴影增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.defaultText.innerShadow` 支持赋值、删除、恢复，
+以及仅含内阴影的包装删除。color 必填；blur 0–1000pt、distance 0–100000pt、
+angle -360–360° 和 opacity/token 可独立省略，显式零和透明度一分别保留。
+长度按 EMU 舍入，角度先舍入再归一化；RGB/RGBA、简单主题色、grammar
+同名颜色优先和 tint/shade 均有回投影证据。修改目标效果保留其它效果及列表属性、
+直接 run、相邻段落和非目标 XML/ZIP；未建模图随无关标量编辑保留并拒绝覆盖。
+相关原生回归 **307/307 通过，0 跳过**，沿用整组默认样式的已记录基线排除项。
+Help、schema、生成资料、预览诊断与 OpenSpec 已同步；可移植性和 reference-sync
+通过，完整 reference-skills 因环境缺少 `pdftoppm` 未完成。未重建 NativeAOT；
+内阴影预览仍为 partial，完整 F-03 和宿主显示继续开放。
+
 
 **段落默认文字发光增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.defaultText.glow` 支持赋值、删除、恢复和

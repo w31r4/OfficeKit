@@ -2537,7 +2537,10 @@ internal static partial class PpjAuthoredPresentationCompiler
             output.Glow = paragraphDefaults
                 ? BuildParagraphGlow(glow, catalog.Color, opacity => catalog.NumberToken(opacity, "opacity", "paragraph default glow opacity"), catalog.HasGrammarToken)
                 : BuildGlow(glow, catalog);
-        if (value.TryGetProperty("innerShadow", out var innerShadow)) output.InnerShadow = BuildInnerShadow(innerShadow, catalog);
+        if (value.TryGetProperty("innerShadow", out var innerShadow))
+            output.InnerShadow = paragraphDefaults
+                ? BuildParagraphInnerShadow(innerShadow, catalog.Color, opacity => catalog.NumberToken(opacity, "opacity", "paragraph default inner shadow opacity"), catalog.HasGrammarToken)
+                : BuildInnerShadow(innerShadow, catalog);
         if (value.TryGetProperty("reflection", out var reflection)) output.Reflection = BuildReflection(reflection, catalog);
         if (value.TryGetProperty("softEdge", out var softEdge)) output.SoftEdge = BuildSoftEdge(softEdge);
         if (value.TryGetProperty("highlight", out var highlight))
@@ -4937,6 +4940,22 @@ internal static partial class PpjAuthoredPresentationCompiler
             color.GetString()!.TrimStart('#').Length == 8)
             glow.OpacityThousandthPercent = 100_000;
         return glow;
+    }
+
+    internal static PresentationInnerShadow BuildParagraphInnerShadow(
+        JsonElement value,
+        Func<JsonElement, (string Rgb, double Alpha)> resolveColor,
+        Func<JsonElement, double> resolveOpacity,
+        Func<string, bool> declaredToken)
+    {
+        var color = value.GetProperty("color");
+        var transformed = color.ValueKind == JsonValueKind.Object &&
+            (color.TryGetProperty("tint", out _) || color.TryGetProperty("shade", out _));
+        var shadow = BuildChartTextInnerShadow(value, resolveColor, resolveOpacity, name => transformed || declaredToken(name));
+        if (!shadow.HasOpacityThousandthPercent && color.ValueKind == JsonValueKind.String &&
+            color.GetString()!.TrimStart('#').Length == 8)
+            shadow.OpacityThousandthPercent = 100_000;
+        return shadow;
     }
 
     private static PresentationGlow BuildGlow(JsonElement value, Catalog catalog)

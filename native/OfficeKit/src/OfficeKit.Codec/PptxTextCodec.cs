@@ -1,4 +1,5 @@
 using DocumentFormat.OpenXml;
+using Google.Protobuf;
 using OfficeKit.Artifact.Wire.V1;
 using A = DocumentFormat.OpenXml.Drawing;
 using P = DocumentFormat.OpenXml.Presentation;
@@ -483,6 +484,8 @@ internal static class PptxTextCodec
                 throw new CodecException("unsupported_presentation_edit", "Source-preserving PPTX export cannot rewrite an imported formula through the bounded PPJ formula profile.");
             return;
         }
+        // Paragraph defaults can change while direct run properties remain source-owned.
+        if (ReadInline(source, slideContext).ToByteString().Equals(requested.ToByteString())) return;
         var properties = InlineProperties(source);
         if (properties is null && (HasStyle(requested) || PptxHyperlinkCodec.HasModeledChoice(requested)))
         {

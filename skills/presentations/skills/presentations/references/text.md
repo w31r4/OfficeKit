@@ -179,6 +179,19 @@ Duplicate lists/glows, effect DAGs and unmodeled glow content remain source-owne
 and reject replacement. Local glow preview is partial; host rendering needs
 separate evidence.
 
+Use defaultText.innerShadow for a direct paragraph inner shadow. Only color is
+required; blur (0..1000pt), distance (0..100000pt), angle (-360..360 degrees)
+and opacity/token are optional. Remove an optional field to clear its direct
+native value, or set zero to retain explicit zero. Lengths round to EMU and
+angles wrap after 1/60000-degree rounding. RGB/RGBA and color tokens follow
+the same theme/grammar precedence and tint/shade resolution as default glow.
+Delete the whole field or its inner-shadow-only defaultText/style wrapper to
+remove it, then assign to restore it. Mixed effects, list attributes, other
+paragraphs and direct runs remain unchanged. Duplicate lists/inner shadows,
+effect DAGs and unmodeled native geometry/colors/descendants remain source-owned
+and reject replacement. Other run/shape/image inner-shadow syntax still requires
+its geometry. Preview remains partial and host rendering needs separate evidence.
+
 
 `textWarpPreset`, `textWarpAdjustments`, `flatTextZ`, `fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.
