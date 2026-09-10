@@ -45,6 +45,17 @@ use diagnostic page IDs, field paths and reasons to locate the problem. Repair
 the responsible input or renderer, preserve the source-bound/opaque boundary,
 and rerun into a new directory. Styling scores cannot offset factual failure.
 
+Local preview requires a matching OfficeKit codec that returns preview scene
+version 1. It draws compiler-resolved state and always combines original-input
+and scene checks; there is no canonical-PPJ drawing fallback or check-disable
+option. `preview.scene.missing` or `preview.scene.version` means the runtime
+must be updated/rebuilt as a matched package, not that the deck should be
+rewritten. Preserve valid content and report unresolved renderer limitations.
+Check `scene.candidateSha256` against `compile.outputSha256`; keep `source.sha256`
+separate after an edit. Use the original `path` and native `scenePath` together
+to locate generated nodes. Matching hashes prove identity, not complete paint
+coverage or correct source-edit semantics; verify the candidate by re-import.
+
 For every chart or layered composition, apply the four executable contracts in
 `visual-attention.md`: explicit label budget, honest missing-data topology,
 back-to-front evidence-safe layering, and one render-correction loop. If the

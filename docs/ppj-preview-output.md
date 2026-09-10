@@ -14,7 +14,7 @@ officekit ppj preview deck.ppj -o preview-new --json
 
 PNG 使用可选 sharp 依赖。命令不会自动下载依赖或切换到 LibreOffice；`ppj render` 是独立的外部渲染入口。缺少 sharp 时，可生成的 SVG 会保留，但请求的 SVG+PNG 发布返回失败。
 
-本地 preview 现要求匹配的原生 codec 返回 `PresentationPreviewScene` v1，renderer 为 `officekit-native-scene-svg`。编译器负责组件展开、数据映射和有效状态；JS 只绘制该场景，不再用 canonical PPJ 猜测布局。普通 build/check 不请求 scene。旧包不支持时明确报 `preview.scene.missing`，必须配套重建/更新 codec，没有旧绘制回退。本次真实验证使用独立构建包；当前默认安装包尚未更新，不能将测试环境成功当作默认安装成功。
+本地 preview 现要求匹配的原生 codec 返回 `PresentationPreviewScene` v1，renderer 为 `officekit-native-scene-svg`。编译器负责组件展开、数据映射和有效状态；JS 只绘制该场景，不再用 canonical PPJ 猜测布局。普通 build/check 不请求 scene。旧包不支持时明确报 `preview.scene.missing`，必须配套重建/更新 codec，没有旧绘制回退。2026-09-10 已将冻结源码 `035472e9` 的构建交付到本机默认 linux-x64 包，无测试 preload 的正式 CLI 门禁通过。具体包身份见[当前差距第 3.6 节](ppj-preview-current-gaps.zh-CN.md#36-默认运行时交付与复验2026-09-10)；这不是其他平台或后续源码版本的验收。
 
 ## 目录内的证据
 
@@ -58,7 +58,7 @@ schema 为 `office-kit/ppj-svg-preview-output/v1`。
 
 场景路线的输入证据通过共享 receipt 验证器检查真实候选字节、程序、场景摘要和资产，然后提取 JSON 安全的 `scene` 身份；painter 同时记录自己消费的场景身份。publisher 比对二者与 compile 摘要、源绑定模式。缺场景、版本不兼容或不匹配时返回 `preview.output.scene`，可靠性为 failed；此时尚未创建输出目录或加载栅格后端，失败证据位于调用异常 receipt 中，而非落盘清单。原源 hash 与编辑候选 hash 分别记录，不能用未编辑源的场景证明编辑候选正确。
 
-身份匹配只证明输出对应哪次场景，不证明全部绘制正确。正式入口移除内部入口提示，保留实际输入/场景限制及对应警示。真实集成保留四个作者/源候选输入各六类操作故障，以及事实失败红色警示；新增十个正式函数案例和 CLI 子进程回归，范围见当前差距第 2 节。操作故障不反向修改已经生成的 SVG/PNG，最终发布状态以清单或调用异常为准。
+身份匹配只证明输出对应哪次场景，不证明全部绘制正确。正式入口移除内部入口提示，保留实际输入/场景限制及对应警示。真实集成保留四个作者/源候选输入各六类操作故障，以及事实失败红色警示；正式函数案例现有三十三项（含九项直接背景渐变和十二项图片背景），并有 CLI 子进程回归，范围见当前差距第 2 节。操作故障不反向修改已经生成的 SVG/PNG，最终发布状态以清单或调用异常为准。
 
 能力声明描述真实类型的整体边界，不把“存在绘制分支”当作该类型完全支持。目前没有整个元素/图表类型被声明为 supported；个别受限状态可以通过，例如已验证的显式 contain PNG 映射。裁切、源绑定或其他未支持状态仍会降低实际结果的等级。诊断不修复绘制，已报告的文字、图表、图片等缺口仍需逐项实现。
 
@@ -72,7 +72,13 @@ schema 为 `office-kit/ppj-svg-preview-output/v1`。
 
 组坐标另有 registry 的 `groupCoordinates` 映射：只有某输入组的全部 owner 绑定均为实际成功绘制的原生组，且外框和 childFrame 的 x/y/width/height 与安全转换后的原生 EMU 值逐项相等，才解除 `preview.fact.group-coordinates-ignored`。隐藏组、零子尺寸导致的绘制失败、缺记录或坐标不匹配仍保留错误；缺 registry 映射直接拒绝该 profile。字段整体 partial、未知属性和其他事实规则不因此解除。
 
+`datasetLine` 映射仅解除普通折线图 `data.dataset` 的旧通道忽略错误：全部 owner 绑定必须指向有分类与系列的原生 LINE 节点，完成实际折线构造，且自身与全部祖先的外部变换已成功。JS 不重新解释数据集或编码。缺记录、隐藏、混合归属、通道错误和不支持的平滑折线保留失败；其他图表（包括 vector heatmap）没有借用这条规则。真实输入的 1→2 修改已有像素移动、缺失断段/真实零及显式数据对照；文字、轴、样式、源编辑和其他事实限制继续单独检查，解除误报不等于整体通过。
+
 正式路线的页面 assessment 保留真实原生节点层级。生成节点可以共用语义 ID，但 scenePath 独立；未访问的子节点明确记为 unassessed。节点局部状态不能抵消祖先、页面或全局限制，检查树不代表源编辑授权。
+
+直接线性背景渐变与形状/单元格共用色标和方向绘制，SVG/PNG 保留透明度，不自动铺白底。非法或未支持的背景渐变记录页面级 `preview.scene.paint.background` 及原生背景地址，输出可辨认的 unavailable 背景和失败警示；前景及其他页面仍保留。径向、继承和图片背景的完整显示尚未验收，不能由线性背景成功推导。
+
+直接图片背景复用图片的资产、裁切与透明度绘制，保留素材透明像素和负裁切留白。平铺及缺少明确数值的旧 alpha 状态仍报不可用。共享图片的整个背景删除目前被原生 capability 校验拒绝；33 项正式入口案例和其余绘制成功不代表该删除已完成。
 
 事实错误或绘制不可用的页面显示红色 `UNRELIABLE PREVIEW`；只有未实现/不透明限制的页面显示棕色 `PREVIEW REQUIRES REVIEW`。警示在栅格化前加入 SVG，PNG 使用同一份 SVG，保留原画布尺寸与元素 ID。警示覆盖页面顶部的一小条区域，是审查标记，不是修改输入中的版式或新增可编辑页面对象。
 

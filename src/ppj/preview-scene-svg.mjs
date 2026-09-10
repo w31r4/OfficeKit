@@ -5,7 +5,8 @@ import { isFieldSet } from "@bufbuild/protobuf";
 import presetProfiles from "./preset-geometry-profiles.json" with { type: "json" };
 import { PresentationElementSchema, PresentationSlideSchema, PresentationTextBodySchema,
   PresentationTextParagraphSchema, PresentationTextRunSchema, PresentationTextStyleSchema,
-  PresentationBackgroundSchema, PresentationTableRowSchema, PresentationTableCellSchema,
+  PresentationBackgroundSchema, PresentationImagePaintSchema, PresentationImageCropSchema,
+  PresentationTableRowSchema, PresentationTableCellSchema,
   PresentationTableCellFillSchema, PresentationTableCellBordersSchema,
   PresentationGradientFillSchema, PresentationGradientStopSchema,
   SpreadsheetChartLineStyleArtifactSchema, SpreadsheetColorSchema, SpreadsheetChartType,
@@ -184,6 +185,7 @@ function paintScene(receipt, { assessInput, integrated }) {
   const hiddenScenePaths = new Set();
   const transformedScenePaths = new Set();
   const connectorScenePaths = new Set();
+  const lineScenePaths = new Set();
   const isolatedLinePoints = [];
   let imageMaskSequence = 0;
   let gradientSequence = 0;
@@ -399,6 +401,44 @@ function paintScene(receipt, { assessInput, integrated }) {
     const id = `officekit-gradient-${gradientSequence++}`;
     return { fill: `url(#${id})`, definition: `<defs><linearGradient id="${id}" gradientUnits="userSpaceOnUse" color-interpolation="sRGB" x1="${n(cx - dx * half)}" y1="${n(cy - dy * half)}" x2="${n(cx + dx * half)}" y2="${n(cy + dy * half)}">${stops}</linearGradient></defs>` };
   }
+  function background(node, value) {
+    if (value?.gradientFill) {
+      unused(PresentationBackgroundSchema, value, ["gradientFill"], node, "background.");
+      // Mirror the native background's mutually exclusive paint ownership.
+      // Do not combine a direct gradient with inherited or image state.
+      if (value.color.case || value.kind.case || value.imageAssetId || value.imagePaint ||
+          value.imageAlphaModulationFixed || value.opacityThousandthPercent !== undefined)
+        throw new TypeError("Gradient background conflicts with color, kind, image or whole-fill opacity");
+      const paint = gradient(node, "background.gradientFill", value.gradientFill, { x: 0, y: 0, ...view.canvas });
+      return `${paint.definition}<rect data-officekit-background="gradient" width="100%" height="100%" fill="${paint.fill}"/>`;
+    }
+    if (value?.imagePaint || value?.imageAssetId || value?.imageAlphaModulationFixed) {
+      unused(PresentationBackgroundSchema, value, ["imagePaint", "imageAssetId", "imageAlphaModulationFixed"], node, "background.");
+      if (value.color.case || value.kind.case || value.opacityThousandthPercent !== undefined ||
+          value.imagePaint && (value.imageAssetId || value.imageAlphaModulationFixed))
+        throw new TypeError("Image background conflicts with color, kind, legacy image or whole-fill opacity");
+      if (value.imageAlphaModulationFixed)
+        throw new TypeError("Legacy image background alpha has no explicit amount; opacity remains unverified");
+      const paint = value.imagePaint;
+      if (paint) {
+        unused(PresentationImagePaintSchema, paint, ["assetId", "crop", "opacityThousandthPercent", "mode"], node, "background.imagePaint.");
+        if (![0, 1].includes(paint.mode)) {
+          limit(node, "background.imagePaint.mode", "preview.scene.paint.image-tile",
+            paint.mode === 2 ? "Native tile sizing/DPI is not resolved" : "Unknown native image paint mode", "unavailable");
+          throw new TypeError("Image background mode cannot be drawn as stretch");
+        }
+      }
+      const field = paint ? "background.imagePaint" : "background";
+      const markup = imageSurface(node, field, view.asset(paint?.assetId || value.imageAssetId),
+        { x: 0, y: 0, ...view.canvas }, paint?.crop, paint?.opacityThousandthPercent,
+        "", paint ? "assetId" : "imageAssetId");
+      if (markup === null) throw new TypeError("Image background asset, crop or opacity is unavailable");
+      return `<g data-officekit-background="image">${markup}</g>`;
+    }
+    if (value) unused(PresentationBackgroundSchema, value, ["colorRgb", "opacityThousandthPercent", "solid"], node, "background.");
+    const fill = value?.color.case === "colorRgb" ? rgb(value.color.value, "#FFFFFF") : "#FFFFFF";
+    return `<rect width="100%" height="100%" fill="${fill}" fill-opacity="${n(sceneOpacity(value?.opacityThousandthPercent ?? 100000))}"/>`;
+  }
   function shape(node) {
     const s = node.native, f = node.frame;
     unused(content.get("shape"), s, [...frameFields, "geometry", "text", "textBody", "fillRgb", "lineRgb", "lineWidthEmu",
@@ -455,7 +495,6 @@ function paintScene(receipt, { assessInput, integrated }) {
       limit(node, "image.tiled", "preview.scene.paint.image-tile", "Native tile sizing/DPI is not resolved", "unavailable");
       return placeholder(node, "Tiled image unavailable");
     }
-    const href = `data:${asset.contentType};base64,${Buffer.from(asset.data).toString("base64")}`;
     let mask = "";
     const f = node.frame;
     try {
@@ -493,19 +532,37 @@ function paintScene(receipt, { assessInput, integrated }) {
       const id = `officekit-image-mask-${imageMaskSequence++}`;
       return `<defs><clipPath id="${id}" clipPathUnits="userSpaceOnUse">${mask}</clipPath></defs><g clip-path="url(#${id})">${markup}</g>${border}`;
     };
-    if (s.crop) {
-      const edges = ["left", "top", "right", "bottom"].map(side => s.crop[`${side}ThousandthPercent`]);
+    const markup = imageSurface(node, "image", asset, f, s.crop, s.opacityThousandthPercent, s.altText || s.accessibilityTitle || "");
+    return markup === null ? placeholder(node, "Image paint unavailable") : masked(markup);
+  }
+  // Pictures and background fills share only native raster paint mechanics.
+  // Cover/contain have already been lowered to these signed crop coordinates
+  // by the compiler; this helper never interprets a PPJ fit or asset reference.
+  function imageSurface(node, field, asset, f, crop, opacity, title = "", assetField = "assetId") {
+    if (!asset?.data?.byteLength || !asset.contentType.startsWith("image/")) {
+      limit(node, `${field}.${assetField}`, "preview.scene.paint.asset", "No verified image asset", "unavailable");
+      return null;
+    }
+    if (opacity !== undefined && (!Number.isInteger(opacity) || opacity < 0 || opacity > 100000)) {
+      limit(node, `${field}.opacityThousandthPercent`, "preview.scene.paint.image-opacity", "Invalid native image opacity", "unavailable");
+      return null;
+    }
+    const href = `data:${asset.contentType};base64,${Buffer.from(asset.data).toString("base64")}`;
+    const attributes = `href="${esc(href)}" preserveAspectRatio="none" opacity="${n(sceneOpacity(opacity ?? 100000))}"><title>${esc(title)}</title></image>`;
+    if (crop) {
+      unused(PresentationImageCropSchema, crop, ["leftThousandthPercent", "topThousandthPercent", "rightThousandthPercent", "bottomThousandthPercent"], node, `${field}.crop.`);
+      const edges = ["left", "top", "right", "bottom"].map(side => crop[`${side}ThousandthPercent`]);
       const [left, top, right, bottom] = edges;
       if (edges.some(v => !Number.isInteger(v) || v < -100000 || v > 100000) || left + right >= 100000 || top + bottom >= 100000) {
-        limit(node, "image.crop", "preview.scene.paint.image-crop", "Invalid native source rectangle", "unavailable");
-        return placeholder(node, "Image crop unavailable");
+        limit(node, `${field}.crop`, "preview.scene.paint.image-crop", "Invalid native source rectangle", "unavailable");
+        return null;
       }
-      const f = node.frame, width = f.width / (1 - (left + right) / 100000), height = f.height / (1 - (top + bottom) / 100000);
+      const width = f.width / (1 - (left + right) / 100000), height = f.height / (1 - (top + bottom) / 100000);
       // A nested viewport clips to the picture frame without shared clip IDs.
       // Negative edges leave transparent letterbox space; they do not add pixels.
-      return masked(`<svg ${box(f)} viewBox="0 0 ${n(f.width)} ${n(f.height)}" overflow="hidden"><image x="${n(-left / 100000 * width)}" y="${n(-top / 100000 * height)}" width="${n(width)}" height="${n(height)}" href="${esc(href)}" preserveAspectRatio="none" opacity="${n(sceneOpacity(s.opacityThousandthPercent ?? 100000))}"><title>${esc(s.altText || s.accessibilityTitle || "")}</title></image></svg>`);
+      return `<svg ${box(f)} viewBox="0 0 ${n(f.width)} ${n(f.height)}" overflow="hidden"><image x="${n(-left / 100000 * width)}" y="${n(-top / 100000 * height)}" width="${n(width)}" height="${n(height)}" ${attributes}</svg>`;
     }
-    return masked(`<image ${box(node.frame)} href="${esc(href)}" preserveAspectRatio="none" opacity="${n(sceneOpacity(s.opacityThousandthPercent ?? 100000))}"><title>${esc(s.altText || s.accessibilityTitle || "")}</title></image>`);
+    return `<image ${box(f)} ${attributes}`;
   }
   function linePaint(node, field, color, width, opacity, dash, cap, join, dashField = "dashStyle") {
     if (width < 0) throw new RangeError("Negative native line width");
@@ -1214,6 +1271,7 @@ function paintScene(receipt, { assessInput, integrated }) {
     const heading = text({ ...node, frame: { x: plot.x, y: f.y, width: plot.width, height: f.height * .15 } }, { text: s.title, textBody: s.titleBody }, "chart");
     const svg = `<g data-officekit-chart="line" data-officekit-blank-policy="${blank}" data-officekit-scale-min="${n(low)}" data-officekit-scale-max="${n(high)}" data-officekit-log-base="${logBase ?? "linear"}">${heading}${axes}<svg ${box(f)} viewBox="${n(f.x)} ${n(f.y)} ${n(f.width)} ${n(f.height)}" overflow="hidden">${output}</svg>${observed.length ? "" : `<text x="${n(plot.x)}" y="${n(plot.y + 12)}" font-size="10">No observed data</text>`}</g>`;
     isolatedLinePoints.push(...capturedIsolated);
+    lineScenePaths.add(node.scenePath);
     return svg;
   }
   function paintGroup(node, group, prefix) {
@@ -1283,6 +1341,7 @@ function paintScene(receipt, { assessInput, integrated }) {
     hiddenScenePaths: Object.freeze([...hiddenScenePaths]),
     transformedScenePaths: Object.freeze([...transformedScenePaths]),
     connectorScenePaths: Object.freeze([...connectorScenePaths]),
+    lineScenePaths: Object.freeze([...lineScenePaths]),
     isolatedLinePoints: Object.freeze(isolatedLinePoints.map(point => Object.freeze(point))) };
   let inputAssessment;
   if (assessInput) {
@@ -1333,9 +1392,12 @@ function paintScene(receipt, { assessInput, integrated }) {
     const pageNode = { ...page, path: "$" };
     if (!integrated) limit(pageNode, "", "preview.scene.paint.integration-pending", "Internal paint-only entry: use local preview for mandatory input assessment and publication evidence. Complete field coverage remains pending.");
     unused(PresentationSlideSchema, page.native, ["id", "elements", "background", "hidden"], pageNode);
-    const background = page.native.background;
-    if (background) unused(PresentationBackgroundSchema, background, ["colorRgb", "opacityThousandthPercent", "solid"], pageNode, "background.");
-    const fill = background?.color.case === "colorRgb" ? rgb(background.color.value, "#FFFFFF") : "#FFFFFF";
+    let backgroundSvg;
+    try { backgroundSvg = background(pageNode, page.native.background); }
+    catch (error) {
+      limit(pageNode, "background", "preview.scene.paint.background", error.message, "unavailable");
+      backgroundSvg = `<rect data-officekit-background="unavailable" width="100%" height="100%" fill="#FFF7ED"><title>${esc(error.message)}</title></rect>`;
+    }
     const body = bodies[index];
     const pageDiagnostics = [...globalDiagnostics, ...diagnostics.filter(d => d.scenePath === page.scenePath || d.scenePath.startsWith(`${page.scenePath}.`))];
     const ownDiagnostics = new Map();
@@ -1370,7 +1432,7 @@ function paintScene(receipt, { assessInput, integrated }) {
     const banner = reliability.status === "passed" ? "" : `<g data-officekit-review="${reliability.status}" data-officekit-assessment-path="${esc(assessment.path)}" data-officekit-diagnostic-path="${esc(diagnostic?.path || assessment.path)}" data-officekit-diagnostic-reason="${esc(diagnostic?.reason || "unassessed")}"><rect width="${n(view.canvas.width)}" height="${n(bannerHeight)}" fill="${reliability.status === "failed" ? "#991B1B" : "#92400E"}"/><text x="2" y="${n(bannerHeight * .7)}" font-size="${n(bannerHeight * .5)}" fill="#FFFFFF">${esc(label)}</text></g>`;
     return Object.freeze({ id: page.pageId ?? page.nativeId, pageId: page.pageId, nativeId: page.nativeId, hidden: page.hidden,
       assessment, status, reliability, diagnostics: assessment.diagnostics,
-      svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${n(view.canvas.width)}" height="${n(view.canvas.height)}" viewBox="0 0 ${n(view.canvas.width)} ${n(view.canvas.height)}"><rect width="100%" height="100%" fill="${fill}" fill-opacity="${n(sceneOpacity(background?.opacityThousandthPercent ?? 100000))}"/>${body}${banner}</svg>` });
+      svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${n(view.canvas.width)}" height="${n(view.canvas.height)}" viewBox="0 0 ${n(view.canvas.width)} ${n(view.canvas.height)}">${backgroundSvg}${body}${banner}</svg>` });
   });
   const assessment = previewAssessment({ path: "$", scenePath: "$.presentation", assessed: true, diagnostics: globalDiagnostics,
     children: pages.map(page => page.assessment) });

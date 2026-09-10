@@ -168,6 +168,17 @@ duplicate fills and unknown nested content survive unrelated scalar edits
 and reject replacement. Local text-gradient preview and host rendering
 remain partial and require separate visual evidence.
 
+Use defaultText.glow for a direct paragraph glow: color, radius in points
+(0..1000, rounded to EMU) and optional opacity or opacity token. Omission,
+opacity 0 and opacity 1 remain distinct. RGB/RGBA and color tokens are accepted;
+plain source theme tokens retain scheme identity, declared grammar colors take
+precedence, and tint/shade resolve to RGB. Delete the field or its glow-only
+defaultText/style wrapper to remove it, then assign to restore it. Edits retain
+other effects, their native attributes, other paragraphs and direct runs.
+Duplicate lists/glows, effect DAGs and unmodeled glow content remain source-owned
+and reject replacement. Local glow preview is partial; host rendering needs
+separate evidence.
+
 
 `textWarpPreset`, `textWarpAdjustments`, `flatTextZ`, `fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.

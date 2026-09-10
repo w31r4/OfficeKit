@@ -52,6 +52,7 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
   const paintedOwnerGroups = new Map();
   const paintedOwnerConnectors = new Map();
   const paintedOwnerLines = new Map();
+  const paintedDatasetLineOwners = new Set();
   if (rendererProfile === "native-scene-svg") {
     const mapping = registry.previewScene?.factualMappings?.visibility;
     if (mapping?.handler !== "all-owner-nodes-hidden" || mapping.test !== "test/ppj-preview-scene-native.mjs")
@@ -68,6 +69,9 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
     const isolatedMapping = registry.previewScene?.factualMappings?.isolatedLinePoints;
     if (isolatedMapping?.handler !== "all-owner-matching-line-points-painted" || isolatedMapping.test !== "test/ppj-preview-scene-native.mjs")
       throw new Error("Missing verified native isolated line point mapping in the preview registry");
+    const datasetMapping = registry.previewScene?.factualMappings?.datasetLine;
+    if (datasetMapping?.handler !== "all-owner-native-dataset-lines-painted" || datasetMapping.test !== "test/ppj-preview-scene-native.mjs")
+      throw new Error("Missing verified native dataset line mapping in the preview registry");
     const scene = readPpjPreviewReceiptScene(sceneReceipt ?? {});
     if (!["officekit-native-scene-svg", "officekit-native-scene-svg-internal"].includes(scenePaint?.renderer) || scenePaint.scene !== scene ||
         scenePaint.sceneEvidence?.sha256 !== scene.sha256 || !Array.isArray(scenePaint.hiddenScenePaths) || !Array.isArray(scenePaint.transformedScenePaths) ||
@@ -80,22 +84,24 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
     const nativeGroups = new Map();
     const nativeConnectors = new Map(), connectors = new Set(scenePaint.connectorScenePaths ?? []);
     const nativeLines = new Map(), isolated = new Map();
+    const lines = new Set(scenePaint.lineScenePaths ?? []), parents = new Map();
     for (const point of scenePaint.isolatedLinePoints ?? []) {
       if (!isolated.has(point.scenePath)) isolated.set(point.scenePath, new Set());
       isolated.get(point.scenePath).add(`${point.seriesIndex}:${point.pointIndex}`);
     }
-    function visitNative(elements, prefix) {
+    function visitNative(elements, prefix, parent) {
       elements.forEach((element, index) => {
         const address = `${prefix}[${index}]`;
+        parents.set(address, parent);
         const native = element.content.value;
         nativeTransforms.set(address, native?.transform ?? native?.frameTransform);
         if (element.content.case === "group") nativeGroups.set(address, native);
         if (element.content.case === "connector") nativeConnectors.set(address, native);
         if (element.content.case === "chart" && native.type === SpreadsheetChartType.LINE) nativeLines.set(address, native);
         if (element.hidden === true) nativeHidden.add(address);
-        if (element.content.case === "group") visitNative(element.content.value.children, `${address}.group.children`);
+        if (element.content.case === "group") visitNative(element.content.value.children, `${address}.group.children`, address);
         if (element.content.case === "diagram" && element.content.value.drawing)
-          visitNative(element.content.value.drawing.children, `${address}.diagram.drawing.children`);
+          visitNative(element.content.value.drawing.children, `${address}.diagram.drawing.children`, address);
       });
     }
     scene.presentation.slides.forEach((slide, index) => visitNative(slide.elements, `$.presentation.slides[${index}].elements`));
@@ -117,6 +123,16 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
     for (const [path, bindings] of owners)
       if (bindings.every(binding => transformed.has(binding.scenePath) && nativeLines.has(binding.scenePath) && isolated.has(binding.scenePath)))
         paintedOwnerLines.set(path, bindings.map(binding => ({ native: nativeLines.get(binding.scenePath), points: isolated.get(binding.scenePath) })));
+    for (const [path, bindings] of owners)
+      if (bindings.every(binding => {
+        const native = nativeLines.get(binding.scenePath);
+        if (!lines.has(binding.scenePath) || !native?.categories.length || !native.series.length) return false;
+        // A child may have painted before its parent's transform failed. That
+        // discarded SVG fragment cannot establish successful data consumption.
+        for (let address = binding.scenePath; address; address = parents.get(address))
+          if (!transformed.has(address)) return false;
+        return true;
+      })) paintedDatasetLineOwners.add(path);
   }
   const rules = new Map(Object.values(support.fields).map((rule) => [previewSchemaAt(schema, rule.schemaRef), rule]));
   const metadata = new Set(Object.values(support.metadata).map((rule) => previewSchemaAt(schema, rule.schemaRef)));
@@ -273,7 +289,8 @@ export function assessPpjPreviewInput(program, { schema = languageSchema, regist
       });
     }
     context.diagnostics.push(...previewFactualErrors(element, { path, pageId, id }, support,
-      { hiddenOwnerPaths, resolvedTransformPaths, resolvedGroupCoordinates, resolvedConnectorPaths, resolvedIsolatedLinePaths, resolvedLineSeriesPaths }));
+      { hiddenOwnerPaths, resolvedTransformPaths, resolvedGroupCoordinates, resolvedConnectorPaths, resolvedIsolatedLinePaths, resolvedLineSeriesPaths,
+        resolvedDataset: element?.type === "chart" && element.chartType === "line" && paintedDatasetLineOwners.has(path) }));
     const type = object(element) && Object.hasOwn(support.types, element.type) ? support.types[element.type] : undefined;
     if (!provenImage) emit(context, previewPath(path, "type"), element?.type, type, type ? {} : { status: "opaque", reason: "preview.element.unknown" });
     if (element?.type === "image" && !assets.get(element.asset)?.data?.byteLength) {

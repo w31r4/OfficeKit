@@ -3,7 +3,7 @@ import { previewDiagnostic } from "./preview-diagnostics.mjs";
 // These conditions describe the current SVG drawing branches. Removing a
 // limitation requires a drawing regression, not a weaker diagnostic severity.
 export function previewFactualErrors(element, { path, pageId, id }, support,
-  { hiddenOwnerPaths = new Set(), resolvedTransformPaths = new Set(), resolvedGroupCoordinates = false, resolvedConnectorPaths = new Set(), resolvedIsolatedLinePaths = new Set(), resolvedLineSeriesPaths = new Set() } = {}) {
+  { hiddenOwnerPaths = new Set(), resolvedTransformPaths = new Set(), resolvedGroupCoordinates = false, resolvedConnectorPaths = new Set(), resolvedIsolatedLinePaths = new Set(), resolvedLineSeriesPaths = new Set(), resolvedDataset = false } = {}) {
   const diagnostics = [];
   const add = (name, suffix, value) => {
     const rule = support.factual[name];
@@ -33,7 +33,7 @@ export function previewFactualErrors(element, { path, pageId, id }, support,
   const type = element.chartType, series = element.data?.series || [];
   const drawnMaximum = series.reduce((max, item) => (item.values || []).reduce((current, value) => Number.isFinite(value) ? Math.max(current, value) : current, max), 1);
   const cartesian = ["bar", "column", "line", "area", "combo"].includes(type);
-  if (element.data?.dataset !== undefined) add("chartChannels", ".data.dataset", element.data.dataset);
+  if (element.data?.dataset !== undefined && !resolvedDataset) add("chartChannels", ".data.dataset", element.data.dataset);
   if (element.style?.stacking !== undefined && element.style.stacking !== "none") add("chartStacking", ".style.stacking", element.style.stacking);
   if (element.style?.symbol !== undefined) add("chartSymbol", ".style.symbol", element.style.symbol);
   if (type === "bar" && series.some((s) => s.values?.some(Number.isFinite))) add("chartChannels", ".chartType", type);

@@ -464,6 +464,18 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 ### F-03 文本、段落、列表、字段和 WordArt
 
 
+**段落默认文字发光增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.defaultText.glow` 支持赋值、删除、恢复和
+仅含 glow 的包装删除。radius 接受 0–1000pt，按原生 EMU 舍入；RGB/RGBA、
+颜色 token、opacity token，以及透明度缺省/零/一分别保留。简单源主题色
+保留 scheme 绑定，grammar 同名颜色优先，tint/shade 解析为 RGB。
+各个直接段落默认效果独立读取，修改 glow 保留其它效果及列表属性、相邻段落、
+run 和非目标 XML/ZIP。重复 glow/列表、effect DAG、未建模颜色/半径/子内容
+随无关标量编辑保留，拒绝覆盖。相关原生回归 **287/287 通过，0 跳过**，
+包含 12 个新增 glow 用例；沿用整组默认样式的已记录基线排除项。
+资料与 OpenSpec 已同步；glow 预览仍为 partial，完整 F-03 和宿主显示继续开放。
+
+
 **段落默认文字渐变增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.defaultText.gradient` 支持线性/居中径向渐变、
 删除、恢复和单字段包装删除。2–16 个有序色标允许重复位置；RGBA/token

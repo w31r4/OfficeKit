@@ -6,9 +6,11 @@ import { create, clone, toBinary } from "@bufbuild/protobuf";
 import { PresentationPreviewSceneSchema, PresentationElementSchema, PresentationTextParagraphSchema, PresentationTextRunSchema,
   PresentationCustomGeometryPathSchema, SpreadsheetChartMarkerArtifactSchema,
   SpreadsheetChartSeriesArtifactSchema, SpreadsheetChartPointStyleArtifactSchema,
-  PresentationGradientFillSchema,
+  PresentationGradientFillSchema, PresentationBackgroundSchema, PresentationSlideSchema,
   SpreadsheetChartSurfaceFillSchema, SpreadsheetChartAxisArtifactSchema } from "../src/generated/office_kit/artifact/v1/office_artifact_pb.js";
 import { nativePathData, paintPpjSceneSvg } from "../src/ppj/preview-scene-svg.mjs";
+import { assessPpjPreviewInput } from "../src/ppj/preview-input-assessment.mjs";
+import capabilityRegistry from "../src/ppj/capability-registry.json" with { type: "json" };
 
 const sha = data => createHash("sha256").update(data).digest("hex");
 const emu = value => BigInt(Math.round(value * 12700));
@@ -158,6 +160,106 @@ const tableGradient = fixture(scene => {
 const tableGradientSvg = paintPpjSceneSvg(tableGradient).pages[0].svg;
 assert.equal(tableGradientSvg.match(/<linearGradient/g)?.length, 2);
 assert.equal(new Set([...tableGradientSvg.matchAll(/<linearGradient id="([^"]+)"/g)].map(m => m[1])).size, 2);
+function backgroundGradientFixture(angle = 0, edit = () => {}) {
+  return fixture(scene => {
+    const background = create(PresentationBackgroundSchema, { gradientFill: {
+      kind: 1, angle60000: angle * 60000, stops: [
+        { positionThousandthPercent: 0, colorRgb: "FF0000" },
+        { positionThousandthPercent: 50000, colorRgb: "00FF00", opacityThousandthPercent: 0 },
+        { positionThousandthPercent: 100000, colorRgb: "0000FF", opacityThousandthPercent: 100000 },
+      ],
+    } });
+    scene.presentation.slides[0].background = background;
+    edit(background, scene);
+  });
+}
+for (const [angle, coordinates] of [[0, [0, 200, 600, 200]], [90, [300, 0, 300, 400]], [180, [600, 200, 0, 200]]]) {
+  const input = backgroundGradientFixture(angle), before = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const result = paintPpjSceneSvg(input), svg = result.pages[0].svg;
+  assert.match(svg, /data-officekit-background="gradient"[^>]*fill="url\(#officekit-gradient-/);
+  const found = svg.match(/<linearGradient[^>]* x1="([^"]+)" y1="([^"]+)" x2="([^"]+)" y2="([^"]+)"/);
+  assert.deepEqual(found?.slice(1).map(Number), coordinates);
+  assert.match(svg, /offset="0\.5" stop-color="#00FF00" stop-opacity="0"/);
+  assert.ok(!result.diagnostics.some(d => d.scenePath === "$.presentation.slides[0].background.gradientFill"));
+  assert.ok(svg.indexOf('data-officekit-background="gradient"') < svg.indexOf('data-officekit-native-id="box"'), "background precedes foreground nodes");
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), before);
+}
+for (const edit of [b => { b.gradientFill.kind = 2; delete b.gradientFill.angle60000; },
+  b => { b.gradientFill.stops.length = 1; }, b => { b.gradientFill.stops.reverse(); },
+  b => { b.gradientFill.angle60000 = 21600000; }, b => { b.gradientFill.stops[1].opacityThousandthPercent = 100001; },
+  b => { b.color = { case: "colorRgb", value: "CC5500" }; }, b => { b.kind = { case: "solid", value: false }; },
+  b => { b.opacityThousandthPercent = 0; }, b => { b.imageAlphaModulationFixed = true; }]) {
+  const result = paintPpjSceneSvg(backgroundGradientFixture(0, (background, scene) => {
+    scene.presentation.slides.push(create(PresentationSlideSchema, { id: "second", background: clone(PresentationBackgroundSchema, background) }));
+    edit(background);
+  }));
+  assert.equal(result.pages[0].reliability.status, "failed");
+  assert.match(result.pages[0].svg, /data-officekit-background="unavailable"/);
+  assert.match(result.pages[0].svg, /data-officekit-native-id="box"/, "a background failure preserves foreground content");
+  assert.ok(result.pages[0].diagnostics.some(d => d.scenePath === "$.presentation.slides[0].background" && d.status === "unavailable"));
+  assert.notEqual(result.pages[1].reliability.status, "failed", "a background failure is page-local");
+  assert.match(result.pages[1].svg, /data-officekit-background="gradient"/);
+}
+const mixedGradientInput = backgroundGradientFixture(0, (background, scene) => {
+  const shape = scene.presentation.slides[0].elements[0].content.value;
+  shape.fillRgb = ""; delete shape.fillOpacityThousandthPercent;
+  shape.gradientFill = clone(PresentationGradientFillSchema, background.gradientFill);
+});
+const mixedGradientSvg = paintPpjSceneSvg(mixedGradientInput).pages[0].svg;
+assert.equal(mixedGradientSvg.match(/<linearGradient/g)?.length, 2);
+assert.equal(new Set([...mixedGradientSvg.matchAll(/<linearGradient id="([^"]+)"/g)].map(m => m[1])).size, 2);
+function backgroundImageFixture(paint = {}, edit = () => {}) {
+  return fixture(scene => {
+    const background = create(PresentationBackgroundSchema, { imagePaint: { assetId: "native-asset", mode: 1, ...paint } });
+    scene.presentation.slides[0].background = background;
+    edit(background, scene);
+  });
+}
+for (const [paint, expected] of [
+  [{}, /<image x="0" y="0" width="600" height="400"/],
+  [{ mode: 0, opacityThousandthPercent: 0 }, /opacity="0"/],
+  [{ opacityThousandthPercent: 50000, crop: { leftThousandthPercent: 50000 } }, /<image x="-600" y="0" width="1200" height="400"/],
+  [{ crop: { leftThousandthPercent: -50000, rightThousandthPercent: -50000 } }, /<image x="150" y="0" width="300" height="400"/],
+]) {
+  const input = backgroundImageFixture(paint), original = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const result = paintPpjSceneSvg(input), svg = result.pages[0].svg;
+  const background = svg.match(/<g data-officekit-background="image">([\s\S]*?)<\/g>/)?.[1];
+  assert.ok(background, "native image backgrounds must actually draw their asset");
+  assert.match(background, expected);
+  assert.match(background, /href="data:image\/png;base64,/);
+  assert.ok(svg.indexOf('data-officekit-background="image"') < svg.indexOf('data-officekit-native-id="box"'));
+  assert.ok(!result.diagnostics.some(d => d.scenePath?.includes(".background")));
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
+const legacyBackground = backgroundImageFixture({}, background => {
+  delete background.imagePaint; background.imageAssetId = "native-asset";
+});
+assert.match(paintPpjSceneSvg(legacyBackground).pages[0].svg, /data-officekit-background="image"/);
+const missingBackgroundAsset = backgroundImageFixture({ assetId: "missing" });
+assert.throws(() => paintPpjSceneSvg(missingBackgroundAsset), error => error.code === "preview.scene.asset-mismatch");
+for (const edit of [
+  b => { b.imagePaint.mode = 2; }, b => { b.imagePaint.mode = 3; },
+  b => { b.imagePaint.opacityThousandthPercent = 100001; },
+  b => { b.imagePaint.crop = create(content.get("image").fields.find(f => f.localName === "crop").message, { leftThousandthPercent: 100000 }); },
+  b => { b.color = { case: "colorScheme", value: "accent1" }; }, b => { b.kind = { case: "solid", value: false }; },
+  b => { b.opacityThousandthPercent = 0; }, b => { b.imageAssetId = "native-asset"; },
+  b => { b.imageAlphaModulationFixed = true; },
+  b => { delete b.imagePaint; b.imageAssetId = "native-asset"; b.imageAlphaModulationFixed = true; },
+]) {
+  const input = backgroundImageFixture({}, (background, scene) => {
+    scene.presentation.slides.push(create(PresentationSlideSchema, { id: "second", background: clone(PresentationBackgroundSchema, background) }));
+    edit(background);
+  }), original = toBinary(PresentationPreviewSceneSchema, input.previewScene);
+  const result = paintPpjSceneSvg(input);
+  assert.equal(result.pages[0].reliability.status, "failed");
+  assert.match(result.pages[0].svg, /data-officekit-background="unavailable"/);
+  assert.doesNotMatch(result.pages[0].svg, /data-officekit-background="image"/);
+  assert.match(result.pages[0].svg, /data-officekit-native-id="box"/);
+  assert.ok(result.pages[0].diagnostics.some(d => d.scenePath === "$.presentation.slides[0].background" && d.status === "unavailable"));
+  assert.notEqual(result.pages[1].reliability.status, "failed");
+  assert.match(result.pages[1].svg, /data-officekit-background="image"/);
+  assert.deepEqual(toBinary(PresentationPreviewSceneSchema, input.previewScene), original);
+}
 for (const mediaType of ["audio", "video"]) {
   const input = fixture(scene => scene.presentation.slides[0].elements.push(child("media-poster", "media", {
     ...frame(350, 40, 200, 100), mediaType, assetId: "native-asset", posterAssetId: "native-asset",
@@ -264,6 +366,55 @@ function isolatedProfileFixture({ requested = [2, null, 0], nativeValues = [2, 0
   bindings => { for (const binding of bindings) binding.programPath = "$.pages[0].elements[0]"; });
 }
 const missingReason = "preview.fact.missing-observation-misrepresented";
+// The compiler owns dataset interpretation. These independent native receipts
+// exercise only the evidence boundary, not a second JavaScript data compiler.
+const datasetReason = "preview.fact.chart-channel-ignored";
+const datasetPath = "$.pages[0].elements[0].data.dataset";
+function datasetProfileFixture({ hidden = false, smooth = false, badChannels = false, extraOwner = false,
+  chartType = "line", failedParent = false, nested = false } = {}) {
+  const program = { pages: [{ id: "page", elements: [{ id: "line", type: "chart", chartType,
+    data: { dataset: { cols: ["category", "value"], rows: [["A", 2], ["B", null], ["C", 0]] },
+      encoding: { category: 0, value: 1 } } }] }] };
+  return fixture(scene => {
+    const line = child("line", "chart", { ...frame(100, 100, 300, 200), type: 2,
+      categories: ["A", "B", "C"], lineOptions: { smooth },
+      series: [{ name: "S", values: badChannels ? [2, 0] : [2, 0, 0], missingValueIndexes: [1] }],
+    }, hidden);
+    scene.presentation.slides[0].elements = failedParent || nested ? [child("parent", "group", {
+      ...frame(0, 0, 600, 400), childWidthEmu: emu(failedParent ? 0 : 600), childHeightEmu: emu(400), children: [line],
+    })] : [line];
+    if (extraOwner) scene.presentation.slides[0].elements.push(child("extra", "shape", { ...frame(0, 0, 10, 10), geometry: "rect" }));
+  }, program, bindings => {
+    for (const binding of bindings) binding.programPath = binding.nativeId === "parent" ? "$.pages[0]" : "$.pages[0].elements[0]";
+  });
+}
+const datasetInput = datasetProfileFixture(), datasetBefore = toBinary(PresentationPreviewSceneSchema, datasetInput.previewScene);
+const datasetPaint = paintPpjSceneSvg(datasetInput, { assessInput: true });
+assert.ok(!datasetPaint.diagnostics.some(d => d.reason === datasetReason && d.path === datasetPath),
+  "a completed native line consumes compiler-resolved dataset channels");
+assert.equal(datasetPaint.lineScenePaths.length, 1);
+assert.match(datasetPaint.pages[0].svg, /data-officekit-missing-point="1"/);
+assert.match(datasetPaint.pages[0].svg, /data-officekit-point="2" data-officekit-value="0"/);
+assert.ok(!datasetPaint.pages[0].svg.includes("data-officekit-line-segment="));
+assert.deepEqual(toBinary(PresentationPreviewSceneSchema, datasetInput.previewScene), datasetBefore);
+const datasetProgram = JSON.parse(datasetInput.programJson);
+const datasetOptions = { rendererProfile: "native-scene-svg", sceneReceipt: datasetInput, scenePaint: datasetPaint };
+assert.ok(assessPpjPreviewInput(datasetProgram).diagnostics.some(d => d.reason === datasetReason && d.path === datasetPath));
+assert.ok(assessPpjPreviewInput(datasetProgram, { ...datasetOptions, scenePaint: { ...datasetPaint, lineScenePaths: [] } })
+  .diagnostics.some(d => d.reason === datasetReason && d.path === datasetPath));
+const missingDatasetRegistry = structuredClone(capabilityRegistry);
+delete missingDatasetRegistry.previewScene.factualMappings.datasetLine;
+assert.throws(() => assessPpjPreviewInput(datasetProgram, { ...datasetOptions, registry: missingDatasetRegistry }), /dataset line mapping/);
+for (const options of [{ hidden: true }, { smooth: true }, { badChannels: true }, { extraOwner: true }, { chartType: "heatmap" }, { failedParent: true }]) {
+  const painted = paintPpjSceneSvg(datasetProfileFixture(options), { assessInput: true });
+  assert.ok(painted.diagnostics.some(d => d.reason === datasetReason && d.path === datasetPath), JSON.stringify(options));
+}
+const nestedDatasetInput = datasetProfileFixture({ nested: true }), nestedDatasetPaint = paintPpjSceneSvg(nestedDatasetInput, { assessInput: true });
+assert.ok(!nestedDatasetPaint.diagnostics.some(d => d.reason === datasetReason && d.path === datasetPath));
+assert.ok(assessPpjPreviewInput(JSON.parse(nestedDatasetInput.programJson), { rendererProfile: "native-scene-svg",
+  sceneReceipt: nestedDatasetInput, scenePaint: { ...nestedDatasetPaint,
+    transformedScenePaths: nestedDatasetPaint.transformedScenePaths.filter(p => p !== "$.presentation.slides[0].elements[0]") },
+}).diagnostics.some(d => d.reason === datasetReason && d.path === datasetPath), "uncaptured parent retains the dataset failure");
 const isolatedInput = isolatedProfileFixture(), isolatedBytes = toBinary(PresentationPreviewSceneSchema, isolatedInput.previewScene);
 const isolatedPaint = paintPpjSceneSvg(isolatedInput, { assessInput: true });
 assert.ok(!isolatedPaint.diagnostics.some(d => d.reason === missingReason));

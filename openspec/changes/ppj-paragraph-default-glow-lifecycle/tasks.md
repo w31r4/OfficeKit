@@ -1,0 +1,6 @@
+## 1. Paragraph default glow
+
+- [x] 1.1 Implement exact glow authority, optional color/opacity construction, stable direct effect reading and targeted glow writing; verify lifecycle/wrappers, tokens/presence, mixed siblings, source preservation and invalid/missing authority cases with focused and related native tests.
+- [x] 1.2 Synchronize schema/Help/registry, focused text reference, generated metadata and backlog evidence; verify explicit preview diagnostics, portability/reference sync, generated checks and strict OpenSpec validation.
+
+Validation (2026-09-10): the focused glow run initially passed 8/12; four lifecycle assertions compared equivalent 0.000079 and 7.9E-05 JSON spellings. Numeric radius/opacity assertions now preserve semantic equality and presence. The final related native filter passes 287/287 with zero skipped, including all 12 new glow cases; the previously recorded whole-default-style baseline test remains excluded. Native XML/ZIP and fresh source-free projection are checked against original source bytes. Input/coverage diagnostics, generated reference/capability matrix, Skill portability (255 files), reference sync (333 files), whitespace and strict OpenSpec checks pass. Paragraph glow preview remains partial; no native package rebuild or PowerPoint host validation is claimed.

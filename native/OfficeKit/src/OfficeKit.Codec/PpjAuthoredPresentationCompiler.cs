@@ -2513,7 +2513,7 @@ internal static partial class PpjAuthoredPresentationCompiler
                 middleDefault);
     }
 
-    private static PresentationTextStyle BuildTextStyle(JsonElement? style, Catalog catalog)
+    private static PresentationTextStyle BuildTextStyle(JsonElement? style, Catalog catalog, bool paragraphDefaults = false)
     {
         var output = new PresentationTextStyle();
         if (style is not { } value) return output;
@@ -2533,7 +2533,10 @@ internal static partial class PpjAuthoredPresentationCompiler
             output.GradientFill = BuildGradientFill(gradient, color => catalog.Color(color));
         }
         if (value.TryGetProperty("shadow", out var shadow)) output.Shadow = BuildShadow(shadow, catalog);
-        if (value.TryGetProperty("glow", out var glow)) output.Glow = BuildGlow(glow, catalog);
+        if (value.TryGetProperty("glow", out var glow))
+            output.Glow = paragraphDefaults
+                ? BuildParagraphGlow(glow, catalog.Color, opacity => catalog.NumberToken(opacity, "opacity", "paragraph default glow opacity"), catalog.HasGrammarToken)
+                : BuildGlow(glow, catalog);
         if (value.TryGetProperty("innerShadow", out var innerShadow)) output.InnerShadow = BuildInnerShadow(innerShadow, catalog);
         if (value.TryGetProperty("reflection", out var reflection)) output.Reflection = BuildReflection(reflection, catalog);
         if (value.TryGetProperty("softEdge", out var softEdge)) output.SoftEdge = BuildSoftEdge(softEdge);
@@ -2731,7 +2734,7 @@ internal static partial class PpjAuthoredPresentationCompiler
             noTabStops.ValueKind == JsonValueKind.True)
             target.NoTabStops = true;
         if (FirstProperty(direct, inline, middle, named, "defaultText") is { } defaultText && defaultText.EnumerateObject().Any())
-            target.DefaultRunProperties = BuildTextStyle(defaultText, catalog);
+            target.DefaultRunProperties = BuildTextStyle(defaultText, catalog, paragraphDefaults: true);
         if (FirstProperty(direct, inline, middle, named, "bullet") is { } bullet)
         {
             var kind = bullet.GetProperty("type").GetString();
@@ -4918,6 +4921,22 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (value.TryGetProperty("alignment", out var alignment)) output.Alignment = alignment.GetString()!;
         if (value.TryGetProperty("rotateWithShape", out var rotateWithShape)) output.RotateWithShape = rotateWithShape.GetBoolean();
         return output;
+    }
+
+    internal static PresentationGlow BuildParagraphGlow(
+        JsonElement value,
+        Func<JsonElement, (string Rgb, double Alpha)> resolveColor,
+        Func<JsonElement, double> resolveOpacity,
+        Func<string, bool> declaredToken)
+    {
+        var color = value.GetProperty("color");
+        var transformed = color.ValueKind == JsonValueKind.Object &&
+            (color.TryGetProperty("tint", out _) || color.TryGetProperty("shade", out _));
+        var glow = BuildChartTextGlow(value, resolveColor, resolveOpacity, name => transformed || declaredToken(name));
+        if (!glow.HasOpacityThousandthPercent && color.ValueKind == JsonValueKind.String &&
+            color.GetString()!.TrimStart('#').Length == 8)
+            glow.OpacityThousandthPercent = 100_000;
+        return glow;
     }
 
     private static PresentationGlow BuildGlow(JsonElement value, Catalog catalog)

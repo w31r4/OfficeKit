@@ -1,4 +1,5 @@
 using DocumentFormat.OpenXml;
+using System.Xml.Linq;
 using OfficeKit.Artifact.Wire.V1;
 using A = DocumentFormat.OpenXml.Drawing;
 
@@ -55,11 +56,11 @@ internal static class PptxDefaultRunStyleCodec
                 style.GradientFill = gradient;
             }
         }
-        if (PptxShadowCodec.TryRead(properties, out var shadow) && shadow is not null) style.Shadow = shadow;
-        if (PptxGlowCodec.TryRead(properties, out var glow) && glow is not null) style.Glow = glow;
-        if (PptxInnerShadowCodec.TryRead(properties, out var innerShadow) && innerShadow is not null) style.InnerShadow = innerShadow;
-        if (PptxReflectionCodec.TryRead(properties, out var reflection) && reflection is not null) style.Reflection = reflection;
-        if (PptxSoftEdgeCodec.TryRead(properties, out var softEdge) && softEdge is not null) style.SoftEdge = softEdge;
+        if (TryReadEffect<A.OuterShadow, PresentationShadow>(properties, PptxShadowCodec.TryRead, out var shadow) && shadow is not null) style.Shadow = shadow;
+        if (TryReadEffect<A.Glow, PresentationGlow>(properties, PptxGlowCodec.TryRead, out var glow) && glow is not null) style.Glow = glow;
+        if (TryReadEffect<A.InnerShadow, PresentationInnerShadow>(properties, PptxInnerShadowCodec.TryRead, out var innerShadow) && innerShadow is not null) style.InnerShadow = innerShadow;
+        if (TryReadEffect<A.Reflection, PresentationReflection>(properties, PptxReflectionCodec.TryRead, out var reflection) && reflection is not null) style.Reflection = reflection;
+        if (TryReadEffect<A.SoftEdge, PresentationSoftEdge>(properties, PptxSoftEdgeCodec.TryRead, out var softEdge) && softEdge is not null) style.SoftEdge = softEdge;
         if (HasFields(style)) target.DefaultRunProperties = style;
     }
 
@@ -119,8 +120,8 @@ internal static class PptxDefaultRunStyleCodec
         var after = source.DefaultRunProperties;
         var beforeWithoutScalars = before.Clone();
         var afterWithoutScalars = after.Clone();
-        beforeWithoutScalars.ClearBold(); beforeWithoutScalars.ClearItalic(); beforeWithoutScalars.ClearFontSizePoints(); beforeWithoutScalars.ClearFontFamily(); beforeWithoutScalars.ClearFontFamilyEastAsia(); beforeWithoutScalars.ClearFontFamilyComplexScript(); beforeWithoutScalars.ClearLanguage(); beforeWithoutScalars.ClearFontKerningPoints(); beforeWithoutScalars.ClearFontSpacingPoints(); beforeWithoutScalars.ClearFontBaselinePercent(); beforeWithoutScalars.ClearFontCaps(); beforeWithoutScalars.ClearStrike(); beforeWithoutScalars.ClearUnderline(); beforeWithoutScalars.ClearHighlight(); beforeWithoutScalars.ClearColor(); beforeWithoutScalars.ClearColorOpacityThousandthPercent(); beforeWithoutScalars.GradientFill = null;
-        afterWithoutScalars.ClearBold(); afterWithoutScalars.ClearItalic(); afterWithoutScalars.ClearFontSizePoints(); afterWithoutScalars.ClearFontFamily(); afterWithoutScalars.ClearFontFamilyEastAsia(); afterWithoutScalars.ClearFontFamilyComplexScript(); afterWithoutScalars.ClearLanguage(); afterWithoutScalars.ClearFontKerningPoints(); afterWithoutScalars.ClearFontSpacingPoints(); afterWithoutScalars.ClearFontBaselinePercent(); afterWithoutScalars.ClearFontCaps(); afterWithoutScalars.ClearStrike(); afterWithoutScalars.ClearUnderline(); afterWithoutScalars.ClearHighlight(); afterWithoutScalars.ClearColor(); afterWithoutScalars.ClearColorOpacityThousandthPercent(); afterWithoutScalars.GradientFill = null;
+        beforeWithoutScalars.ClearBold(); beforeWithoutScalars.ClearItalic(); beforeWithoutScalars.ClearFontSizePoints(); beforeWithoutScalars.ClearFontFamily(); beforeWithoutScalars.ClearFontFamilyEastAsia(); beforeWithoutScalars.ClearFontFamilyComplexScript(); beforeWithoutScalars.ClearLanguage(); beforeWithoutScalars.ClearFontKerningPoints(); beforeWithoutScalars.ClearFontSpacingPoints(); beforeWithoutScalars.ClearFontBaselinePercent(); beforeWithoutScalars.ClearFontCaps(); beforeWithoutScalars.ClearStrike(); beforeWithoutScalars.ClearUnderline(); beforeWithoutScalars.ClearHighlight(); beforeWithoutScalars.ClearColor(); beforeWithoutScalars.ClearColorOpacityThousandthPercent(); beforeWithoutScalars.GradientFill = null; beforeWithoutScalars.Glow = null;
+        afterWithoutScalars.ClearBold(); afterWithoutScalars.ClearItalic(); afterWithoutScalars.ClearFontSizePoints(); afterWithoutScalars.ClearFontFamily(); afterWithoutScalars.ClearFontFamilyEastAsia(); afterWithoutScalars.ClearFontFamilyComplexScript(); afterWithoutScalars.ClearLanguage(); afterWithoutScalars.ClearFontKerningPoints(); afterWithoutScalars.ClearFontSpacingPoints(); afterWithoutScalars.ClearFontBaselinePercent(); afterWithoutScalars.ClearFontCaps(); afterWithoutScalars.ClearStrike(); afterWithoutScalars.ClearUnderline(); afterWithoutScalars.ClearHighlight(); afterWithoutScalars.ClearColor(); afterWithoutScalars.ClearColorOpacityThousandthPercent(); afterWithoutScalars.GradientFill = null; afterWithoutScalars.Glow = null;
         if (beforeWithoutScalars.Equals(afterWithoutScalars))
         {
             // Patch changed scalars without rebuilding unrelated font/fill/effect
@@ -191,6 +192,7 @@ internal static class PptxDefaultRunStyleCodec
                 ValidateDirectFillEdit(properties);
                 ApplyFill(properties, after);
             }
+            if (!Equals(before.Glow, after.Glow)) ApplyDirectGlow(properties, after.Glow);
             if (before.HasLanguage != after.HasLanguage || before.Language != after.Language)
             {
                 if (properties.Language is { } nativeLanguage && !PptxLanguageTag.IsValid(nativeLanguage.Value))
@@ -284,6 +286,61 @@ internal static class PptxDefaultRunStyleCodec
         var target = new A.DefaultRunProperties();
         ApplyStyle(target, source);
         return target;
+    }
+
+    private delegate bool EffectReader<TValue>(OpenXmlCompositeElement? source, out TValue? value) where TValue : class;
+
+    private static bool TryReadEffect<TNative, TValue>(
+        A.DefaultRunProperties? source, EffectReader<TValue> reader, out TValue? value)
+        where TNative : OpenXmlElement
+        where TValue : class
+    {
+        value = null;
+        if (source?.ChildElements.Any(child => child.LocalName == "effectDag") == true) return false;
+        var lists = source?.Elements<A.EffectList>().ToArray() ?? [];
+        if (lists.Length > 1) return false;
+        var effects = lists.SingleOrDefault()?.Elements<TNative>().ToArray() ?? [];
+        if (effects.Length == 0) return true;
+        if (effects.Length != 1) return false;
+        var raw = XElement.Parse(effects[0].OuterXml);
+        XNamespace drawing = "http://schemas.openxmlformats.org/drawingml/2006/main";
+        if (raw.DescendantNodes().Any(node => node is not XElement && (node is not XText text || !string.IsNullOrWhiteSpace(text.Value))) ||
+            raw.Descendants(drawing + "alpha").Any(alpha => alpha.HasElements) ||
+            effects[0] is A.Reflection or A.SoftEdge && raw.HasElements) return false;
+        try
+        {
+            var isolated = new A.RunProperties(new A.EffectList(effects[0].CloneNode(true)));
+            return reader(isolated, out value) && value is not null;
+        }
+        catch (Exception error) when (error is FormatException or OverflowException or ArgumentException or InvalidOperationException)
+        {
+            value = null;
+            return false;
+        }
+    }
+
+    private static void ApplyDirectGlow(A.DefaultRunProperties target, PresentationGlow? source)
+    {
+        if (!TryReadEffect<A.Glow, PresentationGlow>(target, PptxGlowCodec.TryRead, out _))
+            throw Unsupported("Source-preserving PPTX export cannot replace or delete an unmodeled paragraph default glow owner.");
+        var list = target.GetFirstChild<A.EffectList>();
+        var existing = list?.GetFirstChild<A.Glow>();
+        if (source is null)
+        {
+            existing?.Remove();
+            if (list is not null && list.ChildElements.Count == 0 && list.GetAttributes().Count == 0) list.Remove();
+            return;
+        }
+        var built = new A.RunProperties();
+        PptxGlowCodec.Apply(built, source);
+        var glow = built.GetFirstChild<A.EffectList>()!.GetFirstChild<A.Glow>()!.CloneNode(true);
+        if (existing is not null)
+        {
+            list!.InsertBefore(glow, existing);
+            existing.Remove();
+        }
+        else if (list is not null) list.AddChild(glow, true);
+        else target.AddChild(new A.EffectList(glow), true);
     }
 
     private static void ApplyStyle(A.DefaultRunProperties target, PresentationTextStyle source)
@@ -448,6 +505,8 @@ internal static class PptxDefaultRunStyleCodec
         var colors = ColorChoices(target).ToArray();
         if (colors.Length == 1 && ModeledFill(colors[0])) colors[0].Remove();
         if (PptxShadowCodec.TryRead(target, out var shadow) && shadow is not null) PptxShadowCodec.Apply(target, null);
+        if (TryReadEffect<A.Glow, PresentationGlow>(target, PptxGlowCodec.TryRead, out var glow) && glow is not null)
+            ApplyDirectGlow(target, null);
     }
 
     private static IEnumerable<OpenXmlElement> ColorChoices(A.DefaultRunProperties source) =>
