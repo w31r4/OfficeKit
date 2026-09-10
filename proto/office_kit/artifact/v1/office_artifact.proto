@@ -3672,6 +3672,10 @@ message PresentationTextParagraph {
   // Present only with an explicit RGB or theme bullet color. Values use
   // 0..100000 and lower to one direct DrawingML a:alpha transform.
   optional uint32 bullet_color_opacity_thousandth_percent = 33;
+  // Direct a:pPr/@rtl. Presence distinguishes explicit LTR (false), RTL
+  // (true) and absence. Unset clears a modeled direct source attribute;
+  // unrecognized source tokens remain preserved rather than being replaced.
+  optional bool right_to_left = 34;
 }
 
 message PresentationPictureBullet {

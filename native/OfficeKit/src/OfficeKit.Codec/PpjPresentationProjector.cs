@@ -2227,6 +2227,7 @@ internal static partial class PpjPresentationProjector
             };
             var paragraphStyle = new JsonObject();
             if (source.HasLevel) paragraphStyle["level"] = JsonValue.Create(checked((int)source.Level));
+            if (source.HasRightToLeft) paragraphStyle["direction"] = StringNode(source.RightToLeft ? "right-to-left" : "left-to-right");
             if (source.HasAlignment && ParagraphAlignment(source.Alignment) is { } alignment)
                 paragraphStyle["alignment"] = StringNode(alignment);
             if (source.LeftMarginCase == PresentationTextParagraph.LeftMarginOneofCase.MarginLeftEmu)
@@ -2963,6 +2964,7 @@ internal static partial class PpjPresentationProjector
                         output.Add(new("setTextParagraphStyle", [
                             "text.paragraphs[].style.alignment",
                             "text.paragraphs[].style.level",
+                            "text.paragraphs[].style.direction",
                             "text.paragraphs[].style.bullet.startAt",
                             "text.paragraphs[].style.bullet.character",
                             "text.paragraphs[].style.bullet.fontFamily",

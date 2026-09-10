@@ -2708,6 +2708,13 @@ internal static partial class PpjAuthoredPresentationCompiler
     {
         if (FirstProperty(direct, inline, middle, named, "alignment") is { } alignment)
             target.Alignment = alignment.GetString()!;
+        if (FirstProperty(direct, inline, middle, named, "direction") is { } direction)
+            target.RightToLeft = direction.GetString() switch
+            {
+                "left-to-right" => false,
+                "right-to-left" => true,
+                _ => throw Unsupported("paragraph", "direction must be left-to-right or right-to-left"),
+            };
         if (FirstProperty(direct, inline, middle, named, "level") is { } level)
             target.Level = checked((uint)level.GetInt32());
         if (FirstProperty(direct, inline, middle, named, "indent") is { } indent)

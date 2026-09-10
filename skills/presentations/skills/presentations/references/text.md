@@ -176,6 +176,17 @@ remain. Unknown, malformed or duplicate native sizes stay source-owned and
 reject replacement. Direct point-size character preview retains glyph/layout
 limits; relative and follow-text sizing diagnose unavailable.
 
+Use `text.paragraphs[].style.direction` for the paragraph's writing direction:
+`"left-to-right"` or `"right-to-left"`. Explicit LTR, RTL and absence remain
+distinct. Direction is independent of paragraph alignment, column order and
+vertical text. Ordinary imported text/shape paragraphs support add, set, remove
+and restore under their exact direction authority. Delete the field or its
+direction-only style wrapper to clear the direct native attribute.
+Other paragraph properties, runs, neighbors and source boolean spelling remain.
+Unknown native direction tokens are preserved and reject replacement while
+independent modeled edits remain available. Preview diagnoses unresolved bidi
+layout; host glyph shaping and inherited direction still need review.
+
 Use paragraph `tabStops: [{ "position": 72, "alignment": "decimal" }]`
 for an ordered direct list. Positions are points, from zero through
 `2147483647 / 12700`, with at most 32 stops. Round to the nearest EMU (ties to

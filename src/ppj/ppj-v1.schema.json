@@ -1934,6 +1934,7 @@
               "text",
             "text.paragraphs[].style.alignment",
             "text.paragraphs[].style.level",
+            "text.paragraphs[].style.direction",
             "text.paragraphs[].style.bullet.startAt",
             "text.paragraphs[].style.bullet.character",
             "text.paragraphs[].style.bullet.fontFamily",
@@ -3343,6 +3344,13 @@
         },
         "bullet": {
           "$ref": "#/$defs/bullet"
+        },
+        "direction": {
+          "enum": [
+            "left-to-right",
+            "right-to-left"
+          ],
+          "description": "Direct paragraph writing direction, independent of alignment, column order and vertical text. Explicit LTR/RTL and absence remain distinct. Ordinary source-bound text/shape owners support add/set/remove/restore and direction-only style removal under exact direction authority; deletion clears the recognized direct native attribute. Preserve other paragraphs, runs, source boolean spelling and unrelated XML/ZIP. Unknown native direction stays source-owned and rejects replacement. Bidirectional preview layout remains partial."
         }
       },
       "allOf": [

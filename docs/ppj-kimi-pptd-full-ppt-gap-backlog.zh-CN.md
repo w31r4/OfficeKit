@@ -463,6 +463,19 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**段落书写方向增量（2026-09-10）：**
+新增 `text.paragraphs[].style.direction`，取值 `left-to-right` 或
+`right-to-left`，对应直接 `a:pPr/@rtl`。显式 LTR、RTL 与缺省分别保留；
+段落对齐、分栏顺序和垂直文字仍各自独立。普通文本框和形状支持新增、
+赋值、删除和恢复，修改要求该字段自身的权限；删除字段或仅含方向的
+样式对象会清除直接属性。保持相邻段落、run、等价布尔值的原始写法及
+非目标 XML/ZIP；未知原生方向值保留并拒绝覆盖，其他已建模样式仍可修改。
+最小实验 **4/4**、相关回归 **22/22** 通过；协议、预览诊断、资料同步
+和严格 OpenSpec 检查通过，详细记录见
+`openspec/changes/ppj-paragraph-direction-lifecycle/tasks.md`。
+预览保留明确的双向文字布局 partial 诊断；本轮交付 codec 源码与生成
+绑定，未重建 NativeAOT。继承方向和宿主字形排版仍有缺口，F-03 继续开放。
+
 **段落制表位增量（2026-09-10）：**
 `text.paragraphs[].style.tabStops` 以点表达位置，按 EMU 精度保存，
 舍入后严格递增；支持 `left`（缺省）、`center`、`right`、`decimal`。

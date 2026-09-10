@@ -15,6 +15,7 @@ internal static class PptxParagraphPropertiesCodec
         PptxPartContext? slideContext,
         bool readLevel)
     {
+        if (RightToLeft(source) is { } rightToLeft) target.RightToLeft = rightToLeft;
         if (readLevel && TryLevel(source, out var level)) target.Level = level;
         if (AlignmentName(source) is { Length: > 0 } name)
             target.Alignment = name;
@@ -46,7 +47,7 @@ internal static class PptxParagraphPropertiesCodec
 
     internal static bool HasAuthoredProperties(PresentationTextParagraph source, bool includeLevel) =>
         includeLevel && source.HasLevel ||
-        source.HasAlignment ||
+        source.HasAlignment || source.HasRightToLeft ||
         PptxParagraphLayoutCodec.HasAuthoredLayout(source) ||
         PptxParagraphSpacingCodec.HasAuthoredSpacing(source) ||
         PptxBulletCodec.HasModeledBullet(source) ||
@@ -55,7 +56,7 @@ internal static class PptxParagraphPropertiesCodec
         source.TabStops.Count > 0;
 
     internal static bool HasModeledProperties(PresentationTextParagraph source) =>
-        source.HasAlignment ||
+        source.HasAlignment || source.HasRightToLeft ||
         source.LeftMarginCase != PresentationTextParagraph.LeftMarginOneofCase.None ||
         source.IndentationCase != PresentationTextParagraph.IndentationOneofCase.None ||
         source.LineSpacingCase != PresentationTextParagraph.LineSpacingOneofCase.None ||
@@ -74,6 +75,7 @@ internal static class PptxParagraphPropertiesCodec
         PptxPartContext? slideContext,
         bool includeLevel)
     {
+        if (source.HasRightToLeft) target.RightToLeft = source.RightToLeft;
         if (includeLevel && source.HasLevel) target.Level = checked((int)source.Level);
         if (source.HasAlignment) target.Alignment = ParseAlignment(source.Alignment);
         PptxParagraphLayoutCodec.Append(target, source);
@@ -101,6 +103,14 @@ internal static class PptxParagraphPropertiesCodec
             }
             else if (modeled) target.Level = null;
         }
+        var rightToLeft = RightToLeft(target);
+        if (source.HasRightToLeft)
+        {
+            if (rightToLeft is null && target.GetAttributes().Any(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "rtl"))
+                throw new CodecException("unsupported_presentation_edit", "Source-preserving PPTX export cannot replace an unmodeled paragraph direction.");
+            if (rightToLeft != source.RightToLeft) target.RightToLeft = source.RightToLeft;
+        }
+        else if (rightToLeft is not null) target.RightToLeft = null;
         var alignment = AlignmentName(target);
         if (source.HasAlignment)
         {
@@ -121,6 +131,7 @@ internal static class PptxParagraphPropertiesCodec
     {
         if (includeLevel && TryLevel(target, out _)) target.Level = null;
         if (AlignmentName(target).Length > 0) target.Alignment = null;
+        if (RightToLeft(target) is not null) target.RightToLeft = null;
         PptxParagraphLayoutCodec.Scrub(target);
         PptxParagraphSpacingCodec.Scrub(target);
         PptxDefaultRunStyleCodec.Scrub(target);
@@ -128,6 +139,14 @@ internal static class PptxParagraphPropertiesCodec
         PptxBulletStyleCodec.Scrub(target);
         if (PptxTextCodec.SupportsTabStops(target)) target.GetFirstChild<A.TabStopList>()?.Remove();
     }
+
+    private static bool? RightToLeft(A.TextParagraphPropertiesType? source) =>
+        source?.GetAttributes().FirstOrDefault(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "rtl").Value switch
+        {
+            "0" or "false" => false,
+            "1" or "true" => true,
+            _ => null,
+        };
 
     private static bool TryLevel(A.TextParagraphPropertiesType? source, out uint level) =>
         uint.TryParse(source?.GetAttributes().FirstOrDefault(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "lvl").Value,

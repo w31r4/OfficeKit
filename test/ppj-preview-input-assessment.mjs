@@ -95,6 +95,20 @@ for (const alignment of ["left", "center", "right", "justify", "distributed", "j
     assert.match(painted.pages[0].svg, /Paragraph alignment/);
   }
 }
+for (const direction of ["left-to-right", "right-to-left"]) {
+  const input = deck([{ ...text, text: { paragraphs: [
+    { style: { direction }, runs: [{ text: "مرحبا Office" }] }] } }]);
+  assert.ok(assessPpjPreviewInput(input).diagnostics.some(d =>
+    d.path.endsWith(".style.direction") && d.status !== "supported"));
+  const receipt = previewSceneFixture(input, [{ id: "p1", elements: [nativeElement("text", "shape", {
+    ...emuFrame(1, 2, 100, 60), geometry: "textbox", text: "مرحبا Office",
+    textBody: { paragraphs: [{ rightToLeft: direction === "right-to-left",
+      runs: [{ content: { case: "text", value: "مرحبا Office" } }] }] },
+  })] }], ["$.pages[0].elements[0]"]);
+  const painted = paintPpjSceneSvg(receipt);
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" &&
+    d.scenePath.endsWith(".rightToLeft") && d.status === "partial"));
+}
 for (const level of [0, 8]) {
   const input = deck([{ ...text, text: { paragraphs: [
     { style: { level }, runs: [{ text: "Paragraph level" }] }] } }]);

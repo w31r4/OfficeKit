@@ -14,7 +14,7 @@
     "schemaDefinitions": 200,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 72,
+    "authoredCompilerBoundaries": 73,
     "nativeLeafKinds": 278,
     "helpApis": 151,
     "hostOnlyApis": 13
@@ -1145,6 +1145,14 @@
       "behavior": "partial",
       "sourceBound": "Character, numbered and picture markers accept at most one direct point size (1–768, 0.01-point units), relative ratio (0.25–4, 0.00001 units; 1=100%), or sizeFollowText:true. Absence removes the direct size declaration and remains distinct from ratio one and follow-text. Ordinary source-bound text/shape markers support add/set/switch/remove/restore under exact authority for every changed property, including both sides of a switch. Only target size changes; marker, font/color, raw numeric spelling, runs, neighbors and non-target XML/ZIP remain. Malformed, unknown and duplicate native sizes stay preserved and reject replacement.",
       "reason": "PpjBulletSizeLifecycleTests covers authored bounds/precision and fresh native text/shape lifecycle for character/number/picture markers, imported embedded media, authority and unmodeled source preservation. Numeric parsing avoids SDK conversion failures; lowering normalizes native precision before source postwrite checks. Preview retains direct point-size character painting and explicitly diagnoses unresolved relative/follow-text sizing; inherited metrics and host glyph/layout remain partial.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound paragraph direction",
+      "ppjPath": "pages[].elements[].text.paragraphs[].style.direction",
+      "behavior": "partial",
+      "sourceBound": "Ordinary recognized text/shape paragraphs issue setTextParagraphStyle with exact direction authority. left-to-right and right-to-left lower to an optional native rtl boolean; explicit false, true and absence remain distinct. Add/set/remove/restore and direction-only style removal patch only changed paragraphs. Equivalent native boolean spelling, alignment, column order, runs, neighbors and unrelated XML/ZIP remain.",
+      "reason": "PpjParagraphDirectionLifecycleTests verifies native presence, authored precedence, original-source removal/restoration, exact authority and unknown-token preservation/refusal. Unrecognized native direction stays source-owned. Existing shared paragraph/list/table/master paths reuse the native property. ppj-preview-input-assessment.mjs proves an explicit partial unmapped direction diagnostic; inherited bidi layout and host shaping remain unresolved.",
       "visualStatus": "partial-or-opaque"
     },
     {

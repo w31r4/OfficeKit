@@ -1079,6 +1079,13 @@
       "reason": "PpjBulletSizeLifecycleTests covers authored bounds/precision and fresh native text/shape lifecycle for character/number/picture markers, imported embedded media, authority and unmodeled source preservation. Numeric parsing avoids SDK conversion failures; lowering normalizes native precision before source postwrite checks. Preview retains direct point-size character painting and explicitly diagnoses unresolved relative/follow-text sizing; inherited metrics and host glyph/layout remain partial."
     },
     {
+      "feature": "source-bound paragraph direction",
+      "ppjPath": "pages[].elements[].text.paragraphs[].style.direction",
+      "behavior": "partial",
+      "sourceBound": "Ordinary recognized text/shape paragraphs issue setTextParagraphStyle with exact direction authority. left-to-right and right-to-left lower to an optional native rtl boolean; explicit false, true and absence remain distinct. Add/set/remove/restore and direction-only style removal patch only changed paragraphs. Equivalent native boolean spelling, alignment, column order, runs, neighbors and unrelated XML/ZIP remain.",
+      "reason": "PpjParagraphDirectionLifecycleTests verifies native presence, authored precedence, original-source removal/restoration, exact authority and unknown-token preservation/refusal. Unrecognized native direction stays source-owned. Existing shared paragraph/list/table/master paths reuse the native property. ppj-preview-input-assessment.mjs proves an explicit partial unmapped direction diagnostic; inherited bidi layout and host shaping remain unresolved."
+    },
+    {
       "feature": "source-bound paragraph tab stops",
       "ppjPath": "pages[].elements[].text.paragraphs[].style.tabStops and noTabStops",
       "behavior": "partial",
