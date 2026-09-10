@@ -463,6 +463,19 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**段前间距增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.spaceBefore`（0–1584pt）和 `spaceBeforeMultiplier`
+（0–132 倍）已接通赋值、单位切换、删除、恢复和单间距 style 包装删除。
+同一 style 只选一种单位，高优先级样式同时决定单位和值；点值按百分之一 pt、
+倍数按十万分之一取偶数舍入，显式零保留原生单位。切换要求两个字段权限。
+写回保留其它间距的原始数值写法、run、相邻段落和非目标 XML/ZIP；未知属性/
+子内容、重复节点及非法值随无关标量编辑保留，拒绝覆盖。最小原生实验
+**4/4 通过**。相关回归初跑 **335/336 通过**；旧实验的 distributed 对齐断言
+按既有读取器和夹具修正后，与新增实验复跑 **5/5 通过**。沿用整组默认样式的
+已记录基线排除项。schema 已对齐原生范围并拒绝双单位声明；Help、生成资料、
+预览诊断、可移植性、reference-sync 和 OpenSpec 检查通过。未重建 NativeAOT，
+预览仍为 partial；段后间距、行距的完整 PPJ 生命周期和宿主布局继续开放。
+
 **段落默认柔化边缘增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.defaultText.softEdge` 已接通赋值、删除、恢复和
 单效果包装删除。沿用 `{ radius }`，半径为 0–1000pt，按最近 EMU 舍入，

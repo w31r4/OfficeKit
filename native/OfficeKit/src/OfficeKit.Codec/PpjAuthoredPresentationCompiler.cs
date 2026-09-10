@@ -2218,7 +2218,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         // the surrounding element style for the body properties it declares.
         var richTextStyle = text.ValueKind == JsonValueKind.Object ? Property(text, "style") : null;
         var bodyStyle = MergeJsonObjects(inlineStyle, richTextStyle);
-        var paragraphStyle = MergeJsonObjects(Property(inlineStyle, "paragraph"), Property(richTextStyle, "paragraph"));
+        var paragraphStyle = MergeJsonObjects(true, Property(inlineStyle, "paragraph"), Property(richTextStyle, "paragraph"));
         ApplyBodyProperties(body.BodyProperties = new PresentationTextBodyProperties(), namedStyle, middleStyle, bodyStyle);
         if (text.ValueKind == JsonValueKind.String)
         {
@@ -2714,10 +2714,16 @@ internal static partial class PpjAuthoredPresentationCompiler
             target.MarginLeftEmu = Emu(indent.GetDouble());
         if (FirstProperty(direct, inline, middle, named, "hanging") is { } hanging)
             target.IndentEmu = -Emu(hanging.GetDouble());
-        if (FirstProperty(direct, inline, middle, named, "spaceBefore") is { } before)
-            target.SpaceBeforePoints = before.GetDouble();
-        if (FirstProperty(direct, inline, middle, named, "spaceBeforeMultiplier") is { } beforeMultiplier)
-            target.SpaceBeforeMultiplier = beforeMultiplier.GetDouble();
+        foreach (var layer in new[] { direct, inline, middle, named })
+        {
+            if (layer is not { ValueKind: JsonValueKind.Object } paragraph) continue;
+            var hasPoints = paragraph.TryGetProperty("spaceBefore", out var before);
+            var hasMultiplier = paragraph.TryGetProperty("spaceBeforeMultiplier", out var multiplier);
+            if (hasPoints && hasMultiplier) throw Unsupported("paragraph", "spaceBefore and spaceBeforeMultiplier are mutually exclusive");
+            if (hasPoints) target.SpaceBeforePoints = Math.Round(before.GetDouble() * 100) / 100d;
+            else if (hasMultiplier) target.SpaceBeforeMultiplier = Math.Round(multiplier.GetDouble() * 100_000) / 100_000d;
+            if (hasPoints || hasMultiplier) break;
+        }
         if (FirstProperty(direct, inline, middle, named, "spaceAfter") is { } after)
             target.SpaceAfterPoints = after.GetDouble();
         if (FirstProperty(direct, inline, middle, named, "spaceAfterMultiplier") is { } afterMultiplier)
@@ -4274,13 +4280,20 @@ internal static partial class PpjAuthoredPresentationCompiler
     private static JsonElement? Property(JsonElement? value, string name) =>
         value is { ValueKind: JsonValueKind.Object } element && element.TryGetProperty(name, out var property) ? property : null;
 
-    private static JsonElement? MergeJsonObjects(params JsonElement?[] sources)
+    private static JsonElement? MergeJsonObjects(params JsonElement?[] sources) => MergeJsonObjects(false, sources);
+
+    private static JsonElement? MergeJsonObjects(bool mergeSpaceBefore, params JsonElement?[] sources)
     {
         Dictionary<string, JsonElement>? merged = null;
         foreach (var source in sources)
         {
             if (source is not { ValueKind: JsonValueKind.Object } value) continue;
             merged ??= new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+            if (mergeSpaceBefore && (value.TryGetProperty("spaceBefore", out _) || value.TryGetProperty("spaceBeforeMultiplier", out _)))
+            {
+                merged.Remove("spaceBefore");
+                merged.Remove("spaceBeforeMultiplier");
+            }
             foreach (var property in value.EnumerateObject())
                 merged[property.Name] = property.Value.Clone();
         }

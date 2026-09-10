@@ -2955,6 +2955,8 @@ internal static partial class PpjPresentationProjector
                         output.Add(new("setTextParagraphStyle", [
                             "text.paragraphs[].style.alignment",
                             "text.paragraphs[].style.tabStops",
+                            "text.paragraphs[].style.spaceBefore",
+                            "text.paragraphs[].style.spaceBeforeMultiplier",
                             "text.paragraphs[].style.defaultText.bold",
                             "text.paragraphs[].style.defaultText.italic",
                             "text.paragraphs[].style.defaultText.size",

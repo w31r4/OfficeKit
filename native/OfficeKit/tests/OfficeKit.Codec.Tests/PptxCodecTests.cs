@@ -9935,7 +9935,7 @@ public sealed partial class PptxCodecTests
         Assert.Equal("Georgia", shape.TextBody.Paragraphs[0].BulletFontFamily);
         Assert.Equal("DC2626", shape.TextBody.Paragraphs[0].BulletColorRgb);
         Assert.Equal(1.5, shape.TextBody.Paragraphs[0].BulletSizePercent);
-        Assert.False(shape.TextBody.Paragraphs[1].HasAlignment);
+        Assert.Equal("distributed", shape.TextBody.Paragraphs[1].Alignment);
         Assert.Equal("romanLcPeriod", shape.TextBody.Paragraphs[1].AutoNumber.Scheme);
         Assert.Equal(3U, shape.TextBody.Paragraphs[1].AutoNumber.StartAt);
         Assert.True(shape.TextBody.Paragraphs[1].BulletFontFollowText);

@@ -1934,6 +1934,8 @@
               "text",
             "text.paragraphs[].style.alignment",
             "text.paragraphs[].style.tabStops",
+              "text.paragraphs[].style.spaceBefore",
+              "text.paragraphs[].style.spaceBeforeMultiplier",
             "text.paragraphs[].style.defaultText.bold",
             "text.paragraphs[].style.defaultText.italic",
             "text.paragraphs[].style.defaultText.size",
@@ -3244,12 +3246,14 @@
         "spaceBefore": {
           "type": "number",
           "minimum": 0,
-          "maximum": 10000
+          "maximum": 1584,
+          "description": "Direct space before a paragraph in points, rounded to hundredths with ties to even. Mutually exclusive with spaceBeforeMultiplier; a higher-priority style selects both unit and value. Ordinary source-bound text/shape owners support assignment, unit switching, removal/restoration and spacing-only style-wrapper removal. Zero differs from absence; editing requires this exact field authority and preserves other native state."
         },
         "spaceBeforeMultiplier": {
           "type": "number",
           "minimum": 0,
-          "maximum": 1000
+          "maximum": 132,
+          "description": "Direct space before a paragraph as a multiplier (1 = 100%), rounded to 1/100000 with ties to even. Mutually exclusive with spaceBefore; the higher-priority style selects both unit and value. Source-bound lifecycle matches spaceBefore and requires this field authority. Explicit zero retains multiplier units; omission removes the direct spacing slot."
         },
         "spaceAfter": {
           "type": "number",
@@ -3308,7 +3312,17 @@
         "bullet": {
           "$ref": "#/$defs/bullet"
         }
-      }
+      },
+      "allOf": [
+        {
+          "not": {
+            "required": [
+              "spaceBefore",
+              "spaceBeforeMultiplier"
+            ]
+          }
+        }
+      ]
     },
     "bullet": {
       "oneOf": [

@@ -1,4 +1,6 @@
 using DocumentFormat.OpenXml;
+using System.Globalization;
+using System.Xml.Linq;
 using OfficeKit.Artifact.Wire.V1;
 using A = DocumentFormat.OpenXml.Drawing;
 
@@ -16,9 +18,11 @@ internal static class PptxParagraphSpacingCodec
         ReadSlot(source?.GetFirstChild<A.LineSpacing>(), false,
             points => target.LineSpacingPoints = points,
             multiplier => target.LineSpacingMultiplier = multiplier);
-        ReadSlot(source?.GetFirstChild<A.SpaceBefore>(), true,
-            points => target.SpaceBeforePoints = points,
-            multiplier => target.SpaceBeforeMultiplier = multiplier);
+        var before = source?.Elements<A.SpaceBefore>().Take(2).ToArray() ?? [];
+        if (before.Length == 1)
+            ReadSlot(before[0], true,
+                points => target.SpaceBeforePoints = points,
+                multiplier => target.SpaceBeforeMultiplier = multiplier);
         ReadSlot(source?.GetFirstChild<A.SpaceAfter>(), true,
             points => target.SpaceAfterPoints = points,
             multiplier => target.SpaceAfterMultiplier = multiplier);
@@ -27,7 +31,8 @@ internal static class PptxParagraphSpacingCodec
     internal static bool Supports(A.TextParagraphPropertiesType? source) =>
         source is null ||
         SupportsSingle(source.Elements<A.LineSpacing>(), false) &&
-        SupportsSingle(source.Elements<A.SpaceBefore>(), true) &&
+        // Space-before replacement is checked locally. Unmodeled source slots
+        // can remain untouched during an unrelated paragraph edit.
         SupportsSingle(source.Elements<A.SpaceAfter>(), true);
 
     internal static void Validate(PresentationTextParagraph source)
@@ -122,8 +127,9 @@ internal static class PptxParagraphSpacingCodec
     private static void ReadSlot(A.TextSpacingType? source, bool allowZero, Action<double> setPoints, Action<double> setMultiplier)
     {
         if (!SupportsSlot(source, allowZero) || source is null) return;
-        if (source.GetFirstChild<A.SpacingPoints>()?.Val?.Value is { } points) setPoints(points / 100d);
-        else if (source.GetFirstChild<A.SpacingPercent>()?.Val?.Value is { } percent) setMultiplier(percent / 100_000d);
+        if (!TryNativeValue(source, out var value)) return;
+        if (source.FirstChild is A.SpacingPoints) setPoints(value / 100d);
+        else if (source.FirstChild is A.SpacingPercent) setMultiplier(value / 100_000d);
     }
 
     private static bool SupportsSingle<T>(IEnumerable<T> source, bool allowZero) where T : A.TextSpacingType
@@ -136,13 +142,24 @@ internal static class PptxParagraphSpacingCodec
     {
         if (source is null) return true;
         if (source.ExtendedAttributes.Any() || source.ChildElements.Count != 1) return false;
+        var raw = XElement.Parse(source.OuterXml);
+        if (raw.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration) ||
+            raw.Nodes().Any(node => node is not XElement && (node is not XText text || !string.IsNullOrWhiteSpace(text.Value)))) return false;
+        var child = raw.Elements().Single();
+        if (child.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration && attribute.Name != "val") ||
+            child.Nodes().Any(node => node is not XText text || !string.IsNullOrWhiteSpace(text.Value)) ||
+            !TryNativeValue(source, out var value)) return false;
         return source.FirstChild switch
         {
-            A.SpacingPoints points when !points.ExtendedAttributes.Any() && points.Val?.Value is { } value => ValidNative(value, MaxPointsHundredths, allowZero),
-            A.SpacingPercent percent when !percent.ExtendedAttributes.Any() && percent.Val?.Value is { } value => ValidNative(value, MaxPercentThousandths, allowZero),
+            A.SpacingPoints => ValidNative(value, MaxPointsHundredths, allowZero),
+            A.SpacingPercent => ValidNative(value, MaxPercentThousandths, allowZero),
             _ => false,
         };
     }
+
+    private static bool TryNativeValue(A.TextSpacingType source, out int value) =>
+        int.TryParse(source.FirstChild?.GetAttributes().FirstOrDefault(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "val").Value,
+            NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
 
     private static A.LineSpacing BuildLineSpacing(PresentationTextParagraph source) => new(
         source.LineSpacingCase == PresentationTextParagraph.LineSpacingOneofCase.LineSpacingPoints
@@ -163,8 +180,19 @@ internal static class PptxParagraphSpacingCodec
     {
         var slots = source.ToArray();
         if (slots.Length > 1 || slots.Any(slot => !SupportsSlot(slot, allowZero))) throw Unsupported(kind);
-        foreach (var slot in slots) slot.Remove();
-        if (replacement is not null) target.AddChild(replacement, true);
+        if (slots.Length == 1 && replacement is not null && slots[0].FirstChild?.GetType() == replacement.FirstChild?.GetType() &&
+            TryNativeValue(slots[0], out var before) && TryNativeValue(replacement, out var after) && before == after) return;
+        if (slots.Length == 1)
+        {
+            if (replacement is not null) target.InsertBefore(replacement, slots[0]);
+            slots[0].Remove();
+        }
+        else if (replacement is A.SpaceBefore)
+        {
+            if (target.GetFirstChild<A.LineSpacing>() is { } preceding) target.InsertAfter(replacement, preceding);
+            else target.PrependChild(replacement);
+        }
+        else if (replacement is not null) target.AddChild(replacement, true);
     }
 
     private static void Scrub<T>(IEnumerable<T> source, bool allowZero) where T : A.TextSpacingType

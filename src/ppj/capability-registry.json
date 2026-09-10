@@ -987,6 +987,13 @@
       "reason": "Fixed paragraph/run topology is preserved. Removing a defaultText wrapper containing only these scalars clears their direct values while retaining other defaults, direct runs and unknown native state. Unmodeled script-font metadata/children, missing field authority and unrelated defaultText changes fail closed. PpjTextBodyPropertyLifecycleTests verifies source XML/ZIP preservation; placeholder inheritance, table paragraph defaults and host reflow retain their separate boundaries."
     },
     {
+      "feature": "source-bound paragraph space before",
+      "ppjPath": "pages[].elements[].text.paragraphs[].style.spaceBefore and spaceBeforeMultiplier",
+      "behavior": "partial",
+      "sourceBound": "Paragraph spaceBefore (0..1584pt) and spaceBeforeMultiplier (0..132) are mutually exclusive forms of one direct spacing slot. Values round to native hundredths of a point or 1/100000 multiplier with ties to even. The highest-priority paragraph style selects the unit and value. Ordinary source-bound text/shape paragraphs support assignment, unit switching, removal/restoration and spacing-only style-wrapper removal. Explicit zero retains its unit. Every changed unit field requires its exact setTextParagraphStyle authority. Other spacing, native spelling, runs, neighboring paragraphs and non-target XML/ZIP are preserved. Unmodeled native space-before content survives unrelated scalar edits and rejects replacement. Preview remains partial.",
+      "reason": "Fixed paragraph/run topology and direct spacing units are preserved. PpjParagraphSpaceBeforeLifecycleTests covers native XML/ZIP and reprojection; table spacing, placeholder inheritance and host layout retain their separate boundaries."
+    },
+    {
       "feature": "source-bound paragraph tab stops",
       "ppjPath": "pages[].elements[].text.paragraphs[].style.tabStops and noTabStops",
       "behavior": "partial",
