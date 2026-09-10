@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using DocumentFormat.OpenXml;
 using OfficeKit.Artifact.Wire.V1;
@@ -34,7 +35,7 @@ internal static class PptxBulletCodec
                 break;
             case A.AutoNumberedBullet autoNumber:
                 target.AutoNumber = new PresentationAutoNumberBullet { Scheme = Scheme(autoNumber) };
-                if (autoNumber.StartAt is not null) target.AutoNumber.StartAt = checked((uint)autoNumber.StartAt.Value);
+                if (TryStartAt(autoNumber, out var startAt) && startAt is { } value) target.AutoNumber.StartAt = value;
                 break;
             case A.PictureBullet picture when context!.TryReadPicture(picture, out var modeled):
                 target.PictureBullet = modeled;
@@ -85,6 +86,21 @@ internal static class PptxBulletCodec
         var existing = BulletChoices(target).ToArray();
         if (existing.Length > 1 || existing.Any(choice => !Modeled(choice, context)))
             throw new CodecException("unsupported_presentation_edit", "Source-preserving PPTX export cannot replace an unmodeled or malformed list marker.");
+        if (existing.Length == 1 && existing[0] is A.AutoNumberedBullet autoNumber &&
+            source.BulletCase == PresentationTextParagraph.BulletOneofCase.AutoNumber &&
+            Scheme(autoNumber) == source.AutoNumber.Scheme)
+        {
+            // A start-only edit owns this optional attribute, not the marker
+            // element. Keep unknown XML and unchanged lexical values intact.
+            TryStartAt(autoNumber, out var currentStartAt);
+            if (source.AutoNumber.HasStartAt)
+            {
+                if (currentStartAt != source.AutoNumber.StartAt)
+                    autoNumber.StartAt = checked((int)source.AutoNumber.StartAt);
+            }
+            else if (currentStartAt is not null) autoNumber.StartAt = null;
+            return;
+        }
         if (existing.Length == 1 && existing[0] is A.PictureBullet picture &&
             source.BulletCase == PresentationTextParagraph.BulletOneofCase.PictureBullet &&
             context.TryReadPicture(picture, out var current) && current.Equals(source.PictureBullet)) return;
@@ -121,8 +137,7 @@ internal static class PptxBulletCodec
     {
         A.NoBullet => true,
         A.CharacterBullet character => ValidCharacter(character.Char?.Value),
-        A.AutoNumberedBullet autoNumber => AutoNumberSchemes.Contains(Scheme(autoNumber)) &&
-            (autoNumber.StartAt is null || autoNumber.StartAt.Value is >= 1 and <= 32_767),
+        A.AutoNumberedBullet autoNumber => AutoNumberSchemes.Contains(Scheme(autoNumber)) && TryStartAt(autoNumber, out _),
         A.PictureBullet picture => context is not null && context.TryReadPicture(picture, out _),
         _ => false,
     };
@@ -131,6 +146,18 @@ internal static class PptxBulletCodec
         !string.IsNullOrEmpty(value) && value.EnumerateRunes().Count() == 1;
 
     private static string Scheme(A.AutoNumberedBullet source) => source.Type?.InnerText ?? string.Empty;
+
+    private static bool TryStartAt(A.AutoNumberedBullet source, out uint? startAt)
+    {
+        startAt = null;
+        var token = source.GetAttributes().FirstOrDefault(attribute =>
+            attribute.NamespaceUri.Length == 0 && attribute.LocalName == "startAt").Value;
+        if (token is null) return true;
+        if (!uint.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) || value is < 1 or > 32_767)
+            return false;
+        startAt = value;
+        return true;
+    }
 
     private static CodecException Invalid(string message) => new("invalid_presentation_text", message);
 }

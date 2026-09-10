@@ -14,7 +14,7 @@
     "schemaDefinitions": 199,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 66,
+    "authoredCompilerBoundaries": 67,
     "nativeLeafKinds": 278,
     "helpApis": 151,
     "hostOnlyApis": 13
@@ -1097,6 +1097,14 @@
       "behavior": "partial",
       "sourceBound": "Direct paragraph level is a zero-based integer from 0 through 8. Ordinary source-bound text/shape owners support independent assignment, explicit zero, removal/restoration and level-only style removal under the exact text.paragraphs[].style.level authority. Omission clears native lvl while zero retains it. Only changed paragraphs are patched, preserving alignment, indentation, spacing, bullets, other native attributes/content, raw spelling, runs, neighbors and non-target XML/ZIP. Invalid or out-of-range native levels survive no-op and unrelated scalar edits but reject replacement. Inherited list layout and preview remain partial.",
       "reason": "PpjParagraphLevelLifecycleTests verifies authored precedence, explicit zero, bounds, exact authority, source lifecycle and unchanged XML/ZIP for text/shape owners. List/master level identifiers keep their existing contracts; this direct field does not rebuild inheritance or establish host reflow fidelity.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound bullet startAt",
+      "ppjPath": "pages[].elements[].text.paragraphs[].style.bullet.startAt",
+      "behavior": "partial",
+      "sourceBound": "Direct auto-number startAt is an integer from 1 through 32767. Existing source-bound text/shape numbered paragraphs support adding, replacing, deleting and restoring only this optional attribute under exact text.paragraphs[].style.bullet.startAt authority. Explicit 1 remains distinct from absence. The marker, scheme, bullet styling, other paragraph fields, runs, adjacent paragraphs, unknown XML and non-target ZIP content remain unchanged. Invalid starts, unknown schemes and duplicate markers stay source-owned and reject replacement. Whole-marker changes and inherited numbering evaluation retain separate boundaries; automatic-number preview is partial.",
+      "reason": "PpjBulletStartAtLifecycleTests verifies authored values, exact authority, source no-op, set/delete/restore, invalid values and non-target preservation. Raw start tokens are parsed without throwing from SDK accessors; same-scheme native application retains the existing marker and unchanged lexical values.",
       "visualStatus": "partial-or-opaque"
     },
     {

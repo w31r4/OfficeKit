@@ -1037,6 +1037,13 @@
       "reason": "PpjParagraphLevelLifecycleTests verifies authored precedence, explicit zero, bounds, exact authority, source lifecycle and unchanged XML/ZIP for text/shape owners. List/master level identifiers keep their existing contracts; this direct field does not rebuild inheritance or establish host reflow fidelity."
     },
     {
+      "feature": "source-bound bullet startAt",
+      "ppjPath": "pages[].elements[].text.paragraphs[].style.bullet.startAt",
+      "behavior": "partial",
+      "sourceBound": "Direct auto-number startAt is an integer from 1 through 32767. Existing source-bound text/shape numbered paragraphs support adding, replacing, deleting and restoring only this optional attribute under exact text.paragraphs[].style.bullet.startAt authority. Explicit 1 remains distinct from absence. The marker, scheme, bullet styling, other paragraph fields, runs, adjacent paragraphs, unknown XML and non-target ZIP content remain unchanged. Invalid starts, unknown schemes and duplicate markers stay source-owned and reject replacement. Whole-marker changes and inherited numbering evaluation retain separate boundaries; automatic-number preview is partial.",
+      "reason": "PpjBulletStartAtLifecycleTests verifies authored values, exact authority, source no-op, set/delete/restore, invalid values and non-target preservation. Raw start tokens are parsed without throwing from SDK accessors; same-scheme native application retains the existing marker and unchanged lexical values."
+    },
+    {
       "feature": "source-bound paragraph tab stops",
       "ppjPath": "pages[].elements[].text.paragraphs[].style.tabStops and noTabStops",
       "behavior": "partial",

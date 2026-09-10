@@ -92,6 +92,18 @@ neighbors. Invalid native levels remain preserved during unrelated edits and
 reject replacement. List/master level identities remain separate; inherited
 list layout and preview are partial.
 
+Use `text.paragraphs[].style.bullet.startAt` for a numbered paragraph's direct
+starting value, an integer from 1 through 32767. An existing numbered paragraph
+in an imported text box or shape supports setting, removing and restoring this
+field with its exact `setTextParagraphStyle` authority. For example,
+`{"type":"number","scheme":"arabicPeriod","startAt":3}` starts at 3;
+remove only `startAt` to clear the direct attribute while retaining the marker
+and scheme. Explicit 1 is distinct from absence. Edits preserve bullet styling,
+other paragraphs, unknown XML and unchanged source spelling. Invalid native
+start values, unknown schemes and duplicate markers remain source-owned.
+Changing a marker type or scheme uses a separate capability boundary; preview
+automatic numbering and inherited list evaluation remain partial.
+
 For an ordinary imported text box or shape,
 `text.paragraphs[].style.defaultText.bold` and `.italic` edit independent paragraph defaults.
 True and false remain explicit; delete the field (or its flag-only
