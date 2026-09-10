@@ -160,6 +160,26 @@ for (const choice of [0, 0.12345, 1, "theme", "follow"]) {
     assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.text-layout" && d.status === "partial"));
   } else assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.bullet-layout" && d.status === "unavailable"));
 }
+for (const [field, choice, nativeCase] of [["size", 12.34, "bulletSizePoints"],
+  ["sizePercent", 1, "bulletSizePercent"], ["sizeFollowText", true, "bulletSizeFollowText"]]) {
+  const input = deck([{ ...text, text: { paragraphs: [{ style: { indent: 20, hanging: 10,
+    bullet: { type: "character", character: "★", fontFamily: "Georgia", color: "#112233", [field]: choice } },
+    runs: [{ text: "Bullet size" }] }] } }]);
+  assert.ok(assessPpjPreviewInput(input).diagnostics.some(d =>
+    d.path.endsWith(`.style.bullet.${field}`) && d.status !== "supported"));
+  const receipt = previewSceneFixture(input, [{ id: "p1", elements: [nativeElement("text", "shape", {
+    ...emuFrame(1, 2, 100, 60), geometry: "textbox", text: "Bullet size",
+    textBody: { paragraphs: [{ bullet: { case: "bulletCharacter", value: "★" },
+      bulletFont: { case: "bulletFontFamily", value: "Georgia" },
+      bulletColor: { case: "bulletColorRgb", value: "112233" }, bulletSize: { case: nativeCase, value: choice },
+      leftMargin: { case: "marginLeftEmu", value: 254000n }, indentation: { case: "indentEmu", value: -127000n },
+      runs: [{ content: { case: "text", value: "Bullet size" } }] }] },
+  })] }], ["$.pages[0].elements[0]"]);
+  const painted = paintPpjSceneSvg(receipt);
+  if (field === "size") assert.match(painted.pages[0].svg, /font-size="12\.34"[^>]*>★/);
+  else assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.bullet-layout" && d.status === "unavailable"));
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.text-layout" && d.status === "partial"));
+}
 for (const follow of [false, true]) {
   const font = follow ? { fontFollowText: true } : { fontFamily: "Georgia" };
   const input = deck([{ ...text, text: { paragraphs: [{ style: { indent: 20, hanging: 10,

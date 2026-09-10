@@ -2800,9 +2800,22 @@ internal static partial class PpjAuthoredPresentationCompiler
                 SetBulletColor(target, bulletColor, catalog);
             }
             if (bullet.TryGetProperty("colorFollowText", out var colorFollowText)) target.BulletColorFollowText = colorFollowText.GetBoolean();
-            if (bullet.TryGetProperty("size", out var bulletSize)) target.BulletSizePoints = bulletSize.GetDouble();
-            if (bullet.TryGetProperty("sizePercent", out var bulletSizePercent)) target.BulletSizePercent = bulletSizePercent.GetDouble();
+            if (new[] { "size", "sizePercent", "sizeFollowText" }.Count(field => bullet.TryGetProperty(field, out _)) > 1)
+                throw Unsupported("paragraph", "bullet size, sizePercent and sizeFollowText are mutually exclusive");
+            if (bullet.TryGetProperty("size", out var bulletSize)) target.BulletSizePoints = QuantizedBulletSize(bulletSize, 1, 768, 100);
+            if (bullet.TryGetProperty("sizePercent", out var bulletSizePercent)) target.BulletSizePercent = QuantizedBulletSize(bulletSizePercent, 0.25, 4, 100_000);
+            if (bullet.TryGetProperty("sizeFollowText", out var sizeFollowText)) target.BulletSizeFollowText = sizeFollowText.GetBoolean();
         }
+    }
+
+    private static double QuantizedBulletSize(JsonElement value, double minimum, double maximum, int units)
+    {
+        var size = value.GetDouble();
+        if (!double.IsFinite(size) || size < minimum || size > maximum)
+            throw Unsupported("paragraph", $"bullet size must be between {minimum} and {maximum}");
+        // Requested wire state must match the native integer precision used by
+        // source-preserving writeback and its post-export semantic check.
+        return Math.Round(size * units) / units;
     }
 
     private static void SetBulletColor(PresentationTextParagraph target, JsonElement value, Catalog catalog)

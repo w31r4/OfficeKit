@@ -2414,6 +2414,8 @@ internal static partial class PpjPresentationProjector
             bullet["size"] = JsonValue.Create(paragraph.BulletSizePoints);
         else if (paragraph.BulletSizeCase == PresentationTextParagraph.BulletSizeOneofCase.BulletSizePercent)
             bullet["sizePercent"] = JsonValue.Create(paragraph.BulletSizePercent);
+        else if (paragraph.BulletSizeCase == PresentationTextParagraph.BulletSizeOneofCase.BulletSizeFollowText)
+            bullet["sizeFollowText"] = JsonValue.Create(true);
         return bullet;
     }
 
@@ -2967,6 +2969,9 @@ internal static partial class PpjPresentationProjector
                             "text.paragraphs[].style.bullet.fontFollowText",
                             "text.paragraphs[].style.bullet.color",
                             "text.paragraphs[].style.bullet.colorFollowText",
+                            "text.paragraphs[].style.bullet.size",
+                            "text.paragraphs[].style.bullet.sizePercent",
+                            "text.paragraphs[].style.bullet.sizeFollowText",
                             "text.paragraphs[].style.bullet.scheme",
                             "text.paragraphs[].style.bullet.format",
                             "text.paragraphs[].style.tabStops",

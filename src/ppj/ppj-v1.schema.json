@@ -1940,6 +1940,9 @@
             "text.paragraphs[].style.bullet.fontFollowText",
             "text.paragraphs[].style.bullet.color",
             "text.paragraphs[].style.bullet.colorFollowText",
+            "text.paragraphs[].style.bullet.size",
+            "text.paragraphs[].style.bullet.sizePercent",
+            "text.paragraphs[].style.bullet.sizeFollowText",
             "text.paragraphs[].style.bullet.scheme",
             "text.paragraphs[].style.bullet.format",
             "text.paragraphs[].style.tabStops",
@@ -3437,13 +3440,15 @@
             },
             "size": {
               "type": "number",
-              "exclusiveMinimum": 0,
-              "maximum": 1000
+              "minimum": 1,
+              "maximum": 768,
+              "description": "Direct marker size in points, rounded to native 0.01-point units. Mutually exclusive with sizePercent and sizeFollowText. Ordinary source-bound text/shape markers support add/set/switch/remove/restore under exact authority for every changed size property; absence clears the direct size."
             },
             "sizePercent": {
               "type": "number",
-              "exclusiveMinimum": 0,
-              "maximum": 1000
+              "minimum": 0.25,
+              "maximum": 4,
+              "description": "Marker size relative to paragraph text, rounded to native 0.00001 units. A ratio: 1 means 100%. Mutually exclusive with size and sizeFollowText; ratio 1, follow-text and absence remain distinct. Relative preview sizing is unresolved and diagnosed."
             },
             "fontFollowText": {
               "const": true,
@@ -3452,6 +3457,10 @@
             "colorFollowText": {
               "const": true,
               "description": "Explicitly use the paragraph text color for the marker; distinct from no direct color declaration. Mutually exclusive with color. Source edits require exact authority for each changed color property, including both sides of a switch; follow-text preview is unresolved."
+            },
+            "sizeFollowText": {
+              "const": true,
+              "description": "Explicitly follow paragraph text size. Mutually exclusive with size and sizePercent; distinct from ratio 1 or absence. Source switching/removal requires exact authority for every changed property. Preview sizing is unresolved and diagnosed."
             }
           },
           "allOf": [
@@ -3485,6 +3494,34 @@
                   ],
                   "properties": {
                     "color": false
+                  }
+                }
+              ]
+            },
+            {
+              "oneOf": [
+                {
+                  "properties": {
+                    "sizePercent": false,
+                    "sizeFollowText": false
+                  }
+                },
+                {
+                  "required": [
+                    "sizePercent"
+                  ],
+                  "properties": {
+                    "size": false,
+                    "sizeFollowText": false
+                  }
+                },
+                {
+                  "required": [
+                    "sizeFollowText"
+                  ],
+                  "properties": {
+                    "size": false,
+                    "sizePercent": false
                   }
                 }
               ]
@@ -3530,13 +3567,15 @@
             },
             "size": {
               "type": "number",
-              "exclusiveMinimum": 0,
-              "maximum": 1000
+              "minimum": 1,
+              "maximum": 768,
+              "description": "Direct marker size in points, rounded to native 0.01-point units. Mutually exclusive with sizePercent and sizeFollowText. Ordinary source-bound text/shape markers support add/set/switch/remove/restore under exact authority for every changed size property; absence clears the direct size."
             },
             "sizePercent": {
               "type": "number",
-              "exclusiveMinimum": 0,
-              "maximum": 1000
+              "minimum": 0.25,
+              "maximum": 4,
+              "description": "Marker size relative to paragraph text, rounded to native 0.00001 units. A ratio: 1 means 100%. Mutually exclusive with size and sizeFollowText; ratio 1, follow-text and absence remain distinct. Relative preview sizing is unresolved and diagnosed."
             },
             "fontFollowText": {
               "const": true,
@@ -3545,6 +3584,10 @@
             "colorFollowText": {
               "const": true,
               "description": "Explicitly use the paragraph text color for the marker; distinct from no direct color declaration. Mutually exclusive with color. Source edits require exact authority for each changed color property, including both sides of a switch; follow-text preview is unresolved."
+            },
+            "sizeFollowText": {
+              "const": true,
+              "description": "Explicitly follow paragraph text size. Mutually exclusive with size and sizePercent; distinct from ratio 1 or absence. Source switching/removal requires exact authority for every changed property. Preview sizing is unresolved and diagnosed."
             }
           },
           "allOf": [
@@ -3578,6 +3621,34 @@
                   ],
                   "properties": {
                     "color": false
+                  }
+                }
+              ]
+            },
+            {
+              "oneOf": [
+                {
+                  "properties": {
+                    "sizePercent": false,
+                    "sizeFollowText": false
+                  }
+                },
+                {
+                  "required": [
+                    "sizePercent"
+                  ],
+                  "properties": {
+                    "size": false,
+                    "sizeFollowText": false
+                  }
+                },
+                {
+                  "required": [
+                    "sizeFollowText"
+                  ],
+                  "properties": {
+                    "size": false,
+                    "sizePercent": false
                   }
                 }
               ]
@@ -3660,13 +3731,15 @@
             },
             "size": {
               "type": "number",
-              "exclusiveMinimum": 0,
-              "maximum": 1000
+              "minimum": 1,
+              "maximum": 768,
+              "description": "Direct marker size in points, rounded to native 0.01-point units. Mutually exclusive with sizePercent and sizeFollowText. Ordinary source-bound text/shape markers support add/set/switch/remove/restore under exact authority for every changed size property; absence clears the direct size."
             },
             "sizePercent": {
               "type": "number",
-              "exclusiveMinimum": 0,
-              "maximum": 1000
+              "minimum": 0.25,
+              "maximum": 4,
+              "description": "Marker size relative to paragraph text, rounded to native 0.00001 units. A ratio: 1 means 100%. Mutually exclusive with size and sizeFollowText; ratio 1, follow-text and absence remain distinct. Relative preview sizing is unresolved and diagnosed."
             },
             "fontFollowText": {
               "const": true,
@@ -3675,6 +3748,10 @@
             "colorFollowText": {
               "const": true,
               "description": "Explicitly use the paragraph text color for the marker; distinct from no direct color declaration. Mutually exclusive with color. Source edits require exact authority for each changed color property, including both sides of a switch; follow-text preview is unresolved."
+            },
+            "sizeFollowText": {
+              "const": true,
+              "description": "Explicitly follow paragraph text size. Mutually exclusive with size and sizePercent; distinct from ratio 1 or absence. Source switching/removal requires exact authority for every changed property. Preview sizing is unresolved and diagnosed."
             }
           },
           "allOf": [
@@ -3708,6 +3785,34 @@
                   ],
                   "properties": {
                     "color": false
+                  }
+                }
+              ]
+            },
+            {
+              "oneOf": [
+                {
+                  "properties": {
+                    "sizePercent": false,
+                    "sizeFollowText": false
+                  }
+                },
+                {
+                  "required": [
+                    "sizePercent"
+                  ],
+                  "properties": {
+                    "size": false,
+                    "sizeFollowText": false
+                  }
+                },
+                {
+                  "required": [
+                    "sizeFollowText"
+                  ],
+                  "properties": {
+                    "size": false,
+                    "sizePercent": false
                   }
                 }
               ]
@@ -3756,13 +3861,15 @@
             },
             "size": {
               "type": "number",
-              "exclusiveMinimum": 0,
-              "maximum": 1000
+              "minimum": 1,
+              "maximum": 768,
+              "description": "Direct marker size in points, rounded to native 0.01-point units. Mutually exclusive with sizePercent and sizeFollowText. Ordinary source-bound text/shape markers support add/set/switch/remove/restore under exact authority for every changed size property; absence clears the direct size."
             },
             "sizePercent": {
               "type": "number",
-              "exclusiveMinimum": 0,
-              "maximum": 1000
+              "minimum": 0.25,
+              "maximum": 4,
+              "description": "Marker size relative to paragraph text, rounded to native 0.00001 units. A ratio: 1 means 100%. Mutually exclusive with size and sizeFollowText; ratio 1, follow-text and absence remain distinct. Relative preview sizing is unresolved and diagnosed."
             },
             "fontFollowText": {
               "const": true,
@@ -3771,6 +3878,10 @@
             "colorFollowText": {
               "const": true,
               "description": "Explicitly use the paragraph text color for the marker; distinct from no direct color declaration. Mutually exclusive with color. Source edits require exact authority for each changed color property, including both sides of a switch; follow-text preview is unresolved."
+            },
+            "sizeFollowText": {
+              "const": true,
+              "description": "Explicitly follow paragraph text size. Mutually exclusive with size and sizePercent; distinct from ratio 1 or absence. Source switching/removal requires exact authority for every changed property. Preview sizing is unresolved and diagnosed."
             }
           },
           "allOf": [
@@ -3804,6 +3915,34 @@
                   ],
                   "properties": {
                     "color": false
+                  }
+                }
+              ]
+            },
+            {
+              "oneOf": [
+                {
+                  "properties": {
+                    "sizePercent": false,
+                    "sizeFollowText": false
+                  }
+                },
+                {
+                  "required": [
+                    "sizePercent"
+                  ],
+                  "properties": {
+                    "size": false,
+                    "sizeFollowText": false
+                  }
+                },
+                {
+                  "required": [
+                    "sizeFollowText"
+                  ],
+                  "properties": {
+                    "size": false,
+                    "sizePercent": false
                   }
                 }
               ]

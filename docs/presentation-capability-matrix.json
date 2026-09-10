@@ -14,7 +14,7 @@
     "schemaDefinitions": 200,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 71,
+    "authoredCompilerBoundaries": 72,
     "nativeLeafKinds": 278,
     "helpApis": 151,
     "hostOnlyApis": 13
@@ -1137,6 +1137,14 @@
       "behavior": "partial",
       "sourceBound": "Character, numbered and picture markers use an optional mutually exclusive color/follow-text choice. Color accepts hex RGB/RGBA, token color, or RGB with separate alpha. Native 0.00001 alpha precision and explicit zero/one presence survive projection; RGB uses an object when hex alpha cannot represent it exactly. Untransformed standard theme tokens retain identity. Declared grammar colors take precedence and tint/shade resolve declared colors to RGB; inherited theme evaluation and arbitrary imported transforms remain separate. Ordinary source-bound text/shape owners support add/set/switch/remove/restore under exact authority for every changed property, including both sides of a switch. Only target color declarations change; marker identity, font/size, runs, neighbors and non-target XML/ZIP remain. Unknown/malformed/duplicate native colors stay preserved and reject replacement.",
       "reason": "PpjBulletColorLifecycleTests verifies authored/fresh native projection and text/shape lifecycle for character/number/picture markers, authored external URI and imported embedded media, exact alpha/choice presence, theme and grammar behavior, invalid inputs and unmodeled source preservation. Raw color/alpha classification avoids SDK parsing failures. Preview tests retain RGB/alpha including zero and precise alpha, and explicitly diagnose theme/follow-text marker color unavailable; host glyph/layout remains partial.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound bullet size",
+      "ppjPath": "pages[].elements[].text.paragraphs[].style.bullet.size, sizePercent and sizeFollowText",
+      "behavior": "partial",
+      "sourceBound": "Character, numbered and picture markers accept at most one direct point size (1–768, 0.01-point units), relative ratio (0.25–4, 0.00001 units; 1=100%), or sizeFollowText:true. Absence removes the direct size declaration and remains distinct from ratio one and follow-text. Ordinary source-bound text/shape markers support add/set/switch/remove/restore under exact authority for every changed property, including both sides of a switch. Only target size changes; marker, font/color, raw numeric spelling, runs, neighbors and non-target XML/ZIP remain. Malformed, unknown and duplicate native sizes stay preserved and reject replacement.",
+      "reason": "PpjBulletSizeLifecycleTests covers authored bounds/precision and fresh native text/shape lifecycle for character/number/picture markers, imported embedded media, authority and unmodeled source preservation. Numeric parsing avoids SDK conversion failures; lowering normalizes native precision before source postwrite checks. Preview retains direct point-size character painting and explicitly diagnoses unresolved relative/follow-text sizing; inherited metrics and host glyph/layout remain partial.",
       "visualStatus": "partial-or-opaque"
     },
     {

@@ -70,8 +70,19 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
             var request = Project(source); FirstBullet(request)["startAt"] = JsonNode.Parse(invalid);
             Assert.Empty(Compile(request, source, success: false).File);
         }
-        foreach (var replacement in new[] { """{"type":"number","scheme":"romanUcPeriod","startAt":1}""",
-            """{"type":"character","character":"*"}""", """{"type":"none"}""" })
+        // Number formatting and removal of direct font/color/size are all
+        // modeled now. A combined request must retain exactly that PPJ state.
+        var restyle = Project(source);
+        FirstTextParagraph(restyle)["style"]!["bullet"] = JsonNode.Parse("""{"type":"number","scheme":"romanUcPeriod","startAt":1}""");
+        var restyled = Compile(restyle, source).File.ToByteArray();
+        var observed = FirstBullet(Project(restyled));
+        Assert.Equal(3, observed.Count);
+        Assert.Equal("number", observed["type"]!.GetValue<string>());
+        Assert.Equal("romanUcPeriod", observed["scheme"]!.GetValue<string>());
+        Assert.Equal(1, observed["startAt"]!.GetValue<int>());
+        AssertBulletSize(restyled, kind, "{}");
+        Assert.Equal(restyled, Compile(Project(restyled), restyled).File.ToByteArray());
+        foreach (var replacement in new[] { """{"type":"character","character":"*"}""", """{"type":"none"}""" })
         {
             var request = Project(source); FirstTextParagraph(request)["style"]!["bullet"] = JsonNode.Parse(replacement);
             Assert.Empty(Compile(request, source, success: false).File);

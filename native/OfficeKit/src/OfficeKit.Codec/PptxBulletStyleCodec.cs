@@ -51,10 +51,12 @@ internal static class PptxBulletStyleCodec
             switch (size[0])
             {
                 case A.BulletSizePoints points:
-                    target.BulletSizePoints = points.Val!.Value / 100d;
+                    TrySizeValue(points, 100, 76_800, out var pointValue);
+                    target.BulletSizePoints = pointValue / 100d;
                     break;
                 case A.BulletSizePercentage percent:
-                    target.BulletSizePercent = percent.Val!.Value / 100_000d;
+                    TrySizeValue(percent, 25_000, 400_000, out var percentValue);
+                    target.BulletSizePercent = percentValue / 100_000d;
                     break;
                 default:
                     target.BulletSizeFollowText = true;
@@ -137,7 +139,7 @@ internal static class PptxBulletStyleCodec
     internal static void Apply(A.TextParagraphPropertiesType target, PresentationTextParagraph source)
     {
         ApplyChoice(target, source, source.BulletColorCase != PresentationTextParagraph.BulletColorOneofCase.None, ColorChoices, ModeledColor, BuildColor, "color", clearAbsent: true);
-        ApplyChoice(target, source, source.BulletSizeCase != PresentationTextParagraph.BulletSizeOneofCase.None, SizeChoices, ModeledSize, BuildSize, "size");
+        ApplyChoice(target, source, source.BulletSizeCase != PresentationTextParagraph.BulletSizeOneofCase.None, SizeChoices, ModeledSize, BuildSize, "size", clearAbsent: true);
         ApplyFont(target, source);
     }
 
@@ -283,11 +285,19 @@ internal static class PptxBulletStyleCodec
 
     private static bool ModeledSize(OpenXmlElement source) => source switch
     {
-        A.BulletSizePoints points => SimpleAttribute(points, "val") && points.Val?.Value is >= 100 and <= 76_800,
-        A.BulletSizePercentage percent => SimpleAttribute(percent, "val") && percent.Val?.Value is >= 25_000 and <= 400_000,
+        A.BulletSizePoints points => TrySizeValue(points, 100, 76_800, out _),
+        A.BulletSizePercentage percent => TrySizeValue(percent, 25_000, 400_000, out _),
         A.BulletSizeText follow => Empty(follow),
         _ => false,
     };
+
+    private static bool TrySizeValue(OpenXmlElement source, int minimum, int maximum, out int value)
+    {
+        value = 0;
+        return source.ChildElements.Count == 0 && ColorAttribute(source) &&
+            int.TryParse(source.GetAttributes()[0].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out value) &&
+            value >= minimum && value <= maximum;
+    }
 
     private static bool Empty(OpenXmlElement source) => EmptyAttributes(source) && source.ChildElements.Count == 0;
 

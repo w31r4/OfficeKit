@@ -164,6 +164,18 @@ Malformed/unknown/duplicate native colors are preserved and reject replacement.
 Direct character RGB/alpha preview retains glyph/layout limits; theme and
 follow-text marker colors diagnose unavailable.
 
+Choose one marker size: `bullet.size: 12` in points (1–768, rounded to 0.01),
+`bullet.sizePercent: 0.9` relative to text (0.25–4, rounded to 0.00001), or
+`bullet.sizeFollowText: true`. A ratio of 1 means 100%; it remains distinct from
+follow-text and absence. Ordinary imported text/shape character, numbered and
+picture markers support add, set, switch, remove and restore. Every changed
+size property requires its exact `text.paragraphs[].style.bullet.<field>`
+authority, including both sides of a switch. Removal clears only the direct
+size declaration. Marker, font/color, runs, neighbors and other package content
+remain. Unknown, malformed or duplicate native sizes stay source-owned and
+reject replacement. Direct point-size character preview retains glyph/layout
+limits; relative and follow-text sizing diagnose unavailable.
+
 For an ordinary imported text box or shape,
 `text.paragraphs[].style.defaultText.bold` and `.italic` edit independent paragraph defaults.
 True and false remain explicit; delete the field (or its flag-only
