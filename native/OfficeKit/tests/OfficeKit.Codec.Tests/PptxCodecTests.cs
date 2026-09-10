@@ -15823,7 +15823,8 @@ public sealed partial class PptxCodecTests
         Assert.Equal("picture", projectedBullet["type"]!.GetValue<string>());
         Assert.False(string.IsNullOrWhiteSpace(projectedBullet["asset"]!.GetValue<string>()));
         Assert.Equal("Wingdings", projectedBullet["fontFamily"]!.GetValue<string>());
-        Assert.Equal("#C0392BB2", projectedBullet["color"]!.GetValue<string>());
+        Assert.Equal("#C0392B", projectedBullet["color"]!["rgb"]!.GetValue<string>());
+        Assert.Equal(0.7, projectedBullet["color"]!["alpha"]!.GetValue<double>());
         Assert.Equal(1.5, projectedBullet["sizePercent"]!.GetValue<double>(), 3);
         var projectedExternalCell = projectedTable["rows"]![0]!["cells"]![1]!.AsObject();
         var projectedExternalBullet = projectedExternalCell["text"]!["paragraphs"]![0]!["style"]!["bullet"]!.AsObject();

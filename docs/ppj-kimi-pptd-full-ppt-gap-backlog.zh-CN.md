@@ -463,6 +463,23 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**列表颜色增量（2026-09-10）：**
+`text.paragraphs[].style.bullet.color` 与 `colorFollowText: true` 已成为
+互斥选择，适用于字符、编号和图片列表。除原有 hex/token 写法，新增
+`{ "rgb": "#112233", "alpha": 0.12345 }`，用于保留超出 8 位精度的 RGB
+透明度；原生单位为 0.00001，显式零、一与缺省分别保留。不能精确表示
+原生透明度时，回投影由 hex 字符串改为 RGB 对象。未变换的标准主题色
+保留 token 身份；声明的 grammar 颜色优先，tint/shade 按声明颜色解析为 RGB。
+普通文本框和形状支持颜色新增、赋值、切换、删除和恢复；切换要求新旧
+字段各自的精确权限。只改目标颜色声明，保留标记、字体、字号原始写法、
+run、相邻段落、其它 XML 与非目标 ZIP。未知/重复颜色及带额外变换的
+源节点继续保留、拒绝覆盖；非法主题值和透明度不再导致投影失败。
+最小实验 **4/4 通过**；相关 **34 项通过**，其中表格图片列表按精确
+`alpha: 0.7` 更新断言后单独复跑 **1/1 通过**，其余 33 项已通过。
+Help、生成资料、预览诊断、Skill 同步和 OpenSpec 检查通过；未重建 NativeAOT。
+直接字符 RGB/alpha 预览保留字形布局限制，主题色与“跟随正文”颜色
+明确 unavailable；完整继承和颜色变换图仍有缺口，F-03 继续开放。
+
 **列表字体增量（2026-09-10）：**
 `text.paragraphs[].style.bullet.fontFamily` 与 `fontFollowText: true` 已成为
 互斥选择，适用于字符、编号和图片列表。字体名统一为 1–255 个 XML

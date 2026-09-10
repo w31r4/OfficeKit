@@ -148,6 +148,22 @@ content remain. Unknown/duplicate native font choices are preserved and reject
 replacement. Direct character-font preview keeps layout limits; follow-text
 font resolution is unavailable in preview and must be reviewed in the host.
 
+Use `bullet.color` for direct marker color, or `bullet.colorFollowText: true`
+to explicitly follow the text color; the choices are mutually exclusive.
+`"#112233"`, `"#11223380"`, `{ "token": "accent1", "alpha": 0.5 }` and
+`{ "rgb": "#112233", "alpha": 0.12345 }` are valid color forms. The RGB object
+retains alpha precision beyond hex RGBA; native alpha uses 0.00001 units, and
+absence differs from explicit zero/one. Untransformed standard theme tokens
+retain their theme identity. Declared grammar colors take precedence; tint/shade
+resolve declared colors to RGB. Imported arbitrary color transforms stay source-owned.
+Ordinary text/shape character, numbered and picture markers support add, set,
+switch, remove and restore. Each changed color property needs its exact authority;
+switching needs both the removed and added property. Deletion clears the direct
+declaration. Other marker styling, runs, neighbors and package content remain.
+Malformed/unknown/duplicate native colors are preserved and reject replacement.
+Direct character RGB/alpha preview retains glyph/layout limits; theme and
+follow-text marker colors diagnose unavailable.
+
 For an ordinary imported text box or shape,
 `text.paragraphs[].style.defaultText.bold` and `.italic` edit independent paragraph defaults.
 True and false remain explicit; delete the field (or its flag-only

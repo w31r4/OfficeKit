@@ -2428,7 +2428,7 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
                     paragraphProperties.Remove();
             }
         }
-        else if (field is "paragraph.spaceBefore" or "paragraph.spaceAfter" or "paragraph.lineSpacing" or "paragraph.indent" or "paragraph.hanging" or "paragraph.alignment" or "paragraph.level" or "paragraph.bullet.startAt" or "paragraph.bullet.scheme" or "paragraph.bullet.schemeAndStartAt" or "paragraph.bullet.character" or "paragraph.bullet.font")
+        else if (field is "paragraph.spaceBefore" or "paragraph.spaceAfter" or "paragraph.lineSpacing" or "paragraph.indent" or "paragraph.hanging" or "paragraph.alignment" or "paragraph.level" or "paragraph.bullet.startAt" or "paragraph.bullet.scheme" or "paragraph.bullet.schemeAndStartAt" or "paragraph.bullet.character" or "paragraph.bullet.font" or "paragraph.bullet.color")
         {
             foreach (var owner in new[] { oldSlide, newSlide })
             {
@@ -2438,7 +2438,12 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
                 else if (field == "paragraph.lineSpacing") properties?.GetFirstChild<A.LineSpacing>()?.Remove();
                 else if (properties is not null)
                 {
-                    if (field == "paragraph.bullet.font")
+                    if (field == "paragraph.bullet.color")
+                    {
+                        properties.GetFirstChild<A.BulletColor>()?.Remove();
+                        properties.GetFirstChild<A.BulletColorText>()?.Remove();
+                    }
+                    else if (field == "paragraph.bullet.font")
                     {
                         properties.GetFirstChild<A.BulletFont>()?.Remove();
                         properties.GetFirstChild<A.BulletFontText>()?.Remove();

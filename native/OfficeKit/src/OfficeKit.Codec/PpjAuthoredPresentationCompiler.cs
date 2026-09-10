@@ -2795,13 +2795,41 @@ internal static partial class PpjAuthoredPresentationCompiler
             if (bullet.TryGetProperty("fontFollowText", out var bulletFontFollowText)) target.BulletFontFollowText = bulletFontFollowText.GetBoolean();
             if (bullet.TryGetProperty("color", out var bulletColor))
             {
-                var color = catalog.Color(bulletColor);
-                target.BulletColorRgb = color.Rgb;
-                if (color.Alpha < 1) target.BulletColorOpacityThousandthPercent = Opacity(color.Alpha);
+                if (bullet.TryGetProperty("colorFollowText", out _))
+                    throw Unsupported("paragraph", "bullet color and colorFollowText are mutually exclusive");
+                SetBulletColor(target, bulletColor, catalog);
             }
+            if (bullet.TryGetProperty("colorFollowText", out var colorFollowText)) target.BulletColorFollowText = colorFollowText.GetBoolean();
             if (bullet.TryGetProperty("size", out var bulletSize)) target.BulletSizePoints = bulletSize.GetDouble();
             if (bullet.TryGetProperty("sizePercent", out var bulletSizePercent)) target.BulletSizePercent = bulletSizePercent.GetDouble();
         }
+    }
+
+    private static void SetBulletColor(PresentationTextParagraph target, JsonElement value, Catalog catalog)
+    {
+        var alpha = 1d;
+        var explicitAlpha = value.ValueKind == JsonValueKind.String
+            ? value.GetString()!.TrimStart('#').Length == 8
+            : value.TryGetProperty("alpha", out _);
+        if (value.ValueKind == JsonValueKind.Object && value.TryGetProperty("rgb", out var rgb))
+        {
+            target.BulletColorRgb = ParseHexColor(rgb.GetString()!).Rgb;
+            if (value.TryGetProperty("alpha", out var opacity)) alpha = opacity.GetDouble();
+        }
+        else if (value.ValueKind == JsonValueKind.Object && value.TryGetProperty("token", out var token) &&
+            !catalog.HasGrammarToken(token.GetString()!) && !value.TryGetProperty("tint", out _) && !value.TryGetProperty("shade", out _) &&
+            PptxColor.TrySchemeToken(token.GetString()!, out var scheme))
+        {
+            target.BulletColorScheme = scheme;
+            if (value.TryGetProperty("alpha", out var opacity)) alpha = opacity.GetDouble();
+        }
+        else
+        {
+            var color = catalog.BulletColor(value);
+            target.BulletColorRgb = color.Rgb;
+            alpha = color.Alpha;
+        }
+        if (explicitAlpha || alpha != 1) target.BulletColorOpacityThousandthPercent = Opacity(alpha);
     }
 
     private static void ApplyTransform(PresentationShape target, PpjFrameModel frame)
@@ -4594,11 +4622,16 @@ internal static partial class PpjAuthoredPresentationCompiler
 
         internal bool HasGrammarToken(string name) => _grammarTokens.ContainsKey(name);
 
-        internal (string Rgb, double Alpha) Color(JsonElement color)
+        internal (string Rgb, double Alpha) Color(JsonElement color) => ResolveColor(color, preferGrammar: false);
+
+        internal (string Rgb, double Alpha) BulletColor(JsonElement color) => ResolveColor(color, preferGrammar: true);
+
+        private (string Rgb, double Alpha) ResolveColor(JsonElement color, bool preferGrammar)
         {
             if (color.ValueKind == JsonValueKind.String) return ParseHexColor(color.GetString()!);
             var token = color.GetProperty("token").GetString()!;
-            if (!_colors.TryGetValue(token, out var value))
+            var value = (Rgb: string.Empty, Alpha: 1d);
+            if (preferGrammar && _grammarTokens.ContainsKey(token) || !_colors.TryGetValue(token, out value))
             {
                 if (!_grammarTokens.TryGetValue(token, out var declared))
                     throw new CodecException("ppj.color.unknown", $"PPJ color token {token} is not declared.");

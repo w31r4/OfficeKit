@@ -1938,6 +1938,8 @@
             "text.paragraphs[].style.bullet.character",
             "text.paragraphs[].style.bullet.fontFamily",
             "text.paragraphs[].style.bullet.fontFollowText",
+            "text.paragraphs[].style.bullet.color",
+            "text.paragraphs[].style.bullet.colorFollowText",
             "text.paragraphs[].style.bullet.scheme",
             "text.paragraphs[].style.bullet.format",
             "text.paragraphs[].style.tabStops",
@@ -3363,6 +3365,34 @@
         }
       ]
     },
+    "bulletColor": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/color"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "rgb"
+          ],
+          "properties": {
+            "rgb": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "Direct six-digit RGB; alpha is separate to retain native precision."
+            },
+            "alpha": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Optional alpha, quantized to 0.00001 native units. Explicit zero/one and absence remain distinct."
+            }
+          }
+        }
+      ],
+      "description": "Direct bullet color: hex RGB/RGBA, a theme/grammar token color, or RGB with precise alpha. Standard untransformed theme tokens retain identity; grammar colors take precedence and tint/shade resolve to RGB. Projection uses the RGB object when hex alpha would lose native precision. Mutually exclusive with colorFollowText. Ordinary source-bound text/shape markers support add/set/switch/remove/restore under exact authority for each changed color property, preserving non-target source content. Inherited/theme marker preview remains unresolved."
+    },
     "bullet": {
       "oneOf": [
         {
@@ -3403,7 +3433,7 @@
               "description": "Direct marker typeface: 1–255 XML-compatible Unicode scalars, with non-whitespace content. Mutually exclusive with fontFollowText. Existing source-bound ordinary text/shape markers support add/set/switch/remove/restore under exact fontFamily and fontFollowText authority for each changed property. Removal clears the direct declaration; inherited font and preview layout remain partial."
             },
             "color": {
-              "$ref": "#/$defs/color"
+              "$ref": "#/$defs/bulletColor"
             },
             "size": {
               "type": "number",
@@ -3418,6 +3448,10 @@
             "fontFollowText": {
               "const": true,
               "description": "Explicitly use the text font for this marker; distinct from no direct font declaration. Mutually exclusive with fontFamily. Source-bound add/switch/remove/restore requires exact authority for each changed font property. Follow-text preview font/layout is unresolved and diagnosed."
+            },
+            "colorFollowText": {
+              "const": true,
+              "description": "Explicitly use the paragraph text color for the marker; distinct from no direct color declaration. Mutually exclusive with color. Source edits require exact authority for each changed color property, including both sides of a switch; follow-text preview is unresolved."
             }
           },
           "allOf": [
@@ -3434,6 +3468,23 @@
                   ],
                   "properties": {
                     "fontFamily": false
+                  }
+                }
+              ]
+            },
+            {
+              "oneOf": [
+                {
+                  "properties": {
+                    "colorFollowText": false
+                  }
+                },
+                {
+                  "required": [
+                    "colorFollowText"
+                  ],
+                  "properties": {
+                    "color": false
                   }
                 }
               ]
@@ -3475,7 +3526,7 @@
               "description": "Direct marker typeface: 1–255 XML-compatible Unicode scalars, with non-whitespace content. Mutually exclusive with fontFollowText. Existing source-bound ordinary text/shape markers support add/set/switch/remove/restore under exact fontFamily and fontFollowText authority for each changed property. Removal clears the direct declaration; inherited font and preview layout remain partial."
             },
             "color": {
-              "$ref": "#/$defs/color"
+              "$ref": "#/$defs/bulletColor"
             },
             "size": {
               "type": "number",
@@ -3490,6 +3541,10 @@
             "fontFollowText": {
               "const": true,
               "description": "Explicitly use the text font for this marker; distinct from no direct font declaration. Mutually exclusive with fontFamily. Source-bound add/switch/remove/restore requires exact authority for each changed font property. Follow-text preview font/layout is unresolved and diagnosed."
+            },
+            "colorFollowText": {
+              "const": true,
+              "description": "Explicitly use the paragraph text color for the marker; distinct from no direct color declaration. Mutually exclusive with color. Source edits require exact authority for each changed color property, including both sides of a switch; follow-text preview is unresolved."
             }
           },
           "allOf": [
@@ -3506,6 +3561,23 @@
                   ],
                   "properties": {
                     "fontFamily": false
+                  }
+                }
+              ]
+            },
+            {
+              "oneOf": [
+                {
+                  "properties": {
+                    "colorFollowText": false
+                  }
+                },
+                {
+                  "required": [
+                    "colorFollowText"
+                  ],
+                  "properties": {
+                    "color": false
                   }
                 }
               ]
@@ -3584,7 +3656,7 @@
               "description": "Direct marker typeface: 1–255 XML-compatible Unicode scalars, with non-whitespace content. Mutually exclusive with fontFollowText. Existing source-bound ordinary text/shape markers support add/set/switch/remove/restore under exact fontFamily and fontFollowText authority for each changed property. Removal clears the direct declaration; inherited font and preview layout remain partial."
             },
             "color": {
-              "$ref": "#/$defs/color"
+              "$ref": "#/$defs/bulletColor"
             },
             "size": {
               "type": "number",
@@ -3599,6 +3671,10 @@
             "fontFollowText": {
               "const": true,
               "description": "Explicitly use the text font for this marker; distinct from no direct font declaration. Mutually exclusive with fontFamily. Source-bound add/switch/remove/restore requires exact authority for each changed font property. Follow-text preview font/layout is unresolved and diagnosed."
+            },
+            "colorFollowText": {
+              "const": true,
+              "description": "Explicitly use the paragraph text color for the marker; distinct from no direct color declaration. Mutually exclusive with color. Source edits require exact authority for each changed color property, including both sides of a switch; follow-text preview is unresolved."
             }
           },
           "allOf": [
@@ -3615,6 +3691,23 @@
                   ],
                   "properties": {
                     "fontFamily": false
+                  }
+                }
+              ]
+            },
+            {
+              "oneOf": [
+                {
+                  "properties": {
+                    "colorFollowText": false
+                  }
+                },
+                {
+                  "required": [
+                    "colorFollowText"
+                  ],
+                  "properties": {
+                    "color": false
                   }
                 }
               ]
@@ -3659,7 +3752,7 @@
               "description": "Direct marker typeface: 1–255 XML-compatible Unicode scalars, with non-whitespace content. Mutually exclusive with fontFollowText. Existing source-bound ordinary text/shape markers support add/set/switch/remove/restore under exact fontFamily and fontFollowText authority for each changed property. Removal clears the direct declaration; inherited font and preview layout remain partial."
             },
             "color": {
-              "$ref": "#/$defs/color"
+              "$ref": "#/$defs/bulletColor"
             },
             "size": {
               "type": "number",
@@ -3674,6 +3767,10 @@
             "fontFollowText": {
               "const": true,
               "description": "Explicitly use the text font for this marker; distinct from no direct font declaration. Mutually exclusive with fontFamily. Source-bound add/switch/remove/restore requires exact authority for each changed font property. Follow-text preview font/layout is unresolved and diagnosed."
+            },
+            "colorFollowText": {
+              "const": true,
+              "description": "Explicitly use the paragraph text color for the marker; distinct from no direct color declaration. Mutually exclusive with color. Source edits require exact authority for each changed color property, including both sides of a switch; follow-text preview is unresolved."
             }
           },
           "allOf": [
@@ -3690,6 +3787,23 @@
                   ],
                   "properties": {
                     "fontFamily": false
+                  }
+                }
+              ]
+            },
+            {
+              "oneOf": [
+                {
+                  "properties": {
+                    "colorFollowText": false
+                  }
+                },
+                {
+                  "required": [
+                    "colorFollowText"
+                  ],
+                  "properties": {
+                    "color": false
                   }
                 }
               ]

@@ -18,7 +18,7 @@ internal static class PpjSemanticValidator
         new Dictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal)
         {
             ["replaceText"] = Set("text", "visibleText"),
-            ["setTextParagraphStyle"] = Set("textStyles", "text.paragraphs[].style.alignment", "text.paragraphs[].style.level", "text.paragraphs[].style.bullet.startAt", "text.paragraphs[].style.bullet.character", "text.paragraphs[].style.bullet.fontFamily", "text.paragraphs[].style.bullet.fontFollowText", "text.paragraphs[].style.bullet.scheme", "text.paragraphs[].style.bullet.format", "text.paragraphs[].style.tabStops", "text.paragraphs[].style.spaceBefore", "text.paragraphs[].style.spaceBeforeMultiplier", "text.paragraphs[].style.spaceAfter", "text.paragraphs[].style.spaceAfterMultiplier", "text.paragraphs[].style.lineSpacing", "text.paragraphs[].style.lineSpacingMultiplier", "text.paragraphs[].style.indent", "text.paragraphs[].style.hanging", "text.paragraphs[].style.defaultText.bold", "text.paragraphs[].style.defaultText.italic", "text.paragraphs[].style.defaultText.size", "text.paragraphs[].style.defaultText.fontFamily", "text.paragraphs[].style.defaultText.fontFamilyEastAsia", "text.paragraphs[].style.defaultText.fontFamilyComplexScript", "text.paragraphs[].style.defaultText.language", "text.paragraphs[].style.defaultText.kerning", "text.paragraphs[].style.defaultText.letterSpacing", "text.paragraphs[].style.defaultText.baseline", "text.paragraphs[].style.defaultText.capitalization", "text.paragraphs[].style.defaultText.strike", "text.paragraphs[].style.defaultText.underline", "text.paragraphs[].style.defaultText.highlight", "text.paragraphs[].style.defaultText.color", "text.paragraphs[].style.defaultText.gradient", "text.paragraphs[].style.defaultText.glow", "text.paragraphs[].style.defaultText.innerShadow", "text.paragraphs[].style.defaultText.reflection", "text.paragraphs[].style.defaultText.shadow", "text.paragraphs[].style.defaultText.softEdge"),
+            ["setTextParagraphStyle"] = Set("textStyles", "text.paragraphs[].style.alignment", "text.paragraphs[].style.level", "text.paragraphs[].style.bullet.startAt", "text.paragraphs[].style.bullet.character", "text.paragraphs[].style.bullet.fontFamily", "text.paragraphs[].style.bullet.fontFollowText", "text.paragraphs[].style.bullet.color", "text.paragraphs[].style.bullet.colorFollowText", "text.paragraphs[].style.bullet.scheme", "text.paragraphs[].style.bullet.format", "text.paragraphs[].style.tabStops", "text.paragraphs[].style.spaceBefore", "text.paragraphs[].style.spaceBeforeMultiplier", "text.paragraphs[].style.spaceAfter", "text.paragraphs[].style.spaceAfterMultiplier", "text.paragraphs[].style.lineSpacing", "text.paragraphs[].style.lineSpacingMultiplier", "text.paragraphs[].style.indent", "text.paragraphs[].style.hanging", "text.paragraphs[].style.defaultText.bold", "text.paragraphs[].style.defaultText.italic", "text.paragraphs[].style.defaultText.size", "text.paragraphs[].style.defaultText.fontFamily", "text.paragraphs[].style.defaultText.fontFamilyEastAsia", "text.paragraphs[].style.defaultText.fontFamilyComplexScript", "text.paragraphs[].style.defaultText.language", "text.paragraphs[].style.defaultText.kerning", "text.paragraphs[].style.defaultText.letterSpacing", "text.paragraphs[].style.defaultText.baseline", "text.paragraphs[].style.defaultText.capitalization", "text.paragraphs[].style.defaultText.strike", "text.paragraphs[].style.defaultText.underline", "text.paragraphs[].style.defaultText.highlight", "text.paragraphs[].style.defaultText.color", "text.paragraphs[].style.defaultText.gradient", "text.paragraphs[].style.defaultText.glow", "text.paragraphs[].style.defaultText.innerShadow", "text.paragraphs[].style.defaultText.reflection", "text.paragraphs[].style.defaultText.shadow", "text.paragraphs[].style.defaultText.softEdge"),
             ["setFill"] = Set("fill"),
             ["setStroke"] = Set("stroke"),
             ["setConnectorEndpoints"] = Set("from", "to"),
@@ -4012,9 +4012,12 @@ internal static class PpjSemanticValidator
         if (value.ValueKind == JsonValueKind.Object)
         {
             if (value.TryGetProperty("token", out var token) && token.ValueKind == JsonValueKind.String &&
-                IsColorReferencePath(path) && !colorIds.Contains(token.GetString()!) &&
-                !(IsDirectEffectThemeColorPath(path) && !grammarTokenKinds.ContainsKey(token.GetString()!) &&
-                  PptxColor.TrySchemeToken(token.GetString()!, out _)))
+                IsColorReferencePath(path) &&
+                (path.ToString().EndsWith(".bullet.color", StringComparison.Ordinal) &&
+                 grammarTokenKinds.TryGetValue(token.GetString()!, out var bulletKind) && bulletKind != "color" ||
+                 !colorIds.Contains(token.GetString()!) &&
+                 !(IsDirectThemeColorPath(path) && !grammarTokenKinds.ContainsKey(token.GetString()!) &&
+                   PptxColor.TrySchemeToken(token.GetString()!, out _))))
             {
                 var tokenName = token.GetString()!;
                 var code = grammarTokenKinds.TryGetValue(tokenName, out var kind)
@@ -4051,15 +4054,16 @@ internal static class PpjSemanticValidator
         }
     }
 
-    private static bool IsDirectEffectThemeColorPath(StringBuilder path)
+    private static bool IsDirectThemeColorPath(StringBuilder path)
     {
-        // These effect builders preserve standard theme identity directly.
+        // These effect and bullet builders preserve standard theme identity directly.
         // Do not grant the same fallback to RGB-only foreground/fill fields
         // or let it override a declared grammar token of the wrong kind.
         var value = path.ToString();
         return value.EndsWith(".shadow.color", StringComparison.Ordinal) ||
                value.EndsWith(".innerShadow.color", StringComparison.Ordinal) ||
-               value.EndsWith(".glow.color", StringComparison.Ordinal);
+               value.EndsWith(".glow.color", StringComparison.Ordinal) ||
+               value.EndsWith(".bullet.color", StringComparison.Ordinal);
     }
 
     private static bool IsColorReferencePath(StringBuilder path)

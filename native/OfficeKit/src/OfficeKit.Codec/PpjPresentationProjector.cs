@@ -2397,7 +2397,7 @@ internal static partial class PpjPresentationProjector
         else if (paragraph.BulletFontCase == PresentationTextParagraph.BulletFontOneofCase.BulletFontFollowText)
             bullet["fontFollowText"] = JsonValue.Create(true);
         if (paragraph.BulletColorCase == PresentationTextParagraph.BulletColorOneofCase.BulletColorRgb)
-            bullet["color"] = TextColor(
+            bullet["color"] = BulletColor(
                 paragraph.BulletColorRgb,
                 null,
                 paragraph.HasBulletColorOpacityThousandthPercent,
@@ -2408,6 +2408,8 @@ internal static partial class PpjPresentationProjector
                 paragraph.BulletColorScheme,
                 paragraph.HasBulletColorOpacityThousandthPercent,
                 paragraph.BulletColorOpacityThousandthPercent);
+        else if (paragraph.BulletColorCase == PresentationTextParagraph.BulletColorOneofCase.BulletColorFollowText)
+            bullet["colorFollowText"] = JsonValue.Create(true);
         if (paragraph.BulletSizeCase == PresentationTextParagraph.BulletSizeOneofCase.BulletSizePoints)
             bullet["size"] = JsonValue.Create(paragraph.BulletSizePoints);
         else if (paragraph.BulletSizeCase == PresentationTextParagraph.BulletSizeOneofCase.BulletSizePercent)
@@ -2963,6 +2965,8 @@ internal static partial class PpjPresentationProjector
                             "text.paragraphs[].style.bullet.character",
                             "text.paragraphs[].style.bullet.fontFamily",
                             "text.paragraphs[].style.bullet.fontFollowText",
+                            "text.paragraphs[].style.bullet.color",
+                            "text.paragraphs[].style.bullet.colorFollowText",
                             "text.paragraphs[].style.bullet.scheme",
                             "text.paragraphs[].style.bullet.format",
                             "text.paragraphs[].style.tabStops",
@@ -3640,6 +3644,17 @@ internal static partial class PpjPresentationProjector
     };
 
     private static string Color(string rgb) => $"#{rgb.TrimStart('#').ToUpperInvariant()}";
+
+    private static JsonNode BulletColor(string? rgb, string? scheme, bool hasOpacity, uint opacity)
+    {
+        if (!string.IsNullOrEmpty(rgb) && hasOpacity)
+        {
+            var alphaByte = Math.Clamp((int)Math.Round(Unit(opacity) * 255), 0, 255);
+            if (Math.Round(alphaByte / 255d * 100_000) != opacity)
+                return new JsonObject { ["rgb"] = StringNode(Color(rgb)), ["alpha"] = JsonValue.Create(Unit(opacity)) };
+        }
+        return TextColor(rgb, scheme, hasOpacity, opacity);
+    }
 
     private static JsonNode TextColor(string? rgb, string? scheme, bool hasOpacity, uint opacity)
     {

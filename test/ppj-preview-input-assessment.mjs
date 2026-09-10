@@ -134,6 +134,32 @@ for (const [field, value, scheme] of [["scheme", "thaiNumParenBoth", "thaiNumPar
   assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && d.scenePath.endsWith(".autoNumber") && d.status === "partial"));
   assert.match(painted.pages[0].svg, /Numbering format/);
 }
+for (const choice of [0, 0.12345, 1, "theme", "follow"]) {
+  const direct = typeof choice === "number";
+  const color = direct ? { color: { rgb: "#112233", alpha: choice } }
+    : choice === "theme" ? { color: { token: "accent1" } } : { colorFollowText: true };
+  const input = deck([{ ...text, text: { paragraphs: [{ style: { indent: 20, hanging: 10,
+    bullet: { type: "character", character: "★", fontFamily: "Georgia", size: 12, ...color } },
+    runs: [{ text: "Bullet color" }] }] } }]);
+  const assessment = assessPpjPreviewInput(input);
+  for (const field of direct ? ["color.rgb", "color.alpha"] : [choice === "theme" ? "color.token" : "colorFollowText"])
+    assert.ok(assessment.diagnostics.some(d => d.path.endsWith(`.style.bullet.${field}`) && d.status !== "supported"));
+  const receipt = previewSceneFixture(input, [{ id: "p1", elements: [nativeElement("text", "shape", {
+    ...emuFrame(1, 2, 100, 60), geometry: "textbox", text: "Bullet color",
+    textBody: { paragraphs: [{ bullet: { case: "bulletCharacter", value: "★" },
+      bulletFont: { case: "bulletFontFamily", value: "Georgia" }, bulletSize: { case: "bulletSizePoints", value: 12 },
+      bulletColor: direct ? { case: "bulletColorRgb", value: "112233" }
+        : choice === "theme" ? { case: "bulletColorScheme", value: "accent1" } : { case: "bulletColorFollowText", value: true },
+      ...(direct ? { bulletColorOpacityThousandthPercent: Math.round(choice * 100000) } : {}),
+      leftMargin: { case: "marginLeftEmu", value: 254000n }, indentation: { case: "indentEmu", value: -127000n },
+      runs: [{ content: { case: "text", value: "Bullet color" } }] }] },
+  })] }], ["$.pages[0].elements[0]"]);
+  const painted = paintPpjSceneSvg(receipt);
+  if (direct) {
+    assert.ok(painted.pages[0].svg.includes(`fill="#112233" fill-opacity="${choice}">★</text>`));
+    assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.text-layout" && d.status === "partial"));
+  } else assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.bullet-layout" && d.status === "unavailable"));
+}
 for (const follow of [false, true]) {
   const font = follow ? { fontFollowText: true } : { fontFamily: "Georgia" };
   const input = deck([{ ...text, text: { paragraphs: [{ style: { indent: 20, hanging: 10,

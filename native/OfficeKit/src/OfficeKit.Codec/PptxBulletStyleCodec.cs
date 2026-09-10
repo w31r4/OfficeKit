@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Xml;
 using DocumentFormat.OpenXml;
@@ -7,8 +8,8 @@ using A = DocumentFormat.OpenXml.Drawing;
 namespace OfficeKit.Codec;
 
 // Owns the three independent direct DrawingML marker-style choices. Unset wire
-// choices preserve unknown source styling. An absent font choice clears a
-// modeled direct declaration; inherited font resolution remains host-owned.
+// choices preserve unknown source styling. Absent font/color choices clear
+// modeled direct declarations; inherited resolution remains host-owned.
 internal static class PptxBulletStyleCodec
 {
     private const double MaxSizePoints = 768;
@@ -34,7 +35,7 @@ internal static class PptxBulletStyleCodec
                     if (TryDirectOpacity(rgb, out var opacity) && opacity is { } value)
                         target.BulletColorOpacityThousandthPercent = value;
                 }
-                else if (specified.GetFirstChild<A.SchemeColor>() is { } scheme && PptxColor.TrySchemeToken(scheme.Val!.Value, out var token))
+                else if (specified.GetFirstChild<A.SchemeColor>() is { } scheme && TryScheme(scheme, out var token))
                 {
                     target.BulletColorScheme = token;
                     if (TryDirectOpacity(scheme, out var opacity) && opacity is { } value)
@@ -135,7 +136,7 @@ internal static class PptxBulletStyleCodec
 
     internal static void Apply(A.TextParagraphPropertiesType target, PresentationTextParagraph source)
     {
-        ApplyChoice(target, source, source.BulletColorCase != PresentationTextParagraph.BulletColorOneofCase.None, ColorChoices, ModeledColor, BuildColor, "color");
+        ApplyChoice(target, source, source.BulletColorCase != PresentationTextParagraph.BulletColorOneofCase.None, ColorChoices, ModeledColor, BuildColor, "color", clearAbsent: true);
         ApplyChoice(target, source, source.BulletSizeCase != PresentationTextParagraph.BulletSizeOneofCase.None, SizeChoices, ModeledSize, BuildSize, "size");
         ApplyFont(target, source);
     }
@@ -181,9 +182,14 @@ internal static class PptxBulletStyleCodec
         Func<A.TextParagraphPropertiesType, IEnumerable<OpenXmlElement>> choices,
         Func<OpenXmlElement, bool> modeled,
         Func<PresentationTextParagraph, OpenXmlElement> build,
-        string kind)
+        string kind,
+        bool clearAbsent = false)
     {
-        if (!requested) return;
+        if (!requested)
+        {
+            if (clearAbsent) ScrubChoice(target, choices, modeled);
+            return;
+        }
         var existing = choices(target).ToArray();
         if (existing.Length > 1 || existing.Any(choice => !modeled(choice)))
             throw new CodecException("unsupported_presentation_edit", $"Source-preserving PPTX export cannot replace an unmodeled or malformed bullet {kind}.");
@@ -270,7 +276,7 @@ internal static class PptxBulletStyleCodec
         A.BulletColor color when EmptyAttributes(color) && color.ChildElements.Count == 1 && color.GetFirstChild<A.RgbColorModelHex>() is { } rgb =>
             ColorAttribute(rgb) && ValidRgb(rgb.Val?.Value) && TryDirectOpacity(rgb, out _),
         A.BulletColor color when EmptyAttributes(color) && color.ChildElements.Count == 1 && color.GetFirstChild<A.SchemeColor>() is { } scheme =>
-            ColorAttribute(scheme) && ValidScheme(scheme.Val?.Value) && TryDirectOpacity(scheme, out _),
+            TryScheme(scheme, out _) && TryDirectOpacity(scheme, out _),
         A.BulletColorText follow => Empty(follow),
         _ => false,
     };
@@ -296,7 +302,7 @@ internal static class PptxBulletStyleCodec
     private static bool ColorAttribute(OpenXmlElement source)
     {
         var attributes = source.GetAttributes();
-        return attributes.Count == 1 && attributes[0].LocalName == "val";
+        return attributes.Count == 1 && attributes[0].LocalName == "val" && attributes[0].NamespaceUri.Length == 0;
     }
 
     private static bool TryDirectOpacity(OpenXmlElement source, out uint? opacity)
@@ -304,27 +310,23 @@ internal static class PptxBulletStyleCodec
         opacity = null;
         if (source.ChildElements.Count == 0) return true;
         if (source.ChildElements.Count != 1 || source.FirstChild is not A.Alpha alpha ||
-            alpha.ChildElements.Count != 0 || !SimpleAttribute(alpha, "val") ||
-            alpha.Val?.Value is not { } value || value is < 0 or > 100_000) return false;
+            alpha.ChildElements.Count != 0 || !ColorAttribute(alpha) ||
+            !int.TryParse(alpha.GetAttributes()[0].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ||
+            value is < 0 or > 100_000) return false;
         opacity = checked((uint)value);
         return true;
     }
 
-    private static bool ValidRgb(string? value)
-    {
-        try
-        {
-            _ = PptxColor.Normalize(value ?? string.Empty);
-            return true;
-        }
-        catch (CodecException)
-        {
-            return false;
-        }
-    }
+    private static bool ValidRgb(string? value) => value is { Length: 6 } && value.All(Uri.IsHexDigit);
 
-    private static bool ValidScheme(A.SchemeColorValues? value) =>
-        value is { } scheme && PptxColor.TrySchemeToken(scheme, out _);
+    private static bool TryScheme(A.SchemeColor source, out string token)
+    {
+        token = string.Empty;
+        if (!ColorAttribute(source)) return false;
+        var raw = source.GetAttributes()[0].Value;
+        return PptxColor.TrySchemeToken(raw, out token) &&
+            new EnumValue<A.SchemeColorValues>(PptxColor.SchemeValue(token)).InnerText == raw;
+    }
 
     private static CodecException Invalid(string message) => new("invalid_presentation_text", message);
 }
