@@ -101,6 +101,15 @@ to restore it. Other defaults and direct run baseline remain unchanged.
 Unmodeled source baseline survives unrelated scalar changes and rejects
 replacement; host text layout remains unverified.
 
+Use defaultText.capitalization for direct none/small/all styling. Explicit
+none cancels capitalization and remains distinct from deleting the field.
+A capitalization-only defaultText/style wrapper can also be removed and later
+restored. Original text content, direct run capitalization and other defaults
+remain unchanged. Unmodeled native cap stays source-owned for byte-identical
+no-op and unrelated scalar assignment/removal; replacing it rejects. Existing
+source validation warnings remain, with no new warnings introduced. Host
+small-cap glyph rendering remains unverified.
+
 
 `textWarpPreset`, `textWarpAdjustments`, `flatTextZ`, `fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.

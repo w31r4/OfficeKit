@@ -464,6 +464,17 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 ### F-03 文本、段落、列表、字段和 WordArt
 
 
+**段落默认大小写样式增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.defaultText.capitalization`
+支持 none/small/all、显式 none、删除、恢复和单字段包装删除。none 与缺省
+分别保留；原始文字、run 大小写样式、其它默认样式、未知属性和非目标
+XML/ZIP 保留。未建模原生 cap 拒绝覆盖，无关标量修改或删除仍保留它，
+沿用来源已有校验警告、不引入新警告的导出规则。
+相关 **202/202 通过，0 跳过**，沿用已记录的整组默认样式基线失败排除项。
+资料、生成检查和 OpenSpec 已同步；主机小型大写字形仍需单独证据。
+
+
+
 **段落默认基线偏移增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.defaultText.baseline`
 支持独立赋值、显式零、删除、恢复及单字段包装删除，单位为百分比，

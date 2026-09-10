@@ -2,6 +2,23 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+PPJ paragraph default capitalization (2026-09-10): ordinary text/shape
+paragraphs support independent none/small/all assignment, explicit none,
+deletion, capitalization-only wrapper removal and restoration. Original text,
+direct run capitalization, other defaults/effects, unknown attributes and
+non-target XML/ZIP content remain unchanged. Unmodeled native cap rejects
+replacement and survives unrelated scalar assignment/removal; cleanup clears
+only modeled capitalization. Existing source validation warnings are retained
+without new warnings. An initial test incorrectly expected unrelated edits
+to reject; it now verifies actual preservation under the existing warning
+policy. Related native tests pass 202/202, zero skipped (SDK 8.0.128), with the
+documented whole-default-style baseline exclusion unchanged. Unsupported-field
+rejection now uses strike. Schema, Help, registry, references, generated
+metadata, preview input/capability, portability/reference sync and strict
+OpenSpec pass. The missing SDK was restored from Microsoft and its SHA-512
+verified against official release metadata. No wire change, NativeAOT rebuild
+or host small-cap glyph acceptance.
+
 PPJ paragraph default baseline (2026-09-10): ordinary text/shape paragraphs
 support independent signed percentage assignment, explicit zero, deletion,
 baseline-only wrapper removal and restoration. Finite -400..400 percent
@@ -11,8 +28,8 @@ defaults/effects, unknown attributes and non-target XML/ZIP content remain
 unchanged. Unmodeled native baseline rejects replacement and survives
 unrelated scalar assignment/removal; cleanup clears only modeled baseline.
 Related native tests pass 197/197, zero skipped (SDK 8.0.128), with the
-documented whole-default-style baseline exclusion unchanged. Unsupported-field
-rejection now uses capitalization. Schema, Help, registry, references,
+documented whole-default-style baseline exclusion unchanged. That increment used
+capitalization for unsupported-field rejection. Schema, Help, registry, references,
 generated metadata, preview input/capability, portability/reference sync and
 strict OpenSpec pass. No wire change, NativeAOT rebuild or host typography
 acceptance.
