@@ -110,6 +110,14 @@ no-op and unrelated scalar assignment/removal; replacing it rejects. Existing
 source validation warnings remain, with no new warnings introduced. Host
 small-cap glyph rendering remains unverified.
 
+Use defaultText.strike for true/false or noStrike/sngStrike/dblStrike.
+Boolean aliases project as sngStrike/noStrike. Explicit noStrike cancels
+striking and remains distinct from omission. Delete the field or a strike-only
+defaultText/style wrapper, then assign to restore. Other defaults, original
+text and direct run strike remain unchanged. Unmodeled source strike survives
+no-op and unrelated scalar changes; replacement rejects. Host glyph rendering
+remains unverified.
+
 
 `textWarpPreset`, `textWarpAdjustments`, `flatTextZ`, `fromWordArt`, `compatibleLineSpacing`, `spaceFirstLastParagraph`, `forceAntiAlias`, `anchorCenter`, `autoFit`, `normalAutoFit`, `margins`, `columns`, `columnGap`, `verticalAlignment`, `upright`, `rotation`, `columnDirection`, `verticalText`, `wrap`, `horizontalOverflow` and `verticalOverflow` belong to the text body: `text.style` on structured table-cell text,
 `style` on text and supported owner-local placeholders, and `textStyle` on shapes.

@@ -464,6 +464,18 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 ### F-03 文本、段落、列表、字段和 WordArt
 
 
+**段落默认删除线增量（2026-09-10）：** 普通文本框和形状的
+`text.paragraphs[].style.defaultText.strike`
+支持 true/false、noStrike/sngStrike/dblStrike、显式取消、删除、
+恢复和单字段包装删除。布尔别名二次投影为标准字符串，noStrike 与缺省
+分别保留；原文字、run 删除线、其它默认样式、未知属性和非目标 XML/ZIP
+保留。未建模原生 strike 拒绝覆盖，无关标量修改或删除仍保留它。
+相关 **207/207 通过，0 跳过**，沿用已记录的整组默认样式基线失败排除项。
+包含单线→显式取消→删除的连续请求；资料、生成检查和 OpenSpec 已同步。
+主机字形显示仍需单独证据，完整 F-03 继续开放。
+
+
+
 **段落默认大小写样式增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.defaultText.capitalization`
 支持 none/small/all、显式 none、删除、恢复和单字段包装删除。none 与缺省

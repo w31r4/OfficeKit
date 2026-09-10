@@ -60,7 +60,7 @@ const falseParagraphSpacingText = assessPpjPreviewInput(deck([{ ...text, style: 
 assert.ok(falseParagraphSpacingText.diagnostics.some(d => d.path.endsWith(".style.spaceFirstLastParagraph") && d.status !== "supported"));
 const falseCompatibleSpacingText = assessPpjPreviewInput(deck([{ ...text, style: { compatibleLineSpacing: false } }]));
 assert.ok(falseCompatibleSpacingText.diagnostics.some(d => d.path.endsWith(".style.compatibleLineSpacing") && d.status !== "supported"));
-for (const field of ["bold", "italic", "size", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "language", "kerning", "letterSpacing", "baseline", "capitalization"]) {
+for (const field of ["bold", "italic", "size", "fontFamily", "fontFamilyEastAsia", "fontFamilyComplexScript", "language", "kerning", "letterSpacing", "baseline", "capitalization", "strike"]) {
   const defaults = assessPpjPreviewInput(deck([{ ...text, text: { paragraphs: [{ style: { defaultText: { [field]: field.startsWith("fontFamily") ? "Georgia" : ["size", "kerning", "letterSpacing", "baseline"].includes(field) ? 18.25 : field === "language" ? "fr-FR" : field === "capitalization" ? "none" : false } }, runs: [{ text: "Default style" }] }] } }]));
   assert.ok(defaults.diagnostics.some(d => d.path.endsWith(".style.defaultText." + field) && d.status !== "supported"));
 }

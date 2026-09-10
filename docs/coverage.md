@@ -2,6 +2,21 @@
 
 This document describes the supported OfficeKit boundary. It is not a promise that every legal OOXML or PDF construct is editable.
 
+
+PPJ paragraph default strike (2026-09-10): ordinary text/shape paragraphs
+support independent true/false and noStrike/sngStrike/dblStrike assignment,
+explicit cancellation, deletion, strike-only wrapper removal and restoration.
+Boolean aliases reproject as canonical strings; noStrike remains distinct
+from omission. Original text, direct run strike, other defaults/effects,
+unknown attributes and non-target XML/ZIP content remain unchanged.
+Unmodeled native strike rejects replacement and survives no-op and unrelated
+scalar assignment/removal. Related native tests pass 207/207, zero skipped
+(SDK 8.0.128), with the documented whole-default-style baseline exclusion
+unchanged. Unsupported-field rejection now uses the valid underline token
+single. Schema, Help, registry, references, generated metadata, preview
+input/capability, portability/reference sync and strict OpenSpec pass.
+No wire change, NativeAOT rebuild or host glyph acceptance.
+
 PPJ paragraph default capitalization (2026-09-10): ordinary text/shape
 paragraphs support independent none/small/all assignment, explicit none,
 deletion, capitalization-only wrapper removal and restoration. Original text,
@@ -13,7 +28,7 @@ without new warnings. An initial test incorrectly expected unrelated edits
 to reject; it now verifies actual preservation under the existing warning
 policy. Related native tests pass 202/202, zero skipped (SDK 8.0.128), with the
 documented whole-default-style baseline exclusion unchanged. Unsupported-field
-rejection now uses strike. Schema, Help, registry, references, generated
+rejection used strike in that increment (now underline=single). Schema, Help, registry, references, generated
 metadata, preview input/capability, portability/reference sync and strict
 OpenSpec pass. The missing SDK was restored from Microsoft and its SHA-512
 verified against official release metadata. No wire change, NativeAOT rebuild
