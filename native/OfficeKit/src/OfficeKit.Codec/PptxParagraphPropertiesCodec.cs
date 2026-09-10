@@ -128,7 +128,9 @@ internal static class PptxParagraphPropertiesCodec
             "ctr" => "center",
             "r" => "right",
             "just" => "justify",
+            "justLow" => "justifyLow",
             "dist" => "distributed",
+            "thaiDist" => "thaiDistributed",
             _ => string.Empty,
         };
 
@@ -138,7 +140,9 @@ internal static class PptxParagraphPropertiesCodec
         "center" => A.TextAlignmentTypeValues.Center,
         "right" => A.TextAlignmentTypeValues.Right,
         "justify" => A.TextAlignmentTypeValues.Justified,
+        "justifyLow" => A.TextAlignmentTypeValues.JustifiedLow,
         "distributed" => A.TextAlignmentTypeValues.Distributed,
+        "thaiDistributed" => A.TextAlignmentTypeValues.ThaiDistributed,
         _ => throw Invalid($"Unsupported Presentation paragraph alignment {value}."),
     };
 

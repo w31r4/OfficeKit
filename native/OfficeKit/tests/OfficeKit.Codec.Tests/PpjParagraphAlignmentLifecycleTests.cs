@@ -41,12 +41,15 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
                 properties.SetAttribute(new OpenXmlAttribute("marL", "", "+0088900"));
                 properties.SetAttribute(new OpenXmlAttribute("future", "keep", "urn:officekit:test", "retained"));
                 properties.InnerXml += """<future:content xmlns:future="urn:officekit:test" value="retain"/>""";
-                paragraphs[1].ParagraphProperties!.SetAttribute(new OpenXmlAttribute("algn", "", "thaiDist"));
+                paragraphs[1].ParagraphProperties!.SetAttribute(new OpenXmlAttribute("algn", "", "futureAlignment"));
             }
             var source = stream.ToArray(); var original = source.ToArray();
             Assert.Equal(source, Compile(Project(source), source).File.ToByteArray());
-            foreach (var (alignment, token) in new[] { ("left", "l"), ("center", "ctr"), ("right", "r"), ("justify", "just"), ("distributed", "dist") })
+            foreach (var (alignment, token) in new[] { ("left", "l"), ("center", "ctr"), ("right", "r"), ("justify", "just"), ("distributed", "dist"),
+                ("justifyLow", "justLow"), ("thaiDistributed", "thaiDist") })
             {
+                var authoredRequest = program.DeepClone().AsObject(); FirstTextParagraph(authoredRequest)["style"]!["alignment"] = alignment;
+                AssertParagraphAlignment(PptxCodecTests.RemoveEmbeddedPpj(Compile(authoredRequest).File.ToByteArray()), kind, alignment, token);
                 var request = Project(source); FirstTextParagraph(request)["style"]!["alignment"] = alignment;
                 var changed = Compile(request, source).File.ToByteArray();
                 AssertParagraphAlignment(changed, kind, alignment, token);
@@ -95,7 +98,7 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
             {"paragraphs":[{"style":{"alignment":"center","defaultText":{"bold":true}},"runs":[{"text":"Retain source alignment"}]}]}
             """);
         var authored = PptxCodecTests.RemoveEmbeddedPpj(Compile(program).File.ToByteArray());
-        foreach (var token in new[] { "justLow", "thaiDist", "future", "center", "CTR", " ctr ", "" })
+        foreach (var token in new[] { "justHigh", "thaiDistributed", "future", "center", "CTR", " ctr ", "" })
         {
             using var stream = new MemoryStream(); stream.Write(authored);
             using (var document = PresentationDocument.Open(stream, true))
@@ -116,6 +119,41 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
                 AssertParagraphAlignment(changed, "text", null, token);
             }
         }
+    }
+
+    [Theory]
+    [InlineData("justifyLow", "justLow")]
+    [InlineData("thaiDistributed", "thaiDist")]
+    public void ParagraphAlignmentModesRetainTableAndMasterDefaults(string alignment, string token)
+    {
+        var master = Program("master");
+        master["design"]!["masters"]![0]!["textStyles"] = new JsonObject
+        {
+            ["title"] = new JsonArray(new JsonObject { ["level"] = 0, ["alignment"] = alignment }),
+        };
+        var masterSource = PptxCodecTests.RemoveEmbeddedPpj(Compile(master).File.ToByteArray());
+        var masterProjected = Project(masterSource);
+        Assert.Equal(alignment, masterProjected["design"]!["masters"]![0]!["textStyles"]!["title"]![0]!["alignment"]!.GetValue<string>());
+        Assert.Equal(masterSource, Compile(masterProjected, masterSource).File.ToByteArray());
+        using (var document = PresentationDocument.Open(new MemoryStream(masterSource), false))
+            Assert.Equal(token, document.PresentationPart!.SlideMasterParts.Single().SlideMaster
+                .Descendants<A.Level1ParagraphProperties>().Single().Alignment!.InnerText);
+
+        static JsonNode CellParagraph(JsonObject program) => program["pages"]![0]!["elements"]![0]!["rows"]![0]!["cells"]![0]!["text"]!["paragraphs"]![0]!;
+        var table = Program("table"); CellParagraph(table)["style"] = new JsonObject { ["alignment"] = alignment };
+        var source = PptxCodecTests.RemoveEmbeddedPpj(Compile(table).File.ToByteArray());
+        var projected = Project(source);
+        Assert.Equal("table", projected["pages"]![0]!["elements"]![0]!["type"]!.GetValue<string>());
+        Assert.Equal(alignment, CellParagraph(projected)["style"]!["alignment"]!.GetValue<string>());
+        Assert.Equal(source, Compile(projected, source).File.ToByteArray());
+        var next = alignment == "justifyLow" ? "thaiDistributed" : "justifyLow";
+        CellParagraph(projected)["style"]!["alignment"] = next;
+        var changed = Compile(projected, source).File.ToByteArray();
+        Assert.Equal(next, CellParagraph(Project(changed))["style"]!["alignment"]!.GetValue<string>());
+        AssertOnlyBodyPropertyChanged(source, changed, "table", "paragraph.alignment");
+        using var result = PresentationDocument.Open(new MemoryStream(changed), false);
+        Assert.Equal(next == "justifyLow" ? "justLow" : "thaiDist",
+            Owner(result, "table").Descendants<A.Paragraph>().First().ParagraphProperties!.Alignment!.InnerText);
     }
 
     private static void AssertParagraphAlignment(byte[] file, string kind, string? expected, string? nativeToken)

@@ -72,7 +72,9 @@ direct setting. Other paragraph state and unmodeled source indentation stay
 preserved; replacing unmodeled indentation rejects. Preview remains partial.
 
 Use `text.paragraphs[].style.alignment` for `left`, `center`, `right`,
-`justify` or `distributed`. Direct values override the authored owner's
+`justify`, `distributed`, `justifyLow` or `thaiDistributed`. The last two
+write native `justLow` and `thaiDist` respectively; bounded table paragraphs
+and authored master text defaults retain them too. Direct values override the authored owner's
 paragraph default. Ordinary imported text/shape paragraphs support assignment,
 removal and restoration under the exact alignment field authority. Explicit
 `left` retains a direct native value; remove the field or an alignment-only

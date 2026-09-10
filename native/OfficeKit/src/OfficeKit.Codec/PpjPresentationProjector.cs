@@ -2537,7 +2537,9 @@ internal static partial class PpjPresentationProjector
         "ctr" or "center" => "center",
         "r" or "right" => "right",
         "just" or "justify" => "justify",
+        "justLow" or "justifyLow" => "justifyLow",
         "dist" or "distributed" => "distributed",
+        "thaiDist" or "thaiDistributed" => "thaiDistributed",
         _ => null,
     };
 

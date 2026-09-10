@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { assessPpjPreviewInput } from "../src/ppj/preview-input-assessment.mjs";
+import { paintPpjSceneSvg } from "../src/ppj/preview-scene-svg.mjs";
+import { previewSceneFixture, nativeElement, emuFrame } from "./helpers/ppj-preview-scene-fixture.mjs";
 
 const frame = { x: 1, y: 2, width: 100, height: 60 };
 const text = { type: "text", id: "text", frame, text: "Text" };
@@ -78,10 +80,20 @@ for (const radius of [0, 2]) {
     { style: { defaultText: { softEdge: { radius } } }, runs: [{ text: "Soft-edge defaults" }] }] } }]));
   assert.ok(softEdgeDefaults.diagnostics.some(d => d.path.endsWith(".style.defaultText.softEdge.radius") && d.status !== "supported"));
 }
-for (const alignment of ["left", "center", "right", "justify", "distributed"]) {
-  const paragraph = assessPpjPreviewInput(deck([{ ...text, text: { paragraphs: [
-    { style: { alignment }, runs: [{ text: "Paragraph alignment" }] }] } }]));
+for (const alignment of ["left", "center", "right", "justify", "distributed", "justifyLow", "thaiDistributed"]) {
+  const input = deck([{ ...text, text: { paragraphs: [
+    { style: { alignment }, runs: [{ text: "Paragraph alignment" }] }] } }]);
+  const paragraph = assessPpjPreviewInput(input);
   assert.ok(paragraph.diagnostics.some(d => d.path.endsWith(".style.alignment") && d.status !== "supported"));
+  if (["justifyLow", "thaiDistributed"].includes(alignment)) {
+    const receipt = previewSceneFixture(input, [{ id: "p1", elements: [nativeElement("text", "shape", {
+      ...emuFrame(1, 2, 100, 60), geometry: "textbox", text: "Paragraph alignment",
+      textBody: { paragraphs: [{ alignment, runs: [{ content: { case: "text", value: "Paragraph alignment" } }] }] },
+    })] }], ["$.pages[0].elements[0]"]);
+    const painted = paintPpjSceneSvg(receipt);
+    assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.text-alignment" && d.status === "partial"));
+    assert.match(painted.pages[0].svg, /Paragraph alignment/);
+  }
 }
 for (const field of ["spaceBefore", "spaceBeforeMultiplier", "spaceAfter", "spaceAfterMultiplier", "lineSpacing", "lineSpacingMultiplier", "indent", "hanging"]) {
   const spacing = assessPpjPreviewInput(deck([{ ...text, text: { paragraphs: [

@@ -599,7 +599,7 @@ internal static class PptxTableCodec
     // cell text can expose vertical anchoring, wrapping and insets without
     // flattening the text body.
     private static bool BoundedTableParagraphProperties(PresentationTextParagraph paragraph) =>
-        (!paragraph.HasAlignment || paragraph.Alignment is "left" or "center" or "right" or "justify" or "distributed") &&
+        (!paragraph.HasAlignment || paragraph.Alignment is "left" or "center" or "right" or "justify" or "distributed" or "justifyLow" or "thaiDistributed") &&
         paragraph.LeftMarginCase is PresentationTextParagraph.LeftMarginOneofCase.None or PresentationTextParagraph.LeftMarginOneofCase.MarginLeftEmu &&
         paragraph.IndentationCase is PresentationTextParagraph.IndentationOneofCase.None or PresentationTextParagraph.IndentationOneofCase.IndentEmu &&
         BoundedTableSpacing(paragraph.LineSpacingCase, PresentationTextParagraph.LineSpacingOneofCase.LineSpacingPoints, PresentationTextParagraph.LineSpacingOneofCase.LineSpacingMultiplier) &&
