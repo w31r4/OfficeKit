@@ -427,7 +427,10 @@ internal static class PptxTextCodec
         if (PptxShadowCodec.TryRead(properties, out var shadow) && shadow is not null) run.Shadow = shadow;
         if (PptxGlowCodec.TryRead(properties, out var glow) && glow is not null) run.Glow = glow;
         if (PptxInnerShadowCodec.TryRead(properties, out var innerShadow) && innerShadow is not null) run.InnerShadow = innerShadow;
-        if (PptxReflectionCodec.TryRead(properties, out var reflection) && reflection is not null) run.Reflection = reflection;
+        if (PptxReflectionCodec.TryRead(properties, out var reflection, allowVariablePositions: true) &&
+            reflection is not null &&
+            (!reflection.HasEndPositionThousandthPercent || reflection.EndPositionThousandthPercent == 100_000))
+            run.Reflection = reflection;
         if (PptxSoftEdgeCodec.TryRead(properties, out var softEdge) && softEdge is not null) run.SoftEdge = softEdge;
         if (PptxTextDecoration.TryUnderline(properties, out var underline)) run.Underline = underline;
         if (PptxTextDecoration.TryStrike(properties, out var strike)) run.Strike = strike;

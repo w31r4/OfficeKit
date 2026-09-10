@@ -15,7 +15,7 @@
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
     "authoredCompilerBoundaries": 81,
-    "nativeLeafKinds": 293,
+    "nativeLeafKinds": 294,
     "helpApis": 151,
     "hostOnlyApis": 13
   },
@@ -2394,6 +2394,14 @@
       "ppjLocation": "run.style.reflection.angle",
       "surface": "native-leaf",
       "boundary": "Existing direct text-run reflection direction only; the source effect list must use the strict full-span reflection profile."
+    },
+    {
+      "name": "textReflectionStartPosition",
+      "valueType": "number",
+      "unit": "ratio",
+      "ppjLocation": "run.style.reflection.startPosition",
+      "surface": "native-leaf",
+      "boundary": "Direct imported rich-text run reflection start position; the run a:rPr effect list must use a variable start position with an absent or full-span endPos (100000)."
     },
     {
       "name": "textDefaultReflectionDirectionDegrees",

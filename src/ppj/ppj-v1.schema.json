@@ -2252,6 +2252,7 @@
             "textDefaultReflectionEndOpacityThousandthPercent",
             "textReflectionDistanceEmu",
             "textDefaultReflectionDistanceEmu",
+            "textReflectionStartPosition",
             "textReflectionDirectionDegrees",
             "textDefaultReflectionDirectionDegrees",
             "textDefaultReflectionFadeAngleDegrees",
@@ -2947,6 +2948,18 @@
           "minimum": -360,
           "maximum": 360,
           "description": "Reflection direction in degrees."
+        },
+        "startPosition": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Start position along the reflection gradient ramp; preserve omission and explicit zero."
+        },
+        "endPosition": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "End position along the reflection gradient ramp; preserve omission and explicit zero/one."
         }
       }
     },

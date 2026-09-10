@@ -147,6 +147,7 @@ internal static class PpjNativeLeafProjection
             ["shapeReflectionDirectionDegrees"] = 60_000,
             ["imageReflectionDirectionDegrees"] = 60_000,
             ["textInnerShadowDirectionDegrees"] = 60_000,
+            ["textReflectionStartPosition"] = 100_000,
             ["textReflectionDirectionDegrees"] = 60_000,
         };
 
@@ -1663,6 +1664,16 @@ internal static class PpjNativeLeafProjection
         Action<string, string, JsonNode?, uint, uint> add)
     {
         if (run.Reflection is not { } reflection) return;
+        if (reflection.HasStartPositionThousandthPercent &&
+            (!reflection.HasEndPositionThousandthPercent || reflection.EndPositionThousandthPercent == 100_000))
+            AddScaled(add, "textReflectionStartPosition",
+                reflection.StartPositionThousandthPercent / 100_000d, 100_000, runIndex);
+        var fullSpan = (!reflection.HasStartPositionThousandthPercent || reflection.StartPositionThousandthPercent == 0) &&
+                       (!reflection.HasEndPositionThousandthPercent || reflection.EndPositionThousandthPercent == 100_000);
+        if (!fullSpan)
+        {
+            return;
+        }
         if (reflection.HasBlurRadiusEmu)
             AddInteger(add, "textReflectionBlurRadiusEmu", reflection.BlurRadiusEmu, runIndex, textIndex);
         if (reflection.HasStartOpacityThousandthPercent)

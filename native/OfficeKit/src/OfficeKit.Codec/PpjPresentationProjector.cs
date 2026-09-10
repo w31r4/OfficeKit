@@ -2328,7 +2328,7 @@ internal static partial class PpjPresentationProjector
         if (run.Shadow is not null) style["shadow"] = Shadow(run.Shadow);
         if (run.Glow is not null) style["glow"] = Glow(run.Glow);
         if (run.InnerShadow is not null) style["innerShadow"] = InnerShadow(run.InnerShadow);
-        if (run.Reflection is not null) style["reflection"] = Reflection(run.Reflection);
+        if (run.Reflection is not null) style["reflection"] = Reflection(run.Reflection, includePositions: true);
         if (run.SoftEdge is not null) style["softEdge"] = SoftEdge(run.SoftEdge);
         if (run.HighlightCase == PresentationTextRun.HighlightOneofCase.HighlightRgb && !string.IsNullOrEmpty(run.HighlightRgb))
             style["highlight"] = StringNode(Color(run.HighlightRgb));
@@ -3526,7 +3526,7 @@ internal static partial class PpjPresentationProjector
         return output;
     }
 
-    private static JsonObject Reflection(PresentationReflection reflection)
+    private static JsonObject Reflection(PresentationReflection reflection, bool includePositions = false)
     {
         var output = new JsonObject
         {
@@ -3536,6 +3536,10 @@ internal static partial class PpjPresentationProjector
             ["distance"] = JsonValue.Create(Math.Max(0, Points(reflection.HasDistanceEmu ? reflection.DistanceEmu : 0))),
             ["angle"] = JsonValue.Create((reflection.HasDirectionAngle60000 ? reflection.DirectionAngle60000 : 0) / 60_000d),
         };
+        if (includePositions && reflection.HasStartPositionThousandthPercent)
+            output["startPosition"] = JsonValue.Create(Unit(reflection.StartPositionThousandthPercent));
+        if (includePositions && reflection.HasEndPositionThousandthPercent)
+            output["endPosition"] = JsonValue.Create(Unit(reflection.EndPositionThousandthPercent));
         return output;
     }
 

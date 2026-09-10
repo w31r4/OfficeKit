@@ -4,9 +4,10 @@ using A = DocumentFormat.OpenXml.Drawing;
 
 namespace OfficeKit.Codec;
 
-// Direct DrawingML reflection values. Charts and the bounded paragraph-default
-// start-position profile opt into variable positions; ordinary imported proofs
-// retain their full-span profile. Transforms remain opt-in per caller.
+// Direct DrawingML reflection values. Charts, direct rich-text runs and the
+// bounded paragraph-default start-position profile opt into variable
+// positions; ordinary imported proofs retain their full-span profile.
+// Transforms remain opt-in per caller.
 internal static class PptxReflectionCodec
 {
     private const long MaxBlurRadiusEmu = 12_700_000L;

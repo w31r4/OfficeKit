@@ -443,6 +443,14 @@ content, duplicates and DAGs remain source-owned and reject replacement.
 Ordinary run/shape/image syntax keeps its required geometry. Preview is partial;
 host appearance needs separate evidence.
 
+For an imported direct rich-text run, `run.style.reflection.startPosition` is
+exposed as `textReflectionStartPosition` only when the direct `a:reflection` has
+an explicit canonical `stPos` and `endPos` is absent or `100000`. A source-bound
+edit token-splices only `reflection/@stPos` in that run's owning SlidePart, keeps
+all other effects and package parts byte-stable, and reprojects the 0..1 value.
+A variable end position, two-variable ramp, malformed token, or unsupported effect
+topology remains source-owned; this field does not claim host reflection rendering.
+
 Use `defaultText.shadow` for a direct paragraph outer shadow. Color is required;
 `opacity`, `blur`, `distance`, `angle`, `alignment`, `rotateWithShape`, `scaleX`,
 `scaleY`, `skewX` and `skewY` are optional. Remove an optional field to clear its
