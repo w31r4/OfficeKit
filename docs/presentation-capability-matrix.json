@@ -14,7 +14,7 @@
     "schemaDefinitions": 199,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 67,
+    "authoredCompilerBoundaries": 68,
     "nativeLeafKinds": 278,
     "helpApis": 151,
     "hostOnlyApis": 13
@@ -1105,6 +1105,14 @@
       "behavior": "partial",
       "sourceBound": "Direct auto-number startAt is an integer from 1 through 32767. Existing source-bound text/shape numbered paragraphs support adding, replacing, deleting and restoring only this optional attribute under exact text.paragraphs[].style.bullet.startAt authority. Explicit 1 remains distinct from absence. The marker, scheme, bullet styling, other paragraph fields, runs, adjacent paragraphs, unknown XML and non-target ZIP content remain unchanged. Invalid starts, unknown schemes and duplicate markers stay source-owned and reject replacement. Whole-marker changes and inherited numbering evaluation retain separate boundaries; automatic-number preview is partial.",
       "reason": "PpjBulletStartAtLifecycleTests verifies authored values, exact authority, source no-op, set/delete/restore, invalid values and non-target preservation. Raw start tokens are parsed without throwing from SDK accessors; same-scheme native application retains the existing marker and unchanged lexical values.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound bullet numbering scheme",
+      "ppjPath": "pages[].elements[].text.paragraphs[].style.bullet.scheme and format",
+      "behavior": "partial",
+      "sourceBound": "Numbered bullets require exactly one of 41 canonical schemes or five format aliases. Existing source-bound text/shape numbered paragraphs support scheme/format changes and restoration with the exact requested spelling's field authority. Fresh native projection emits canonical scheme, including for alias input; equivalent aliases retain native bytes. Format-only edits preserve startAt presence and spelling, marker attributes, bullet styling, paragraph state, runs, neighbors and non-target XML/ZIP. Independently authorized startAt edits compose with format changes. Missing/conflicting selections, invalid values, absent authority and unmodeled marker replacement reject. Marker-kind changes and inherited numbering evaluation keep their separate boundaries; automatic-number preview is partial.",
+      "reason": "PpjBulletNumberingSchemeTests authors all 41 schemes and five aliases in one document, verifies canonical native/reprojected values, and exercises text/shape source restoration, exact authority, alias-only native no-op, combined startAt edits and preservation of unknown XML. The shared native codec updates individual attributes on the original automatic marker.",
       "visualStatus": "partial-or-opaque"
     },
     {

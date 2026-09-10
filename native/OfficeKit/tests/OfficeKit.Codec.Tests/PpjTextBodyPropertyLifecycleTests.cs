@@ -2428,7 +2428,7 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
                     paragraphProperties.Remove();
             }
         }
-        else if (field is "paragraph.spaceBefore" or "paragraph.spaceAfter" or "paragraph.lineSpacing" or "paragraph.indent" or "paragraph.hanging" or "paragraph.alignment" or "paragraph.level" or "paragraph.bullet.startAt")
+        else if (field is "paragraph.spaceBefore" or "paragraph.spaceAfter" or "paragraph.lineSpacing" or "paragraph.indent" or "paragraph.hanging" or "paragraph.alignment" or "paragraph.level" or "paragraph.bullet.startAt" or "paragraph.bullet.scheme" or "paragraph.bullet.schemeAndStartAt")
         {
             foreach (var owner in new[] { oldSlide, newSlide })
             {
@@ -2438,7 +2438,13 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
                 else if (field == "paragraph.lineSpacing") properties?.GetFirstChild<A.LineSpacing>()?.Remove();
                 else if (properties is not null)
                 {
-                    if (field == "paragraph.bullet.startAt") properties.GetFirstChild<A.AutoNumberedBullet>()!.StartAt = null;
+                    if (field is "paragraph.bullet.scheme" or "paragraph.bullet.schemeAndStartAt")
+                    {
+                        var number = properties.GetFirstChild<A.AutoNumberedBullet>()!;
+                        number.Type = null;
+                        if (field == "paragraph.bullet.schemeAndStartAt") number.StartAt = null;
+                    }
+                    else if (field == "paragraph.bullet.startAt") properties.GetFirstChild<A.AutoNumberedBullet>()!.StartAt = null;
                     else if (field == "paragraph.level") properties.Level = null;
                     else if (field == "paragraph.alignment") properties.Alignment = null;
                     else if (field == "paragraph.indent") properties.LeftMargin = null;

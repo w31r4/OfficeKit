@@ -121,6 +121,19 @@ for (const startAt of [1, 32767]) {
   assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && d.scenePath.endsWith(".autoNumber") && d.status === "partial"));
   assert.match(painted.pages[0].svg, /Numbered paragraph/);
 }
+for (const [field, value, scheme] of [["scheme", "thaiNumParenBoth", "thaiNumParenBoth"], ["format", "upper-roman", "romanUcPeriod"]]) {
+  const input = deck([{ ...text, text: { paragraphs: [
+    { style: { bullet: { type: "number", [field]: value } }, runs: [{ text: "Numbering format" }] }] } }]);
+  assert.ok(assessPpjPreviewInput(input).diagnostics.some(d => d.path.endsWith(".style.bullet." + field) && d.status !== "supported"));
+  const receipt = previewSceneFixture(input, [{ id: "p1", elements: [nativeElement("text", "shape", {
+    ...emuFrame(1, 2, 100, 60), geometry: "textbox", text: "Numbering format",
+    textBody: { paragraphs: [{ bullet: { case: "autoNumber", value: { scheme } },
+      runs: [{ content: { case: "text", value: "Numbering format" } }] }] },
+  })] }], ["$.pages[0].elements[0]"]);
+  const painted = paintPpjSceneSvg(receipt);
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && d.scenePath.endsWith(".autoNumber") && d.status === "partial"));
+  assert.match(painted.pages[0].svg, /Numbering format/);
+}
 for (const field of ["spaceBefore", "spaceBeforeMultiplier", "spaceAfter", "spaceAfterMultiplier", "lineSpacing", "lineSpacingMultiplier", "indent", "hanging"]) {
   const spacing = assessPpjPreviewInput(deck([{ ...text, text: { paragraphs: [
     { style: { [field]: field.startsWith("lineSpacing") ? 1 : 0 }, runs: [{ text: "Paragraph spacing" }] }] } }]));

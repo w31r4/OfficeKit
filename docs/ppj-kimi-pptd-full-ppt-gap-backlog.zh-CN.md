@@ -463,6 +463,19 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**编号格式增量（2026-09-10）：** `text.paragraphs[].style.bullet.scheme`
+已枚举原生 codec 支持的 41 种编号格式；与 `bullet.format` 的 5 个简写
+二选一，去嵌入后的原生投影统一输出 scheme。普通文本框和形状的现有
+编号段落支持格式切换与恢复，按请求使用 scheme 或 format 的精确权限。
+编辑只改编号属性，保留 `startAt` 的存在性和原始写法、标记上的未知
+XML、项目符号样式、其它段落属性、run、相邻段落和非目标 ZIP 内容；
+同时修改起始值还需 startAt 权限。等价简写转换保持原生文件字节不变；
+删空格式声明、同时提供两种声明、未知值和未建模标记替换均拒绝。
+最小实验 **3/3 通过**，一个文档集中验证 41 种格式和 5 个简写；相关
+段落、列表、母版及表格回归 **22/22 通过，0 跳过**。Help、schema、
+生成资料、预览诊断、Skill 同步和 OpenSpec 检查通过。未重建 NativeAOT；
+自动编号绘制与继承求值仍有缺口，完整 F-03 继续开放。
+
 **编号起始值增量（2026-09-10）：** 普通文本框和形状的现有编号段落，
 `text.paragraphs[].style.bullet.startAt` 已支持新增、赋值、删除和恢复，
 取值为 1–32767 的整数。显式 1 与缺省不同；删除只移除直接 `startAt`

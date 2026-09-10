@@ -2958,6 +2958,8 @@ internal static partial class PpjPresentationProjector
                             "text.paragraphs[].style.alignment",
                             "text.paragraphs[].style.level",
                             "text.paragraphs[].style.bullet.startAt",
+                            "text.paragraphs[].style.bullet.scheme",
+                            "text.paragraphs[].style.bullet.format",
                             "text.paragraphs[].style.tabStops",
                             "text.paragraphs[].style.spaceBefore",
                             "text.paragraphs[].style.spaceBeforeMultiplier",

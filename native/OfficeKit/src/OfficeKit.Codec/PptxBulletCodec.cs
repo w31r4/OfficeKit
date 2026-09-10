@@ -87,11 +87,12 @@ internal static class PptxBulletCodec
         if (existing.Length > 1 || existing.Any(choice => !Modeled(choice, context)))
             throw new CodecException("unsupported_presentation_edit", "Source-preserving PPTX export cannot replace an unmodeled or malformed list marker.");
         if (existing.Length == 1 && existing[0] is A.AutoNumberedBullet autoNumber &&
-            source.BulletCase == PresentationTextParagraph.BulletOneofCase.AutoNumber &&
-            Scheme(autoNumber) == source.AutoNumber.Scheme)
+            source.BulletCase == PresentationTextParagraph.BulletOneofCase.AutoNumber)
         {
-            // A start-only edit owns this optional attribute, not the marker
-            // element. Keep unknown XML and unchanged lexical values intact.
+            // Number format and optional start each own one attribute, not
+            // the marker element. Retain unknown XML and unchanged spelling.
+            if (Scheme(autoNumber) != source.AutoNumber.Scheme)
+                autoNumber.Type = new A.TextAutoNumberSchemeValues(source.AutoNumber.Scheme);
             TryStartAt(autoNumber, out var currentStartAt);
             if (source.AutoNumber.HasStartAt)
             {

@@ -104,6 +104,26 @@ start values, unknown schemes and duplicate markers remain source-owned.
 Changing a marker type or scheme uses a separate capability boundary; preview
 automatic numbering and inherited list evaluation remain partial.
 
+For a numbered paragraph, choose exactly one of `bullet.scheme` (the 41 values
+listed in the generated PPJ reference) or the following `bullet.format` alias:
+
+| format | canonical scheme |
+| --- | --- |
+| `decimal` | `arabicPeriod` |
+| `lower-alpha` | `alphaLcPeriod` |
+| `upper-alpha` | `alphaUcPeriod` |
+| `lower-roman` | `romanLcPeriod` |
+| `upper-roman` | `romanUcPeriod` |
+
+Existing imported text/shape numbered paragraphs support changing and restoring
+the format with exact `bullet.scheme` or `bullet.format` authority matching the
+requested spelling. Fresh native projection always emits `scheme`. An equivalent
+alias preserves native bytes. A format-only edit keeps startAt presence/spelling,
+bullet styling, unknown marker XML, runs and neighbors. Changing startAt at the
+same time requires its own authority. Removing both format selections is invalid;
+turning numbering off changes the marker kind and has a separate boundary.
+Automatic-number preview and inherited list evaluation remain partial.
+
 For an ordinary imported text box or shape,
 `text.paragraphs[].style.defaultText.bold` and `.italic` edit independent paragraph defaults.
 True and false remain explicit; delete the field (or its flag-only
