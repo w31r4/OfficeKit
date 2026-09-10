@@ -106,6 +106,8 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
     [InlineData("scale-overflow")]
     [InlineData("scale-y-invalid")]
     [InlineData("scale-y-overflow")]
+    [InlineData("skew-x-invalid")]
+    [InlineData("skew-x-overflow")]
     [InlineData("attribute")]
     [InlineData("color")]
     [InlineData("alpha-child")]
@@ -130,6 +132,8 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
             else if (profile == "scale-overflow") shadow.SetAttribute(new OpenXmlAttribute("sx", "", "2147483648"));
             else if (profile == "scale-y-invalid") shadow.SetAttribute(new OpenXmlAttribute("sy", "", "not-an-int"));
             else if (profile == "scale-y-overflow") shadow.SetAttribute(new OpenXmlAttribute("sy", "", "2147483648"));
+            else if (profile == "skew-x-invalid") shadow.SetAttribute(new OpenXmlAttribute("kx", "", "not-an-int"));
+            else if (profile == "skew-x-overflow") shadow.SetAttribute(new OpenXmlAttribute("kx", "", "2147483648"));
             else if (profile == "attribute") shadow.SetAttribute(new OpenXmlAttribute("future", "", "retain"));
             else if (profile == "color") shadow.GetFirstChild<A.RgbColorModelHex>()!.Append(new A.Tint { Val = 50000 });
             else shadow.GetFirstChild<A.RgbColorModelHex>()!.InnerXml = """<a:alpha xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" val="50000"><future:content xmlns:future="urn:officekit:test"/></a:alpha>""";
