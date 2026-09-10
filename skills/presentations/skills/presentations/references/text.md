@@ -124,6 +124,18 @@ same time requires its own authority. Removing both format selections is invalid
 turning numbering off changes the marker kind and has a separate boundary.
 Automatic-number preview and inherited list evaluation remain partial.
 
+Use `bullet.character` with `type: "character"` for one XML-compatible Unicode
+scalar, such as `•`, `★` or `😀`. A supplementary-plane symbol counts as one;
+a combining sequence such as `e` plus an accent contains two and is rejected.
+Existing imported text/shape character markers support replacement and restoration
+under exact `text.paragraphs[].style.bullet.character` authority. Only the marker's
+character changes; its font/color/size, unknown XML, paragraph state, runs and
+neighbors remain. The character is required for this marker kind: missing, empty,
+multi-scalar and XML-incompatible values reject. Turning the list off changes the
+marker kind and has a separate boundary. Preview can paint the direct font/RGB/
+point-size/hanging-indent profile, with explicit glyph/layout limits; unresolved
+bullet styling is unavailable.
+
 For an ordinary imported text box or shape,
 `text.paragraphs[].style.defaultText.bold` and `.italic` edit independent paragraph defaults.
 True and false remain explicit; delete the field (or its flag-only

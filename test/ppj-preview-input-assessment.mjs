@@ -134,6 +134,26 @@ for (const [field, value, scheme] of [["scheme", "thaiNumParenBoth", "thaiNumPar
   assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.unmapped" && d.scenePath.endsWith(".autoNumber") && d.status === "partial"));
   assert.match(painted.pages[0].svg, /Numbering format/);
 }
+for (const character of ["★", "😀", "&"]) {
+  const input = deck([{ ...text, text: { paragraphs: [{ style: { indent: 20, hanging: 10,
+    bullet: { type: "character", character, fontFamily: "Georgia", size: 12, color: "#112233" } },
+    runs: [{ text: "Character bullet" }] }] } }]);
+  assert.ok(assessPpjPreviewInput(input).diagnostics.some(d => d.path.endsWith(".style.bullet.character") && d.status !== "supported"));
+  const receipt = (font = true) => previewSceneFixture(input, [{ id: "p1", elements: [nativeElement("text", "shape", {
+    ...emuFrame(1, 2, 100, 60), geometry: "textbox", text: "Character bullet",
+    textBody: { paragraphs: [{ bullet: { case: "bulletCharacter", value: character },
+      ...(font ? { bulletFont: { case: "bulletFontFamily", value: "Georgia" } } : {}),
+      bulletColor: { case: "bulletColorRgb", value: "112233" }, bulletSize: { case: "bulletSizePoints", value: 12 },
+      leftMargin: { case: "marginLeftEmu", value: 254000n }, indentation: { case: "indentEmu", value: -127000n },
+      runs: [{ content: { case: "text", value: "Character bullet" } }] }] },
+  })] }], ["$.pages[0].elements[0]"]);
+  const painted = paintPpjSceneSvg(receipt());
+  assert.match(painted.pages[0].svg, /data-officekit-bullet="character"/);
+  assert.ok(painted.pages[0].svg.includes(`>${character === "&" ? "&amp;" : character}</text>`));
+  assert.ok(painted.diagnostics.some(d => d.reason === "preview.scene.paint.text-layout" && d.status === "partial"));
+  assert.ok(!painted.diagnostics.some(d => d.reason === "preview.scene.paint.bullet-layout"));
+  assert.ok(paintPpjSceneSvg(receipt(false)).diagnostics.some(d => d.reason === "preview.scene.paint.bullet-layout" && d.status === "unavailable"));
+}
 for (const field of ["spaceBefore", "spaceBeforeMultiplier", "spaceAfter", "spaceAfterMultiplier", "lineSpacing", "lineSpacingMultiplier", "indent", "hanging"]) {
   const spacing = assessPpjPreviewInput(deck([{ ...text, text: { paragraphs: [
     { style: { [field]: field.startsWith("lineSpacing") ? 1 : 0 }, runs: [{ text: "Paragraph spacing" }] }] } }]));

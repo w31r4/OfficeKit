@@ -1935,6 +1935,7 @@
             "text.paragraphs[].style.alignment",
             "text.paragraphs[].style.level",
             "text.paragraphs[].style.bullet.startAt",
+            "text.paragraphs[].style.bullet.character",
             "text.paragraphs[].style.bullet.scheme",
             "text.paragraphs[].style.bullet.format",
             "text.paragraphs[].style.tabStops",
@@ -3388,7 +3389,9 @@
             "character": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 8
+              "maxLength": 1,
+              "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\uFFFE\\uFFFF]+$",
+              "description": "One XML-compatible Unicode scalar, including supplementary-plane characters. Required for a character bullet; empty values, multiple scalars and invalid XML characters reject. Existing source-bound text/shape character markers support replacement/restoration under exact text.paragraphs[].style.bullet.character authority, preserving bullet styling and other source content. Preview glyph/layout and inherited styling remain partial."
             },
             "fontFamily": {
               "type": "string",

@@ -463,6 +463,20 @@ PPJ 已有 frame、master/layout、placeholder、component repeat/when、text wr
 
 ### F-03 文本、段落、列表、字段和 WordArt
 
+**字符项目符号增量（2026-09-10）：**
+`text.paragraphs[].style.bullet.character` 已对齐为一个 XML 允许的 Unicode
+码点，schema 长度上限从 8 收紧为 1；`★`、补充平面字符和 `&` 均可
+写入并回投影。普通文本框和形状的现有字符列表支持替换与恢复，只改
+目标字符属性，保留字体、颜色、字号、其它段落属性、run、相邻段落、
+标记上的未知 XML 和非目标 ZIP 内容。编辑要求 character 的精确权限；
+缺失、空值、多码点、孤立代理项及 XML 非法字符拒绝，消除了把坏代理项
+当作替代字符接受的问题。可解析的未知/重复源标记保持原文、拒绝覆盖。
+最小实验 **4/4 通过**，相关段落、列表、母版和表格回归
+**26/26 通过，0 跳过**。直接样式预览保留符号并报告布局限制，缺失符号
+字体时明确 unavailable；Help、生成资料、Skill 同步和 OpenSpec 检查通过。
+未重建 NativeAOT；标记类型切换、继承样式和宿主字形布局仍有缺口，
+完整 F-03 继续开放。
+
 **编号格式增量（2026-09-10）：** `text.paragraphs[].style.bullet.scheme`
 已枚举原生 codec 支持的 41 种编号格式；与 `bullet.format` 的 5 个简写
 二选一，去嵌入后的原生投影统一输出 scheme。普通文本框和形状的现有

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Xml;
 using DocumentFormat.OpenXml;
 using OfficeKit.Artifact.Wire.V1;
 using A = DocumentFormat.OpenXml.Drawing;
@@ -53,7 +54,7 @@ internal static class PptxBulletCodec
                 if (!paragraph.NoBullet) throw Invalid("Presentation no_bullet must be true when selected.");
                 return;
             case PresentationTextParagraph.BulletOneofCase.BulletCharacter:
-                if (!ValidCharacter(paragraph.BulletCharacter)) throw Invalid("Presentation bullet character must contain exactly one Unicode scalar value.");
+                if (!ValidCharacter(paragraph.BulletCharacter)) throw Invalid("Presentation bullet character must contain exactly one XML-compatible Unicode scalar value.");
                 return;
             case PresentationTextParagraph.BulletOneofCase.AutoNumber:
                 if (paragraph.AutoNumber is null || !AutoNumberSchemes.Contains(paragraph.AutoNumber.Scheme))
@@ -86,6 +87,12 @@ internal static class PptxBulletCodec
         var existing = BulletChoices(target).ToArray();
         if (existing.Length > 1 || existing.Any(choice => !Modeled(choice, context)))
             throw new CodecException("unsupported_presentation_edit", "Source-preserving PPTX export cannot replace an unmodeled or malformed list marker.");
+        if (existing.Length == 1 && existing[0] is A.CharacterBullet character &&
+            source.BulletCase == PresentationTextParagraph.BulletOneofCase.BulletCharacter)
+        {
+            if (character.Char!.Value != source.BulletCharacter) character.Char = source.BulletCharacter;
+            return;
+        }
         if (existing.Length == 1 && existing[0] is A.AutoNumberedBullet autoNumber &&
             source.BulletCase == PresentationTextParagraph.BulletOneofCase.AutoNumber)
         {
@@ -143,8 +150,17 @@ internal static class PptxBulletCodec
         _ => false,
     };
 
-    private static bool ValidCharacter(string? value) =>
-        !string.IsNullOrEmpty(value) && value.EnumerateRunes().Count() == 1;
+    private static bool ValidCharacter(string? value)
+    {
+        if (string.IsNullOrEmpty(value) || !Rune.TryGetRuneAt(value, 0, out var rune) ||
+            rune.Utf16SequenceLength != value.Length) return false;
+        try
+        {
+            XmlConvert.VerifyXmlChars(value);
+            return true;
+        }
+        catch (XmlException) { return false; }
+    }
 
     private static string Scheme(A.AutoNumberedBullet source) => source.Type?.InnerText ?? string.Empty;
 

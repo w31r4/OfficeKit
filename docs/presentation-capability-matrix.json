@@ -14,7 +14,7 @@
     "schemaDefinitions": 199,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 68,
+    "authoredCompilerBoundaries": 69,
     "nativeLeafKinds": 278,
     "helpApis": 151,
     "hostOnlyApis": 13
@@ -1113,6 +1113,14 @@
       "behavior": "partial",
       "sourceBound": "Numbered bullets require exactly one of 41 canonical schemes or five format aliases. Existing source-bound text/shape numbered paragraphs support scheme/format changes and restoration with the exact requested spelling's field authority. Fresh native projection emits canonical scheme, including for alias input; equivalent aliases retain native bytes. Format-only edits preserve startAt presence and spelling, marker attributes, bullet styling, paragraph state, runs, neighbors and non-target XML/ZIP. Independently authorized startAt edits compose with format changes. Missing/conflicting selections, invalid values, absent authority and unmodeled marker replacement reject. Marker-kind changes and inherited numbering evaluation keep their separate boundaries; automatic-number preview is partial.",
       "reason": "PpjBulletNumberingSchemeTests authors all 41 schemes and five aliases in one document, verifies canonical native/reprojected values, and exercises text/shape source restoration, exact authority, alias-only native no-op, combined startAt edits and preservation of unknown XML. The shared native codec updates individual attributes on the original automatic marker.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound bullet character",
+      "ppjPath": "pages[].elements[].text.paragraphs[].style.bullet.character",
+      "behavior": "partial",
+      "sourceBound": "A character marker requires one XML-compatible Unicode scalar, including supplementary-plane symbols. Existing source-bound text/shape character paragraphs support replacement/restoration with exact character field authority while preserving marker attributes, bullet font/color/size, paragraph state, runs, neighbors and non-target XML/ZIP. No-op retains source bytes. Missing/empty/multiple/invalid scalars and marker-kind conversion reject; parseable unmodeled or ambiguous source markers remain preserved during unrelated edits and reject replacement. Preview retains the existing bounded direct-style character profile with explicit layout/font limits.",
+      "reason": "PpjBulletCharacterLifecycleTests verifies ordinary, supplementary and escaped-XML symbols through authoring and source edits, exact authority and non-target preservation. Native validation rejects lone UTF-16 surrogates and XML-incompatible values before serialization; raw JSON surrogate escapes are rejected without a candidate. Preview tests retain the character and explicit text-layout limits, and diagnose unresolved bullet font styling.",
       "visualStatus": "partial-or-opaque"
     },
     {
