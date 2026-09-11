@@ -442,8 +442,7 @@ internal static class PptxTextCodec
 
     private static bool IsSafeDirectRunReflection(PresentationReflection reflection)
     {
-        if (reflection.HasSkewXAngle60000 ||
-            reflection.HasSkewYAngle60000 ||
+        if (reflection.HasSkewYAngle60000 ||
             reflection.HasAlignment ||
             reflection.HasRotateWithShape)
             return false;
@@ -454,12 +453,18 @@ internal static class PptxTextCodec
         {
             var hasUnsupportedScaleYCombination = reflection.HasScaleYThousandthPercent &&
                                                   (reflection.HasFadeDirectionAngle60000 || reflection.HasScaleXThousandthPercent);
+            var hasUnsupportedSkewXCombination = reflection.HasSkewXAngle60000 &&
+                                                 (reflection.HasFadeDirectionAngle60000 ||
+                                                  reflection.HasScaleXThousandthPercent ||
+                                                  reflection.HasScaleYThousandthPercent);
             return !(reflection.HasFadeDirectionAngle60000 && reflection.HasScaleXThousandthPercent) &&
-                   !hasUnsupportedScaleYCombination;
+                   !hasUnsupportedScaleYCombination &&
+                   !hasUnsupportedSkewXCombination;
         }
 
         return !reflection.HasScaleXThousandthPercent &&
                !reflection.HasScaleYThousandthPercent &&
+               !reflection.HasSkewXAngle60000 &&
                (!reflection.HasStartPositionThousandthPercent || reflection.StartPositionThousandthPercent == 0 ||
                 !reflection.HasEndPositionThousandthPercent || reflection.EndPositionThousandthPercent == 100_000) &&
                !reflection.HasFadeDirectionAngle60000;

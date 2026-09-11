@@ -2258,6 +2258,7 @@
             "textReflectionFadeAngleDegrees",
             "textReflectionScaleX",
             "textReflectionScaleY",
+            "textReflectionSkewX",
             "textDefaultReflectionDirectionDegrees",
             "textDefaultReflectionFadeAngleDegrees",
             "textDefaultReflectionScaleX",
@@ -2970,6 +2971,12 @@
           "minimum": -21474.83648,
           "maximum": 21474.83647,
           "description": "Reflection vertical scale ratio; preserved at native 1/100000 precision."
+        },
+        "skewX": {
+          "type": "number",
+          "exclusiveMinimum": -90,
+          "exclusiveMaximum": 90,
+          "description": "Reflection horizontal skew angle; rounded to native 1/60000-degree precision and remains strictly between -90 and 90 degrees."
         },
         "startPosition": {
           "type": "number",

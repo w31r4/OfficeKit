@@ -153,6 +153,7 @@ internal static class PpjNativeLeafProjection
             ["textReflectionFadeAngleDegrees"] = 60_000,
             ["textReflectionScaleX"] = 100_000,
             ["textReflectionScaleY"] = 100_000,
+            ["textReflectionSkewX"] = 60_000,
         };
 
     internal static JsonArray Describe(
@@ -1716,6 +1717,15 @@ internal static class PpjNativeLeafProjection
             !reflection.HasRotateWithShape)
             AddScaledText(add, "textReflectionScaleY",
                 reflection.ScaleYThousandthPercent / 100_000d, 100_000, runIndex, textIndex);
+        if (reflection.HasSkewXAngle60000 &&
+            !reflection.HasFadeDirectionAngle60000 &&
+            !reflection.HasScaleXThousandthPercent &&
+            !reflection.HasScaleYThousandthPercent &&
+            !reflection.HasSkewYAngle60000 &&
+            !reflection.HasAlignment &&
+            !reflection.HasRotateWithShape)
+            add("textReflectionSkewX", reflection.SkewXAngle60000.ToStringInvariant(),
+                JsonValue.Create(reflection.SkewXAngle60000 / 60_000d), runIndex, textIndex);
     }
 
     private static void DescribeSoftEdge(

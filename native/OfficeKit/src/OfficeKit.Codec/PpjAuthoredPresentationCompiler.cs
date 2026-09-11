@@ -5200,6 +5200,10 @@ internal static partial class PpjAuthoredPresentationCompiler
             output.ScaleYThousandthPercent = checked((int)Math.Round(
                 ChartEffectNumber(scaleY.GetDouble(), int.MinValue / 100000d, int.MaxValue / 100000d) * 100000d,
                 MidpointRounding.ToEven));
+        if (value.TryGetProperty("skewX", out var skewX))
+            output.SkewXAngle60000 = checked((int)Math.Round(
+                ChartEffectNumber(skewX.GetDouble(), -90, 90) * 60_000d,
+                MidpointRounding.ToEven));
         return output;
     }
 
