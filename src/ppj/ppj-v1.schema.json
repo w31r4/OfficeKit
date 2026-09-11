@@ -2260,6 +2260,7 @@
             "textReflectionScaleY",
             "textReflectionSkewX",
             "textReflectionSkewY",
+            "textReflectionAlignment",
             "textDefaultReflectionDirectionDegrees",
             "textDefaultReflectionFadeAngleDegrees",
             "textDefaultReflectionScaleX",
@@ -2984,6 +2985,20 @@
           "exclusiveMinimum": -90,
           "exclusiveMaximum": 90,
           "description": "Reflection vertical skew angle; rounded to native 1/60000-degree precision and remains strictly between -90 and 90 degrees."
+        },
+        "alignment": {
+          "enum": [
+            "tl",
+            "t",
+            "tr",
+            "l",
+            "ctr",
+            "r",
+            "bl",
+            "b",
+            "br"
+          ],
+          "description": "Reflection rectangle alignment token."
         },
         "startPosition": {
           "type": "number",

@@ -5208,6 +5208,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             output.SkewYAngle60000 = checked((int)Math.Round(
                 ChartEffectNumber(skewY.GetDouble(), -90, 90) * 60_000d,
                 MidpointRounding.ToEven));
+        if (value.TryGetProperty("alignment", out var alignment))
+            output.Alignment = alignment.GetString()!;
         return output;
     }
 

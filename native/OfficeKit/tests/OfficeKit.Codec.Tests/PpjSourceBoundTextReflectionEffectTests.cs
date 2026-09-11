@@ -1281,6 +1281,166 @@ public sealed partial class PptxCodecTests
     }
 
     [Fact]
+    public void PpjSourceBoundTextReflectionAlignmentEditsCanonicalTokenAndReprojects()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "examples",
+            "ppj",
+            "minimum.ppj")))!.AsObject();
+        program["pages"]![0]!["elements"]![0]!["text"] = new JsonObject
+        {
+            ["paragraphs"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["runs"] = new JsonArray
+                    {
+                        new JsonObject
+                        {
+                            ["text"] = "Reflection alignment",
+                            ["style"] = new JsonObject
+                            {
+                                ["reflection"] = new JsonObject
+                                {
+                                    ["blur"] = 5,
+                                    ["startOpacity"] = 0.42,
+                                    ["endOpacity"] = 0.08,
+                                    ["distance"] = 12,
+                                    ["angle"] = 45.5,
+                                    ["alignment"] = "b",
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        using (var stream = new MemoryStream(authored.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var native = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.Reflection>().Single();
+            Assert.Equal(A.RectangleAlignmentValues.Bottom, native.Alignment!.Value);
+        }
+
+        var source = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/text-reflection-alignment.pptx",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var projectedProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var projectedElement = projectedProgram["pages"]![0]!["elements"]![0]!.AsObject();
+        var reflection = projectedElement["text"]!["paragraphs"]![0]!["runs"]![0]!["style"]!["reflection"]!.AsObject();
+        Assert.Equal("b", reflection["alignment"]!.GetValue<string>());
+        var alignmentLeaf = Assert.Single(
+            projectedElement["nativeRef"]!["leaves"]!.AsArray()
+                .Select(leaf => leaf!.AsObject()),
+            leaf => leaf["kind"]!.GetValue<string>() == "textReflectionAlignment");
+        Assert.Equal("b", alignmentLeaf["value"]!.GetValue<string>());
+
+        alignmentLeaf["value"] = "tr";
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(projectedProgram.ToJsonString()),
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal(["ppt/slides/slide1.xml"], edited.PresentationProgram.ChangedParts);
+
+        using (var stream = new MemoryStream(edited.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var native = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.Reflection>().Single();
+            Assert.Equal(A.RectangleAlignmentValues.TopRight, native.Alignment!.Value);
+        }
+
+        var editedBytes = edited.File.ToByteArray();
+        foreach (var path in ZipPartPaths(source).Where(path => !path.Equals("ppt/slides/slide1.xml", StringComparison.OrdinalIgnoreCase)))
+            Assert.Equal(ZipBytes(source, path), ZipBytes(editedBytes, path));
+
+        var reprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = edited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/edited/text-reflection-alignment.pptx",
+            },
+        });
+        Assert.True(reprojected.Ok, Diagnostics(reprojected));
+        var reprojectedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var reprojectedElement = reprojectedProgram["pages"]![0]!["elements"]![0]!.AsObject();
+        var reprojectedReflection = reprojectedElement["text"]!["paragraphs"]![0]!["runs"]![0]!["style"]!["reflection"]!;
+        Assert.Equal("tr", reprojectedReflection["alignment"]!.GetValue<string>());
+        Assert.Equal("tr", reprojectedElement["nativeRef"]!["leaves"]!.AsArray()
+            .Select(leaf => leaf!.AsObject())
+            .Single(leaf => leaf["kind"]!.GetValue<string>() == "textReflectionAlignment")["value"]!.GetValue<string>());
+
+        var unsupported = authored.File.ToByteArray();
+        using (var stream = new MemoryStream())
+        {
+            stream.Write(unsupported);
+            stream.Position = 0;
+            using (var package = PresentationDocument.Open(stream, true))
+                package.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.Reflection>().Single().VerticalSkew = 60_000;
+            unsupported = stream.ToArray();
+        }
+
+        var unsupportedProjected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(unsupported)),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/text-reflection-alignment-skew.pptx",
+            },
+        });
+        Assert.True(unsupportedProjected.Ok, Diagnostics(unsupportedProjected));
+        var unsupportedProgram = JsonNode.Parse(unsupportedProjected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var unsupportedElement = unsupportedProgram["pages"]![0]!["elements"]![0]!.AsObject();
+        Assert.Null(unsupportedElement["text"]!["paragraphs"]![0]!["runs"]![0]!["style"]?["reflection"]);
+        Assert.DoesNotContain(
+            unsupportedElement["nativeRef"]!["leaves"]!.AsArray(),
+            leaf => leaf!["kind"]!.GetValue<string>() == "textReflectionAlignment");
+    }
+
+    [Fact]
     public void PpjSourceBoundTextReflectionLeavesStayOpaqueOutsideOneVariableEndpointProfile()
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);

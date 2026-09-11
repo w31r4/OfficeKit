@@ -52,7 +52,7 @@ internal static class PpjNativeLeafProjection
         "textBodyVerticalOverflow", "textBodyHorizontalOverflow",
         "textBodyWarpPreset", "customGeometryGuideFormula", "customGeometryAdjustmentFormula", "textFieldType", "tableTextFieldType",
         "fontFamilyEastAsia", "fontFamilyComplexScript", "fontLanguage", "fontUnderline", "fontStrike", "fontColorScheme", "textGlowColorScheme", "textDefaultGlowColorScheme", "textInnerShadowColorScheme", "textDefaultInnerShadowColorScheme", "shapeGlowColorScheme", "imageGlowColorScheme", "shapeInnerShadowColorScheme", "imageInnerShadowColorScheme",
-        "fontCaps", "fontHighlightScheme", "fillScheme", "shadowAlignment", "imageShadowAlignment", "imageShadowColorScheme", "textDefaultShadowAlignment", "textDefaultReflectionAlignment", "shadowColorScheme", "textDefaultShadowColorScheme", "lineScheme", "lineStyle", "lineCap", "lineJoin",
+        "fontCaps", "fontHighlightScheme", "fillScheme", "shadowAlignment", "imageShadowAlignment", "imageShadowColorScheme", "textDefaultShadowAlignment", "textDefaultReflectionAlignment", "textReflectionAlignment", "shadowColorScheme", "textDefaultShadowColorScheme", "lineScheme", "lineStyle", "lineCap", "lineJoin",
         "lineStartArrow", "lineEndArrow", "lineStartArrowWidth", "lineStartArrowLength", "lineEndArrowWidth", "lineEndArrowLength", "imageMaskPreset", "shape3dPresetMaterial", "shape3dBevelTopPreset", "shape3dBevelBottomPreset", "shape3dSceneCameraPreset", "shape3dSceneLightRigPreset", "shape3dSceneLightRigDirection", "shape3dContourColorScheme", "shape3dExtrusionColorScheme", "chartDataCategory",
     };
 
@@ -1736,6 +1736,15 @@ internal static class PpjNativeLeafProjection
             !reflection.HasRotateWithShape)
             add("textReflectionSkewY", reflection.SkewYAngle60000.ToStringInvariant(),
                 JsonValue.Create(reflection.SkewYAngle60000 / 60_000d), runIndex, textIndex);
+        if (reflection.HasAlignment &&
+            !reflection.HasFadeDirectionAngle60000 &&
+            !reflection.HasScaleXThousandthPercent &&
+            !reflection.HasScaleYThousandthPercent &&
+            !reflection.HasSkewXAngle60000 &&
+            !reflection.HasSkewYAngle60000 &&
+            !reflection.HasRotateWithShape)
+            add("textReflectionAlignment", reflection.Alignment,
+                JsonValue.Create(reflection.Alignment), runIndex, textIndex);
     }
 
     private static void DescribeSoftEdge(

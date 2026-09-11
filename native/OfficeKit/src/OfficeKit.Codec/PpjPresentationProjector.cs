@@ -2328,7 +2328,7 @@ internal static partial class PpjPresentationProjector
         if (run.Shadow is not null) style["shadow"] = Shadow(run.Shadow);
         if (run.Glow is not null) style["glow"] = Glow(run.Glow);
         if (run.InnerShadow is not null) style["innerShadow"] = InnerShadow(run.InnerShadow);
-        if (run.Reflection is not null) style["reflection"] = Reflection(run.Reflection, includePositions: true, includeFadeAngle: true, includeScaleX: true, includeScaleY: true, includeSkewX: true, includeSkewY: true);
+        if (run.Reflection is not null) style["reflection"] = Reflection(run.Reflection, includePositions: true, includeFadeAngle: true, includeScaleX: true, includeScaleY: true, includeSkewX: true, includeSkewY: true, includeAlignment: true);
         if (run.SoftEdge is not null) style["softEdge"] = SoftEdge(run.SoftEdge);
         if (run.HighlightCase == PresentationTextRun.HighlightOneofCase.HighlightRgb && !string.IsNullOrEmpty(run.HighlightRgb))
             style["highlight"] = StringNode(Color(run.HighlightRgb));
@@ -3533,7 +3533,8 @@ internal static partial class PpjPresentationProjector
         bool includeScaleX = false,
         bool includeScaleY = false,
         bool includeSkewX = false,
-        bool includeSkewY = false)
+        bool includeSkewY = false,
+        bool includeAlignment = false)
     {
         var output = new JsonObject
         {
@@ -3553,6 +3554,8 @@ internal static partial class PpjPresentationProjector
             output["skewX"] = JsonValue.Create(reflection.SkewXAngle60000 / 60_000d);
         if (includeSkewY && reflection.HasSkewYAngle60000)
             output["skewY"] = JsonValue.Create(reflection.SkewYAngle60000 / 60_000d);
+        if (includeAlignment && reflection.HasAlignment)
+            output["alignment"] = StringNode(reflection.Alignment);
         if (includePositions && reflection.HasStartPositionThousandthPercent)
             output["startPosition"] = JsonValue.Create(Unit(reflection.StartPositionThousandthPercent));
         if (includePositions && reflection.HasEndPositionThousandthPercent)
