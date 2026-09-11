@@ -5204,6 +5204,10 @@ internal static partial class PpjAuthoredPresentationCompiler
             output.SkewXAngle60000 = checked((int)Math.Round(
                 ChartEffectNumber(skewX.GetDouble(), -90, 90) * 60_000d,
                 MidpointRounding.ToEven));
+        if (value.TryGetProperty("skewY", out var skewY))
+            output.SkewYAngle60000 = checked((int)Math.Round(
+                ChartEffectNumber(skewY.GetDouble(), -90, 90) * 60_000d,
+                MidpointRounding.ToEven));
         return output;
     }
 
