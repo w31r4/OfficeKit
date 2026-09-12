@@ -2445,7 +2445,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         {
             run.GradientFill = BuildGradientFill(gradientPaint.Value, color => catalog.Color(color));
         }
-        if (shadow is { } shadowValue) run.Shadow = BuildShadow(shadowValue, catalog, allowScaleX: true, allowScaleY: true, allowSkewX: true);
+        if (shadow is { } shadowValue) run.Shadow = BuildShadow(shadowValue, catalog, allowScaleX: true, allowScaleY: true, allowSkewX: true, allowSkewY: true);
         if (glow is { } glowValue) run.Glow = BuildGlow(glowValue, catalog);
         var innerShadow = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "innerShadow");
         if (innerShadow is { } innerShadowValue) run.InnerShadow = BuildInnerShadow(innerShadowValue, catalog);
@@ -5042,7 +5042,8 @@ internal static partial class PpjAuthoredPresentationCompiler
         Catalog catalog,
         bool allowScaleX = false,
         bool allowScaleY = false,
-        bool allowSkewX = false)
+        bool allowSkewX = false,
+        bool allowSkewY = false)
     {
         var colorValue = value.GetProperty("color");
         var schemeToken = colorValue.ValueKind == JsonValueKind.Object && colorValue.TryGetProperty("token", out var token) &&
@@ -5082,6 +5083,14 @@ internal static partial class PpjAuthoredPresentationCompiler
             if (skewDegrees <= -90 || skewDegrees >= 90)
                 throw new CodecException("invalid_presentation_effects", "Text shadow horizontal skew must be strictly between -90 and 90 degrees.");
             output.SkewXAngle60000 = checked((int)Math.Round(skewDegrees * 60_000d, MidpointRounding.ToEven));
+        }
+        if (allowSkewY && value.TryGetProperty("skewY", out var skewY))
+        {
+            var skewDegrees = ChartEffectNumber(skewY.GetDouble(), -90, 90);
+            var rounded = checked((int)Math.Round(skewDegrees * 60_000d, MidpointRounding.ToEven));
+            if (rounded <= -5_400_000 || rounded >= 5_400_000)
+                throw new CodecException("invalid_presentation_effects", "Text shadow vertical skew must be strictly between -90 and 90 degrees after native rounding.");
+            output.SkewYAngle60000 = rounded;
         }
         return output;
     }
