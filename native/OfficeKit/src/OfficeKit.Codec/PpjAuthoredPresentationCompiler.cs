@@ -5210,6 +5210,8 @@ internal static partial class PpjAuthoredPresentationCompiler
                 MidpointRounding.ToEven));
         if (value.TryGetProperty("alignment", out var alignment))
             output.Alignment = alignment.GetString()!;
+        if (value.TryGetProperty("rotateWithShape", out var rotateWithShape))
+            output.RotateWithShape = rotateWithShape.GetBoolean();
         return output;
     }
 

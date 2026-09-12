@@ -442,9 +442,6 @@ internal static class PptxTextCodec
 
     private static bool IsSafeDirectRunReflection(PresentationReflection reflection)
     {
-        if (reflection.HasRotateWithShape)
-            return false;
-
         var fullSpan = (!reflection.HasStartPositionThousandthPercent || reflection.StartPositionThousandthPercent == 0) &&
                        (!reflection.HasEndPositionThousandthPercent || reflection.EndPositionThousandthPercent == 100_000);
         if (fullSpan)
@@ -466,11 +463,19 @@ internal static class PptxTextCodec
                                                         reflection.HasScaleYThousandthPercent ||
                                                         reflection.HasSkewXAngle60000 ||
                                                         reflection.HasSkewYAngle60000);
+            var hasUnsupportedRotateWithShapeCombination = reflection.HasRotateWithShape &&
+                                                            (reflection.HasFadeDirectionAngle60000 ||
+                                                             reflection.HasScaleXThousandthPercent ||
+                                                             reflection.HasScaleYThousandthPercent ||
+                                                             reflection.HasSkewXAngle60000 ||
+                                                             reflection.HasSkewYAngle60000 ||
+                                                             reflection.HasAlignment);
             return !(reflection.HasFadeDirectionAngle60000 && reflection.HasScaleXThousandthPercent) &&
                    !hasUnsupportedScaleYCombination &&
                    !hasUnsupportedSkewXCombination &&
                    !hasUnsupportedSkewYCombination &&
-                   !hasUnsupportedAlignmentCombination;
+                   !hasUnsupportedAlignmentCombination &&
+                   !hasUnsupportedRotateWithShapeCombination;
         }
 
         return !reflection.HasAlignment &&
@@ -478,6 +483,7 @@ internal static class PptxTextCodec
                !reflection.HasScaleYThousandthPercent &&
                !reflection.HasSkewXAngle60000 &&
                !reflection.HasSkewYAngle60000 &&
+               !reflection.HasRotateWithShape &&
                (!reflection.HasStartPositionThousandthPercent || reflection.StartPositionThousandthPercent == 0 ||
                 !reflection.HasEndPositionThousandthPercent || reflection.EndPositionThousandthPercent == 100_000) &&
                !reflection.HasFadeDirectionAngle60000;

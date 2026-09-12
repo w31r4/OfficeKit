@@ -515,6 +515,16 @@ allowed values are `tl`, `t`, `tr`, `l`, `ctr`, `r`, `bl`, `b`, and `br`.
 Unsupported transform or effect-list topologies remain source-owned; this field
 does not claim host reflection rendering.
 
+For an imported direct rich-text run, `run.style.reflection.rotateWithShape` is
+exposed as `textReflectionRotateWithShape` only when the direct `a:reflection`
+has full-span positions, one explicit canonical `rotWithShape` token (`0` or
+`1`), and no fade, scale, skew, or alignment transform. A source-bound edit
+token-splices only `reflection/@rotWithShape` in that run's owning SlidePart,
+keeps all other effects and package parts byte-stable, and reprojects the
+boolean value. Explicit `false` remains a leaf; omission is not synthesized.
+Unsupported transform or effect-list topologies remain source-owned; this field
+does not claim host reflection rendering.
+
 Use `defaultText.shadow` for a direct paragraph outer shadow. Color is required;
 `opacity`, `blur`, `distance`, `angle`, `alignment`, `rotateWithShape`, `scaleX`,
 `scaleY`, `skewX` and `skewY` are optional. Remove an optional field to clear its

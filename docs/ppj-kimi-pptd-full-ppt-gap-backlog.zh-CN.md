@@ -858,6 +858,15 @@ fade、scale、skew 或 `rotateWithShape` 时才投影；编辑只替换所属 S
 `b` → `tr`、Open XML 校验和只改 slide part；其它 transform、可变端点、异常 token
 和复杂 effect graph 继续 source-owned。本轮不宣称 PowerPoint 宿主反射显示。
 
+**直接 rich-text run 反射 rotateWithShape 增量（2026-09-12）：** 直接
+`text.paragraphs[].runs[].style.reflection.rotateWithShape` 已接通
+`textReflectionRotateWithShape` native leaf。只有 full-span 位置和单一规范
+`rotWithShape`（`0`/`1`）且没有 fade、scale、skew 或 alignment 时才投影；编辑只替换
+所属 SlidePart 的 `reflection/@rotWithShape`，保留其它效果、run 拓扑和非目标 ZIP，
+二次投影恢复显式布尔值（包括 `false`）。`PpjSourceBoundTextReflectionRotateWithShapeEditsCanonicalTokenAndReprojects`
+覆盖 `1` → `0`、Open XML 校验和只改 slide part；其它 transform、可变端点、异常 token
+和复杂 effect graph 继续 source-owned。本轮不宣称 PowerPoint 宿主反射显示。
+
 **段落默认文字内阴影增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.defaultText.innerShadow` 支持赋值、删除、恢复，
 以及仅含内阴影的包装删除。color 必填；blur 0–1000pt、distance 0–100000pt、

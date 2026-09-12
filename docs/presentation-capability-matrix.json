@@ -15,7 +15,7 @@
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
     "authoredCompilerBoundaries": 81,
-    "nativeLeafKinds": 301,
+    "nativeLeafKinds": 302,
     "helpApis": 151,
     "hostOnlyApis": 13
   },
@@ -2458,6 +2458,14 @@
       "ppjLocation": "run.style.reflection.alignment",
       "surface": "native-leaf",
       "boundary": "Direct imported rich-text run reflection alignment; the run a:rPr effect list must use a full-span reflection with one explicit canonical algn and no fade, scale, skew, or rotate-with-shape transform."
+    },
+    {
+      "name": "textReflectionRotateWithShape",
+      "valueType": "boolean",
+      "unit": "boolean",
+      "ppjLocation": "run.style.reflection.rotateWithShape",
+      "surface": "native-leaf",
+      "boundary": "Direct imported rich-text run reflection rotWithShape flag; the run a:rPr effect list must use a full-span reflection with one explicit canonical 0/1 rotWithShape token and no fade, scale, skew, or alignment transform."
     },
     {
       "name": "textDefaultReflectionDirectionDegrees",

@@ -64,7 +64,7 @@ internal static class PpjNativeLeafProjection
     private static readonly HashSet<string> BooleanKinds = new(StringComparer.Ordinal)
     {
         "textBodyColumnDirection", "textBodyUpright", "textBodyAnchorCenter", "textBodyForceAntiAlias", "textBodySpaceFirstLastParagraph", "textBodyCompatibleLineSpacing", "textBodyFromWordArt", "tableBandedRows", "tableBandedColumns", "tableFirstColumnEmphasis", "tableLastColumnEmphasis", "tableLastRow", "fontBold", "fontItalic", "flipHorizontal", "flipVertical", "customGeometryPathFill", "customGeometryPathStroke", "customGeometryPathExtrusionAllowed",
-        "textDefaultShadowRotateWithShape", "textDefaultReflectionRotateWithShape", "shadowRotateWithShape", "imageShadowRotateWithShape",
+        "textDefaultShadowRotateWithShape", "textDefaultReflectionRotateWithShape", "textReflectionRotateWithShape", "shadowRotateWithShape", "imageShadowRotateWithShape",
     };
 
     private static readonly HashSet<string> IntegerKinds = new(StringComparer.Ordinal)
@@ -1745,6 +1745,15 @@ internal static class PpjNativeLeafProjection
             !reflection.HasRotateWithShape)
             add("textReflectionAlignment", reflection.Alignment,
                 JsonValue.Create(reflection.Alignment), runIndex, textIndex);
+        if (reflection.HasRotateWithShape &&
+            !reflection.HasFadeDirectionAngle60000 &&
+            !reflection.HasScaleXThousandthPercent &&
+            !reflection.HasScaleYThousandthPercent &&
+            !reflection.HasSkewXAngle60000 &&
+            !reflection.HasSkewYAngle60000 &&
+            !reflection.HasAlignment)
+            add("textReflectionRotateWithShape", reflection.RotateWithShape ? "1" : "0",
+                JsonValue.Create(reflection.RotateWithShape), runIndex, textIndex);
     }
 
     private static void DescribeSoftEdge(

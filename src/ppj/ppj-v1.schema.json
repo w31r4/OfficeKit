@@ -2261,6 +2261,7 @@
             "textReflectionSkewX",
             "textReflectionSkewY",
             "textReflectionAlignment",
+            "textReflectionRotateWithShape",
             "textDefaultReflectionDirectionDegrees",
             "textDefaultReflectionFadeAngleDegrees",
             "textDefaultReflectionScaleX",
@@ -2999,6 +3000,10 @@
             "br"
           ],
           "description": "Reflection rectangle alignment token."
+        },
+        "rotateWithShape": {
+          "type": "boolean",
+          "description": "Whether the reflection rotates with its shape; explicit false differs from omission."
         },
         "startPosition": {
           "type": "number",
