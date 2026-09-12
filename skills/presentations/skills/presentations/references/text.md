@@ -525,6 +525,17 @@ boolean value. Explicit `false` remains a leaf; omission is not synthesized.
 Unsupported transform or effect-list topologies remain source-owned; this field
 does not claim host reflection rendering.
 
+For an imported direct rich-text run, `run.style.shadow.blur` is exposed as
+`textShadowBlurRadiusEmu` only for one direct `a:outerShdw` with an existing
+canonical non-negative `blurRad`, one direct RGB or theme color child, no
+transform attributes and no sibling effects or unsupported descendants. A
+source-bound edit token-splices only `outerShdw/@blurRad` in that run's owning
+SlidePart, keeps distance, direction, color, opacity, other effects, run
+topology and non-target package parts byte-stable, and reprojects the point
+value. Missing/invalid blur, transform attributes, sibling effects and
+malformed graphs remain source-owned; this field does not claim host shadow
+rendering.
+
 Use `defaultText.shadow` for a direct paragraph outer shadow. Color is required;
 `opacity`, `blur`, `distance`, `angle`, `alignment`, `rotateWithShape`, `scaleX`,
 `scaleY`, `skewX` and `skewY` are optional. Remove an optional field to clear its

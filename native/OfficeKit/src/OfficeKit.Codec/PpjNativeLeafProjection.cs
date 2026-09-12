@@ -74,7 +74,7 @@ internal static class PpjNativeLeafProjection
         "textBodyInsetRightEmu", "textBodyInsetBottomEmu", "textBodyColumnCount", "textBodyColumnGapEmu", "tableHeaderRows",
         "shape3dSceneCameraZoomThousandthPercent", "shape3dSceneCameraFov60000", "shape3dSceneCameraRotationLatitude60000", "shape3dSceneCameraRotationLongitude60000", "shape3dSceneCameraRotationRevolution60000", "shape3dSceneLightRigRotationLatitude60000", "shape3dSceneLightRigRotationLongitude60000", "shape3dSceneLightRigRotationRevolution60000", "shape3dSceneBackdropAnchorXEmu", "shape3dSceneBackdropAnchorYEmu", "shape3dSceneBackdropAnchorZEmu", "shape3dSceneBackdropNormalDxEmu", "shape3dSceneBackdropNormalDyEmu", "shape3dSceneBackdropNormalDzEmu", "shape3dSceneBackdropUpDxEmu", "shape3dSceneBackdropUpDyEmu", "shape3dSceneBackdropUpDzEmu",
         "fillOpacityThousandthPercent", "shadowOpacityThousandthPercent", "imageShadowBlurRadiusEmu", "imageShadowOpacityThousandthPercent", "imageShadowDistanceEmu", "shadowBlurRadiusEmu", "shadowDistanceEmu", "shapeGlowRadiusEmu", "shapeGlowOpacityThousandthPercent", "imageGlowRadiusEmu", "imageGlowOpacityThousandthPercent", "shapeInnerShadowBlurRadiusEmu", "shapeInnerShadowDistanceEmu", "shapeInnerShadowOpacityThousandthPercent", "imageInnerShadowBlurRadiusEmu", "imageInnerShadowDistanceEmu", "imageInnerShadowOpacityThousandthPercent", "shapeReflectionBlurRadiusEmu", "shapeReflectionStartOpacityThousandthPercent", "shapeReflectionEndOpacityThousandthPercent", "shapeReflectionDistanceEmu", "imageReflectionBlurRadiusEmu", "imageReflectionStartOpacityThousandthPercent", "imageReflectionEndOpacityThousandthPercent", "imageReflectionDistanceEmu", "shapeSoftEdgeRadiusEmu", "imageSoftEdgeRadiusEmu", "textGlowRadiusEmu", "textGlowOpacityThousandthPercent", "textDefaultGlowOpacityThousandthPercent",
-        "textInnerShadowBlurRadiusEmu", "textInnerShadowDistanceEmu", "textInnerShadowOpacityThousandthPercent", "textDefaultInnerShadowBlurRadiusEmu", "textDefaultInnerShadowDistanceEmu", "textDefaultInnerShadowDirectionDegrees", "textDefaultInnerShadowOpacityThousandthPercent",
+        "textInnerShadowBlurRadiusEmu", "textInnerShadowDistanceEmu", "textInnerShadowOpacityThousandthPercent", "textShadowBlurRadiusEmu", "textDefaultInnerShadowBlurRadiusEmu", "textDefaultInnerShadowDistanceEmu", "textDefaultInnerShadowDirectionDegrees", "textDefaultInnerShadowOpacityThousandthPercent",
         "textReflectionBlurRadiusEmu", "textDefaultReflectionBlurRadiusEmu", "textReflectionStartOpacityThousandthPercent", "textDefaultReflectionStartOpacityThousandthPercent", "textReflectionEndOpacityThousandthPercent", "textDefaultReflectionEndOpacityThousandthPercent", "textReflectionDistanceEmu", "textDefaultReflectionDistanceEmu", "textDefaultReflectionDirectionDegrees", "textDefaultReflectionFadeAngleDegrees", "textSoftEdgeRadiusEmu", "textDefaultSoftEdgeRadiusEmu", "textDefaultGlowRadiusEmu", "textDefaultShadowBlurRadiusEmu", "textDefaultShadowDistanceEmu", "textDefaultShadowDirectionDegrees", "textDefaultShadowOpacityThousandthPercent",
         "imageOpacityThousandthPercent", "lineOpacityThousandthPercent", "lineWidthEmu", "leftEmu", "topEmu",
         "widthEmu", "heightEmu", "childLeftEmu", "childTopEmu",
@@ -1570,6 +1570,7 @@ internal static class PpjNativeLeafProjection
                 if (run.ContentCase == PresentationTextRun.ContentOneofCase.Text)
                 {
                     add("text", run.Text, JsonValue.Create(run.Text), 0, textLeafIndex);
+                    DescribeShadow(run, runStyleIndex, textLeafIndex, add);
                     DescribeGlow(run, runStyleIndex, textLeafIndex, add);
                     DescribeInnerShadow(run, runStyleIndex, textLeafIndex, add);
                     DescribeReflection(run, runStyleIndex, textLeafIndex, add);
@@ -1616,6 +1617,24 @@ internal static class PpjNativeLeafProjection
             add("fontHighlightRgb", run.HighlightRgb.ToUpperInvariant(), JsonValue.Create($"#{run.HighlightRgb.ToLowerInvariant()}"), index, 0);
         else if (run.HighlightCase == PresentationTextRun.HighlightOneofCase.HighlightScheme)
             add("fontHighlightScheme", run.HighlightScheme, JsonValue.Create(run.HighlightScheme), index, 0);
+    }
+
+    private static void DescribeShadow(
+        PresentationTextRun run,
+        uint runIndex,
+        uint textIndex,
+        Action<string, string, JsonNode?, uint, uint> add)
+    {
+        if (run.Shadow is not { HasBlurRadiusEmu: true } shadow ||
+            shadow.BlurRadiusEmu < 0 || shadow.BlurRadiusEmu > 12_700_000 ||
+            shadow.HasScaleXThousandthPercent ||
+            shadow.HasScaleYThousandthPercent ||
+            shadow.HasSkewXAngle60000 ||
+            shadow.HasSkewYAngle60000 ||
+            shadow.HasAlignment ||
+            shadow.HasRotateWithShape)
+            return;
+        AddInteger(add, "textShadowBlurRadiusEmu", shadow.BlurRadiusEmu, runIndex, textIndex);
     }
 
     private static void DescribeGlow(

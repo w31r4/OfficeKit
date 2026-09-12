@@ -2128,6 +2128,12 @@
             "kind": { "enum": ["textDefaultInnerShadowDistanceEmu", "textDefaultReflectionDistanceEmu", "textDefaultShadowDistanceEmu"] },
             "value": { "type": "integer", "minimum": 0, "maximum": 1270000000 }
           }
+        },
+        {
+          "properties": {
+            "kind": { "enum": ["textShadowBlurRadiusEmu"] },
+            "value": { "type": "integer", "minimum": 0, "maximum": 12700000 }
+          }
         }
       ],
       "properties": {
@@ -2213,6 +2219,7 @@
             "fontHighlightRgb",
             "fontHighlightScheme",
             "textGlowRadiusEmu",
+            "textShadowBlurRadiusEmu",
             "textDefaultGlowRadiusEmu",
             "textDefaultGlowColorRgb",
             "textDefaultGlowColorScheme",
