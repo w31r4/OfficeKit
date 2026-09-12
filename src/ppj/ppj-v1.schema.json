@@ -2146,6 +2146,12 @@
             "kind": { "enum": ["textShadowOpacityThousandthPercent"] },
             "value": { "type": "integer", "minimum": 0, "maximum": 100000 }
           }
+        },
+        {
+          "properties": {
+            "kind": { "enum": ["textShadowAlignment"] },
+            "value": { "type": "string", "enum": ["tl", "t", "tr", "l", "ctr", "r", "bl", "b", "br"] }
+          }
         }
       ],
       "properties": {
@@ -2236,6 +2242,7 @@
             "textShadowDirectionDegrees",
             "textShadowColorRgb",
             "textShadowOpacityThousandthPercent",
+            "textShadowAlignment",
             "textDefaultGlowRadiusEmu",
             "textDefaultGlowColorRgb",
             "textDefaultGlowColorScheme",

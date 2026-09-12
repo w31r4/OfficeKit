@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-09-13
+goal: Enable source-bound editing of run.style.shadow.alignment without changing
+  other effect topology

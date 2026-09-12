@@ -578,6 +578,16 @@ transformed, sibling-effect, or compound shadow graphs remain source-owned;
 theme-colored shadows can expose this opacity leaf even though the RGB color
 leaf does not. This field does not claim host shadow rendering.
 
+For an imported direct rich-text run, `run.style.shadow.alignment` is exposed as
+`textShadowAlignment` only for the same strict direct `a:outerShdw` profile when
+its existing `algn` token is one of `tl`, `t`, `tr`, `l`, `ctr`, `r`, `bl`, `b` or
+`br`. The profile still requires bounded blur, distance or direction, one direct
+RGB or theme color child, and no transform, sibling effect or unknown descendant.
+A source-bound edit token-splices only `outerShdw/@algn` in the run's owning
+SlidePart, keeps the other shadow fields and non-target package parts byte-stable,
+and reprojects the edited token. Invalid or missing alignment and unsupported
+shadow graphs remain source-owned; this field does not claim host shadow rendering.
+
 Use `defaultText.shadow` for a direct paragraph outer shadow. Color is required;
 `opacity`, `blur`, `distance`, `angle`, `alignment`, `rotateWithShape`, `scaleX`,
 `scaleY`, `skewX` and `skewY` are optional. Remove an optional field to clear its

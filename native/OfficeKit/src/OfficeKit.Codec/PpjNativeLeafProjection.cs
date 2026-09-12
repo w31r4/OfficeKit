@@ -52,7 +52,7 @@ internal static class PpjNativeLeafProjection
         "textBodyVerticalOverflow", "textBodyHorizontalOverflow",
         "textBodyWarpPreset", "customGeometryGuideFormula", "customGeometryAdjustmentFormula", "textFieldType", "tableTextFieldType",
         "fontFamilyEastAsia", "fontFamilyComplexScript", "fontLanguage", "fontUnderline", "fontStrike", "fontColorScheme", "textGlowColorScheme", "textDefaultGlowColorScheme", "textInnerShadowColorScheme", "textDefaultInnerShadowColorScheme", "shapeGlowColorScheme", "imageGlowColorScheme", "shapeInnerShadowColorScheme", "imageInnerShadowColorScheme",
-        "fontCaps", "fontHighlightScheme", "fillScheme", "shadowAlignment", "imageShadowAlignment", "imageShadowColorScheme", "textDefaultShadowAlignment", "textDefaultReflectionAlignment", "textReflectionAlignment", "shadowColorScheme", "textDefaultShadowColorScheme", "lineScheme", "lineStyle", "lineCap", "lineJoin",
+        "fontCaps", "fontHighlightScheme", "fillScheme", "shadowAlignment", "imageShadowAlignment", "imageShadowColorScheme", "textShadowAlignment", "textDefaultShadowAlignment", "textDefaultReflectionAlignment", "textReflectionAlignment", "shadowColorScheme", "textDefaultShadowColorScheme", "lineScheme", "lineStyle", "lineCap", "lineJoin",
         "lineStartArrow", "lineEndArrow", "lineStartArrowWidth", "lineStartArrowLength", "lineEndArrowWidth", "lineEndArrowLength", "imageMaskPreset", "shape3dPresetMaterial", "shape3dBevelTopPreset", "shape3dBevelBottomPreset", "shape3dSceneCameraPreset", "shape3dSceneLightRigPreset", "shape3dSceneLightRigDirection", "shape3dContourColorScheme", "shape3dExtrusionColorScheme", "chartDataCategory",
     };
 
@@ -1634,7 +1634,6 @@ internal static class PpjNativeLeafProjection
             shadow.HasScaleYThousandthPercent ||
             shadow.HasSkewXAngle60000 ||
             shadow.HasSkewYAngle60000 ||
-            shadow.HasAlignment ||
             shadow.HasRotateWithShape)
             return;
         if (shadow.HasBlurRadiusEmu)
@@ -1650,6 +1649,9 @@ internal static class PpjNativeLeafProjection
         if (shadow.HasOpacityThousandthPercent)
             AddInteger(add, "textShadowOpacityThousandthPercent",
                 shadow.OpacityThousandthPercent, runIndex, textIndex);
+        if (shadow.HasAlignment)
+            add("textShadowAlignment", shadow.Alignment,
+                JsonValue.Create(shadow.Alignment), runIndex, textIndex);
     }
 
     private static void DescribeGlow(
