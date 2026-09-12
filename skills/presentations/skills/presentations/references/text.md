@@ -598,6 +598,16 @@ shadow fields and non-target package parts, and reprojects the ratio at 0.00001
 precision. Missing or malformed `sx` and unsupported shadow graphs remain
 source-owned; this field does not claim host shadow rendering.
 
+For an imported direct rich-text run, `run.style.shadow.scaleY` is exposed as
+`textShadowScaleY` for the same strict direct `a:outerShdw` profile when its
+existing signed `sy` token is present. The profile keeps bounded blur, distance
+or direction, one direct RGB or theme color child, and rejects `sx`, `kx`, `ky`,
+`rotWithShape`, sibling effects, and unknown descendants. A source-bound edit
+token-splices only `outerShdw/@sy` in the owning SlidePart, preserves the other
+shadow fields and non-target package parts, and reprojects the ratio at 0.00001
+precision. Missing or malformed `sy` and unsupported shadow graphs remain
+source-owned; this field does not claim host shadow rendering.
+
 Use `defaultText.shadow` for a direct paragraph outer shadow. Color is required;
 `opacity`, `blur`, `distance`, `angle`, `alignment`, `rotateWithShape`, `scaleX`,
 `scaleY`, `skewX` and `skewY` are optional. Remove an optional field to clear its

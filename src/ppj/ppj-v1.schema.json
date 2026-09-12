@@ -2149,6 +2149,12 @@
         },
         {
           "properties": {
+            "kind": { "enum": ["textShadowScaleY"] },
+            "value": { "type": "number", "minimum": -21474.83648, "maximum": 21474.83647 }
+          }
+        },
+        {
+          "properties": {
             "kind": { "enum": ["textShadowOpacityThousandthPercent"] },
             "value": { "type": "integer", "minimum": 0, "maximum": 100000 }
           }
@@ -2247,6 +2253,7 @@
             "textShadowDistanceEmu",
             "textShadowDirectionDegrees",
             "textShadowScaleX",
+            "textShadowScaleY",
             "textShadowColorRgb",
             "textShadowOpacityThousandthPercent",
             "textShadowAlignment",
@@ -2904,6 +2911,12 @@
           "minimum": -21474.83648,
           "maximum": 21474.83647,
           "description": "Horizontal shadow scale ratio, 1 = original size; negative and zero retained, precision 0.00001."
+        },
+        "scaleY": {
+          "type": "number",
+          "minimum": -21474.83648,
+          "maximum": 21474.83647,
+          "description": "Vertical shadow scale ratio, 1 = original size; negative and zero retained, precision 0.00001."
         },
         "alignment": {
           "enum": [

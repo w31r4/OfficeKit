@@ -15,7 +15,7 @@
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
     "authoredCompilerBoundaries": 81,
-    "nativeLeafKinds": 309,
+    "nativeLeafKinds": 310,
     "helpApis": 151,
     "hostOnlyApis": 13
   },
@@ -2138,6 +2138,14 @@
       "ppjLocation": "run.style.shadow.scaleX",
       "surface": "native-leaf",
       "boundary": "Direct imported rich-text run outer-shadow horizontal scale; the run a:rPr effect list must use one strict direct outerShdw with an existing signed sx token, bounded geometry, one RGB/theme color child, and no sy/kx/ky/rotWithShape or sibling effects."
+    },
+    {
+      "name": "textShadowScaleY",
+      "valueType": "number",
+      "unit": "ratio",
+      "ppjLocation": "run.style.shadow.scaleY",
+      "surface": "native-leaf",
+      "boundary": "Direct imported rich-text run outer-shadow vertical scale; the run a:rPr effect list must use one strict direct outerShdw with an existing signed sy token, bounded geometry, one RGB/theme color child, and no sx/kx/ky/rotWithShape or sibling effects."
     },
     {
       "name": "textShadowColorRgb",

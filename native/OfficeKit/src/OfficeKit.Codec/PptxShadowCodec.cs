@@ -57,13 +57,24 @@ internal static class PptxShadowCodec
     }
 
     internal static bool IsSafeDirectTextRun(PresentationShadow shadow) =>
+        IsSafeDirectTextRun(shadow, allowScaleX: true, allowScaleY: false);
+
+    internal static bool IsSafeDirectTextRun(
+        PresentationShadow shadow,
+        bool allowScaleX,
+        bool allowScaleY) =>
         (shadow.HasBlurRadiusEmu || shadow.HasDistanceEmu || shadow.HasDirectionAngle60000) &&
         (!shadow.HasBlurRadiusEmu || shadow.BlurRadiusEmu >= 0 && shadow.BlurRadiusEmu <= 12_700_000) &&
         (!shadow.HasDistanceEmu || shadow.DistanceEmu >= 0 && shadow.DistanceEmu <= 1_270_000_000) &&
-        !shadow.HasScaleYThousandthPercent &&
+        (!shadow.HasScaleXThousandthPercent || allowScaleX) &&
+        (!shadow.HasScaleYThousandthPercent || allowScaleY) &&
         !shadow.HasSkewXAngle60000 &&
         !shadow.HasSkewYAngle60000 &&
         !shadow.HasRotateWithShape;
+
+    internal static bool IsSafeDirectTextRunWithSingleScale(PresentationShadow shadow) =>
+        IsSafeDirectTextRun(shadow, allowScaleX: true, allowScaleY: true) &&
+        !(shadow.HasScaleXThousandthPercent && shadow.HasScaleYThousandthPercent);
 
     // Effect-list owners such as text glow may need to prove an outer shadow
     // sibling without treating the whole list as a shadow-only graph. Keep

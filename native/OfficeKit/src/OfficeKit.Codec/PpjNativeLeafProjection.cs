@@ -133,6 +133,7 @@ internal static class PpjNativeLeafProjection
             ["shadowDirectionDegrees"] = 60_000,
             ["textShadowDirectionDegrees"] = 60_000,
             ["textShadowScaleX"] = 100_000,
+            ["textShadowScaleY"] = 100_000,
             ["imageShadowDirectionDegrees"] = 60_000,
             ["textDefaultShadowScaleX"] = 100_000,
             ["textDefaultShadowScaleY"] = 100_000,
@@ -1627,7 +1628,21 @@ internal static class PpjNativeLeafProjection
         uint textIndex,
         Action<string, string, JsonNode?, uint, uint> add)
     {
-        if (run.Shadow is not { } shadow || !PptxShadowCodec.IsSafeDirectTextRun(shadow))
+        if (run.Shadow is not { } shadow || !PptxShadowCodec.IsSafeDirectTextRunWithSingleScale(shadow))
+            return;
+        if (shadow.HasScaleXThousandthPercent)
+        {
+            AddScaledText(add, "textShadowScaleX",
+                shadow.ScaleXThousandthPercent / 100_000d, 100_000, runIndex, textIndex);
+            return;
+        }
+        if (shadow.HasScaleYThousandthPercent)
+        {
+            AddScaledText(add, "textShadowScaleY",
+                shadow.ScaleYThousandthPercent / 100_000d, 100_000, runIndex, textIndex);
+            return;
+        }
+        if (!PptxShadowCodec.IsSafeDirectTextRun(shadow, allowScaleX: false, allowScaleY: false))
             return;
         if (shadow.HasBlurRadiusEmu)
             AddInteger(add, "textShadowBlurRadiusEmu", shadow.BlurRadiusEmu, runIndex, textIndex);
@@ -1636,9 +1651,6 @@ internal static class PpjNativeLeafProjection
         if (shadow.HasDirectionAngle60000)
             AddScaledText(add, "textShadowDirectionDegrees",
                 shadow.DirectionAngle60000 / 60_000d, 60_000, runIndex, textIndex);
-        if (shadow.HasScaleXThousandthPercent)
-            AddScaledText(add, "textShadowScaleX",
-                shadow.ScaleXThousandthPercent / 100_000d, 100_000, runIndex, textIndex);
         if (!string.IsNullOrEmpty(shadow.ColorRgb))
             add("textShadowColorRgb", shadow.ColorRgb.ToUpperInvariant(),
                 JsonValue.Create($"#{shadow.ColorRgb.ToLowerInvariant()}"), runIndex, textIndex);

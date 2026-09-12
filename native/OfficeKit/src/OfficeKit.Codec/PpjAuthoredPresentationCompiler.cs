@@ -2445,7 +2445,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         {
             run.GradientFill = BuildGradientFill(gradientPaint.Value, color => catalog.Color(color));
         }
-        if (shadow is { } shadowValue) run.Shadow = BuildShadow(shadowValue, catalog, allowScaleX: true);
+        if (shadow is { } shadowValue) run.Shadow = BuildShadow(shadowValue, catalog, allowScaleX: true, allowScaleY: true);
         if (glow is { } glowValue) run.Glow = BuildGlow(glowValue, catalog);
         var innerShadow = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "innerShadow");
         if (innerShadow is { } innerShadowValue) run.InnerShadow = BuildInnerShadow(innerShadowValue, catalog);
@@ -5037,7 +5037,11 @@ internal static partial class PpjAuthoredPresentationCompiler
         return output;
     }
 
-    private static PresentationShadow BuildShadow(JsonElement value, Catalog catalog, bool allowScaleX = false)
+    private static PresentationShadow BuildShadow(
+        JsonElement value,
+        Catalog catalog,
+        bool allowScaleX = false,
+        bool allowScaleY = false)
     {
         var colorValue = value.GetProperty("color");
         var schemeToken = colorValue.ValueKind == JsonValueKind.Object && colorValue.TryGetProperty("token", out var token) &&
@@ -5066,6 +5070,10 @@ internal static partial class PpjAuthoredPresentationCompiler
         if (allowScaleX && value.TryGetProperty("scaleX", out var scaleX))
             output.ScaleXThousandthPercent = checked((int)Math.Round(
                 ChartEffectNumber(scaleX.GetDouble(), int.MinValue / 100000d, int.MaxValue / 100000d) * 100000d,
+                MidpointRounding.ToEven));
+        if (allowScaleY && value.TryGetProperty("scaleY", out var scaleY))
+            output.ScaleYThousandthPercent = checked((int)Math.Round(
+                ChartEffectNumber(scaleY.GetDouble(), int.MinValue / 100000d, int.MaxValue / 100000d) * 100000d,
                 MidpointRounding.ToEven));
         return output;
     }

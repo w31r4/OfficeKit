@@ -3501,6 +3501,8 @@ internal static partial class PpjPresentationProjector
         var output = Shadow(shadow);
         if (shadow.HasScaleXThousandthPercent)
             output["scaleX"] = JsonValue.Create(shadow.ScaleXThousandthPercent / 100000d);
+        if (shadow.HasScaleYThousandthPercent)
+            output["scaleY"] = JsonValue.Create(shadow.ScaleYThousandthPercent / 100000d);
         return output;
     }
 
