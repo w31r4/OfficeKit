@@ -567,6 +567,17 @@ byte-stable, and reprojects the edited RGB color. Theme-colored, missing, malfor
 transformed, or compound shadow graphs remain source-owned; this field does not
 claim host shadow rendering.
 
+For an imported direct rich-text run, `run.style.shadow.opacity` is exposed as
+`textShadowOpacityThousandthPercent` only for the same strict direct
+`a:outerShdw` profile when its single direct RGB or theme color child contains
+one existing canonical `a:alpha/@val` from 0 through 100000. A source-bound edit
+token-splices only that alpha value in the run's owning SlidePart, keeps color,
+blur, distance, direction and the rest of the run topology byte-stable, and
+reprojects the ratio value. Missing or malformed alpha, missing geometry,
+transformed, sibling-effect, or compound shadow graphs remain source-owned;
+theme-colored shadows can expose this opacity leaf even though the RGB color
+leaf does not. This field does not claim host shadow rendering.
+
 Use `defaultText.shadow` for a direct paragraph outer shadow. Color is required;
 `opacity`, `blur`, `distance`, `angle`, `alignment`, `rotateWithShape`, `scaleX`,
 `scaleY`, `skewX` and `skewY` are optional. Remove an optional field to clear its

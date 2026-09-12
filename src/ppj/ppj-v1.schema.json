@@ -2140,6 +2140,12 @@
             "kind": { "enum": ["textShadowDirectionDegrees"] },
             "value": { "type": "number", "minimum": 0, "exclusiveMaximum": 360 }
           }
+        },
+        {
+          "properties": {
+            "kind": { "enum": ["textShadowOpacityThousandthPercent"] },
+            "value": { "type": "integer", "minimum": 0, "maximum": 100000 }
+          }
         }
       ],
       "properties": {
@@ -2229,6 +2235,7 @@
             "textShadowDistanceEmu",
             "textShadowDirectionDegrees",
             "textShadowColorRgb",
+            "textShadowOpacityThousandthPercent",
             "textDefaultGlowRadiusEmu",
             "textDefaultGlowColorRgb",
             "textDefaultGlowColorScheme",

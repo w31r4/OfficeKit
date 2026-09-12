@@ -15,7 +15,7 @@
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
     "authoredCompilerBoundaries": 81,
-    "nativeLeafKinds": 306,
+    "nativeLeafKinds": 307,
     "helpApis": 151,
     "hostOnlyApis": 13
   },
@@ -2138,6 +2138,14 @@
       "ppjLocation": "run.style.shadow.color",
       "surface": "native-leaf",
       "boundary": "Direct imported rich-text run outer-shadow RGB color; the run a:rPr effect list must use one strict direct outerShdw with one direct srgbClr and no shadow transforms or sibling effects."
+    },
+    {
+      "name": "textShadowOpacityThousandthPercent",
+      "valueType": "number",
+      "unit": "thousandth-percent",
+      "ppjLocation": "run.style.shadow.opacity",
+      "surface": "native-leaf",
+      "boundary": "Direct imported rich-text run outer-shadow alpha; the run a:rPr effect list must use one strict direct outerShdw with an existing bounded a:alpha/@val under its single direct RGB or theme color child and no shadow transforms or sibling effects."
     },
     {
       "name": "textDefaultShadowBlurRadiusEmu",
