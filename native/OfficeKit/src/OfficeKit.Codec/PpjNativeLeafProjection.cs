@@ -64,7 +64,7 @@ internal static class PpjNativeLeafProjection
     private static readonly HashSet<string> BooleanKinds = new(StringComparer.Ordinal)
     {
         "textBodyColumnDirection", "textBodyUpright", "textBodyAnchorCenter", "textBodyForceAntiAlias", "textBodySpaceFirstLastParagraph", "textBodyCompatibleLineSpacing", "textBodyFromWordArt", "tableBandedRows", "tableBandedColumns", "tableFirstColumnEmphasis", "tableLastColumnEmphasis", "tableLastRow", "fontBold", "fontItalic", "flipHorizontal", "flipVertical", "customGeometryPathFill", "customGeometryPathStroke", "customGeometryPathExtrusionAllowed",
-        "textDefaultShadowRotateWithShape", "textDefaultReflectionRotateWithShape", "textReflectionRotateWithShape", "shadowRotateWithShape", "imageShadowRotateWithShape",
+        "textDefaultShadowRotateWithShape", "textDefaultReflectionRotateWithShape", "textReflectionRotateWithShape", "textShadowRotateWithShape", "shadowRotateWithShape", "imageShadowRotateWithShape",
     };
 
     private static readonly HashSet<string> IntegerKinds = new(StringComparer.Ordinal)
@@ -1631,7 +1631,8 @@ internal static class PpjNativeLeafProjection
         Action<string, string, JsonNode?, uint, uint> add)
     {
         if (run.Shadow is not { } shadow || !PptxShadowCodec.IsSafeDirectTextRunWithSingleTransform(
-                shadow, allowScaleX: true, allowScaleY: true, allowSkewX: true, allowSkewY: true))
+                shadow, allowScaleX: true, allowScaleY: true, allowSkewX: true, allowSkewY: true,
+                allowRotateWithShape: true))
             return;
         if (shadow.HasScaleXThousandthPercent)
         {
@@ -1655,6 +1656,11 @@ internal static class PpjNativeLeafProjection
         {
             AddScaledText(add, "textShadowSkewY",
                 shadow.SkewYAngle60000 / 60_000d, 60_000, runIndex, textIndex);
+            return;
+        }
+        if (shadow.HasRotateWithShape)
+        {
+            AddBoolean(add, "textShadowRotateWithShape", shadow.RotateWithShape, runIndex, textIndex);
             return;
         }
         if (!PptxShadowCodec.IsSafeDirectTextRun(shadow, allowScaleX: false, allowScaleY: false))
@@ -1856,8 +1862,8 @@ internal static class PpjNativeLeafProjection
         add(kind, raw.ToStringInvariant(), JsonValue.Create(value), nativeIndex, textIndex);
     }
 
-    private static void AddBoolean(Action<string, string, JsonNode?, uint, uint> add, string kind, bool value, uint nativeIndex = 0) =>
-        add(kind, value ? "1" : "0", JsonValue.Create(value), nativeIndex, 0);
+    private static void AddBoolean(Action<string, string, JsonNode?, uint, uint> add, string kind, bool value, uint nativeIndex = 0, uint textIndex = 0) =>
+        add(kind, value ? "1" : "0", JsonValue.Create(value), nativeIndex, textIndex);
 
     private static bool TryLiteralAdjustment(string? formula, out long value)
     {

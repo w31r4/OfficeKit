@@ -64,7 +64,8 @@ internal static class PptxShadowCodec
         bool allowScaleX,
         bool allowScaleY,
         bool allowSkewX = false,
-        bool allowSkewY = false) =>
+        bool allowSkewY = false,
+        bool allowRotateWithShape = false) =>
         (shadow.HasBlurRadiusEmu || shadow.HasDistanceEmu || shadow.HasDirectionAngle60000) &&
         (!shadow.HasBlurRadiusEmu || shadow.BlurRadiusEmu >= 0 && shadow.BlurRadiusEmu <= 12_700_000) &&
         (!shadow.HasDistanceEmu || shadow.DistanceEmu >= 0 && shadow.DistanceEmu <= 1_270_000_000) &&
@@ -72,22 +73,34 @@ internal static class PptxShadowCodec
         (!shadow.HasScaleYThousandthPercent || allowScaleY) &&
         (!shadow.HasSkewXAngle60000 || allowSkewX) &&
         (!shadow.HasSkewYAngle60000 || allowSkewY) &&
-        !shadow.HasRotateWithShape;
+        (!shadow.HasRotateWithShape || allowRotateWithShape);
 
     internal static bool IsSafeDirectTextRunWithSingleTransform(
         PresentationShadow shadow,
         bool allowScaleX = true,
         bool allowScaleY = true,
         bool allowSkewX = true,
-        bool allowSkewY = true) =>
-        IsSafeDirectTextRun(shadow, allowScaleX, allowScaleY, allowSkewX, allowSkewY) &&
+        bool allowSkewY = true,
+        bool allowRotateWithShape = false) =>
+        IsSafeDirectTextRun(shadow, allowScaleX, allowScaleY, allowSkewX, allowSkewY, allowRotateWithShape) &&
         new[]
         {
             shadow.HasScaleXThousandthPercent,
             shadow.HasScaleYThousandthPercent,
             shadow.HasSkewXAngle60000,
             shadow.HasSkewYAngle60000,
+            shadow.HasRotateWithShape,
         }.Count(value => value) <= 1;
+
+    internal static bool HasCanonicalRotateWithShapeToken(OpenXmlCompositeElement properties)
+    {
+        var outer = properties.Elements<A.EffectList>().SingleOrDefault()?.FirstChild as A.OuterShadow;
+        if (outer is null) return false;
+        var attributes = outer.GetAttributes()
+            .Where(attribute => attribute.LocalName == "rotWithShape")
+            .ToArray();
+        return attributes.Length == 1 && attributes[0].NamespaceUri.Length == 0 && (attributes[0].Value is "0" or "1");
+    }
 
     internal static bool IsSafeDirectTextRunWithSingleScale(PresentationShadow shadow) =>
         IsSafeDirectTextRunWithSingleTransform(shadow, allowScaleX: true, allowScaleY: true, allowSkewX: false, allowSkewY: false);

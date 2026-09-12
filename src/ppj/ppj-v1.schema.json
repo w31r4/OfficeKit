@@ -2167,6 +2167,12 @@
         },
         {
           "properties": {
+            "kind": { "enum": ["textShadowRotateWithShape"] },
+            "value": { "type": "boolean" }
+          }
+        },
+        {
+          "properties": {
             "kind": { "enum": ["textShadowOpacityThousandthPercent"] },
             "value": { "type": "integer", "minimum": 0, "maximum": 100000 }
           }
@@ -2268,6 +2274,7 @@
             "textShadowScaleY",
             "textShadowSkewX",
             "textShadowSkewY",
+            "textShadowRotateWithShape",
             "textShadowColorRgb",
             "textShadowOpacityThousandthPercent",
             "textShadowAlignment",

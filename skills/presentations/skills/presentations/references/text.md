@@ -630,6 +630,17 @@ reprojects the degree at 1/60000 precision. Missing or malformed `ky` and
 unsupported shadow graphs remain source-owned; this field does not claim host
 shadow rendering.
 
+For an imported direct rich-text run, `run.style.shadow.rotateWithShape` is
+exposed as `textShadowRotateWithShape` for the same strict direct
+`a:outerShdw` profile when its existing `rotWithShape` token is canonical `0`
+or `1`. The profile keeps bounded blur, distance or direction, one direct RGB
+or theme color child, and rejects `sx`, `sy`, `kx`, `ky`, sibling effects, and
+unknown descendants. A source-bound edit token-splices only
+`outerShdw/@rotWithShape` in the owning SlidePart, preserves the other shadow
+fields and non-target package parts, and reprojects the boolean; explicit
+`false` remains present. Missing, non-canonical, or unsupported shadow graphs
+remain source-owned; this field does not claim host shadow rendering.
+
 Use `defaultText.shadow` for a direct paragraph outer shadow. Color is required;
 `opacity`, `blur`, `distance`, `angle`, `alignment`, `rotateWithShape`, `scaleX`,
 `scaleY`, `skewX` and `skewY` are optional. Remove an optional field to clear its

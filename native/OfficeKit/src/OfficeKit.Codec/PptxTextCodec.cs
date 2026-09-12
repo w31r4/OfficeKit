@@ -426,8 +426,10 @@ internal static class PptxTextCodec
         }
         if (PptxShadowCodec.TryRead(properties, out var shadow, allowTransforms: true) &&
             shadow is not null &&
+            (!shadow.HasRotateWithShape || properties is not null && PptxShadowCodec.HasCanonicalRotateWithShapeToken(properties)) &&
             PptxShadowCodec.IsSafeDirectTextRunWithSingleTransform(
-                shadow, allowScaleX: true, allowScaleY: true, allowSkewX: true, allowSkewY: true))
+                shadow, allowScaleX: true, allowScaleY: true, allowSkewX: true, allowSkewY: true,
+                allowRotateWithShape: true))
             run.Shadow = shadow;
         if (PptxGlowCodec.TryRead(properties, out var glow) && glow is not null) run.Glow = glow;
         if (PptxInnerShadowCodec.TryRead(properties, out var innerShadow) && innerShadow is not null) run.InnerShadow = innerShadow;
