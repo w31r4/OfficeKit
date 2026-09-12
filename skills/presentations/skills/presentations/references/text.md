@@ -558,6 +558,15 @@ and reprojects the degree value. Missing/invalid direction, transform
 attributes, sibling effects and malformed graphs remain source-owned; this
 field does not claim host shadow rendering.
 
+For an imported direct rich-text run, `run.style.shadow.color` is exposed as
+`textShadowColorRgb` only for the same strict direct `a:outerShdw` profile when
+its single direct color child is `srgbClr` with a six-hex `val`. A source-bound
+edit token-splices only `outerShdw/srgbClr/@val` in that run's owning SlidePart,
+keeps blur, distance, direction, optional alpha and the rest of the run topology
+byte-stable, and reprojects the edited RGB color. Theme-colored, missing, malformed,
+transformed, or compound shadow graphs remain source-owned; this field does not
+claim host shadow rendering.
+
 Use `defaultText.shadow` for a direct paragraph outer shadow. Color is required;
 `opacity`, `blur`, `distance`, `angle`, `alignment`, `rotateWithShape`, `scaleX`,
 `scaleY`, `skewX` and `skewY` are optional. Remove an optional field to clear its

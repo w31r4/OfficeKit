@@ -58,7 +58,7 @@ internal static class PpjNativeLeafProjection
 
     private static readonly HashSet<string> RgbKinds = new(StringComparer.Ordinal)
     {
-        "paragraphBulletColorRgb", "fontColorRgb", "fontHighlightRgb", "fillRgb", "shadowColorRgb", "imageShadowColorRgb", "textDefaultShadowColorRgb", "textGlowColorRgb", "textDefaultGlowColorRgb", "textInnerShadowColorRgb", "textDefaultInnerShadowColorRgb", "shapeGlowColorRgb", "imageGlowColorRgb", "shapeInnerShadowColorRgb", "imageInnerShadowColorRgb", "lineRgb", "shape3dContourRgb", "shape3dExtrusionRgb",
+        "paragraphBulletColorRgb", "fontColorRgb", "fontHighlightRgb", "fillRgb", "shadowColorRgb", "imageShadowColorRgb", "textShadowColorRgb", "textDefaultShadowColorRgb", "textGlowColorRgb", "textDefaultGlowColorRgb", "textInnerShadowColorRgb", "textDefaultInnerShadowColorRgb", "shapeGlowColorRgb", "imageGlowColorRgb", "shapeInnerShadowColorRgb", "imageInnerShadowColorRgb", "lineRgb", "shape3dContourRgb", "shape3dExtrusionRgb",
     };
 
     private static readonly HashSet<string> BooleanKinds = new(StringComparer.Ordinal)
@@ -1644,6 +1644,9 @@ internal static class PpjNativeLeafProjection
         if (shadow.HasDirectionAngle60000)
             AddScaledText(add, "textShadowDirectionDegrees",
                 shadow.DirectionAngle60000 / 60_000d, 60_000, runIndex, textIndex);
+        if (!string.IsNullOrEmpty(shadow.ColorRgb))
+            add("textShadowColorRgb", shadow.ColorRgb.ToUpperInvariant(),
+                JsonValue.Create($"#{shadow.ColorRgb.ToLowerInvariant()}"), runIndex, textIndex);
     }
 
     private static void DescribeGlow(

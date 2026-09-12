@@ -901,6 +901,19 @@ ZIP 保留、二次投影，以及缺失/异常/超界/兄弟 effect 的 fail-cl
 90° → 120°、Open XML、SlidePart-only、非目标 ZIP 保留、stale/overflow 拒绝、
 二次投影和兄弟 effect fail-closed；本轮不宣称 PowerPoint 宿主阴影显示。
 
+**直接 rich-text run 外阴影 color 增量（2026-09-13）：** 直接
+`text.paragraphs[].runs[].style.shadow.color` 已接通
+`textShadowColorRgb` native leaf。只有同一严格 direct
+`a:rPr/a:effectLst/a:outerShdw` 拥有一个六位十六进制 `srgbClr/@val`，
+并且已有规范 blur/distance/direction、无 transform、兄弟 effect 或未知后代
+时才投影；编辑只替换所属 SlidePart 的
+`outerShdw/srgbClr/@val`，保留 blur、distance、direction、透明度、run 拓扑
+和非目标 ZIP，二次投影恢复新 color。最小回归
+`PpjSourceBoundTextShadowColorEditsDirectRunOwnerAndReprojects` 覆盖
+`#16324F` → `#A64B2A`、Open XML、SlidePart-only、非目标 ZIP 保留、
+stale/非法/主题色拒绝、二次投影和兄弟 effect fail-closed；本轮不宣称
+PowerPoint 宿主阴影显示。
+
 **段落默认文字内阴影增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.defaultText.innerShadow` 支持赋值、删除、恢复，
 以及仅含内阴影的包装删除。color 必填；blur 0–1000pt、distance 0–100000pt、

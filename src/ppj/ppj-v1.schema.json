@@ -2228,6 +2228,7 @@
             "textShadowBlurRadiusEmu",
             "textShadowDistanceEmu",
             "textShadowDirectionDegrees",
+            "textShadowColorRgb",
             "textDefaultGlowRadiusEmu",
             "textDefaultGlowColorRgb",
             "textDefaultGlowColorScheme",
