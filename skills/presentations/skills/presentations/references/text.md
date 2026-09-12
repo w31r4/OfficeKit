@@ -536,6 +536,17 @@ value. Missing/invalid blur, transform attributes, sibling effects and
 malformed graphs remain source-owned; this field does not claim host shadow
 rendering.
 
+For an imported direct rich-text run, `run.style.shadow.distance` is exposed as
+`textShadowDistanceEmu` only for one direct `a:outerShdw` with an existing
+canonical non-negative `dist` no greater than 1,270,000,000 EMU, one direct RGB
+or theme color child, no transform attributes and no sibling effects or
+unsupported descendants. A source-bound edit token-splices only
+`outerShdw/@dist` in that run's owning SlidePart, keeps blur, direction, color,
+opacity, other effects, run topology and non-target package parts byte-stable,
+and reprojects the point value. Missing/invalid distance, transform attributes,
+sibling effects and malformed graphs remain source-owned; this field does not
+claim host shadow rendering.
+
 Use `defaultText.shadow` for a direct paragraph outer shadow. Color is required;
 `opacity`, `blur`, `distance`, `angle`, `alignment`, `rotateWithShape`, `scaleX`,
 `scaleY`, `skewX` and `skewY` are optional. Remove an optional field to clear its

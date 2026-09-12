@@ -74,7 +74,7 @@ internal static class PpjNativeLeafProjection
         "textBodyInsetRightEmu", "textBodyInsetBottomEmu", "textBodyColumnCount", "textBodyColumnGapEmu", "tableHeaderRows",
         "shape3dSceneCameraZoomThousandthPercent", "shape3dSceneCameraFov60000", "shape3dSceneCameraRotationLatitude60000", "shape3dSceneCameraRotationLongitude60000", "shape3dSceneCameraRotationRevolution60000", "shape3dSceneLightRigRotationLatitude60000", "shape3dSceneLightRigRotationLongitude60000", "shape3dSceneLightRigRotationRevolution60000", "shape3dSceneBackdropAnchorXEmu", "shape3dSceneBackdropAnchorYEmu", "shape3dSceneBackdropAnchorZEmu", "shape3dSceneBackdropNormalDxEmu", "shape3dSceneBackdropNormalDyEmu", "shape3dSceneBackdropNormalDzEmu", "shape3dSceneBackdropUpDxEmu", "shape3dSceneBackdropUpDyEmu", "shape3dSceneBackdropUpDzEmu",
         "fillOpacityThousandthPercent", "shadowOpacityThousandthPercent", "imageShadowBlurRadiusEmu", "imageShadowOpacityThousandthPercent", "imageShadowDistanceEmu", "shadowBlurRadiusEmu", "shadowDistanceEmu", "shapeGlowRadiusEmu", "shapeGlowOpacityThousandthPercent", "imageGlowRadiusEmu", "imageGlowOpacityThousandthPercent", "shapeInnerShadowBlurRadiusEmu", "shapeInnerShadowDistanceEmu", "shapeInnerShadowOpacityThousandthPercent", "imageInnerShadowBlurRadiusEmu", "imageInnerShadowDistanceEmu", "imageInnerShadowOpacityThousandthPercent", "shapeReflectionBlurRadiusEmu", "shapeReflectionStartOpacityThousandthPercent", "shapeReflectionEndOpacityThousandthPercent", "shapeReflectionDistanceEmu", "imageReflectionBlurRadiusEmu", "imageReflectionStartOpacityThousandthPercent", "imageReflectionEndOpacityThousandthPercent", "imageReflectionDistanceEmu", "shapeSoftEdgeRadiusEmu", "imageSoftEdgeRadiusEmu", "textGlowRadiusEmu", "textGlowOpacityThousandthPercent", "textDefaultGlowOpacityThousandthPercent",
-        "textInnerShadowBlurRadiusEmu", "textInnerShadowDistanceEmu", "textInnerShadowOpacityThousandthPercent", "textShadowBlurRadiusEmu", "textDefaultInnerShadowBlurRadiusEmu", "textDefaultInnerShadowDistanceEmu", "textDefaultInnerShadowDirectionDegrees", "textDefaultInnerShadowOpacityThousandthPercent",
+        "textInnerShadowBlurRadiusEmu", "textInnerShadowDistanceEmu", "textInnerShadowOpacityThousandthPercent", "textShadowBlurRadiusEmu", "textShadowDistanceEmu", "textDefaultInnerShadowBlurRadiusEmu", "textDefaultInnerShadowDistanceEmu", "textDefaultInnerShadowDirectionDegrees", "textDefaultInnerShadowOpacityThousandthPercent",
         "textReflectionBlurRadiusEmu", "textDefaultReflectionBlurRadiusEmu", "textReflectionStartOpacityThousandthPercent", "textDefaultReflectionStartOpacityThousandthPercent", "textReflectionEndOpacityThousandthPercent", "textDefaultReflectionEndOpacityThousandthPercent", "textReflectionDistanceEmu", "textDefaultReflectionDistanceEmu", "textDefaultReflectionDirectionDegrees", "textDefaultReflectionFadeAngleDegrees", "textSoftEdgeRadiusEmu", "textDefaultSoftEdgeRadiusEmu", "textDefaultGlowRadiusEmu", "textDefaultShadowBlurRadiusEmu", "textDefaultShadowDistanceEmu", "textDefaultShadowDirectionDegrees", "textDefaultShadowOpacityThousandthPercent",
         "imageOpacityThousandthPercent", "lineOpacityThousandthPercent", "lineWidthEmu", "leftEmu", "topEmu",
         "widthEmu", "heightEmu", "childLeftEmu", "childTopEmu",
@@ -1625,8 +1625,10 @@ internal static class PpjNativeLeafProjection
         uint textIndex,
         Action<string, string, JsonNode?, uint, uint> add)
     {
-        if (run.Shadow is not { HasBlurRadiusEmu: true } shadow ||
-            shadow.BlurRadiusEmu < 0 || shadow.BlurRadiusEmu > 12_700_000 ||
+        if (run.Shadow is not { } shadow ||
+            !shadow.HasBlurRadiusEmu && !shadow.HasDistanceEmu ||
+            shadow.HasBlurRadiusEmu && (shadow.BlurRadiusEmu < 0 || shadow.BlurRadiusEmu > 12_700_000) ||
+            shadow.HasDistanceEmu && (shadow.DistanceEmu < 0 || shadow.DistanceEmu > 1_270_000_000) ||
             shadow.HasScaleXThousandthPercent ||
             shadow.HasScaleYThousandthPercent ||
             shadow.HasSkewXAngle60000 ||
@@ -1634,7 +1636,10 @@ internal static class PpjNativeLeafProjection
             shadow.HasAlignment ||
             shadow.HasRotateWithShape)
             return;
-        AddInteger(add, "textShadowBlurRadiusEmu", shadow.BlurRadiusEmu, runIndex, textIndex);
+        if (shadow.HasBlurRadiusEmu)
+            AddInteger(add, "textShadowBlurRadiusEmu", shadow.BlurRadiusEmu, runIndex, textIndex);
+        if (shadow.HasDistanceEmu)
+            AddInteger(add, "textShadowDistanceEmu", shadow.DistanceEmu, runIndex, textIndex);
     }
 
     private static void DescribeGlow(
