@@ -2155,6 +2155,12 @@
         },
         {
           "properties": {
+            "kind": { "enum": ["textShadowSkewX"] },
+            "value": { "type": "number", "exclusiveMinimum": -90, "exclusiveMaximum": 90 }
+          }
+        },
+        {
+          "properties": {
             "kind": { "enum": ["textShadowOpacityThousandthPercent"] },
             "value": { "type": "integer", "minimum": 0, "maximum": 100000 }
           }
@@ -2254,6 +2260,7 @@
             "textShadowDirectionDegrees",
             "textShadowScaleX",
             "textShadowScaleY",
+            "textShadowSkewX",
             "textShadowColorRgb",
             "textShadowOpacityThousandthPercent",
             "textShadowAlignment",
@@ -2917,6 +2924,12 @@
           "minimum": -21474.83648,
           "maximum": 21474.83647,
           "description": "Vertical shadow scale ratio, 1 = original size; negative and zero retained, precision 0.00001."
+        },
+        "skewX": {
+          "type": "number",
+          "exclusiveMinimum": -90,
+          "exclusiveMaximum": 90,
+          "description": "Horizontal shadow skew in degrees; the native 1/60000-degree value must remain strictly between -90 and 90."
         },
         "alignment": {
           "enum": [

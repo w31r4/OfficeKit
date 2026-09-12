@@ -2445,7 +2445,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         {
             run.GradientFill = BuildGradientFill(gradientPaint.Value, color => catalog.Color(color));
         }
-        if (shadow is { } shadowValue) run.Shadow = BuildShadow(shadowValue, catalog, allowScaleX: true, allowScaleY: true);
+        if (shadow is { } shadowValue) run.Shadow = BuildShadow(shadowValue, catalog, allowScaleX: true, allowScaleY: true, allowSkewX: true);
         if (glow is { } glowValue) run.Glow = BuildGlow(glowValue, catalog);
         var innerShadow = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "innerShadow");
         if (innerShadow is { } innerShadowValue) run.InnerShadow = BuildInnerShadow(innerShadowValue, catalog);
@@ -5041,7 +5041,8 @@ internal static partial class PpjAuthoredPresentationCompiler
         JsonElement value,
         Catalog catalog,
         bool allowScaleX = false,
-        bool allowScaleY = false)
+        bool allowScaleY = false,
+        bool allowSkewX = false)
     {
         var colorValue = value.GetProperty("color");
         var schemeToken = colorValue.ValueKind == JsonValueKind.Object && colorValue.TryGetProperty("token", out var token) &&
@@ -5075,6 +5076,13 @@ internal static partial class PpjAuthoredPresentationCompiler
             output.ScaleYThousandthPercent = checked((int)Math.Round(
                 ChartEffectNumber(scaleY.GetDouble(), int.MinValue / 100000d, int.MaxValue / 100000d) * 100000d,
                 MidpointRounding.ToEven));
+        if (allowSkewX && value.TryGetProperty("skewX", out var skewX))
+        {
+            var skewDegrees = ChartEffectNumber(skewX.GetDouble(), -90, 90);
+            if (skewDegrees <= -90 || skewDegrees >= 90)
+                throw new CodecException("invalid_presentation_effects", "Text shadow horizontal skew must be strictly between -90 and 90 degrees.");
+            output.SkewXAngle60000 = checked((int)Math.Round(skewDegrees * 60_000d, MidpointRounding.ToEven));
+        }
         return output;
     }
 

@@ -134,6 +134,7 @@ internal static class PpjNativeLeafProjection
             ["textShadowDirectionDegrees"] = 60_000,
             ["textShadowScaleX"] = 100_000,
             ["textShadowScaleY"] = 100_000,
+            ["textShadowSkewX"] = 60_000,
             ["imageShadowDirectionDegrees"] = 60_000,
             ["textDefaultShadowScaleX"] = 100_000,
             ["textDefaultShadowScaleY"] = 100_000,
@@ -1628,7 +1629,8 @@ internal static class PpjNativeLeafProjection
         uint textIndex,
         Action<string, string, JsonNode?, uint, uint> add)
     {
-        if (run.Shadow is not { } shadow || !PptxShadowCodec.IsSafeDirectTextRunWithSingleScale(shadow))
+        if (run.Shadow is not { } shadow || !PptxShadowCodec.IsSafeDirectTextRunWithSingleTransform(
+                shadow, allowScaleX: true, allowScaleY: true, allowSkewX: true, allowSkewY: false))
             return;
         if (shadow.HasScaleXThousandthPercent)
         {
@@ -1640,6 +1642,12 @@ internal static class PpjNativeLeafProjection
         {
             AddScaledText(add, "textShadowScaleY",
                 shadow.ScaleYThousandthPercent / 100_000d, 100_000, runIndex, textIndex);
+            return;
+        }
+        if (shadow.HasSkewXAngle60000)
+        {
+            AddScaledText(add, "textShadowSkewX",
+                shadow.SkewXAngle60000 / 60_000d, 60_000, runIndex, textIndex);
             return;
         }
         if (!PptxShadowCodec.IsSafeDirectTextRun(shadow, allowScaleX: false, allowScaleY: false))

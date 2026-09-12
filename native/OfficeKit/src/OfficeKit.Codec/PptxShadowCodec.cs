@@ -57,24 +57,40 @@ internal static class PptxShadowCodec
     }
 
     internal static bool IsSafeDirectTextRun(PresentationShadow shadow) =>
-        IsSafeDirectTextRun(shadow, allowScaleX: true, allowScaleY: false);
+        IsSafeDirectTextRun(shadow, allowScaleX: true, allowScaleY: false, allowSkewX: false, allowSkewY: false);
 
     internal static bool IsSafeDirectTextRun(
         PresentationShadow shadow,
         bool allowScaleX,
-        bool allowScaleY) =>
+        bool allowScaleY,
+        bool allowSkewX = false,
+        bool allowSkewY = false) =>
         (shadow.HasBlurRadiusEmu || shadow.HasDistanceEmu || shadow.HasDirectionAngle60000) &&
         (!shadow.HasBlurRadiusEmu || shadow.BlurRadiusEmu >= 0 && shadow.BlurRadiusEmu <= 12_700_000) &&
         (!shadow.HasDistanceEmu || shadow.DistanceEmu >= 0 && shadow.DistanceEmu <= 1_270_000_000) &&
         (!shadow.HasScaleXThousandthPercent || allowScaleX) &&
         (!shadow.HasScaleYThousandthPercent || allowScaleY) &&
-        !shadow.HasSkewXAngle60000 &&
-        !shadow.HasSkewYAngle60000 &&
+        (!shadow.HasSkewXAngle60000 || allowSkewX) &&
+        (!shadow.HasSkewYAngle60000 || allowSkewY) &&
         !shadow.HasRotateWithShape;
 
+    internal static bool IsSafeDirectTextRunWithSingleTransform(
+        PresentationShadow shadow,
+        bool allowScaleX = true,
+        bool allowScaleY = true,
+        bool allowSkewX = true,
+        bool allowSkewY = true) =>
+        IsSafeDirectTextRun(shadow, allowScaleX, allowScaleY, allowSkewX, allowSkewY) &&
+        new[]
+        {
+            shadow.HasScaleXThousandthPercent,
+            shadow.HasScaleYThousandthPercent,
+            shadow.HasSkewXAngle60000,
+            shadow.HasSkewYAngle60000,
+        }.Count(value => value) <= 1;
+
     internal static bool IsSafeDirectTextRunWithSingleScale(PresentationShadow shadow) =>
-        IsSafeDirectTextRun(shadow, allowScaleX: true, allowScaleY: true) &&
-        !(shadow.HasScaleXThousandthPercent && shadow.HasScaleYThousandthPercent);
+        IsSafeDirectTextRunWithSingleTransform(shadow, allowScaleX: true, allowScaleY: true, allowSkewX: false, allowSkewY: false);
 
     // Effect-list owners such as text glow may need to prove an outer shadow
     // sibling without treating the whole list as a shadow-only graph. Keep
