@@ -3023,12 +3023,17 @@ internal static partial class PpjPresentationProjector
                             "text.paragraphs[].style.defaultText.shadow",
                             "text.paragraphs[].style.defaultText.softEdge",
                         ]));
-                        if (element.Shape.TextBody?.Paragraphs
-                                .SelectMany(paragraph => paragraph.Runs)
-                                .Any(run => run.ContentCase == PresentationTextRun.ContentOneofCase.Field &&
-                                    !PptxTextCodec.IsAutomaticFieldType(run.Field.Type)) == true)
+                        var staticFields = element.Shape.TextBody?.Paragraphs
+                            .SelectMany(paragraph => paragraph.Runs)
+                            .Where(run => run.ContentCase == PresentationTextRun.ContentOneofCase.Field &&
+                                !PptxTextCodec.IsAutomaticFieldType(run.Field.Type))
+                            .ToArray() ?? [];
+                        if (staticFields.Length > 0)
                         {
-                            output.Add(new("setTextField", ["text.paragraphs[].runs[].field.type"]));
+                            var fields = new List<string> { "text.paragraphs[].runs[].field.type" };
+                            if (staticFields.Any(run => PptxTextCodec.ValidFieldId(run.Field.Id)))
+                                fields.Add("text.paragraphs[].runs[].field.id");
+                            output.Add(new("setTextField", fields));
                         }
                         if (PptxBodyPropertiesCodec.SupportsBoundedDirectLayout(element.Shape.TextBody?.BodyProperties))
                         {

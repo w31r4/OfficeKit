@@ -14,8 +14,8 @@
     "schemaDefinitions": 201,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 81,
-    "nativeLeafKinds": 314,
+    "authoredCompilerBoundaries": 82,
+    "nativeLeafKinds": 315,
     "helpApis": 151,
     "hostOnlyApis": 13
   },
@@ -360,6 +360,13 @@
         "owner": "presentation-compiler",
         "status": "partial",
         "reason": "preview.text.field-type-unassessed",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "textFieldId": {
+        "schemaRef": "#/$defs/textField/properties/id",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.text.field-id-unassessed",
         "test": "test/ppj-preview-input-assessment.mjs"
       },
       "tableTextFieldType": {
@@ -1066,6 +1073,14 @@
       "visualStatus": "partial-or-opaque"
     },
     {
+      "feature": "source-bound direct text field identity",
+      "ppjPath": "pages[].elements[].text.paragraphs[].runs[].field.id",
+      "behavior": "partial",
+      "sourceBound": "Existing ordinary text/shape fields issue setTextField for a changed brace-wrapped UUID on a valid non-automatic direct DrawingML field. The source-bound edit patches only the target SlidePart a:fld/@id attribute and then reprojects the new ID with the same type, cached display text, automatic marker and inline topology.",
+      "reason": "The bounded leaf proves one existing valid ID, the field ordinal and the exact source element. Automatic fields, table-field identities, relationship graphs, cached-text or type changes in the same edit, field refresh/evaluation and host PowerPoint acceptance remain outside this profile.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
       "feature": "source-bound paragraph default scalars",
       "ppjPath": "pages[].elements[].text.paragraphs[].style.defaultText.bold, italic, size, fontFamily, fontFamilyEastAsia, fontFamilyComplexScript, language, kerning, letterSpacing, baseline, capitalization, strike, underline, highlight, color, gradient, glow, innerShadow, reflection, shadow (including scaleX/scaleY/skewX/skewY) and softEdge",
       "behavior": "partial",
@@ -1722,6 +1737,14 @@
       "ppjLocation": "text.paragraphs[].runs[].field.type",
       "surface": "native-leaf",
       "boundary": "Direct static DrawingML field type token; the field ID, cached text, automatic marker and inline topology remain source-bound, and recognized automatic field types stay source-owned."
+    },
+    {
+      "name": "textFieldId",
+      "valueType": "string",
+      "unit": "uuid",
+      "ppjLocation": "text.paragraphs[].runs[].field.id",
+      "surface": "native-leaf",
+      "boundary": "Direct static DrawingML field identity; one existing brace-wrapped UUID on a non-automatic direct text field. Type, cached text, automatic state, inline topology and field relationships remain source-bound."
     },
     {
       "name": "tableTextFieldType",

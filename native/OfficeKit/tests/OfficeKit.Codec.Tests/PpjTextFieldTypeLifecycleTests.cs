@@ -62,7 +62,9 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
 
         var identity = Project(source);
         identity["pages"]![0]!["elements"]![0]!["text"]!["paragraphs"]![0]!["runs"]![0]!["field"]!["id"] = "{22222222-3333-4444-8555-666666666666}";
-        Assert.False(Compile(identity, source, success: false).Ok);
+        var identityEdited = Compile(identity, source);
+        Assert.True(identityEdited.Ok, string.Join("\n", identityEdited.Diagnostics.Select(item => item.Code + ": " + item.Message)));
+        Assert.Equal(["ppt/slides/slide1.xml"], identityEdited.PresentationProgram.ChangedParts);
         Assert.Equal(originalSource, source);
     }
 
@@ -84,6 +86,8 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
         var fieldLeaf = table["nativeRef"]!["leaves"]!.AsArray()
             .Single(leaf => leaf!["kind"]!.GetValue<string>() == "tableTextFieldType")!.AsObject();
         Assert.Equal("customStatic", fieldLeaf["value"]!.GetValue<string>());
+        Assert.DoesNotContain(table["nativeRef"]!["leaves"]!.AsArray(),
+            leaf => leaf!["kind"]!.GetValue<string>() == "textFieldId");
         var capability = table["nativeRef"]!["capabilities"]!.AsArray()
             .Single(item => item!["operation"]!.GetValue<string>() == "setTextField");
         Assert.Contains("table.rows[].cells[].text.paragraphs[].runs[].field.type",

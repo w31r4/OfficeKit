@@ -1933,7 +1933,8 @@
           "items": {
             "enum": [
               "text",
-            "text.paragraphs[].runs[].field.type",
+              "text.paragraphs[].runs[].field.type",
+              "text.paragraphs[].runs[].field.id",
             "table.rows[].cells[].text.paragraphs[].runs[].field.type",
             "text.paragraphs[].style.alignment",
             "text.paragraphs[].style.level",
@@ -2192,6 +2193,7 @@
           "enum": [
             "text",
             "textFieldType",
+            "textFieldId",
             "tableTextFieldType",
             "tableCellText",
             "tableHeaderRows",
@@ -4397,7 +4399,8 @@
       "properties": {
         "id": {
           "type": "string",
-          "pattern": "^\\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\\}$"
+          "pattern": "^\\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\\}$",
+          "description": "Brace-wrapped DrawingML field identity. Imported non-automatic direct text fields support source-bound replacement of this token when type, cached text, automatic marker, inline topology, and field relationships remain unchanged; automatic and table-field identities remain source-owned."
         },
         "type": {
           "type": "string",

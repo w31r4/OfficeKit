@@ -50,7 +50,7 @@ internal static class PpjNativeLeafProjection
         "paragraphBulletFontFamily", "paragraphBulletColorScheme", "verticalAnchor",
         "textBodyWrap", "textBodyAutoFit", "textBodyVerticalText", "fontFamily",
         "textBodyVerticalOverflow", "textBodyHorizontalOverflow",
-        "textBodyWarpPreset", "customGeometryGuideFormula", "customGeometryAdjustmentFormula", "textFieldType", "tableTextFieldType",
+        "textBodyWarpPreset", "customGeometryGuideFormula", "customGeometryAdjustmentFormula", "textFieldType", "textFieldId", "tableTextFieldType",
         "fontFamilyEastAsia", "fontFamilyComplexScript", "fontLanguage", "fontUnderline", "fontStrike", "fontColorScheme", "textGlowColorScheme", "textDefaultGlowColorScheme", "textInnerShadowColorScheme", "textDefaultInnerShadowColorScheme", "shapeGlowColorScheme", "imageGlowColorScheme", "shapeInnerShadowColorScheme", "imageInnerShadowColorScheme",
         "fontCaps", "fontHighlightScheme", "fillScheme", "shadowAlignment", "imageShadowAlignment", "imageShadowColorScheme", "textShadowAlignment", "textShadowColorScheme", "textDefaultShadowAlignment", "textDefaultReflectionAlignment", "textReflectionAlignment", "shadowColorScheme", "textDefaultShadowColorScheme", "lineScheme", "lineStyle", "lineCap", "lineJoin",
         "lineStartArrow", "lineEndArrow", "lineStartArrowWidth", "lineStartArrowLength", "lineEndArrowWidth", "lineEndArrowLength", "imageMaskPreset", "shape3dPresetMaterial", "shape3dBevelTopPreset", "shape3dBevelBottomPreset", "shape3dSceneCameraPreset", "shape3dSceneLightRigPreset", "shape3dSceneLightRigDirection", "shape3dContourColorScheme", "shape3dExtrusionColorScheme", "chartDataCategory",
@@ -276,6 +276,13 @@ internal static class PpjNativeLeafProjection
             var token = RequireString(value, kind, path);
             if (!PptxTextCodec.ValidFieldType(token) || PptxTextCodec.IsAutomaticFieldType(token))
                 throw InvalidValue(kind, path, "a valid non-automatic presentation field type");
+            return token;
+        }
+        if (kind == "textFieldId")
+        {
+            var token = RequireString(value, kind, path);
+            if (!PptxTextCodec.ValidFieldId(token))
+                throw InvalidValue(kind, path, "a brace-wrapped UUID");
             return token;
         }
         if (kind == "chartDataCategory")
@@ -1589,7 +1596,11 @@ internal static class PpjNativeLeafProjection
                     // semantics; the ordinal still advances so a later
                     // static field is re-proven against the same a:fld.
                     if (!PptxTextCodec.IsAutomaticFieldType(run.Field.Type))
+                    {
+                        if (PptxTextCodec.ValidFieldId(run.Field.Id))
+                            add("textFieldId", run.Field.Id, JsonValue.Create(run.Field.Id), fieldIndex, 0);
                         add("textFieldType", run.Field.Type, JsonValue.Create(run.Field.Type), fieldIndex, 0);
+                    }
                     fieldIndex++;
                 }
                 DescribeRun(run, runStyleIndex, add);

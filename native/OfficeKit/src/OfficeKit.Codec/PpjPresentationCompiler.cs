@@ -5963,20 +5963,46 @@ internal static partial class PpjSourceBoundPresentationCompiler
                     }
                     else if (targetRun.ContentCase == PresentationTextRun.ContentOneofCase.Field)
                     {
-                        // Keep field identity, cached display, and automatic
-                        // evaluation source-owned. Static type replacement is
-                        // separately issued as a native a:fld/@type leaf.
-                        if (beforeRun.Field is null || afterRun.Field is null ||
-                            !string.Equals(beforeRun.Field.Id, afterRun.Field.Id, StringComparison.Ordinal) ||
-                            beforeRun.Field.Automatic != afterRun.Field.Automatic ||
-                            !string.Equals(targetRun.Field.Id, beforeRun.Field.Id, StringComparison.Ordinal) ||
-                            !string.Equals(targetRun.Field.Type, beforeRun.Field.Type, StringComparison.Ordinal))
+                        // Keep field topology, cached display, and automatic
+                        // evaluation source-owned. Static ID/type replacement
+                        // is separately issued as native a:fld leaves.
+                        var oldField = beforeRun.Field;
+                        var newField = afterRun.Field;
+                        if (oldField is null || newField is null ||
+                            oldField.Automatic != newField.Automatic ||
+                            !string.Equals(targetRun.Field.Id, oldField.Id, StringComparison.Ordinal) ||
+                            !string.Equals(targetRun.Field.Type, oldField.Type, StringComparison.Ordinal))
                             throw Unsupported(path, "source-bound field identity or automatic-state change");
-                        if (!string.Equals(beforeRun.Field.Type, afterRun.Field.Type, StringComparison.Ordinal))
+                        var oldFieldId = oldField.Id;
+                        var newFieldId = newField.Id;
+                        var fieldIdChanged = !string.Equals(oldFieldId, newFieldId, StringComparison.Ordinal);
+                        var fieldTypeChanged = !string.Equals(oldField.Type, newField.Type, StringComparison.Ordinal);
+                        var fieldTextChanged = !string.Equals(oldField.Text, newField.Text, StringComparison.Ordinal);
+                        if (fieldIdChanged)
                         {
-                            if (beforeRun.Field.Automatic || afterRun.Field.Automatic ||
-                                PptxTextCodec.IsAutomaticFieldType(beforeRun.Field.Type) ||
-                                PptxTextCodec.IsAutomaticFieldType(afterRun.Field.Type))
+                            if (fieldTextChanged || fieldTypeChanged || oldField.Automatic || newField.Automatic ||
+                                PptxTextCodec.IsAutomaticFieldType(oldField.Type) ||
+                                PptxTextCodec.IsAutomaticFieldType(newField.Type) ||
+                                !PptxTextCodec.ValidFieldId(oldFieldId) ||
+                                !PptxTextCodec.ValidFieldId(newFieldId))
+                                throw Unsupported(path, "source-bound automatic, invalid, or combined field ID/text change");
+                            RequireCapabilityField(nativeRef, "setTextField", "text.paragraphs[].runs[].field.id", path + ".field.id");
+                            mutations.NativeLeaves.Add(new NativeLeafMutation(
+                                programElementId,
+                                slide,
+                                element,
+                                shapeTreePath,
+                                fieldIndex,
+                                0,
+                                oldFieldId!,
+                                newFieldId!,
+                                "textFieldId"));
+                        }
+                        if (fieldTypeChanged)
+                        {
+                            if (oldField.Automatic || newField.Automatic ||
+                                PptxTextCodec.IsAutomaticFieldType(oldField.Type) ||
+                                PptxTextCodec.IsAutomaticFieldType(newField.Type))
                                 throw Unsupported(path, "source-bound automatic field type change");
                             RequireCapabilityField(nativeRef, "setTextField", "text.paragraphs[].runs[].field.type", path + ".field.type");
                             mutations.NativeLeaves.Add(new NativeLeafMutation(
@@ -5986,14 +6012,14 @@ internal static partial class PpjSourceBoundPresentationCompiler
                                 shapeTreePath,
                                 fieldIndex,
                                 0,
-                                beforeRun.Field.Type,
-                                afterRun.Field.Type,
+                                oldField.Type,
+                                newField.Type,
                                 "textFieldType"));
                         }
-                        if (!string.Equals(beforeRun.Field.Text, afterRun.Field.Text, StringComparison.Ordinal))
+                        if (fieldTextChanged)
                         {
-                            targetRun.Field.Automatic = afterRun.Field.Automatic;
-                            targetRun.Field.Text = afterRun.Field.Text;
+                            targetRun.Field.Automatic = newField.Automatic;
+                            targetRun.Field.Text = newField.Text;
                             target.Text = PptxTextCodec.Flatten(target.TextBody);
                             mutations.SemanticChanges = true;
                         }
@@ -7150,6 +7176,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                         if (run["field"] is System.Text.Json.Nodes.JsonObject field)
                         {
                             field["text"] = string.Empty;
+                            field.Remove("id");
                             field.Remove("type");
                         }
                     }

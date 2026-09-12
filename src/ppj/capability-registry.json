@@ -298,6 +298,13 @@
         "reason": "preview.text.field-type-unassessed",
         "test": "test/ppj-preview-input-assessment.mjs"
       },
+      "textFieldId": {
+        "schemaRef": "#/$defs/textField/properties/id",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.text.field-id-unassessed",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
       "tableTextFieldType": {
         "schemaRef": "#/$defs/textField/properties/type",
         "owner": "presentation-compiler",
@@ -1010,6 +1017,13 @@
       "reason": "The bounded leaf proves a valid 1..255 printable static token, a unique direct type attribute and the field ordinal against the exact source element. It does not evaluate, refresh or broaden PowerPoint field semantics; host PowerPoint acceptance is not claimed."
     },
     {
+      "feature": "source-bound direct text field identity",
+      "ppjPath": "pages[].elements[].text.paragraphs[].runs[].field.id",
+      "behavior": "partial",
+      "sourceBound": "Existing ordinary text/shape fields issue setTextField for a changed brace-wrapped UUID on a valid non-automatic direct DrawingML field. The source-bound edit patches only the target SlidePart a:fld/@id attribute and then reprojects the new ID with the same type, cached display text, automatic marker and inline topology.",
+      "reason": "The bounded leaf proves one existing valid ID, the field ordinal and the exact source element. Automatic fields, table-field identities, relationship graphs, cached-text or type changes in the same edit, field refresh/evaluation and host PowerPoint acceptance remain outside this profile."
+    },
+    {
       "feature": "source-bound paragraph default scalars",
       "ppjPath": "pages[].elements[].text.paragraphs[].style.defaultText.bold, italic, size, fontFamily, fontFamilyEastAsia, fontFamilyComplexScript, language, kerning, letterSpacing, baseline, capitalization, strike, underline, highlight, color, gradient, glow, innerShadow, reflection, shadow (including scaleX/scaleY/skewX/skewY) and softEdge",
       "behavior": "partial",
@@ -1417,6 +1431,7 @@
     "paragraphBulletSizePercent": { "valueType": "number", "unit": "percent", "ppjLocation": "paragraph.style.bullet.sizePercent", "surface": "native-leaf", "boundary": "Bullet size relative to text." },
     "paragraphLevel": { "valueType": "number", "unit": "integer", "ppjLocation": "paragraph.style.level", "surface": "native-leaf", "boundary": "Paragraph outline level 0 through 8." },
     "textFieldType": { "valueType": "string", "unit": "token", "ppjLocation": "text.paragraphs[].runs[].field.type", "surface": "native-leaf", "boundary": "Direct static DrawingML field type token; the field ID, cached text, automatic marker and inline topology remain source-bound, and recognized automatic field types stay source-owned." },
+    "textFieldId": { "valueType": "string", "unit": "uuid", "ppjLocation": "text.paragraphs[].runs[].field.id", "surface": "native-leaf", "boundary": "Direct static DrawingML field identity; one existing brace-wrapped UUID on a non-automatic direct text field. Type, cached text, automatic state, inline topology and field relationships remain source-bound." },
     "tableTextFieldType": { "valueType": "string", "unit": "token", "ppjLocation": "table.rows[].cells[].text.paragraphs[].runs[].field.type", "surface": "native-leaf", "boundary": "Direct static DrawingML table-cell field type token; the physical cell and field ordinals are source-bound, as are field ID, cached text, automatic state, inline topology, table grid and merges." },
     "verticalAnchor": { "valueType": "string", "unit": "enum", "ppjLocation": "textBoxStyle.verticalAlignment", "surface": "native-leaf", "boundary": "Text body vertical anchor." },
     "textBodyAnchorCenter": { "valueType": "boolean", "unit": "boolean", "ppjLocation": "textBoxStyle.anchorCenter", "surface": "native-leaf", "boundary": "Direct imported text-body anchorCtr flag; the source must contain one existing canonical a:bodyPr/@anchorCtr token." },
