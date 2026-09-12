@@ -890,6 +890,17 @@ transform、兄弟 effect 或未知后代时才投影；编辑只替换所属 Sl
 ZIP 保留、二次投影，以及缺失/异常/超界/兄弟 effect 的 fail-closed 边界；本轮
 不宣称 PowerPoint 宿主阴影显示。
 
+**直接 rich-text run 外阴影 direction 增量（2026-09-13）：** 直接
+`text.paragraphs[].runs[].style.shadow.angle` 已接通
+`textShadowDirectionDegrees` native leaf。只有直接
+`a:rPr/a:effectLst/a:outerShdw` 已有规范 `dir`（0–21,599,999，1/60000
+度）、一个 RGB/theme 颜色子节点且无 transform、兄弟 effect 或未知后代时才
+投影；编辑只替换所属 SlidePart 的 `outerShdw/@dir`，保留 blur、distance、
+颜色、透明度、run 拓扑和非目标 ZIP，二次投影恢复新 angle。最小回归
+`PpjSourceBoundTextShadowDirectionEditsDirectRunOwnerAndReprojects` 覆盖
+90° → 120°、Open XML、SlidePart-only、非目标 ZIP 保留、stale/overflow 拒绝、
+二次投影和兄弟 effect fail-closed；本轮不宣称 PowerPoint 宿主阴影显示。
+
 **段落默认文字内阴影增量（2026-09-10）：** 普通文本框和形状的
 `text.paragraphs[].style.defaultText.innerShadow` 支持赋值、删除、恢复，
 以及仅含内阴影的包装删除。color 必填；blur 0–1000pt、distance 0–100000pt、

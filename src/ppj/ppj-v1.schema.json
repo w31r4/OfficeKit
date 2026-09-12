@@ -2134,6 +2134,12 @@
             "kind": { "enum": ["textShadowBlurRadiusEmu"] },
             "value": { "type": "integer", "minimum": 0, "maximum": 12700000 }
           }
+        },
+        {
+          "properties": {
+            "kind": { "enum": ["textShadowDirectionDegrees"] },
+            "value": { "type": "number", "minimum": 0, "exclusiveMaximum": 360 }
+          }
         }
       ],
       "properties": {
@@ -2221,6 +2227,7 @@
             "textGlowRadiusEmu",
             "textShadowBlurRadiusEmu",
             "textShadowDistanceEmu",
+            "textShadowDirectionDegrees",
             "textDefaultGlowRadiusEmu",
             "textDefaultGlowColorRgb",
             "textDefaultGlowColorScheme",

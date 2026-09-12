@@ -131,6 +131,7 @@ internal static class PpjNativeLeafProjection
             ["textBodyRotationDegrees"] = 60_000,
             ["rotationDegrees"] = 60_000,
             ["shadowDirectionDegrees"] = 60_000,
+            ["textShadowDirectionDegrees"] = 60_000,
             ["imageShadowDirectionDegrees"] = 60_000,
             ["textDefaultShadowScaleX"] = 100_000,
             ["textDefaultShadowScaleY"] = 100_000,
@@ -1626,7 +1627,7 @@ internal static class PpjNativeLeafProjection
         Action<string, string, JsonNode?, uint, uint> add)
     {
         if (run.Shadow is not { } shadow ||
-            !shadow.HasBlurRadiusEmu && !shadow.HasDistanceEmu ||
+            !shadow.HasBlurRadiusEmu && !shadow.HasDistanceEmu && !shadow.HasDirectionAngle60000 ||
             shadow.HasBlurRadiusEmu && (shadow.BlurRadiusEmu < 0 || shadow.BlurRadiusEmu > 12_700_000) ||
             shadow.HasDistanceEmu && (shadow.DistanceEmu < 0 || shadow.DistanceEmu > 1_270_000_000) ||
             shadow.HasScaleXThousandthPercent ||
@@ -1640,6 +1641,9 @@ internal static class PpjNativeLeafProjection
             AddInteger(add, "textShadowBlurRadiusEmu", shadow.BlurRadiusEmu, runIndex, textIndex);
         if (shadow.HasDistanceEmu)
             AddInteger(add, "textShadowDistanceEmu", shadow.DistanceEmu, runIndex, textIndex);
+        if (shadow.HasDirectionAngle60000)
+            AddScaledText(add, "textShadowDirectionDegrees",
+                shadow.DirectionAngle60000 / 60_000d, 60_000, runIndex, textIndex);
     }
 
     private static void DescribeGlow(
