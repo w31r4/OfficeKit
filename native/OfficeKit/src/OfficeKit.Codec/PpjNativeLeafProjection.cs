@@ -132,6 +132,7 @@ internal static class PpjNativeLeafProjection
             ["rotationDegrees"] = 60_000,
             ["shadowDirectionDegrees"] = 60_000,
             ["textShadowDirectionDegrees"] = 60_000,
+            ["textShadowScaleX"] = 100_000,
             ["imageShadowDirectionDegrees"] = 60_000,
             ["textDefaultShadowScaleX"] = 100_000,
             ["textDefaultShadowScaleY"] = 100_000,
@@ -1626,15 +1627,7 @@ internal static class PpjNativeLeafProjection
         uint textIndex,
         Action<string, string, JsonNode?, uint, uint> add)
     {
-        if (run.Shadow is not { } shadow ||
-            !shadow.HasBlurRadiusEmu && !shadow.HasDistanceEmu && !shadow.HasDirectionAngle60000 ||
-            shadow.HasBlurRadiusEmu && (shadow.BlurRadiusEmu < 0 || shadow.BlurRadiusEmu > 12_700_000) ||
-            shadow.HasDistanceEmu && (shadow.DistanceEmu < 0 || shadow.DistanceEmu > 1_270_000_000) ||
-            shadow.HasScaleXThousandthPercent ||
-            shadow.HasScaleYThousandthPercent ||
-            shadow.HasSkewXAngle60000 ||
-            shadow.HasSkewYAngle60000 ||
-            shadow.HasRotateWithShape)
+        if (run.Shadow is not { } shadow || !PptxShadowCodec.IsSafeDirectTextRun(shadow))
             return;
         if (shadow.HasBlurRadiusEmu)
             AddInteger(add, "textShadowBlurRadiusEmu", shadow.BlurRadiusEmu, runIndex, textIndex);
@@ -1643,6 +1636,9 @@ internal static class PpjNativeLeafProjection
         if (shadow.HasDirectionAngle60000)
             AddScaledText(add, "textShadowDirectionDegrees",
                 shadow.DirectionAngle60000 / 60_000d, 60_000, runIndex, textIndex);
+        if (shadow.HasScaleXThousandthPercent)
+            AddScaledText(add, "textShadowScaleX",
+                shadow.ScaleXThousandthPercent / 100_000d, 100_000, runIndex, textIndex);
         if (!string.IsNullOrEmpty(shadow.ColorRgb))
             add("textShadowColorRgb", shadow.ColorRgb.ToUpperInvariant(),
                 JsonValue.Create($"#{shadow.ColorRgb.ToLowerInvariant()}"), runIndex, textIndex);

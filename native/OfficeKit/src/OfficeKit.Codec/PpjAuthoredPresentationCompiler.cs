@@ -2445,7 +2445,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         {
             run.GradientFill = BuildGradientFill(gradientPaint.Value, color => catalog.Color(color));
         }
-        if (shadow is { } shadowValue) run.Shadow = BuildShadow(shadowValue, catalog);
+        if (shadow is { } shadowValue) run.Shadow = BuildShadow(shadowValue, catalog, allowScaleX: true);
         if (glow is { } glowValue) run.Glow = BuildGlow(glowValue, catalog);
         var innerShadow = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "innerShadow");
         if (innerShadow is { } innerShadowValue) run.InnerShadow = BuildInnerShadow(innerShadowValue, catalog);
@@ -5037,7 +5037,7 @@ internal static partial class PpjAuthoredPresentationCompiler
         return output;
     }
 
-    private static PresentationShadow BuildShadow(JsonElement value, Catalog catalog)
+    private static PresentationShadow BuildShadow(JsonElement value, Catalog catalog, bool allowScaleX = false)
     {
         var colorValue = value.GetProperty("color");
         var schemeToken = colorValue.ValueKind == JsonValueKind.Object && colorValue.TryGetProperty("token", out var token) &&
@@ -5063,6 +5063,10 @@ internal static partial class PpjAuthoredPresentationCompiler
             output.ColorScheme = schemeToken;
         if (value.TryGetProperty("alignment", out var alignment)) output.Alignment = alignment.GetString()!;
         if (value.TryGetProperty("rotateWithShape", out var rotateWithShape)) output.RotateWithShape = rotateWithShape.GetBoolean();
+        if (allowScaleX && value.TryGetProperty("scaleX", out var scaleX))
+            output.ScaleXThousandthPercent = checked((int)Math.Round(
+                ChartEffectNumber(scaleX.GetDouble(), int.MinValue / 100000d, int.MaxValue / 100000d) * 100000d,
+                MidpointRounding.ToEven));
         return output;
     }
 

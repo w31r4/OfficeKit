@@ -2143,6 +2143,12 @@
         },
         {
           "properties": {
+            "kind": { "enum": ["textShadowScaleX"] },
+            "value": { "type": "number", "minimum": -21474.83648, "maximum": 21474.83647 }
+          }
+        },
+        {
+          "properties": {
             "kind": { "enum": ["textShadowOpacityThousandthPercent"] },
             "value": { "type": "integer", "minimum": 0, "maximum": 100000 }
           }
@@ -2240,6 +2246,7 @@
             "textShadowBlurRadiusEmu",
             "textShadowDistanceEmu",
             "textShadowDirectionDegrees",
+            "textShadowScaleX",
             "textShadowColorRgb",
             "textShadowOpacityThousandthPercent",
             "textShadowAlignment",
@@ -2860,6 +2867,62 @@
         }
       }
     },
+    "textRunShadow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "color",
+        "blur",
+        "distance",
+        "angle"
+      ],
+      "properties": {
+        "color": {
+          "$ref": "#/$defs/color"
+        },
+        "opacity": {
+          "$ref": "#/$defs/numberOrToken",
+          "description": "Shadow opacity; a token reference must declare kind opacity."
+        },
+        "blur": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "distance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100000
+        },
+        "angle": {
+          "type": "number",
+          "minimum": -360,
+          "maximum": 360
+        },
+        "scaleX": {
+          "type": "number",
+          "minimum": -21474.83648,
+          "maximum": 21474.83647,
+          "description": "Horizontal shadow scale ratio, 1 = original size; negative and zero retained, precision 0.00001."
+        },
+        "alignment": {
+          "enum": [
+            "tl",
+            "t",
+            "tr",
+            "l",
+            "ctr",
+            "r",
+            "bl",
+            "b",
+            "br"
+          ]
+        },
+        "rotateWithShape": {
+          "type": "boolean"
+        }
+      }
+    },
     "glow": {
       "type": "object",
       "additionalProperties": false,
@@ -3243,7 +3306,7 @@
           "$ref": "#/$defs/gradient"
         },
         "shadow": {
-          "$ref": "#/$defs/shadow"
+          "$ref": "#/$defs/textRunShadow"
         },
         "glow": {
           "$ref": "#/$defs/glow"

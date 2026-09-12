@@ -11,11 +11,11 @@
     "previewCapabilities": "src/ppj/svg-preview-capabilities.json"
   },
   "counts": {
-    "schemaDefinitions": 200,
+    "schemaDefinitions": 201,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
     "authoredCompilerBoundaries": 81,
-    "nativeLeafKinds": 308,
+    "nativeLeafKinds": 309,
     "helpApis": 151,
     "hostOnlyApis": 13
   },
@@ -2130,6 +2130,14 @@
       "ppjLocation": "run.style.shadow.angle",
       "surface": "native-leaf",
       "boundary": "Direct imported rich-text run outer-shadow direction in 60000ths of a degree; the run a:rPr effect list must use one strict direct outerShdw with an existing dir and no shadow transforms or sibling effects."
+    },
+    {
+      "name": "textShadowScaleX",
+      "valueType": "number",
+      "unit": "ratio",
+      "ppjLocation": "run.style.shadow.scaleX",
+      "surface": "native-leaf",
+      "boundary": "Direct imported rich-text run outer-shadow horizontal scale; the run a:rPr effect list must use one strict direct outerShdw with an existing signed sx token, bounded geometry, one RGB/theme color child, and no sy/kx/ky/rotWithShape or sibling effects."
     },
     {
       "name": "textShadowColorRgb",

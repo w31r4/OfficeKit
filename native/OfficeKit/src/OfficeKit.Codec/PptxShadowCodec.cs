@@ -46,15 +46,24 @@ internal static class PptxShadowCodec
         return XElement.Parse(properties.GetFirstChild<A.EffectList>()!.OuterXml);
     }
 
-    internal static bool TryRead(OpenXmlCompositeElement? properties, out PresentationShadow? shadow)
+    internal static bool TryRead(OpenXmlCompositeElement? properties, out PresentationShadow? shadow, bool allowTransforms = false)
     {
         shadow = null;
         var lists = properties?.Elements<A.EffectList>().ToArray() ?? [];
         if (lists.Length == 0) return true;
         if (lists.Length != 1 || lists[0].ChildElements.Count != 1 || lists[0].FirstChild is not A.OuterShadow outer ||
-            !TryReadOuterShadow(outer, out shadow)) return false;
+            !TryReadOuterShadow(outer, out shadow, allowTransforms)) return false;
         return true;
     }
+
+    internal static bool IsSafeDirectTextRun(PresentationShadow shadow) =>
+        (shadow.HasBlurRadiusEmu || shadow.HasDistanceEmu || shadow.HasDirectionAngle60000) &&
+        (!shadow.HasBlurRadiusEmu || shadow.BlurRadiusEmu >= 0 && shadow.BlurRadiusEmu <= 12_700_000) &&
+        (!shadow.HasDistanceEmu || shadow.DistanceEmu >= 0 && shadow.DistanceEmu <= 1_270_000_000) &&
+        !shadow.HasScaleYThousandthPercent &&
+        !shadow.HasSkewXAngle60000 &&
+        !shadow.HasSkewYAngle60000 &&
+        !shadow.HasRotateWithShape;
 
     // Effect-list owners such as text glow may need to prove an outer shadow
     // sibling without treating the whole list as a shadow-only graph. Keep

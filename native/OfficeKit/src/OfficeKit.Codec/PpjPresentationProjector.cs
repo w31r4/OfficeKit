@@ -2325,7 +2325,7 @@ internal static partial class PpjPresentationProjector
             style["color"] = TextColor(null, run.ColorScheme, run.HasColorOpacityThousandthPercent, run.ColorOpacityThousandthPercent);
         else if (run.GradientFill is not null)
             style["gradient"] = TextGradient(run.GradientFill);
-        if (run.Shadow is not null) style["shadow"] = Shadow(run.Shadow);
+        if (run.Shadow is not null) style["shadow"] = TextRunShadow(run.Shadow);
         if (run.Glow is not null) style["glow"] = Glow(run.Glow);
         if (run.InnerShadow is not null) style["innerShadow"] = InnerShadow(run.InnerShadow);
         if (run.Reflection is not null) style["reflection"] = Reflection(run.Reflection, includePositions: true, includeFadeAngle: true, includeScaleX: true, includeScaleY: true, includeSkewX: true, includeSkewY: true, includeAlignment: true, includeRotateWithShape: true);
@@ -3493,6 +3493,14 @@ internal static partial class PpjPresentationProjector
             output["opacity"] = JsonValue.Create(shadow.HasOpacityThousandthPercent ? Unit(shadow.OpacityThousandthPercent) : 1);
         if (shadow.HasAlignment) output["alignment"] = StringNode(shadow.Alignment);
         if (shadow.HasRotateWithShape) output["rotateWithShape"] = JsonValue.Create(shadow.RotateWithShape);
+        return output;
+    }
+
+    private static JsonObject TextRunShadow(PresentationShadow shadow)
+    {
+        var output = Shadow(shadow);
+        if (shadow.HasScaleXThousandthPercent)
+            output["scaleX"] = JsonValue.Create(shadow.ScaleXThousandthPercent / 100000d);
         return output;
     }
 
