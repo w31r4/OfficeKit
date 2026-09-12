@@ -15,7 +15,7 @@
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
     "authoredCompilerBoundaries": 81,
-    "nativeLeafKinds": 313,
+    "nativeLeafKinds": 314,
     "helpApis": 151,
     "hostOnlyApis": 13
   },
@@ -2178,6 +2178,14 @@
       "ppjLocation": "run.style.shadow.color",
       "surface": "native-leaf",
       "boundary": "Direct imported rich-text run outer-shadow RGB color; the run a:rPr effect list must use one strict direct outerShdw with one direct srgbClr and no shadow transforms or sibling effects."
+    },
+    {
+      "name": "textShadowColorScheme",
+      "valueType": "string",
+      "unit": "theme-color",
+      "ppjLocation": "run.style.shadow.color",
+      "surface": "native-leaf",
+      "boundary": "Direct imported rich-text run outer-shadow theme color; the run a:rPr effect list must use one strict direct outerShdw with one direct schemeClr token, bounded geometry, and no color transforms, shadow transforms, sibling effects, or unknown descendants."
     },
     {
       "name": "textShadowOpacityThousandthPercent",

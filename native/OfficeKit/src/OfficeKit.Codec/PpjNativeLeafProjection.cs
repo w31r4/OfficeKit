@@ -52,7 +52,7 @@ internal static class PpjNativeLeafProjection
         "textBodyVerticalOverflow", "textBodyHorizontalOverflow",
         "textBodyWarpPreset", "customGeometryGuideFormula", "customGeometryAdjustmentFormula", "textFieldType", "tableTextFieldType",
         "fontFamilyEastAsia", "fontFamilyComplexScript", "fontLanguage", "fontUnderline", "fontStrike", "fontColorScheme", "textGlowColorScheme", "textDefaultGlowColorScheme", "textInnerShadowColorScheme", "textDefaultInnerShadowColorScheme", "shapeGlowColorScheme", "imageGlowColorScheme", "shapeInnerShadowColorScheme", "imageInnerShadowColorScheme",
-        "fontCaps", "fontHighlightScheme", "fillScheme", "shadowAlignment", "imageShadowAlignment", "imageShadowColorScheme", "textShadowAlignment", "textDefaultShadowAlignment", "textDefaultReflectionAlignment", "textReflectionAlignment", "shadowColorScheme", "textDefaultShadowColorScheme", "lineScheme", "lineStyle", "lineCap", "lineJoin",
+        "fontCaps", "fontHighlightScheme", "fillScheme", "shadowAlignment", "imageShadowAlignment", "imageShadowColorScheme", "textShadowAlignment", "textShadowColorScheme", "textDefaultShadowAlignment", "textDefaultReflectionAlignment", "textReflectionAlignment", "shadowColorScheme", "textDefaultShadowColorScheme", "lineScheme", "lineStyle", "lineCap", "lineJoin",
         "lineStartArrow", "lineEndArrow", "lineStartArrowWidth", "lineStartArrowLength", "lineEndArrowWidth", "lineEndArrowLength", "imageMaskPreset", "shape3dPresetMaterial", "shape3dBevelTopPreset", "shape3dBevelBottomPreset", "shape3dSceneCameraPreset", "shape3dSceneLightRigPreset", "shape3dSceneLightRigDirection", "shape3dContourColorScheme", "shape3dExtrusionColorScheme", "chartDataCategory",
     };
 
@@ -1675,6 +1675,9 @@ internal static class PpjNativeLeafProjection
         if (!string.IsNullOrEmpty(shadow.ColorRgb))
             add("textShadowColorRgb", shadow.ColorRgb.ToUpperInvariant(),
                 JsonValue.Create($"#{shadow.ColorRgb.ToLowerInvariant()}"), runIndex, textIndex);
+        else if (shadow.HasColorScheme && !string.IsNullOrEmpty(shadow.ColorScheme))
+            add("textShadowColorScheme", shadow.ColorScheme,
+                JsonValue.Create(shadow.ColorScheme), runIndex, textIndex);
         if (shadow.HasOpacityThousandthPercent)
             AddInteger(add, "textShadowOpacityThousandthPercent",
                 shadow.OpacityThousandthPercent, runIndex, textIndex);

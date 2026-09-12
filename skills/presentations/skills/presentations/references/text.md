@@ -567,6 +567,16 @@ byte-stable, and reprojects the edited RGB color. Theme-colored, missing, malfor
 transformed, or compound shadow graphs remain source-owned; this field does not
 claim host shadow rendering.
 
+For an imported direct rich-text run, a theme-valued `run.style.shadow.color` is
+exposed as `textShadowColorScheme` when the same strict direct `a:outerShdw`
+profile has one bare `schemeClr/@val`, bounded blur, distance or direction, no
+color or shadow transforms, sibling effects, or unknown descendants. A
+source-bound edit token-splices only `outerShdw/schemeClr/@val` in that run's
+owning SlidePart, preserves the other shadow fields and package parts, and
+reprojects the theme token. RGB colors, tint/shade or other color transforms,
+missing or malformed tokens, and compound graphs remain source-owned or fail
+closed; this field does not claim host shadow rendering.
+
 For an imported direct rich-text run, `run.style.shadow.opacity` is exposed as
 `textShadowOpacityThousandthPercent` only for the same strict direct
 `a:outerShdw` profile when its single direct RGB or theme color child contains

@@ -2276,6 +2276,7 @@
             "textShadowSkewY",
             "textShadowRotateWithShape",
             "textShadowColorRgb",
+            "textShadowColorScheme",
             "textShadowOpacityThousandthPercent",
             "textShadowAlignment",
             "textDefaultGlowRadiusEmu",
