@@ -797,44 +797,74 @@ internal static partial class PpjSourceBoundPresentationCompiler
             RequireThemeAccentTransformsOwnedSlots(beforeAccentTransforms, afterAccentTransforms, path + ".accentTransforms");
             var beforeAccent1 = beforeAccentTransforms.GetProperty("accent1");
             var afterAccent1 = afterAccentTransforms.GetProperty("accent1");
-            if (!PropertyChanged(beforeAccent1, afterAccent1, "tint"))
-                throw Unsupported(path + ".accentTransforms.accent1", "source-bound accent1 tint is the only owned transform field");
-            if (!afterAccent1.TryGetProperty("tint", out var tint) ||
-                tint.ValueKind != JsonValueKind.Number ||
-                !tint.TryGetDouble(out var tintFraction) ||
-                !double.IsFinite(tintFraction) || tintFraction < 0 || tintFraction > 1)
-                throw Unsupported(path + ".accentTransforms.accent1.tint", "source-bound accent1 tint must be a finite fraction from 0 through 1");
-            if (requested.Design.ThemeNativeRef is null)
-                throw Unsupported(path + ".accentTransforms.accent1.tint", "the source did not issue an accent1-tint capability");
-            RequireCapabilityField(
-                requested.Design.ThemeNativeRef,
-                "setThemeAccent1Tint",
-                "accentTransforms.accent1.tint",
-                path + ".accentTransforms.accent1.tint");
-            var transformValue = checked((uint)Math.Round(tintFraction * 100_000d, MidpointRounding.AwayFromZero));
-            artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
-            var authoredTransform = artifact.Presentation.AuthoredTheme.AccentTransforms
-                .SingleOrDefault(transform => transform.Role.Equals("accent1", StringComparison.Ordinal));
-            if (authoredTransform is null || !authoredTransform.HasTintThousandth ||
-                authoredTransform.HasShadeThousandth ||
-                authoredTransform.HasLuminanceModulationThousandth ||
-                authoredTransform.HasLuminanceOffsetThousandth ||
-                authoredTransform.HasAlphaModulationThousandth ||
-                authoredTransform.HasAlphaOffsetThousandth ||
-                authoredTransform.HasSaturationModulationThousandth ||
-                authoredTransform.HasSaturationOffsetThousandth ||
-                authoredTransform.HasRedModulationThousandth ||
-                authoredTransform.HasRedOffsetThousandth ||
-                authoredTransform.HasGreenModulationThousandth ||
-                authoredTransform.HasGreenOffsetThousandth ||
-                authoredTransform.HasBlueModulationThousandth ||
-                authoredTransform.HasBlueOffsetThousandth ||
-                authoredTransform.HasHueModulationThousandth ||
-                authoredTransform.HasHueOffsetAngleThousandth ||
-                authoredTransform.HasGray || authoredTransform.HasComp || authoredTransform.HasInv ||
-                authoredTransform.HasGamma || authoredTransform.HasInvGamma)
-                throw Unsupported(path + ".accentTransforms.accent1.tint", "source-bound accent1 tint requires one imported direct tint");
-            authoredTransform.TintThousandth = transformValue;
+            var tintChanged = PropertyChanged(beforeAccent1, afterAccent1, "tint");
+            var shadeChanged = PropertyChanged(beforeAccent1, afterAccent1, "shade");
+            if (tintChanged == shadeChanged)
+                throw Unsupported(path + ".accentTransforms.accent1", "source-bound accent1 requires exactly one changed tint or shade field");
+            if (tintChanged)
+            {
+                if (!afterAccent1.TryGetProperty("tint", out var tint) ||
+                    tint.ValueKind != JsonValueKind.Number ||
+                    !tint.TryGetDouble(out var tintFraction) ||
+                    !double.IsFinite(tintFraction) || tintFraction < 0 || tintFraction > 1)
+                    throw Unsupported(path + ".accentTransforms.accent1.tint", "source-bound accent1 tint must be a finite fraction from 0 through 1");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".accentTransforms.accent1.tint", "the source did not issue an accent1-tint capability");
+                RequireCapabilityField(
+                    requested.Design.ThemeNativeRef,
+                    "setThemeAccent1Tint",
+                    "accentTransforms.accent1.tint",
+                    path + ".accentTransforms.accent1.tint");
+                var transformValue = checked((uint)Math.Round(tintFraction * 100_000d, MidpointRounding.AwayFromZero));
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                var authoredTransform = artifact.Presentation.AuthoredTheme.AccentTransforms
+                    .SingleOrDefault(transform => transform.Role.Equals("accent1", StringComparison.Ordinal));
+                if (authoredTransform is null || !authoredTransform.HasTintThousandth ||
+                    authoredTransform.HasShadeThousandth ||
+                    authoredTransform.HasLuminanceModulationThousandth || authoredTransform.HasLuminanceOffsetThousandth ||
+                    authoredTransform.HasAlphaModulationThousandth || authoredTransform.HasAlphaOffsetThousandth ||
+                    authoredTransform.HasSaturationModulationThousandth || authoredTransform.HasSaturationOffsetThousandth ||
+                    authoredTransform.HasRedModulationThousandth || authoredTransform.HasRedOffsetThousandth ||
+                    authoredTransform.HasGreenModulationThousandth || authoredTransform.HasGreenOffsetThousandth ||
+                    authoredTransform.HasBlueModulationThousandth || authoredTransform.HasBlueOffsetThousandth ||
+                    authoredTransform.HasHueModulationThousandth || authoredTransform.HasHueOffsetAngleThousandth ||
+                    authoredTransform.HasGray || authoredTransform.HasComp || authoredTransform.HasInv ||
+                    authoredTransform.HasGamma || authoredTransform.HasInvGamma)
+                    throw Unsupported(path + ".accentTransforms.accent1.tint", "source-bound accent1 tint requires one imported direct tint");
+                authoredTransform.TintThousandth = transformValue;
+            }
+            else
+            {
+                if (!afterAccent1.TryGetProperty("shade", out var shade) ||
+                    shade.ValueKind != JsonValueKind.Number ||
+                    !shade.TryGetDouble(out var shadeFraction) ||
+                    !double.IsFinite(shadeFraction) || shadeFraction < 0 || shadeFraction > 1)
+                    throw Unsupported(path + ".accentTransforms.accent1.shade", "source-bound accent1 shade must be a finite fraction from 0 through 1");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".accentTransforms.accent1.shade", "the source did not issue an accent1-shade capability");
+                RequireCapabilityField(
+                    requested.Design.ThemeNativeRef,
+                    "setThemeAccent1Shade",
+                    "accentTransforms.accent1.shade",
+                    path + ".accentTransforms.accent1.shade");
+                var transformValue = checked((uint)Math.Round(shadeFraction * 100_000d, MidpointRounding.AwayFromZero));
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                var authoredTransform = artifact.Presentation.AuthoredTheme.AccentTransforms
+                    .SingleOrDefault(transform => transform.Role.Equals("accent1", StringComparison.Ordinal));
+                if (authoredTransform is null || !authoredTransform.HasShadeThousandth ||
+                    authoredTransform.HasTintThousandth ||
+                    authoredTransform.HasLuminanceModulationThousandth || authoredTransform.HasLuminanceOffsetThousandth ||
+                    authoredTransform.HasAlphaModulationThousandth || authoredTransform.HasAlphaOffsetThousandth ||
+                    authoredTransform.HasSaturationModulationThousandth || authoredTransform.HasSaturationOffsetThousandth ||
+                    authoredTransform.HasRedModulationThousandth || authoredTransform.HasRedOffsetThousandth ||
+                    authoredTransform.HasGreenModulationThousandth || authoredTransform.HasGreenOffsetThousandth ||
+                    authoredTransform.HasBlueModulationThousandth || authoredTransform.HasBlueOffsetThousandth ||
+                    authoredTransform.HasHueModulationThousandth || authoredTransform.HasHueOffsetAngleThousandth ||
+                    authoredTransform.HasGray || authoredTransform.HasComp || authoredTransform.HasInv ||
+                    authoredTransform.HasGamma || authoredTransform.HasInvGamma)
+                    throw Unsupported(path + ".accentTransforms.accent1.shade", "source-bound accent1 shade requires one imported direct shade");
+                authoredTransform.ShadeThousandth = transformValue;
+            }
             mutations.SemanticChanges = true;
             changed = true;
         }
@@ -7627,13 +7657,14 @@ internal static partial class PpjSourceBoundPresentationCompiler
             var newPresent = after.TryGetProperty(name, out var newValue);
             if (!oldPresent || !newPresent ||
                 oldValue.ValueKind != JsonValueKind.Object || newValue.ValueKind != JsonValueKind.Object)
-                throw Unsupported(path + ".accent1", "source-bound accent1 tint cannot be added or removed");
+                throw Unsupported(path + ".accent1", "source-bound accent1 tint or shade cannot be added or removed");
             var transformNames = oldValue.EnumerateObject().Select(property => property.Name)
                 .Concat(newValue.EnumerateObject().Select(property => property.Name))
                 .Distinct(StringComparer.Ordinal);
             foreach (var transformName in transformNames)
             {
-                if (!transformName.Equals("tint", StringComparison.Ordinal))
+                if (!transformName.Equals("tint", StringComparison.Ordinal) &&
+                    !transformName.Equals("shade", StringComparison.Ordinal))
                     throw new CodecException(
                         "ppj.sourceBound.themeAccentTransforms",
                         $"Source-bound PPJ cannot safely compile changing source-owned accent1 transform {transformName}.",
