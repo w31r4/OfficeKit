@@ -251,6 +251,7 @@ internal static partial class PpjPresentationProjector
                 fontScheme["minorComplexScript"] = StringNode(presentation.AuthoredTheme.MinorFontFamilyComplexScript);
             theme["fontScheme"] = fontScheme;
             themeCapabilities.Add(new("setThemeFontScheme", ["fontScheme.major"]));
+            themeCapabilities.Add(new("setThemeMinorFont", ["fontScheme.minor"]));
         }
         if (themeCapabilities.Count > 0)
         {

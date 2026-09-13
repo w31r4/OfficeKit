@@ -33,6 +33,7 @@ internal static class PpjSemanticValidator
             ["setGeometry"] = Set("geometry.adjustments", "geometry.paths", "geometry.textRectangle", "geometry.guides", "geometry.connectionSites", "geometry.adjustmentHandles"),
             ["setCanvas"] = Set("canvas.width", "canvas.height"),
             ["setThemeFontScheme"] = Set("fontScheme.major"),
+            ["setThemeMinorFont"] = Set("fontScheme.minor"),
             ["setBackground"] = Set("background"),
             ["setTransition"] = Set("transition"),
             ["setNotes"] = Set("notes"),
@@ -468,7 +469,8 @@ internal static class PpjSemanticValidator
         if (design.TryGetProperty("theme", out theme) &&
             theme.ValueKind == JsonValueKind.Object &&
             theme.TryGetProperty("fontScheme", out _) &&
-            !HasCapability(theme, "setThemeFontScheme", "fontScheme.major"))
+            !HasCapability(theme, "setThemeFontScheme", "fontScheme.major") &&
+            !HasCapability(theme, "setThemeMinorFont", "fontScheme.minor"))
         {
             diagnostics.Add(new(
                 "ppj.sourceBound.themeFontScheme",

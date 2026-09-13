@@ -5000,7 +5000,8 @@ internal static class PptxCodec
         ISet<string> changedParts,
         IDictionary<string, string> replacedOpaquePartHashes)
     {
-        if (authoredTheme is null || (!authoredTheme.HasName && !authoredTheme.HasMajorFontFamily)) return;
+        if (authoredTheme is null ||
+            (!authoredTheme.HasName && !authoredTheme.HasMajorFontFamily && !authoredTheme.HasMinorFontFamily)) return;
         var themePart = CanonicalThemePart(masterGraph) ??
             throw new CodecException(
                 "unsupported_presentation_edit",
@@ -5053,6 +5054,31 @@ internal static class PptxCodec
                         "Source-preserving PPTX export cannot create a missing major Latin theme font node.",
                         PartPath(themePart));
                 latinFont.Typeface = authoredTheme.MajorFontFamily;
+                changed = true;
+            }
+        }
+        if (authoredTheme.HasMinorFontFamily)
+        {
+            var fontScheme = theme.ThemeElements?.FontScheme;
+            var sourceMinor = fontScheme?.MinorFont?.LatinFont?.Typeface?.Value;
+            if (string.IsNullOrWhiteSpace(sourceMinor))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export can edit only an existing minor Latin theme font.",
+                    PartPath(themePart));
+            if (string.IsNullOrWhiteSpace(authoredTheme.MinorFontFamily))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export cannot remove the minor Latin theme font in this bounded profile.",
+                    "$.design.theme.fontScheme.minor");
+            if (!sourceMinor.Equals(authoredTheme.MinorFontFamily, StringComparison.Ordinal))
+            {
+                if (fontScheme?.MinorFont?.LatinFont is not { } latinFont)
+                    throw new CodecException(
+                        "unsupported_presentation_edit",
+                        "Source-preserving PPTX export cannot create a missing minor Latin theme font node.",
+                        PartPath(themePart));
+                latinFont.Typeface = authoredTheme.MinorFontFamily;
                 changed = true;
             }
         }

@@ -674,11 +674,11 @@
         },
         "nativeRef": {
           "$ref": "#/$defs/nativeRef",
-          "description": "Optional source-bound reference for existing presentation theme metadata. The bounded profile may expose the theme name and the major Latin font scheme slot; other theme graph edits remain source-owned."
+          "description": "Optional source-bound reference for existing presentation theme metadata. The bounded profile may expose the theme name and the major/minor Latin font scheme slots; other theme graph edits remain source-owned."
         },
         "fontScheme": {
           "$ref": "#/$defs/themeFontScheme",
-          "description": "Bounded authored major/minor theme font families lowered to the native a:fontScheme. Source-bound projections may observe the complete font scheme and edit only major through an issued theme capability; host font fallback remains outside the profile."
+          "description": "Bounded authored major/minor theme font families lowered to the native a:fontScheme. Source-bound projections may observe the complete font scheme and edit one Latin slot at a time through issued theme capabilities; host font fallback remains outside the profile."
         },
         "accentColors": {
           "$ref": "#/$defs/themeAccentColors",
@@ -1885,6 +1885,7 @@
             "setCanvas",
             "setThemeName",
             "setThemeFontScheme",
+            "setThemeMinorFont",
             "setBackground",
             "setTransition",
             "setAnimations",
@@ -2085,6 +2086,7 @@
               "smartArt.detachToShapes",
               "ole.payload",
               "fontScheme.major",
+              "fontScheme.minor",
               "name",
               "pages",
               "hidden",

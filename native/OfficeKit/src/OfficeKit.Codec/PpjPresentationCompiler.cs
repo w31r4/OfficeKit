@@ -553,18 +553,43 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 beforeFontScheme.ValueKind != JsonValueKind.Object ||
                 afterFontScheme.ValueKind != JsonValueKind.Object)
                 throw Unsupported(path + ".fontScheme", "source-bound theme font scheme cannot be added or removed");
-            RequireThemeFontSchemeMajorOnly(beforeFontScheme, afterFontScheme, path + ".fontScheme");
-            if (!afterFontScheme.TryGetProperty("major", out var major) ||
-                major.ValueKind != JsonValueKind.String ||
-                string.IsNullOrWhiteSpace(major.GetString()))
-                throw Unsupported(path + ".fontScheme.major", "source-bound major Latin theme font deletion or an empty name is not supported");
-            if (requested.Design.ThemeNativeRef is null)
-                throw Unsupported(path + ".fontScheme.major", "the source did not issue a major-font capability");
-            RequireCapabilityField(requested.Design.ThemeNativeRef, "setThemeFontScheme", "fontScheme.major", path + ".fontScheme.major");
-            artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
-            artifact.Presentation.AuthoredTheme.MajorFontFamily = major.GetString();
-            mutations.SemanticChanges = true;
-            changed = true;
+            RequireThemeFontSchemeLatinOnly(beforeFontScheme, afterFontScheme, path + ".fontScheme");
+            var majorChanged = PropertyChanged(beforeFontScheme, afterFontScheme, "major");
+            var minorChanged = PropertyChanged(beforeFontScheme, afterFontScheme, "minor");
+            if (majorChanged && minorChanged)
+                throw new CodecException(
+                    "ppj.sourceBound.themeFontScheme",
+                    "Source-bound PPJ can change only one Latin theme font slot per compile.",
+                    path + ".fontScheme");
+            if (majorChanged)
+            {
+                if (!afterFontScheme.TryGetProperty("major", out var major) ||
+                    major.ValueKind != JsonValueKind.String ||
+                    string.IsNullOrWhiteSpace(major.GetString()))
+                    throw Unsupported(path + ".fontScheme.major", "source-bound major Latin theme font deletion or an empty name is not supported");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".fontScheme.major", "the source did not issue a major-font capability");
+                RequireCapabilityField(requested.Design.ThemeNativeRef, "setThemeFontScheme", "fontScheme.major", path + ".fontScheme.major");
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                artifact.Presentation.AuthoredTheme.MajorFontFamily = major.GetString();
+            }
+            if (minorChanged)
+            {
+                if (!afterFontScheme.TryGetProperty("minor", out var minor) ||
+                    minor.ValueKind != JsonValueKind.String ||
+                    string.IsNullOrWhiteSpace(minor.GetString()))
+                    throw Unsupported(path + ".fontScheme.minor", "source-bound minor Latin theme font deletion or an empty name is not supported");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".fontScheme.minor", "the source did not issue a minor-font capability");
+                RequireCapabilityField(requested.Design.ThemeNativeRef, "setThemeMinorFont", "fontScheme.minor", path + ".fontScheme.minor");
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                artifact.Presentation.AuthoredTheme.MinorFontFamily = minor.GetString();
+            }
+            if (majorChanged || minorChanged)
+            {
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
         }
         return changed;
     }
@@ -7161,14 +7186,14 @@ internal static partial class PpjSourceBoundPresentationCompiler
         }
     }
 
-    private static void RequireThemeFontSchemeMajorOnly(JsonElement before, JsonElement after, string path)
+    private static void RequireThemeFontSchemeLatinOnly(JsonElement before, JsonElement after, string path)
     {
         var names = before.EnumerateObject().Select(property => property.Name)
             .Concat(after.EnumerateObject().Select(property => property.Name))
             .Distinct(StringComparer.Ordinal);
         foreach (var name in names)
         {
-            if (name == "major") continue;
+            if (name is "major" or "minor") continue;
             var oldPresent = before.TryGetProperty(name, out var oldValue);
             var newPresent = after.TryGetProperty(name, out var newValue);
             if (oldPresent != newPresent || oldPresent && !JsonEqual(oldValue, newValue))

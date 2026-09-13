@@ -3280,9 +3280,9 @@ PPJ source-bound theme name (2026-09-13): a presentation with one shared
 ThemePart and an existing non-empty `a:theme/@name` projects
 `design.theme.name` with a hash-bound `setThemeName` capability. The same
 canonical owner with non-empty major and minor Latin typefaces projects
-`design.theme.fontScheme.major` with `setThemeFontScheme`; editing it changes
-only the major Latin typeface in the owning ThemePart. Editing either field
-preserves the other package members and reprojects the new value. Missing or
+`design.theme.fontScheme.major` and `.minor` with `setThemeFontScheme`; editing
+one field at a time changes only its Latin typeface in the owning ThemePart.
+Each edit preserves the other package members and reprojects the new value. Missing or
 ambiguous ThemePart ownership, missing required font slots, deletion, and the
 remaining theme color/font/effect graph stay source-owned. The focused native
 regression passes with SDK 8.0.128; host PowerPoint rendering is not claimed.
