@@ -901,6 +901,28 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 mutations.SemanticChanges = true;
                 changed = true;
             }
+            if (PropertyChanged(beforeColorRoles, afterColorRoles, "followedHyperlink"))
+            {
+                if (changed)
+                    throw new CodecException(
+                        "ppj.sourceBound.themeColorRoles",
+                        "Source-bound PPJ can change only one theme field per compile.",
+                        path + ".colorRoles.followedHyperlink");
+                if (!afterColorRoles.TryGetProperty("followedHyperlink", out var afterFollowedHyperlink) ||
+                    afterFollowedHyperlink.ValueKind != JsonValueKind.String)
+                    throw Unsupported(path + ".colorRoles.followedHyperlink", "source-bound followed-hyperlink color must be a six-digit RGB value");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".colorRoles.followedHyperlink", "the source did not issue a followed-hyperlink-color capability");
+                RequireCapabilityField(
+                    requested.Design.ThemeNativeRef,
+                    "setThemeColorRoleFollowedHyperlink",
+                    "colorRoles.followedHyperlink",
+                    path + ".colorRoles.followedHyperlink");
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                artifact.Presentation.AuthoredTheme.FollowedHyperlinkRgb = PptxColor.Normalize(afterFollowedHyperlink.GetString()!);
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
         }
         return changed;
     }
@@ -7540,7 +7562,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
             .Distinct(StringComparer.Ordinal);
         foreach (var name in names)
         {
-            if (name is "dark1" or "light1" or "dark2" or "light2" or "hyperlink") continue;
+            if (name is "dark1" or "light1" or "dark2" or "light2" or "hyperlink" or "followedHyperlink") continue;
             var oldPresent = before.TryGetProperty(name, out var oldValue);
             var newPresent = after.TryGetProperty(name, out var newValue);
             if (oldPresent != newPresent || oldPresent && !JsonEqual(oldValue, newValue))

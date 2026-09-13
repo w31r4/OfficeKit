@@ -5364,6 +5364,29 @@ internal static class PptxCodec
                 changed = true;
             }
         }
+        if (authoredTheme.HasFollowedHyperlinkRgb)
+        {
+            var colorScheme = theme.ThemeElements?.ColorScheme;
+            var sourceFollowedHyperlink = colorScheme is null
+                ? null
+                : ReadSourceBoundThemeRgb(colorScheme.FollowedHyperlinkColor);
+            if (sourceFollowedHyperlink is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export can edit only a direct RGB followed-hyperlink color.",
+                    PartPath(themePart));
+            var requested = PptxColor.Normalize(authoredTheme.FollowedHyperlinkRgb);
+            if (!sourceFollowedHyperlink.Equals(requested, StringComparison.OrdinalIgnoreCase))
+            {
+                var color = colorScheme?.FollowedHyperlinkColor?.GetFirstChild<A.RgbColorModelHex>() ??
+                    throw new CodecException(
+                        "unsupported_presentation_edit",
+                        "Source-preserving PPTX export cannot create a missing direct followed-hyperlink color.",
+                        PartPath(themePart));
+                color.Val = requested;
+                changed = true;
+            }
+        }
         if (authoredTheme.AccentRgb.Count > 0)
         {
             if (authoredTheme.AccentRgb.Count != 6)
