@@ -45,6 +45,7 @@ internal static class PpjSemanticValidator
             ["setThemeAccent5Color"] = Set("accentColors.accent5"),
             ["setThemeAccent6Color"] = Set("accentColors.accent6"),
             ["setThemeColorRoleDark1"] = Set("colorRoles.dark1"),
+            ["setThemeColorRoleLight1"] = Set("colorRoles.light1"),
             ["setBackground"] = Set("background"),
             ["setTransition"] = Set("transition"),
             ["setNotes"] = Set("notes"),
@@ -510,7 +511,8 @@ internal static class PpjSemanticValidator
         if (design.TryGetProperty("theme", out theme) &&
             theme.ValueKind == JsonValueKind.Object &&
             theme.TryGetProperty("colorRoles", out _) &&
-            !HasCapability(theme, "setThemeColorRoleDark1", "colorRoles.dark1"))
+            !HasCapability(theme, "setThemeColorRoleDark1", "colorRoles.dark1") &&
+            !HasCapability(theme, "setThemeColorRoleLight1", "colorRoles.light1"))
         {
             diagnostics.Add(new(
                 "ppj.sourceBound.themeColorRoles",

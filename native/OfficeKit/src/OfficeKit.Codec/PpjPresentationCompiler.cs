@@ -813,6 +813,28 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 mutations.SemanticChanges = true;
                 changed = true;
             }
+            if (PropertyChanged(beforeColorRoles, afterColorRoles, "light1"))
+            {
+                if (changed)
+                    throw new CodecException(
+                        "ppj.sourceBound.themeColorRoles",
+                        "Source-bound PPJ can change only one theme field per compile.",
+                        path + ".colorRoles.light1");
+                if (!afterColorRoles.TryGetProperty("light1", out var afterLight1) ||
+                    afterLight1.ValueKind != JsonValueKind.String)
+                    throw Unsupported(path + ".colorRoles.light1", "source-bound light1 color must be a six-digit RGB value");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".colorRoles.light1", "the source did not issue a light1-color capability");
+                RequireCapabilityField(
+                    requested.Design.ThemeNativeRef,
+                    "setThemeColorRoleLight1",
+                    "colorRoles.light1",
+                    path + ".colorRoles.light1");
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                artifact.Presentation.AuthoredTheme.Light1Rgb = PptxColor.Normalize(afterLight1.GetString()!);
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
         }
         return changed;
     }
@@ -7452,7 +7474,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
             .Distinct(StringComparer.Ordinal);
         foreach (var name in names)
         {
-            if (name is "dark1") continue;
+            if (name is "dark1" or "light1") continue;
             var oldPresent = before.TryGetProperty(name, out var oldValue);
             var newPresent = after.TryGetProperty(name, out var newValue);
             if (oldPresent != newPresent || oldPresent && !JsonEqual(oldValue, newValue))

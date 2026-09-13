@@ -1,0 +1,35 @@
+## Context
+
+The committed dark1 increment already imports six strict direct RGB color-role leaves into the existing `PresentationThemeArtifact`, projects the complete six-role observation, and authorizes one field-qualified source-bound edit. The generated PPJ schema requires all six `colorRoles` properties, so a light1 capability must reuse that same all-six observation boundary rather than expose a partial object.
+
+## Goals / Non-Goals
+
+**Goals:**
+
+- Add `setThemeColorRoleLight1` for `design.theme.colorRoles.light1` while keeping the existing dark1 capability intact.
+- Patch only an existing direct `a:lt1/a:srgbClr/@val` token in the canonical shared ThemePart.
+- Prove source-byte, changed-part, XML, and authority preservation with a small native fixture.
+
+**Non-Goals:**
+
+- Editing dark2, light2, hyperlink, or followedHyperlink in this change.
+- Creating missing nodes or accepting scheme colors, alpha, transforms, inherited state, multiple ThemeParts, or arbitrary theme XML.
+- Changing protobuf fields, protocol version, authored color-role lowering, effect schemes, font schemes, or host rendering behavior.
+
+## Decisions
+
+1. **Reuse the existing six-role artifact.** `PresentationThemeArtifact.light1_rgb` is already present for authored lowering and is populated by the strict imported-role reader. This keeps the wire contract stable.
+2. **Issue an independent field capability.** Add `setThemeColorRoleLight1` with only `colorRoles.light1`; retain the existing dark1 capability so a projection remains truthful about both independently owned fields.
+3. **Keep one theme field per compile.** The compiler's existing mutation guard rejects changing light1 together with dark1, accents, fonts, or any other theme field.
+4. **Patch the existing XML token.** The writer rereads the canonical ThemePart, verifies the direct RGB light1 topology, and changes only `a:lt1/a:srgbClr/@val`. It never synthesizes a missing node or serializes unsupported descendants.
+5. **Preserve the strict profile.** Alpha, transforms, system colors, extra attributes, and ambiguous ownership remain source-owned or fail closed. A broader role graph would require a separate spec and test boundary.
+
+## Risks / Trade-offs
+
+- Many themes use a system or scheme color for light1, so those imports intentionally receive no color-role capabilities; this is safer than claiming an RGB edit that cannot preserve the source topology.
+- The complete six-role observation is required by the current PPJ schema even though only light1 and dark1 are writable; unsupported roles remain observable but source-owned.
+- The focused regression proves package/XML preservation and reprojection, not PowerPoint host color management or visual fidelity.
+
+## Migration Plan
+
+No migration is required. Existing PPJ programs remain valid. Rolling back removes only the light1 observation authority and writer branch; authored theme color roles and the existing dark1 owner remain available.

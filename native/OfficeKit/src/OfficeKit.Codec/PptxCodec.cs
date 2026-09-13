@@ -5272,6 +5272,29 @@ internal static class PptxCodec
                 changed = true;
             }
         }
+        if (authoredTheme.HasLight1Rgb)
+        {
+            var colorScheme = theme.ThemeElements?.ColorScheme;
+            var sourceLight1 = colorScheme is null
+                ? null
+                : ReadSourceBoundThemeRgb(colorScheme.Light1Color);
+            if (sourceLight1 is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export can edit only a direct RGB light1 color.",
+                    PartPath(themePart));
+            var requested = PptxColor.Normalize(authoredTheme.Light1Rgb);
+            if (!sourceLight1.Equals(requested, StringComparison.OrdinalIgnoreCase))
+            {
+                var color = colorScheme?.Light1Color?.GetFirstChild<A.RgbColorModelHex>() ??
+                    throw new CodecException(
+                        "unsupported_presentation_edit",
+                        "Source-preserving PPTX export cannot create a missing direct light1 color.",
+                        PartPath(themePart));
+                color.Val = requested;
+                changed = true;
+            }
+        }
         if (authoredTheme.AccentRgb.Count > 0)
         {
             if (authoredTheme.AccentRgb.Count != 6)
