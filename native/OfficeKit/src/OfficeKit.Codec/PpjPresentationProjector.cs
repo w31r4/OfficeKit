@@ -1094,6 +1094,37 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent2GreenMod", ["accentTransforms.accent2.greenMod"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent2GreenOffTheme &&
+            accent2GreenOffTheme.AccentTransforms[0] is { Role: "accent2", HasGreenOffsetThousandth: true } accent2GreenOff &&
+            !accent2GreenOff.HasTintThousandth &&
+            !accent2GreenOff.HasShadeThousandth &&
+            !accent2GreenOff.HasLuminanceModulationThousandth &&
+            !accent2GreenOff.HasLuminanceOffsetThousandth &&
+            !accent2GreenOff.HasAlphaModulationThousandth &&
+            !accent2GreenOff.HasAlphaOffsetThousandth &&
+            !accent2GreenOff.HasSaturationModulationThousandth &&
+            !accent2GreenOff.HasSaturationOffsetThousandth &&
+            !accent2GreenOff.HasRedModulationThousandth &&
+            !accent2GreenOff.HasRedOffsetThousandth &&
+            !accent2GreenOff.HasGreenModulationThousandth &&
+            !accent2GreenOff.HasBlueModulationThousandth &&
+            !accent2GreenOff.HasBlueOffsetThousandth &&
+            !accent2GreenOff.HasHueModulationThousandth &&
+            !accent2GreenOff.HasHueOffsetAngleThousandth &&
+            !accent2GreenOff.HasGray && !accent2GreenOff.HasComp && !accent2GreenOff.HasInv &&
+            !accent2GreenOff.HasGamma && !accent2GreenOff.HasInvGamma &&
+            accent2GreenOff.GreenOffsetThousandth >= -100_000 &&
+            accent2GreenOff.GreenOffsetThousandth <= 100_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent2"] = new JsonObject
+                {
+                    ["greenOff"] = JsonValue.Create(accent2GreenOff.GreenOffsetThousandth / 100_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent2GreenOff", ["accentTransforms.accent2.greenOff"]));
+        }
         if (presentation.AuthoredTheme?.HasMajorFontFamily == true &&
             presentation.AuthoredTheme.HasMinorFontFamily)
         {
