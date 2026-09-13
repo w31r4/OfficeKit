@@ -266,8 +266,29 @@ internal static class PptxCodec
         var layoutIdByPartPath = masterGraph
             .SelectMany(master => master.Layouts)
             .ToDictionary(layout => PartPath(layout.Part), layout => layout.Id, StringComparer.OrdinalIgnoreCase);
-        var importedThemeName = CanonicalThemePart(masterGraph)?.Theme?.Name?.Value;
+        var importedTheme = CanonicalThemePart(masterGraph)?.Theme;
+        var importedThemeName = importedTheme?.Name?.Value;
         if (string.IsNullOrWhiteSpace(importedThemeName)) importedThemeName = null;
+        var importedMajorFontFamily = importedTheme?.ThemeElements?.FontScheme?.MajorFont?.LatinFont?.Typeface?.Value;
+        if (string.IsNullOrWhiteSpace(importedMajorFontFamily)) importedMajorFontFamily = null;
+        var importedMinorFontFamily = importedTheme?.ThemeElements?.FontScheme?.MinorFont?.LatinFont?.Typeface?.Value;
+        if (string.IsNullOrWhiteSpace(importedMinorFontFamily)) importedMinorFontFamily = null;
+        var importedMajorFontFamilyEastAsia = importedTheme?.ThemeElements?.FontScheme?.MajorFont?.EastAsianFont?.Typeface?.Value;
+        if (string.IsNullOrWhiteSpace(importedMajorFontFamilyEastAsia)) importedMajorFontFamilyEastAsia = null;
+        var importedMinorFontFamilyEastAsia = importedTheme?.ThemeElements?.FontScheme?.MinorFont?.EastAsianFont?.Typeface?.Value;
+        if (string.IsNullOrWhiteSpace(importedMinorFontFamilyEastAsia)) importedMinorFontFamilyEastAsia = null;
+        var importedMajorFontFamilyComplexScript = importedTheme?.ThemeElements?.FontScheme?.MajorFont?.ComplexScriptFont?.Typeface?.Value;
+        if (string.IsNullOrWhiteSpace(importedMajorFontFamilyComplexScript)) importedMajorFontFamilyComplexScript = null;
+        var importedMinorFontFamilyComplexScript = importedTheme?.ThemeElements?.FontScheme?.MinorFont?.ComplexScriptFont?.Typeface?.Value;
+        if (string.IsNullOrWhiteSpace(importedMinorFontFamilyComplexScript)) importedMinorFontFamilyComplexScript = null;
+        var importedThemeArtifact = new PresentationThemeArtifact();
+        if (importedThemeName is not null) importedThemeArtifact.Name = importedThemeName;
+        if (importedMajorFontFamily is not null) importedThemeArtifact.MajorFontFamily = importedMajorFontFamily;
+        if (importedMinorFontFamily is not null) importedThemeArtifact.MinorFontFamily = importedMinorFontFamily;
+        if (importedMajorFontFamilyEastAsia is not null) importedThemeArtifact.MajorFontFamilyEastAsia = importedMajorFontFamilyEastAsia;
+        if (importedMinorFontFamilyEastAsia is not null) importedThemeArtifact.MinorFontFamilyEastAsia = importedMinorFontFamilyEastAsia;
+        if (importedMajorFontFamilyComplexScript is not null) importedThemeArtifact.MajorFontFamilyComplexScript = importedMajorFontFamilyComplexScript;
+        if (importedMinorFontFamilyComplexScript is not null) importedThemeArtifact.MinorFontFamilyComplexScript = importedMinorFontFamilyComplexScript;
 
         var artifact = new PresentationArtifact
         {
@@ -275,9 +296,15 @@ internal static class PptxCodec
             Name = "Imported presentation",
             SlideWidthEmu = presentationRoot.SlideSize?.Cx?.Value ?? DefaultSlideWidthEmu,
             SlideHeightEmu = presentationRoot.SlideSize?.Cy?.Value ?? DefaultSlideHeightEmu,
-            AuthoredTheme = importedThemeName is null
+            AuthoredTheme = !importedThemeArtifact.HasName &&
+                !importedThemeArtifact.HasMajorFontFamily &&
+                !importedThemeArtifact.HasMinorFontFamily &&
+                !importedThemeArtifact.HasMajorFontFamilyEastAsia &&
+                !importedThemeArtifact.HasMinorFontFamilyEastAsia &&
+                !importedThemeArtifact.HasMajorFontFamilyComplexScript &&
+                !importedThemeArtifact.HasMinorFontFamilyComplexScript
                 ? null
-                : new PresentationThemeArtifact { Name = importedThemeName },
+                : importedThemeArtifact,
         };
         artifact.ViewProperties = PptxViewPropertiesCodec.Read(presentationPart);
         ulong semanticItems = 0;
@@ -775,7 +802,7 @@ internal static class PptxCodec
                     "presentation_layout_topology_changed",
                     $"Source-preserving PPTX export requires the original {layoutGraph.Length}-layout topology; the artifact contains {envelope.Presentation.Layouts.Count} layouts.",
                     "ppt/presentation.xml");
-            ApplySourceBoundThemeName(envelope.Presentation.AuthoredTheme, masterGraph, changedParts, replacedOpaquePartHashes);
+            ApplySourceBoundThemeFields(envelope.Presentation.AuthoredTheme, masterGraph, changedParts, replacedOpaquePartHashes);
             var layoutIdByPartPath = layoutGraph.ToDictionary(item => PartPath(item.Layout.Part), item => item.Layout.Id, StringComparer.OrdinalIgnoreCase);
             if (PptxViewPropertiesCodec.ApplySourceBound(presentationPart, envelope.Presentation.ViewProperties) is { } viewPropertiesChange)
             {
@@ -4967,13 +4994,13 @@ internal static class PptxCodec
         return themes.Length == 1 ? themes[0] : null;
     }
 
-    private static void ApplySourceBoundThemeName(
+    private static void ApplySourceBoundThemeFields(
         PresentationThemeArtifact? authoredTheme,
         IReadOnlyList<PptxMasterGraphEntry> masterGraph,
         ISet<string> changedParts,
         IDictionary<string, string> replacedOpaquePartHashes)
     {
-        if (authoredTheme?.HasName != true) return;
+        if (authoredTheme is null || (!authoredTheme.HasName && !authoredTheme.HasMajorFontFamily)) return;
         var themePart = CanonicalThemePart(masterGraph) ??
             throw new CodecException(
                 "unsupported_presentation_edit",
@@ -4984,19 +5011,52 @@ internal static class PptxCodec
                 "missing_theme_root",
                 "PPTX source has no theme root.",
                 PartPath(themePart));
-        var sourceName = theme.Name?.Value;
-        if (string.IsNullOrWhiteSpace(sourceName))
-            throw new CodecException(
-                "unsupported_presentation_edit",
-                "Source-preserving PPTX export can edit only an existing theme name.",
-                PartPath(themePart));
-        if (string.IsNullOrWhiteSpace(authoredTheme.Name))
-            throw new CodecException(
-                "unsupported_presentation_edit",
-                "Source-preserving PPTX export cannot remove a theme name in this bounded profile.",
-                "$.design.theme.name");
-        if (sourceName.Equals(authoredTheme.Name, StringComparison.Ordinal)) return;
-        theme.Name = authoredTheme.Name;
+        var changed = false;
+        if (authoredTheme.HasName)
+        {
+            var sourceName = theme.Name?.Value;
+            if (string.IsNullOrWhiteSpace(sourceName))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export can edit only an existing theme name.",
+                    PartPath(themePart));
+            if (string.IsNullOrWhiteSpace(authoredTheme.Name))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export cannot remove a theme name in this bounded profile.",
+                    "$.design.theme.name");
+            if (!sourceName.Equals(authoredTheme.Name, StringComparison.Ordinal))
+            {
+                theme.Name = authoredTheme.Name;
+                changed = true;
+            }
+        }
+        if (authoredTheme.HasMajorFontFamily)
+        {
+            var fontScheme = theme.ThemeElements?.FontScheme;
+            var sourceMajor = fontScheme?.MajorFont?.LatinFont?.Typeface?.Value;
+            if (string.IsNullOrWhiteSpace(sourceMajor))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export can edit only an existing major Latin theme font.",
+                    PartPath(themePart));
+            if (string.IsNullOrWhiteSpace(authoredTheme.MajorFontFamily))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export cannot remove the major Latin theme font in this bounded profile.",
+                    "$.design.theme.fontScheme.major");
+            if (!sourceMajor.Equals(authoredTheme.MajorFontFamily, StringComparison.Ordinal))
+            {
+                if (fontScheme?.MajorFont?.LatinFont is not { } latinFont)
+                    throw new CodecException(
+                        "unsupported_presentation_edit",
+                        "Source-preserving PPTX export cannot create a missing major Latin theme font node.",
+                        PartPath(themePart));
+                latinFont.Typeface = authoredTheme.MajorFontFamily;
+                changed = true;
+            }
+        }
+        if (!changed) return;
         theme.Save();
         var partPath = PartPath(themePart);
         changedParts.Add(partPath);

@@ -528,21 +528,45 @@ internal static partial class PpjSourceBoundPresentationCompiler
         var before = baseline.Root.GetProperty("design").GetProperty("theme");
         var after = requested.Root.GetProperty("design").GetProperty("theme");
         const string path = "$.design.theme";
-        RequireEqualExcept(before, after, path, "name", "nativeRef");
+        RequireEqualExcept(before, after, path, "name", "fontScheme", "nativeRef");
         if (before.TryGetProperty("nativeRef", out _) || after.TryGetProperty("nativeRef", out _))
             RequireNativeRef(before, after, path);
-        if (!PropertyChanged(before, after, "name")) return false;
-        if (!after.TryGetProperty("name", out var name) ||
-            name.ValueKind != JsonValueKind.String ||
-            string.IsNullOrWhiteSpace(name.GetString()))
-            throw Unsupported(path + ".name", "source-bound theme name deletion or an empty name is not supported");
-        if (requested.Design.ThemeNativeRef is null)
-            throw Unsupported(path + ".name", "the source did not issue a theme-name capability");
-        RequireCapabilityField(requested.Design.ThemeNativeRef, "setThemeName", "name", path + ".name");
-        artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
-        artifact.Presentation.AuthoredTheme.Name = name.GetString();
-        mutations.SemanticChanges = true;
-        return true;
+        var changed = false;
+        if (PropertyChanged(before, after, "name"))
+        {
+            if (!after.TryGetProperty("name", out var name) ||
+                name.ValueKind != JsonValueKind.String ||
+                string.IsNullOrWhiteSpace(name.GetString()))
+                throw Unsupported(path + ".name", "source-bound theme name deletion or an empty name is not supported");
+            if (requested.Design.ThemeNativeRef is null)
+                throw Unsupported(path + ".name", "the source did not issue a theme-name capability");
+            RequireCapabilityField(requested.Design.ThemeNativeRef, "setThemeName", "name", path + ".name");
+            artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+            artifact.Presentation.AuthoredTheme.Name = name.GetString();
+            mutations.SemanticChanges = true;
+            changed = true;
+        }
+        if (PropertyChanged(before, after, "fontScheme"))
+        {
+            if (!before.TryGetProperty("fontScheme", out var beforeFontScheme) ||
+                !after.TryGetProperty("fontScheme", out var afterFontScheme) ||
+                beforeFontScheme.ValueKind != JsonValueKind.Object ||
+                afterFontScheme.ValueKind != JsonValueKind.Object)
+                throw Unsupported(path + ".fontScheme", "source-bound theme font scheme cannot be added or removed");
+            RequireThemeFontSchemeMajorOnly(beforeFontScheme, afterFontScheme, path + ".fontScheme");
+            if (!afterFontScheme.TryGetProperty("major", out var major) ||
+                major.ValueKind != JsonValueKind.String ||
+                string.IsNullOrWhiteSpace(major.GetString()))
+                throw Unsupported(path + ".fontScheme.major", "source-bound major Latin theme font deletion or an empty name is not supported");
+            if (requested.Design.ThemeNativeRef is null)
+                throw Unsupported(path + ".fontScheme.major", "the source did not issue a major-font capability");
+            RequireCapabilityField(requested.Design.ThemeNativeRef, "setThemeFontScheme", "fontScheme.major", path + ".fontScheme.major");
+            artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+            artifact.Presentation.AuthoredTheme.MajorFontFamily = major.GetString();
+            mutations.SemanticChanges = true;
+            changed = true;
+        }
+        return changed;
     }
 
     private static void RequireStableMasterTextLevels(
@@ -7134,6 +7158,24 @@ internal static partial class PpjSourceBoundPresentationCompiler
                     : JsonEqual(oldValue, newValue));
             if (oldPresent != newPresent || oldPresent && !equal)
                 throw Unsupported(path + "." + name, $"changing source-owned {name}");
+        }
+    }
+
+    private static void RequireThemeFontSchemeMajorOnly(JsonElement before, JsonElement after, string path)
+    {
+        var names = before.EnumerateObject().Select(property => property.Name)
+            .Concat(after.EnumerateObject().Select(property => property.Name))
+            .Distinct(StringComparer.Ordinal);
+        foreach (var name in names)
+        {
+            if (name == "major") continue;
+            var oldPresent = before.TryGetProperty(name, out var oldValue);
+            var newPresent = after.TryGetProperty(name, out var newValue);
+            if (oldPresent != newPresent || oldPresent && !JsonEqual(oldValue, newValue))
+                throw new CodecException(
+                    "ppj.sourceBound.themeFontScheme",
+                    $"Source-bound PPJ cannot safely compile changing source-owned {name}.",
+                    path);
         }
     }
 

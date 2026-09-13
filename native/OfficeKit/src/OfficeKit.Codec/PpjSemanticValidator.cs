@@ -32,6 +32,7 @@ internal static class PpjSemanticValidator
             ["setFrame"] = Set("frame.x", "frame.y", "frame.width", "frame.height", "frame.rotation", "frame.flipH", "frame.flipV"),
             ["setGeometry"] = Set("geometry.adjustments", "geometry.paths", "geometry.textRectangle", "geometry.guides", "geometry.connectionSites", "geometry.adjustmentHandles"),
             ["setCanvas"] = Set("canvas.width", "canvas.height"),
+            ["setThemeFontScheme"] = Set("fontScheme.major"),
             ["setBackground"] = Set("background"),
             ["setTransition"] = Set("transition"),
             ["setNotes"] = Set("notes"),
@@ -466,7 +467,8 @@ internal static class PpjSemanticValidator
         }
         if (design.TryGetProperty("theme", out theme) &&
             theme.ValueKind == JsonValueKind.Object &&
-            theme.TryGetProperty("fontScheme", out _))
+            theme.TryGetProperty("fontScheme", out _) &&
+            !HasCapability(theme, "setThemeFontScheme", "fontScheme.major"))
         {
             diagnostics.Add(new(
                 "ppj.sourceBound.themeFontScheme",
@@ -514,6 +516,17 @@ internal static class PpjSemanticValidator
             }
         }
     }
+
+    private static bool HasCapability(JsonElement owner, string operation, string field) =>
+        owner.TryGetProperty("nativeRef", out var nativeRef) &&
+        nativeRef.TryGetProperty("capabilities", out var capabilities) &&
+        capabilities.ValueKind == JsonValueKind.Array &&
+        capabilities.EnumerateArray().Any(capability =>
+            capability.TryGetProperty("operation", out var operationValue) &&
+            operationValue.GetString() == operation &&
+            capability.TryGetProperty("fields", out var fields) &&
+            fields.ValueKind == JsonValueKind.Array &&
+            fields.EnumerateArray().Any(value => value.GetString() == field));
 
     private static void RejectSourceBoundOwnerField(
         JsonElement design,

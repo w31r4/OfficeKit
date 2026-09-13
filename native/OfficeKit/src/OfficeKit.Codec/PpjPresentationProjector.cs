@@ -230,14 +230,36 @@ internal static partial class PpjPresentationProjector
             // that these fallback RGB values replace the source theme.
             ["colors"] = ImportedThemeColors(),
         };
+        var themeCapabilities = new List<CapabilitySpec>();
         if (presentation.AuthoredTheme?.HasName == true)
+            themeCapabilities.Add(new("setThemeName", ["name"]));
+        if (presentation.AuthoredTheme?.HasMajorFontFamily == true &&
+            presentation.AuthoredTheme.HasMinorFontFamily)
+        {
+            var fontScheme = new JsonObject
+            {
+                ["major"] = StringNode(presentation.AuthoredTheme.MajorFontFamily),
+                ["minor"] = StringNode(presentation.AuthoredTheme.MinorFontFamily),
+            };
+            if (presentation.AuthoredTheme.HasMajorFontFamilyEastAsia)
+                fontScheme["majorEastAsia"] = StringNode(presentation.AuthoredTheme.MajorFontFamilyEastAsia);
+            if (presentation.AuthoredTheme.HasMajorFontFamilyComplexScript)
+                fontScheme["majorComplexScript"] = StringNode(presentation.AuthoredTheme.MajorFontFamilyComplexScript);
+            if (presentation.AuthoredTheme.HasMinorFontFamilyEastAsia)
+                fontScheme["minorEastAsia"] = StringNode(presentation.AuthoredTheme.MinorFontFamilyEastAsia);
+            if (presentation.AuthoredTheme.HasMinorFontFamilyComplexScript)
+                fontScheme["minorComplexScript"] = StringNode(presentation.AuthoredTheme.MinorFontFamilyComplexScript);
+            theme["fontScheme"] = fontScheme;
+            themeCapabilities.Add(new("setThemeFontScheme", ["fontScheme.major"]));
+        }
+        if (themeCapabilities.Count > 0)
         {
             var themeObjectHash = Sha256(Encoding.UTF8.GetBytes("officekit:ppj:presentation-theme-name"));
             theme["nativeRef"] = NativeRef(
                 context,
                 "theme",
                 themeObjectHash,
-                [new CapabilitySpec("setThemeName", ["name"])]);
+                themeCapabilities);
         }
         var output = new JsonObject
         {
