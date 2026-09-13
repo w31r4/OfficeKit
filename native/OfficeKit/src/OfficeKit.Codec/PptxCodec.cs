@@ -5003,7 +5003,8 @@ internal static class PptxCodec
         if (authoredTheme is null ||
             (!authoredTheme.HasName && !authoredTheme.HasMajorFontFamily &&
              !authoredTheme.HasMinorFontFamily && !authoredTheme.HasMajorFontFamilyEastAsia &&
-             !authoredTheme.HasMinorFontFamilyEastAsia && !authoredTheme.HasMajorFontFamilyComplexScript)) return;
+             !authoredTheme.HasMinorFontFamilyEastAsia && !authoredTheme.HasMajorFontFamilyComplexScript &&
+             !authoredTheme.HasMinorFontFamilyComplexScript)) return;
         var themePart = CanonicalThemePart(masterGraph) ??
             throw new CodecException(
                 "unsupported_presentation_edit",
@@ -5156,6 +5157,31 @@ internal static class PptxCodec
                         "Source-preserving PPTX export cannot create a missing major complex-script theme font node.",
                         PartPath(themePart));
                 complexScriptFont.Typeface = authoredTheme.MajorFontFamilyComplexScript;
+                changed = true;
+            }
+        }
+        if (authoredTheme.HasMinorFontFamilyComplexScript)
+        {
+            var fontScheme = theme.ThemeElements?.FontScheme;
+            var sourceMinorComplexScript = fontScheme?.MinorFont?.ComplexScriptFont?.Typeface?.Value;
+            if (string.IsNullOrWhiteSpace(sourceMinorComplexScript))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export can edit only an existing minor complex-script theme font.",
+                    PartPath(themePart));
+            if (string.IsNullOrWhiteSpace(authoredTheme.MinorFontFamilyComplexScript))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export cannot remove the minor complex-script theme font in this bounded profile.",
+                    "$.design.theme.fontScheme.minorComplexScript");
+            if (!sourceMinorComplexScript.Equals(authoredTheme.MinorFontFamilyComplexScript, StringComparison.Ordinal))
+            {
+                if (fontScheme?.MinorFont?.ComplexScriptFont is not { } complexScriptFont)
+                    throw new CodecException(
+                        "unsupported_presentation_edit",
+                        "Source-preserving PPTX export cannot create a missing minor complex-script theme font node.",
+                        PartPath(themePart));
+                complexScriptFont.Typeface = authoredTheme.MinorFontFamilyComplexScript;
                 changed = true;
             }
         }

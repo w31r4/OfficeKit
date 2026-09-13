@@ -559,7 +559,8 @@ internal static partial class PpjSourceBoundPresentationCompiler
             var majorEastAsiaChanged = PropertyChanged(beforeFontScheme, afterFontScheme, "majorEastAsia");
             var minorEastAsiaChanged = PropertyChanged(beforeFontScheme, afterFontScheme, "minorEastAsia");
             var majorComplexScriptChanged = PropertyChanged(beforeFontScheme, afterFontScheme, "majorComplexScript");
-            if (new[] { majorChanged, minorChanged, majorEastAsiaChanged, minorEastAsiaChanged, majorComplexScriptChanged }.Count(value => value) > 1)
+            var minorComplexScriptChanged = PropertyChanged(beforeFontScheme, afterFontScheme, "minorComplexScript");
+            if (new[] { majorChanged, minorChanged, majorEastAsiaChanged, minorEastAsiaChanged, majorComplexScriptChanged, minorComplexScriptChanged }.Count(value => value) > 1)
                 throw new CodecException(
                     "ppj.sourceBound.themeFontScheme",
                     "Source-bound PPJ can change only one theme font slot per compile.",
@@ -624,7 +625,19 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
                 artifact.Presentation.AuthoredTheme.MajorFontFamilyComplexScript = majorComplexScript.GetString();
             }
-            if (majorChanged || minorChanged || majorEastAsiaChanged || minorEastAsiaChanged || majorComplexScriptChanged)
+            if (minorComplexScriptChanged)
+            {
+                if (!afterFontScheme.TryGetProperty("minorComplexScript", out var minorComplexScript) ||
+                    minorComplexScript.ValueKind != JsonValueKind.String ||
+                    string.IsNullOrWhiteSpace(minorComplexScript.GetString()))
+                    throw Unsupported(path + ".fontScheme.minorComplexScript", "source-bound minor complex-script theme font deletion or an empty name is not supported");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".fontScheme.minorComplexScript", "the source did not issue a minor complex-script font capability");
+                RequireCapabilityField(requested.Design.ThemeNativeRef, "setThemeMinorFontComplexScript", "fontScheme.minorComplexScript", path + ".fontScheme.minorComplexScript");
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                artifact.Presentation.AuthoredTheme.MinorFontFamilyComplexScript = minorComplexScript.GetString();
+            }
+            if (majorChanged || minorChanged || majorEastAsiaChanged || minorEastAsiaChanged || majorComplexScriptChanged || minorComplexScriptChanged)
             {
                 mutations.SemanticChanges = true;
                 changed = true;
@@ -7232,7 +7245,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
             .Distinct(StringComparer.Ordinal);
         foreach (var name in names)
         {
-            if (name is "major" or "minor" or "majorEastAsia" or "minorEastAsia" or "majorComplexScript") continue;
+            if (name is "major" or "minor" or "majorEastAsia" or "minorEastAsia" or "majorComplexScript" or "minorComplexScript") continue;
             var oldPresent = before.TryGetProperty(name, out var oldValue);
             var newPresent = after.TryGetProperty(name, out var newValue);
             if (oldPresent != newPresent || oldPresent && !JsonEqual(oldValue, newValue))

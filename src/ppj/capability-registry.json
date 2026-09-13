@@ -835,6 +835,13 @@
   },
   "authoredCompilerBoundaries": [
     {
+      "feature": "source-bound presentation theme minor complex-script font",
+      "ppjPath": "design.theme.fontScheme.minorComplexScript",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and existing Latin and minor complex-script typefaces exposes a setThemeMinorFontComplexScript capability for fontScheme.minorComplexScript. Source-preserving export changes only a:minorFont/a:cs/@typeface and a fresh projection returns the edited value. One font slot is edited per compile; other Latin, East Asian, major complex-script, inheritance, and theme-graph state stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing required Latin or complex-script nodes, deletion, combined slot edits, and capability tampering fail closed. Host font availability and rendering are not claimed."
+    },
+    {
       "feature": "source-bound presentation theme major complex-script font",
       "ppjPath": "design.theme.fontScheme.majorComplexScript",
       "behavior": "partial",
