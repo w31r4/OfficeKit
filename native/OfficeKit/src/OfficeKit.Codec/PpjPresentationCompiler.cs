@@ -658,7 +658,8 @@ internal static partial class PpjSourceBoundPresentationCompiler
             RequireThemeAccentColorsOwnedSlots(beforeAccentColors, afterAccentColors, path + ".accentColors");
             var accent1Changed = PropertyChanged(beforeAccentColors, afterAccentColors, "accent1");
             var accent2Changed = PropertyChanged(beforeAccentColors, afterAccentColors, "accent2");
-            if (accent1Changed && accent2Changed)
+            var accent3Changed = PropertyChanged(beforeAccentColors, afterAccentColors, "accent3");
+            if ((accent1Changed ? 1 : 0) + (accent2Changed ? 1 : 0) + (accent3Changed ? 1 : 0) > 1)
                 throw new CodecException(
                     "ppj.sourceBound.themeAccentColors",
                     "Source-bound PPJ can change only one accent color per compile.",
@@ -698,6 +699,25 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 if (artifact.Presentation.AuthoredTheme.AccentRgb.Count != 6)
                     throw Unsupported(path + ".accentColors", "source-bound accent colors require six imported slots");
                 artifact.Presentation.AuthoredTheme.AccentRgb[1] = PptxColor.Normalize(afterAccent2.GetString()!);
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
+            if (accent3Changed)
+            {
+                if (!afterAccentColors.TryGetProperty("accent3", out var afterAccent3) ||
+                    afterAccent3.ValueKind != JsonValueKind.String)
+                    throw Unsupported(path + ".accentColors.accent3", "source-bound accent3 color must be a six-digit RGB value");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".accentColors.accent3", "the source did not issue an accent3-color capability");
+                RequireCapabilityField(
+                    requested.Design.ThemeNativeRef,
+                    "setThemeAccent3Color",
+                    "accentColors.accent3",
+                    path + ".accentColors.accent3");
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                if (artifact.Presentation.AuthoredTheme.AccentRgb.Count != 6)
+                    throw Unsupported(path + ".accentColors", "source-bound accent colors require six imported slots");
+                artifact.Presentation.AuthoredTheme.AccentRgb[2] = PptxColor.Normalize(afterAccent3.GetString()!);
                 mutations.SemanticChanges = true;
                 changed = true;
             }
@@ -7322,7 +7342,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
             .Distinct(StringComparer.Ordinal);
         foreach (var name in names)
         {
-            if (name is "accent1" or "accent2") continue;
+            if (name is "accent1" or "accent2" or "accent3") continue;
             var oldPresent = before.TryGetProperty(name, out var oldValue);
             var newPresent = after.TryGetProperty(name, out var newValue);
             if (oldPresent != newPresent || oldPresent && !JsonEqual(oldValue, newValue))

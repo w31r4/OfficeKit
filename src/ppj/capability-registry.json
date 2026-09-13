@@ -838,14 +838,21 @@
       "feature": "source-bound presentation theme accent1 color",
       "ppjPath": "design.theme.accentColors.accent1",
       "behavior": "partial",
-      "sourceBound": "A canonical imported presentation with one shared ThemePart and six existing direct RGB accent colors exposes a setThemeAccent1Color capability for accentColors.accent1. Source-preserving export changes only a:accent1Color/a:srgbClr/@val and a fresh projection returns the edited value. One accent slot is edited per compile; the other five accents, color roles, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and six existing direct RGB accent colors exposes a setThemeAccent1Color capability for accentColors.accent1. Source-preserving export changes only a:accent1Color/a:srgbClr/@val and a fresh projection returns the edited value. One accent slot is edited per compile; accent2 and accent3 have independent field capabilities, while accent4..6, color roles, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned for this owner.",
       "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent colors, deletion, combined theme-field edits, edits to unowned accent slots, and capability tampering fail closed. Alpha, theme transforms, host color management, and PowerPoint rendering are not claimed."
     },
     {
       "feature": "source-bound presentation theme accent2 color",
       "ppjPath": "design.theme.accentColors.accent2",
       "behavior": "partial",
-      "sourceBound": "A canonical imported presentation with one shared ThemePart and six existing direct RGB accent colors exposes a setThemeAccent2Color capability for accentColors.accent2. Source-preserving export changes only a:accent2Color/a:srgbClr/@val and a fresh projection returns the edited value. One accent slot is edited per compile; accent3..6, color roles, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned while the existing accent1 capability remains independently bounded.",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and six existing direct RGB accent colors exposes a setThemeAccent2Color capability for accentColors.accent2. Source-preserving export changes only a:accent2Color/a:srgbClr/@val and a fresh projection returns the edited value. One accent slot is edited per compile; accent1 and accent3 have independent field capabilities, while accent4..6, color roles, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned for this owner.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent colors, deletion, combined theme-field edits, edits to unowned accent slots, and capability tampering fail closed. Alpha, theme transforms, host color management, and PowerPoint rendering are not claimed."
+    },
+    {
+      "feature": "source-bound presentation theme accent3 color",
+      "ppjPath": "design.theme.accentColors.accent3",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and six existing direct RGB accent colors exposes a setThemeAccent3Color capability for accentColors.accent3. Source-preserving export changes only a:accent3Color/a:srgbClr/@val and a fresh projection returns the edited value. One accent slot is edited per compile; accent1/2 and accent4..6, color roles, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned while the existing accent1 and accent2 capabilities remain independently bounded.",
       "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent colors, deletion, combined theme-field edits, edits to unowned accent slots, and capability tampering fail closed. Alpha, theme transforms, host color management, and PowerPoint rendering are not claimed."
     },
     {

@@ -11,7 +11,7 @@ namespace OfficeKit.Codec.Tests;
 public sealed partial class PptxCodecTests
 {
     [Fact]
-    public void PpjSourceBoundThemeAccent2ColorEditsOnlyAccent2AndReprojects()
+    public void PpjSourceBoundThemeAccent3ColorEditsOnlyAccent3AndReprojects()
     {
         var authoredRequest = ExportRequest();
         var authoredTheme = new PresentationThemeArtifact();
@@ -29,7 +29,7 @@ public sealed partial class PptxCodecTests
             File = ByteString.CopyFrom(source),
             PresentationProgram = new PresentationProgramRequest
             {
-                SourceUri = "deck.assets/source/theme-accent2.pptx",
+                SourceUri = "deck.assets/source/theme-accent3.pptx",
             },
         });
         Assert.True(projected.Ok, Diagnostics(projected));
@@ -37,12 +37,12 @@ public sealed partial class PptxCodecTests
         var projectedTheme = projectedProgram["design"]!["theme"]!.AsObject();
         var projectedColors = projectedTheme["accentColors"]!.AsObject();
         Assert.Equal("#112233", projectedColors["accent1"]!.GetValue<string>());
-        Assert.Equal("#223344", projectedColors["accent2"]!.GetValue<string>());
+        Assert.Equal("#334455", projectedColors["accent3"]!.GetValue<string>());
         Assert.Equal("#667788", projectedColors["accent6"]!.GetValue<string>());
         var nativeRef = Assert.IsType<JsonObject>(projectedTheme["nativeRef"]);
         Assert.Contains(nativeRef["capabilities"]!.AsArray(), capability =>
-            capability!["operation"]!.GetValue<string>() == "setThemeAccent2Color" &&
-            capability["fields"]!.AsArray().Any(field => field!.GetValue<string>() == "accentColors.accent2"));
+            capability!["operation"]!.GetValue<string>() == "setThemeAccent3Color" &&
+            capability["fields"]!.AsArray().Any(field => field!.GetValue<string>() == "accentColors.accent3"));
 
         var noOp = Invoke(new CodecRequest
         {
@@ -60,7 +60,7 @@ public sealed partial class PptxCodecTests
         Assert.Equal(source, noOp.File.ToByteArray());
 
         var editedProgram = JsonNode.Parse(projectedProgram.ToJsonString())!.AsObject();
-        editedProgram["design"]!["theme"]!["accentColors"]!["accent2"] = "#ABCDEF";
+        editedProgram["design"]!["theme"]!["accentColors"]!["accent3"] = "#ABCDEF";
         var edited = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
@@ -81,9 +81,9 @@ public sealed partial class PptxCodecTests
         {
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
             var scheme = Assert.Single(package.PresentationPart!.SlideMasterParts).ThemePart!.Theme!.ThemeElements!.ColorScheme!;
-            Assert.Equal("ABCDEF", scheme.Accent2Color!.RgbColorModelHex!.Val!.Value);
+            Assert.Equal("ABCDEF", scheme.Accent3Color!.RgbColorModelHex!.Val!.Value);
             Assert.Equal("112233", scheme.Accent1Color!.RgbColorModelHex!.Val!.Value);
-            Assert.Equal("334455", scheme.Accent3Color!.RgbColorModelHex!.Val!.Value);
+            Assert.Equal("223344", scheme.Accent2Color!.RgbColorModelHex!.Val!.Value);
             Assert.Equal("445566", scheme.Accent4Color!.RgbColorModelHex!.Val!.Value);
             Assert.Equal("556677", scheme.Accent5Color!.RgbColorModelHex!.Val!.Value);
             Assert.Equal("667788", scheme.Accent6Color!.RgbColorModelHex!.Val!.Value);
@@ -101,12 +101,12 @@ public sealed partial class PptxCodecTests
             File = ByteString.CopyFrom(editedBytes),
             PresentationProgram = new PresentationProgramRequest
             {
-                SourceUri = "deck.assets/edited/theme-accent2.pptx",
+                SourceUri = "deck.assets/edited/theme-accent3.pptx",
             },
         });
         Assert.True(reprojected.Ok, Diagnostics(reprojected));
         var reprojectedProgram = JsonNode.Parse(reprojected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
-        Assert.Equal("#ABCDEF", reprojectedProgram["design"]!["theme"]!["accentColors"]!["accent2"]!.GetValue<string>());
+        Assert.Equal("#ABCDEF", reprojectedProgram["design"]!["theme"]!["accentColors"]!["accent3"]!.GetValue<string>());
 
         var unauthorizedProgram = JsonNode.Parse(projectedProgram.ToJsonString())!.AsObject();
         unauthorizedProgram["design"]!["theme"]!["accentColors"]!["accent4"] = "#AABBCC";
@@ -125,7 +125,7 @@ public sealed partial class PptxCodecTests
 
         var tamperedProgram = JsonNode.Parse(editedProgram.ToJsonString())!.AsObject();
         tamperedProgram["design"]!["theme"]!["nativeRef"]!["capabilities"]!.AsArray()
-            .Single(capability => capability!["operation"]!.GetValue<string>() == "setThemeAccent2Color")!["fields"] = new JsonArray("accentColors.accent1");
+            .Single(capability => capability!["operation"]!.GetValue<string>() == "setThemeAccent3Color")!["fields"] = new JsonArray("accentColors.accent2");
         var tampered = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
