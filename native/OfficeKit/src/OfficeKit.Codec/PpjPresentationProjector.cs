@@ -516,6 +516,36 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent1SatOff", ["accentTransforms.accent1.satOff"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } redModTheme &&
+            redModTheme.AccentTransforms[0] is { Role: "accent1", HasRedModulationThousandth: true } accent1RedMod &&
+            !accent1RedMod.HasTintThousandth &&
+            !accent1RedMod.HasShadeThousandth &&
+            !accent1RedMod.HasLuminanceModulationThousandth &&
+            !accent1RedMod.HasLuminanceOffsetThousandth &&
+            !accent1RedMod.HasAlphaModulationThousandth &&
+            !accent1RedMod.HasAlphaOffsetThousandth &&
+            !accent1RedMod.HasSaturationModulationThousandth &&
+            !accent1RedMod.HasSaturationOffsetThousandth &&
+            !accent1RedMod.HasRedOffsetThousandth &&
+            !accent1RedMod.HasGreenModulationThousandth &&
+            !accent1RedMod.HasGreenOffsetThousandth &&
+            !accent1RedMod.HasBlueModulationThousandth &&
+            !accent1RedMod.HasBlueOffsetThousandth &&
+            !accent1RedMod.HasHueModulationThousandth &&
+            !accent1RedMod.HasHueOffsetAngleThousandth &&
+            !accent1RedMod.HasGray && !accent1RedMod.HasComp && !accent1RedMod.HasInv &&
+            !accent1RedMod.HasGamma && !accent1RedMod.HasInvGamma &&
+            accent1RedMod.RedModulationThousandth <= 100_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent1"] = new JsonObject
+                {
+                    ["redMod"] = JsonValue.Create(accent1RedMod.RedModulationThousandth / 100_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent1RedMod", ["accentTransforms.accent1.redMod"]));
+        }
         if (presentation.AuthoredTheme?.HasMajorFontFamily == true &&
             presentation.AuthoredTheme.HasMinorFontFamily)
         {
