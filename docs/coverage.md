@@ -3312,3 +3312,10 @@ direct RGB accent2 leaf and one `a:alphaOff/@val` child projects the signed
 `setThemeAccent2AlphaOff` capability. An edit changes only that existing
 token, preserves the other package members, and reprojects the new value;
 unsupported or ambiguous theme topology remains source-owned.
+
+PPJ source-bound theme accent2 satMod (2026-09-14): a canonical owner with a
+direct RGB accent2 leaf and one `a:satMod/@val` child projects
+`design.theme.accentTransforms.accent2.satMod` with a
+`setThemeAccent2SatMod` capability. An edit changes only that existing token,
+preserves the other package members, and reprojects the new value; unsupported
+or ambiguous theme topology remains source-owned.

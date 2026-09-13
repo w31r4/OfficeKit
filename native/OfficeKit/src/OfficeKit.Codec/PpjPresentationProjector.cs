@@ -942,6 +942,36 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent2AlphaOff", ["accentTransforms.accent2.alphaOff"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent2SatModTheme &&
+            accent2SatModTheme.AccentTransforms[0] is { Role: "accent2", HasSaturationModulationThousandth: true } accent2SatMod &&
+            !accent2SatMod.HasTintThousandth &&
+            !accent2SatMod.HasShadeThousandth &&
+            !accent2SatMod.HasLuminanceModulationThousandth &&
+            !accent2SatMod.HasLuminanceOffsetThousandth &&
+            !accent2SatMod.HasAlphaModulationThousandth &&
+            !accent2SatMod.HasAlphaOffsetThousandth &&
+            !accent2SatMod.HasSaturationOffsetThousandth &&
+            !accent2SatMod.HasRedModulationThousandth &&
+            !accent2SatMod.HasRedOffsetThousandth &&
+            !accent2SatMod.HasGreenModulationThousandth &&
+            !accent2SatMod.HasGreenOffsetThousandth &&
+            !accent2SatMod.HasBlueModulationThousandth &&
+            !accent2SatMod.HasBlueOffsetThousandth &&
+            !accent2SatMod.HasHueModulationThousandth &&
+            !accent2SatMod.HasHueOffsetAngleThousandth &&
+            !accent2SatMod.HasGray && !accent2SatMod.HasComp && !accent2SatMod.HasInv &&
+            !accent2SatMod.HasGamma && !accent2SatMod.HasInvGamma &&
+            accent2SatMod.SaturationModulationThousandth <= 100_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent2"] = new JsonObject
+                {
+                    ["satMod"] = JsonValue.Create(accent2SatMod.SaturationModulationThousandth / 100_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent2SatMod", ["accentTransforms.accent2.satMod"]));
+        }
         if (presentation.AuthoredTheme?.HasMajorFontFamily == true &&
             presentation.AuthoredTheme.HasMinorFontFamily)
         {
