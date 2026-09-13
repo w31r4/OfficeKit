@@ -1225,6 +1225,49 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 mutations.SemanticChanges = true;
                 changed = true;
             }
+            else if (beforeAccentTransforms.TryGetProperty("accent2", out var beforeAccent2GreenMod) &&
+                     afterAccentTransforms.TryGetProperty("accent2", out var afterAccent2GreenMod) &&
+                     PropertyChanged(beforeAccent2GreenMod, afterAccent2GreenMod, "greenMod"))
+            {
+                var changedTransformNames = beforeAccent2GreenMod.EnumerateObject().Select(property => property.Name)
+                    .Concat(afterAccent2GreenMod.EnumerateObject().Select(property => property.Name))
+                    .Distinct(StringComparer.Ordinal)
+                    .Where(name => PropertyChanged(beforeAccent2GreenMod, afterAccent2GreenMod, name))
+                    .ToArray();
+                if (changedTransformNames.Length != 1 || !changedTransformNames[0].Equals("greenMod", StringComparison.Ordinal))
+                    throw Unsupported(path + ".accentTransforms.accent2", "source-bound accent2 requires exactly one changed greenMod field");
+                if (!afterAccent2GreenMod.TryGetProperty("greenMod", out var greenMod) ||
+                    greenMod.ValueKind != JsonValueKind.Number ||
+                    !greenMod.TryGetDouble(out var greenModFraction) ||
+                    !double.IsFinite(greenModFraction) || greenModFraction < 0 || greenModFraction > 1)
+                    throw Unsupported(path + ".accentTransforms.accent2.greenMod", "source-bound accent2 greenMod must be a finite fraction from 0 through 1");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".accentTransforms.accent2.greenMod", "the source did not issue an accent2-greenMod capability");
+                RequireCapabilityField(
+                    requested.Design.ThemeNativeRef,
+                    "setThemeAccent2GreenMod",
+                    "accentTransforms.accent2.greenMod",
+                    path + ".accentTransforms.accent2.greenMod");
+                var transformValue = checked((uint)Math.Round(greenModFraction * 100_000d, MidpointRounding.AwayFromZero));
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                var authoredTransform = artifact.Presentation.AuthoredTheme.AccentTransforms
+                    .SingleOrDefault(transform => transform.Role.Equals("accent2", StringComparison.Ordinal));
+                if (authoredTransform is null || !authoredTransform.HasGreenModulationThousandth ||
+                    authoredTransform.HasTintThousandth || authoredTransform.HasShadeThousandth ||
+                    authoredTransform.HasLuminanceModulationThousandth || authoredTransform.HasLuminanceOffsetThousandth ||
+                    authoredTransform.HasAlphaModulationThousandth || authoredTransform.HasAlphaOffsetThousandth ||
+                    authoredTransform.HasSaturationModulationThousandth || authoredTransform.HasSaturationOffsetThousandth ||
+                    authoredTransform.HasRedModulationThousandth || authoredTransform.HasRedOffsetThousandth ||
+                    authoredTransform.HasGreenOffsetThousandth ||
+                    authoredTransform.HasBlueModulationThousandth || authoredTransform.HasBlueOffsetThousandth ||
+                    authoredTransform.HasHueModulationThousandth || authoredTransform.HasHueOffsetAngleThousandth ||
+                    authoredTransform.HasGray || authoredTransform.HasComp || authoredTransform.HasInv ||
+                    authoredTransform.HasGamma || authoredTransform.HasInvGamma)
+                    throw Unsupported(path + ".accentTransforms.accent2.greenMod", "source-bound accent2 greenMod requires one imported direct greenMod");
+                authoredTransform.GreenModulationThousandth = transformValue;
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
             else
             {
             var beforeAccent1 = beforeAccentTransforms.GetProperty("accent1");
