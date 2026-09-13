@@ -256,6 +256,7 @@ internal static partial class PpjPresentationProjector
             themeCapabilities.Add(new("setThemeColorRoleLight1", ["colorRoles.light1"]));
             themeCapabilities.Add(new("setThemeColorRoleDark2", ["colorRoles.dark2"]));
             themeCapabilities.Add(new("setThemeColorRoleLight2", ["colorRoles.light2"]));
+            themeCapabilities.Add(new("setThemeColorRoleHyperlink", ["colorRoles.hyperlink"]));
         }
         if (presentation.AuthoredTheme is { AccentRgb.Count: 6 } authoredTheme)
         {

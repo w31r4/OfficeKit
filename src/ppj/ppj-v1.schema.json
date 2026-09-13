@@ -674,7 +674,7 @@
         },
         "nativeRef": {
           "$ref": "#/$defs/nativeRef",
-          "description": "Optional source-bound reference for existing presentation theme metadata. The bounded profile may expose the theme name, six direct RGB accent slots, direct RGB dark1, light1, dark2, or light2 color roles, and major/minor Latin, major/minor East Asian, or major/minor complex-script font scheme slots; other theme graph edits remain source-owned."
+          "description": "Optional source-bound reference for existing presentation theme metadata. The bounded profile may expose the theme name, six direct RGB accent slots, direct RGB dark1, light1, dark2, light2, or hyperlink color roles, and major/minor Latin, major/minor East Asian, or major/minor complex-script font scheme slots; other theme graph edits remain source-owned."
         },
         "fontScheme": {
           "$ref": "#/$defs/themeFontScheme",
@@ -690,7 +690,7 @@
         },
         "colorRoles": {
           "$ref": "#/$defs/themeColorRoles",
-          "description": "Bounded authored dark/light and hyperlink theme color roles lowered to the native a:clrScheme. Values accept RGB or RGBA; only the alpha suffix is lowered. A strict source-bound projection may expose existing direct RGB dark1, light1, dark2, and light2 roles with field-qualified capabilities; other imported theme XML remains source-owned."
+          "description": "Bounded authored dark/light and hyperlink theme color roles lowered to the native a:clrScheme. Values accept RGB or RGBA; only the alpha suffix is lowered. A strict source-bound projection may expose existing direct RGB dark1, light1, dark2, light2, and hyperlink roles with field-qualified capabilities; other imported theme XML remains source-owned."
         },
         "colors": {
           "type": "array",
@@ -1900,6 +1900,7 @@
             "setThemeColorRoleLight1",
             "setThemeColorRoleDark2",
             "setThemeColorRoleLight2",
+            "setThemeColorRoleHyperlink",
             "setBackground",
             "setTransition",
             "setAnimations",
@@ -2115,6 +2116,7 @@
               "colorRoles.light1",
               "colorRoles.dark2",
               "colorRoles.light2",
+              "colorRoles.hyperlink",
               "name",
               "pages",
               "hidden",

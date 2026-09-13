@@ -879,6 +879,28 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 mutations.SemanticChanges = true;
                 changed = true;
             }
+            if (PropertyChanged(beforeColorRoles, afterColorRoles, "hyperlink"))
+            {
+                if (changed)
+                    throw new CodecException(
+                        "ppj.sourceBound.themeColorRoles",
+                        "Source-bound PPJ can change only one theme field per compile.",
+                        path + ".colorRoles.hyperlink");
+                if (!afterColorRoles.TryGetProperty("hyperlink", out var afterHyperlink) ||
+                    afterHyperlink.ValueKind != JsonValueKind.String)
+                    throw Unsupported(path + ".colorRoles.hyperlink", "source-bound hyperlink color must be a six-digit RGB value");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".colorRoles.hyperlink", "the source did not issue a hyperlink-color capability");
+                RequireCapabilityField(
+                    requested.Design.ThemeNativeRef,
+                    "setThemeColorRoleHyperlink",
+                    "colorRoles.hyperlink",
+                    path + ".colorRoles.hyperlink");
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                artifact.Presentation.AuthoredTheme.HyperlinkRgb = PptxColor.Normalize(afterHyperlink.GetString()!);
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
         }
         return changed;
     }
@@ -7518,7 +7540,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
             .Distinct(StringComparer.Ordinal);
         foreach (var name in names)
         {
-            if (name is "dark1" or "light1" or "dark2" or "light2") continue;
+            if (name is "dark1" or "light1" or "dark2" or "light2" or "hyperlink") continue;
             var oldPresent = before.TryGetProperty(name, out var oldValue);
             var newPresent = after.TryGetProperty(name, out var newValue);
             if (oldPresent != newPresent || oldPresent && !JsonEqual(oldValue, newValue))
