@@ -1987,6 +1987,8 @@ PowerPoint 宿主阴影显示。
 
 本轮继续增加同一严格拓扑下的 `design.theme.accentTransforms.accent2.satMod`；当共享 ThemePart 的 accent2 是直接六位 RGB 加唯一 `a:satMod/@val` 时，PPJ 投影该 0..1 分数并只允许写回 satMod token，其他变换和主题图继续保持 source-owned。
 
+本轮继续增加同一严格拓扑下的 `design.theme.accentTransforms.accent2.satOff`；当共享 ThemePart 的 accent2 是直接六位 RGB 加唯一 `a:satOff/@val` 时，PPJ 投影该 -1..1 有符号分数并只允许写回 satOff token，其他变换和主题图继续保持 source-owned。
+
 本轮继续增加显式 `design.theme.colorRoles.dark1/light1/dark2/light2/hyperlink/followedHyperlink` authored 字段；它们写入真实 `a:clrScheme` 的六个剩余 bounded role，缺省值沿用 OfficeKit 原有 clean-room 默认。该字段接受六位 RGB 或八位 `#RRGGBBAA`，只将 alpha 写入 `a:alpha`，不推断 transforms、effect scheme、继承或 imported `theme1.xml` 的可写 owner；source-bound 仍 fail closed。
 
 文字字体映射再补了一个窄的复杂脚本 owner：显式 `fontFamilyComplexScript` 直接写入/读取/编辑 `a:cs/@typeface`，覆盖 authored 普通/图表文本、imported native leaf 和 source-bound 单叶 token-splice；这只缩小语言/脚本映射残差，不引入宿主字体回退或完整 theme font cascade。
