@@ -36,6 +36,7 @@ internal static class PpjSemanticValidator
             ["setThemeMinorFont"] = Set("fontScheme.minor"),
             ["setThemeMajorFontEastAsia"] = Set("fontScheme.majorEastAsia"),
             ["setThemeMinorFontEastAsia"] = Set("fontScheme.minorEastAsia"),
+            ["setThemeMajorFontComplexScript"] = Set("fontScheme.majorComplexScript"),
             ["setBackground"] = Set("background"),
             ["setTransition"] = Set("transition"),
             ["setNotes"] = Set("notes"),
@@ -474,7 +475,8 @@ internal static class PpjSemanticValidator
             !HasCapability(theme, "setThemeFontScheme", "fontScheme.major") &&
             !HasCapability(theme, "setThemeMinorFont", "fontScheme.minor") &&
             !HasCapability(theme, "setThemeMajorFontEastAsia", "fontScheme.majorEastAsia") &&
-            !HasCapability(theme, "setThemeMinorFontEastAsia", "fontScheme.minorEastAsia"))
+            !HasCapability(theme, "setThemeMinorFontEastAsia", "fontScheme.minorEastAsia") &&
+            !HasCapability(theme, "setThemeMajorFontComplexScript", "fontScheme.majorComplexScript"))
         {
             diagnostics.Add(new(
                 "ppj.sourceBound.themeFontScheme",

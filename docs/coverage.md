@@ -3281,9 +3281,9 @@ ThemePart and an existing non-empty `a:theme/@name` projects
 `design.theme.name` with a hash-bound `setThemeName` capability. The same
 canonical owner with non-empty major and minor Latin typefaces projects
 `design.theme.fontScheme.major` and `.minor` with `setThemeFontScheme`, plus
-existing `design.theme.fontScheme.majorEastAsia` and `.minorEastAsia` with
-their field capabilities; editing one field at a time changes only its owned
-typeface in the owning ThemePart. Each edit preserves the other package
+existing `design.theme.fontScheme.majorEastAsia`, `.minorEastAsia`, and
+`.majorComplexScript` with their field capabilities; editing one field at a
+time changes only its owned typeface in the owning ThemePart. Each edit preserves the other package
 members and reprojects the new value. Missing or
 ambiguous ThemePart ownership, missing required font slots, deletion, and the
 remaining theme color/font/effect graph stay source-owned. The focused native

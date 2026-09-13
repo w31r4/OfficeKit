@@ -674,7 +674,7 @@
         },
         "nativeRef": {
           "$ref": "#/$defs/nativeRef",
-          "description": "Optional source-bound reference for existing presentation theme metadata. The bounded profile may expose the theme name and major/minor Latin or major/minor East Asian font scheme slots; other theme graph edits remain source-owned."
+          "description": "Optional source-bound reference for existing presentation theme metadata. The bounded profile may expose the theme name and major/minor Latin, major/minor East Asian, or major complex-script font scheme slots; other theme graph edits remain source-owned."
         },
         "fontScheme": {
           "$ref": "#/$defs/themeFontScheme",
@@ -1888,6 +1888,7 @@
             "setThemeMinorFont",
             "setThemeMajorFontEastAsia",
             "setThemeMinorFontEastAsia",
+            "setThemeMajorFontComplexScript",
             "setBackground",
             "setTransition",
             "setAnimations",
@@ -2091,6 +2092,7 @@
               "fontScheme.minor",
               "fontScheme.majorEastAsia",
               "fontScheme.minorEastAsia",
+              "fontScheme.majorComplexScript",
               "name",
               "pages",
               "hidden",
