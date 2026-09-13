@@ -333,6 +333,36 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent1Shade", ["accentTransforms.accent1.shade"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } lumModTheme &&
+            lumModTheme.AccentTransforms[0] is { Role: "accent1", HasLuminanceModulationThousandth: true } accent1LumMod &&
+            !accent1LumMod.HasTintThousandth &&
+            !accent1LumMod.HasShadeThousandth &&
+            !accent1LumMod.HasLuminanceOffsetThousandth &&
+            !accent1LumMod.HasAlphaModulationThousandth &&
+            !accent1LumMod.HasAlphaOffsetThousandth &&
+            !accent1LumMod.HasSaturationModulationThousandth &&
+            !accent1LumMod.HasSaturationOffsetThousandth &&
+            !accent1LumMod.HasRedModulationThousandth &&
+            !accent1LumMod.HasRedOffsetThousandth &&
+            !accent1LumMod.HasGreenModulationThousandth &&
+            !accent1LumMod.HasGreenOffsetThousandth &&
+            !accent1LumMod.HasBlueModulationThousandth &&
+            !accent1LumMod.HasBlueOffsetThousandth &&
+            !accent1LumMod.HasHueModulationThousandth &&
+            !accent1LumMod.HasHueOffsetAngleThousandth &&
+            !accent1LumMod.HasGray && !accent1LumMod.HasComp && !accent1LumMod.HasInv &&
+            !accent1LumMod.HasGamma && !accent1LumMod.HasInvGamma &&
+            accent1LumMod.LuminanceModulationThousandth <= 100_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent1"] = new JsonObject
+                {
+                    ["lumMod"] = JsonValue.Create(accent1LumMod.LuminanceModulationThousandth / 100_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent1LumMod", ["accentTransforms.accent1.lumMod"]));
+        }
         if (presentation.AuthoredTheme?.HasMajorFontFamily == true &&
             presentation.AuthoredTheme.HasMinorFontFamily)
         {
