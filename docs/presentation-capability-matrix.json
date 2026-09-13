@@ -14,8 +14,8 @@
     "schemaDefinitions": 201,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 82,
-    "nativeLeafKinds": 315,
+    "authoredCompilerBoundaries": 83,
+    "nativeLeafKinds": 316,
     "helpApis": 151,
     "hostOnlyApis": 13
   },
@@ -374,6 +374,13 @@
         "owner": "presentation-compiler",
         "status": "partial",
         "reason": "preview.text.table-field-type-unassessed",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
+      "tableTextFieldId": {
+        "schemaRef": "#/$defs/textField/properties/id",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.text.table-field-id-unassessed",
         "test": "test/ppj-preview-input-assessment.mjs"
       },
       "textStyle": {
@@ -1081,6 +1088,14 @@
       "visualStatus": "partial-or-opaque"
     },
     {
+      "feature": "source-bound table field identity",
+      "ppjPath": "pages[].elements[].rows[].cells[].text.paragraphs[].runs[].field.id",
+      "behavior": "partial",
+      "sourceBound": "Fixed-topology imported table cells issue setTextField for a changed brace-wrapped UUID on a valid non-automatic direct DrawingML field. The source-bound edit patches only the owning SlidePart a:fld/@id attribute and then reprojects the new ID with the same type, cached display text, automatic marker and inline topology.",
+      "reason": "The bounded leaf proves the rectangular table, physical cell index, field ordinal, existing ID and exact source element. Automatic fields, field relationships, cached-text/type/topology changes, and host PowerPoint refresh remain source-owned or fail closed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
       "feature": "source-bound paragraph default scalars",
       "ppjPath": "pages[].elements[].text.paragraphs[].style.defaultText.bold, italic, size, fontFamily, fontFamilyEastAsia, fontFamilyComplexScript, language, kerning, letterSpacing, baseline, capitalization, strike, underline, highlight, color, gradient, glow, innerShadow, reflection, shadow (including scaleX/scaleY/skewX/skewY) and softEdge",
       "behavior": "partial",
@@ -1753,6 +1768,14 @@
       "ppjLocation": "table.rows[].cells[].text.paragraphs[].runs[].field.type",
       "surface": "native-leaf",
       "boundary": "Direct static DrawingML table-cell field type token; the physical cell and field ordinals are source-bound, as are field ID, cached text, automatic state, inline topology, table grid and merges."
+    },
+    {
+      "name": "tableTextFieldId",
+      "valueType": "string",
+      "unit": "uuid",
+      "ppjLocation": "table.rows[].cells[].text.paragraphs[].runs[].field.id",
+      "surface": "native-leaf",
+      "boundary": "Direct static DrawingML table-cell field identity; one existing brace-wrapped UUID on a non-automatic field. The physical cell and field ordinals are source-bound, as are type, cached text, automatic state, inline topology, table grid and merges."
     },
     {
       "name": "verticalAnchor",

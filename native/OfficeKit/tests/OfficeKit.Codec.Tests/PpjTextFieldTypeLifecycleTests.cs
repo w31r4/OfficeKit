@@ -117,7 +117,11 @@ public sealed partial class PpjTextBodyPropertyLifecycleTests
 
         var identity = Project(source);
         identity["pages"]![0]!["elements"]![0]!["rows"]![0]!["cells"]![0]!["text"]!["paragraphs"]![0]!["runs"]![0]!["field"]!["id"] = "{22222222-3333-4444-8555-666666666666}";
-        Assert.False(Compile(identity, source, success: false).Ok);
+        var identityEdited = Compile(identity, source);
+        Assert.True(identityEdited.Ok, string.Join("\n", identityEdited.Diagnostics.Select(item => item.Code + ": " + item.Message)));
+        Assert.Equal(["ppt/slides/slide1.xml"], identityEdited.PresentationProgram.ChangedParts);
+        Assert.Equal(originalSource, source);
+        Assert.Equal("{22222222-3333-4444-8555-666666666666}", ReadTableField(identityEdited.File.ToByteArray()).Id!.Value);
 
         var combined = Project(source);
         var combinedField = combined["pages"]![0]!["elements"]![0]!["rows"]![0]!["cells"]![0]!["text"]!["paragraphs"]![0]!["runs"]![0]!["field"]!.AsObject();

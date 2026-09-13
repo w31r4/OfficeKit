@@ -1798,7 +1798,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 break;
             case PpjTableElementModel beforeTable when after is PpjTableElementModel afterTable && target.ContentCase == PresentationElement.ContentOneofCase.Table:
                 var tableSemanticChanged = ApplyTableElement(program, beforeTable, afterTable, target.Table, assets, assetDimensions, path);
-                var tableFieldTypeChanged = ApplyTableFieldTypeMutations(
+                var tableFieldChanged = ApplyTableFieldMutations(
                     beforeTable,
                     afterTable,
                     target,
@@ -1806,7 +1806,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                     shapeTreePath,
                     mutations,
                     path);
-                changed = tableSemanticChanged || tableFieldTypeChanged;
+                changed = tableSemanticChanged || tableFieldChanged;
                 if (tableSemanticChanged) mutations.SemanticChanges = true;
                 break;
             case PpjConnectorElementModel beforeConnector when after is PpjConnectorElementModel afterConnector && target.ContentCase == PresentationElement.ContentOneofCase.Connector:
@@ -4163,13 +4163,12 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 var newStructuredText = newCell.Raw.TryGetProperty("text", out var newTextRaw) && newTextRaw.ValueKind == JsonValueKind.Object;
                 if (oldStructuredText && rawTextChanged && !newStructuredText)
                     throw Unsupported(cellPath + ".text", "mixed-run table-cell text must retain its structured text body");
-                // A table field type leaf is issued separately from cached
-                // text. Let that one token change bypass the table text-body
-                // writer; every other difference (including field ID,
-                // cached text, automatic state, or inline topology) still
-                // follows the source-preserving text path and is rejected by
-                // its identity checks when unsafe.
-                var textChanged = !TextEqualExceptFieldTypes(oldCell.Text, newCell.Text);
+                // Table field ID and type leaves are issued separately from
+                // cached text. Let those token changes bypass the table
+                // text-body writer; every other difference (including cached
+                // text, automatic state, or inline topology) still follows
+                // the source-preserving text path and is rejected when unsafe.
+                var textChanged = !TextEqualExceptFieldLeaves(oldCell.Text, newCell.Text);
                 var textBodyStyleChanged = rawTextChanged && newStructuredText &&
                     TextBodyStyleChanged(oldTextRaw, newTextRaw);
                 var styleChanged = PropertyChanged(oldCell.Raw, newCell.Raw, "fill") ||
@@ -4244,7 +4243,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
         return changed;
     }
 
-    private static bool ApplyTableFieldTypeMutations(
+    private static bool ApplyTableFieldMutations(
         PpjTableElementModel before,
         PpjTableElementModel after,
         PresentationElement target,
@@ -4277,9 +4276,35 @@ internal static partial class PpjSourceBoundPresentationCompiler
                     var newField = newRuns[run].Field;
                     if (oldField is not null && newField is not null)
                     {
-                        if (!string.Equals(oldField.Id, newField.Id, StringComparison.Ordinal) ||
-                            oldField.Automatic != newField.Automatic)
-                            throw new CodecException("unsupported_presentation_edit", "Source-preserving table-cell field edits may not change field identity or automatic state.", $"{path}.rows[{row}].cells[{cell}].text");
+                        if (oldField.Automatic != newField.Automatic)
+                            throw new CodecException("unsupported_presentation_edit", "Source-preserving table-cell field edits may not change automatic state.", $"{path}.rows[{row}].cells[{cell}].text");
+                        if (!string.Equals(oldField.Id, newField.Id, StringComparison.Ordinal))
+                        {
+                            if (oldField.Automatic || newField.Automatic ||
+                                PptxTextCodec.IsAutomaticFieldType(oldField.Type) ||
+                                PptxTextCodec.IsAutomaticFieldType(newField.Type) ||
+                                !PptxTextCodec.ValidFieldType(oldField.Type) ||
+                                !PptxTextCodec.ValidFieldType(newField.Type) ||
+                                !PptxTextCodec.ValidFieldId(oldField.Id) ||
+                                !PptxTextCodec.ValidFieldId(newField.Id))
+                                throw Unsupported($"{path}.rows[{row}].cells[{cell}].text", "source-bound automatic or invalid table-cell field ID change");
+                            RequireCapabilityField(after.NativeRef, "setTextField",
+                                "table.rows[].cells[].text.paragraphs[].runs[].field.id",
+                                $"{path}.rows[{row}].cells[{cell}].text.paragraphs[].runs[{run}].field.id");
+                            mutations.NativeLeaves.Add(new NativeLeafMutation(
+                                after.Id,
+                                slide,
+                                target,
+                                shapeTreePath,
+                                fieldIndex,
+                                textLeafIndex,
+                                oldField.Id!,
+                                newField.Id!,
+                                "tableTextFieldId"));
+                            changed = true;
+                            if (!string.Equals(oldField.Text, newField.Text, StringComparison.Ordinal))
+                                throw Unsupported($"{path}.rows[{row}].cells[{cell}].text", "source-bound table-cell field cached text and ID must not change together");
+                        }
                         if (!string.Equals(oldField.Type, newField.Type, StringComparison.Ordinal))
                         {
                             if (oldField.Automatic || newField.Automatic ||
@@ -7797,7 +7822,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
         return true;
     }
 
-    private static bool TextEqualExceptFieldTypes(PpjTextContentModel left, PpjTextContentModel right)
+    private static bool TextEqualExceptFieldLeaves(PpjTextContentModel left, PpjTextContentModel right)
     {
         if (left.PlainText is not null || right.PlainText is not null) return left.PlainText == right.PlainText;
         if (left.Paragraphs.Count != right.Paragraphs.Count) return false;
@@ -7814,7 +7839,6 @@ internal static partial class PpjSourceBoundPresentationCompiler
                     leftRun.Formula?.Syntax != rightRun.Formula?.Syntax ||
                     leftRun.Formula?.Source != rightRun.Formula?.Source ||
                     leftRun.LineBreak != rightRun.LineBreak ||
-                    leftRun.Field?.Id != rightRun.Field?.Id ||
                     leftRun.Field?.Text != rightRun.Field?.Text ||
                     leftRun.Field?.Automatic != rightRun.Field?.Automatic) return false;
             }

@@ -40,8 +40,10 @@ non-automatic direct field profile. A source-bound identity edit replaces only
 topology; the fresh projection reports the new ID. Automatic fields, table
 field IDs, field relationships and host refresh/evaluation remain source-owned.
 Malformed IDs, stale native references and combined identity/content edits fail
-closed. This is package-structure evidence, not a PowerPoint host-rendering
-or field-refresh claim.
+closed. Fixed-topology imported table cells expose the same `setTextField`
+boundary as `tableTextFieldId`; it replaces only that cell field's `a:fld/@id`
+and preserves type, cached text, and table topology. This is package-structure
+evidence, not a PowerPoint host-rendering or field-refresh claim.
 
 Use `text.paragraphs[].style.spaceBefore` for points (0..1584), or
 `spaceBeforeMultiplier` for a multiplier (0..132; 1 = 100%). Declare one unit

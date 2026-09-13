@@ -312,6 +312,13 @@
         "reason": "preview.text.table-field-type-unassessed",
         "test": "test/ppj-preview-input-assessment.mjs"
       },
+      "tableTextFieldId": {
+        "schemaRef": "#/$defs/textField/properties/id",
+        "owner": "presentation-compiler",
+        "status": "partial",
+        "reason": "preview.text.table-field-id-unassessed",
+        "test": "test/ppj-preview-input-assessment.mjs"
+      },
       "textStyle": {
         "schemaRef": "#/$defs/textStyle",
         "owner": "presentation-compiler",
@@ -1024,6 +1031,13 @@
       "reason": "The bounded leaf proves one existing valid ID, the field ordinal and the exact source element. Automatic fields, table-field identities, relationship graphs, cached-text or type changes in the same edit, field refresh/evaluation and host PowerPoint acceptance remain outside this profile."
     },
     {
+      "feature": "source-bound table field identity",
+      "ppjPath": "pages[].elements[].rows[].cells[].text.paragraphs[].runs[].field.id",
+      "behavior": "partial",
+      "sourceBound": "Fixed-topology imported table cells issue setTextField for a changed brace-wrapped UUID on a valid non-automatic direct DrawingML field. The source-bound edit patches only the owning SlidePart a:fld/@id attribute and then reprojects the new ID with the same type, cached display text, automatic marker and inline topology.",
+      "reason": "The bounded leaf proves the rectangular table, physical cell index, field ordinal, existing ID and exact source element. Automatic fields, field relationships, cached-text/type/topology changes, and host PowerPoint refresh remain source-owned or fail closed."
+    },
+    {
       "feature": "source-bound paragraph default scalars",
       "ppjPath": "pages[].elements[].text.paragraphs[].style.defaultText.bold, italic, size, fontFamily, fontFamilyEastAsia, fontFamilyComplexScript, language, kerning, letterSpacing, baseline, capitalization, strike, underline, highlight, color, gradient, glow, innerShadow, reflection, shadow (including scaleX/scaleY/skewX/skewY) and softEdge",
       "behavior": "partial",
@@ -1433,6 +1447,7 @@
     "textFieldType": { "valueType": "string", "unit": "token", "ppjLocation": "text.paragraphs[].runs[].field.type", "surface": "native-leaf", "boundary": "Direct static DrawingML field type token; the field ID, cached text, automatic marker and inline topology remain source-bound, and recognized automatic field types stay source-owned." },
     "textFieldId": { "valueType": "string", "unit": "uuid", "ppjLocation": "text.paragraphs[].runs[].field.id", "surface": "native-leaf", "boundary": "Direct static DrawingML field identity; one existing brace-wrapped UUID on a non-automatic direct text field. Type, cached text, automatic state, inline topology and field relationships remain source-bound." },
     "tableTextFieldType": { "valueType": "string", "unit": "token", "ppjLocation": "table.rows[].cells[].text.paragraphs[].runs[].field.type", "surface": "native-leaf", "boundary": "Direct static DrawingML table-cell field type token; the physical cell and field ordinals are source-bound, as are field ID, cached text, automatic state, inline topology, table grid and merges." },
+    "tableTextFieldId": { "valueType": "string", "unit": "uuid", "ppjLocation": "table.rows[].cells[].text.paragraphs[].runs[].field.id", "surface": "native-leaf", "boundary": "Direct static DrawingML table-cell field identity; one existing brace-wrapped UUID on a non-automatic field. The physical cell and field ordinals are source-bound, as are type, cached text, automatic state, inline topology, table grid and merges." },
     "verticalAnchor": { "valueType": "string", "unit": "enum", "ppjLocation": "textBoxStyle.verticalAlignment", "surface": "native-leaf", "boundary": "Text body vertical anchor." },
     "textBodyAnchorCenter": { "valueType": "boolean", "unit": "boolean", "ppjLocation": "textBoxStyle.anchorCenter", "surface": "native-leaf", "boundary": "Direct imported text-body anchorCtr flag; the source must contain one existing canonical a:bodyPr/@anchorCtr token." },
     "textBodyForceAntiAlias": { "valueType": "boolean", "unit": "boolean", "ppjLocation": "textBoxStyle.forceAntiAlias", "surface": "native-leaf", "boundary": "Direct imported text-body forceAA hint; the source must contain one existing canonical a:bodyPr/@forceAA token." },
