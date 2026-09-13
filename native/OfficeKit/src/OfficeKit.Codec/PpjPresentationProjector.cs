@@ -820,6 +820,36 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent2Shade", ["accentTransforms.accent2.shade"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent2LumModTheme &&
+            accent2LumModTheme.AccentTransforms[0] is { Role: "accent2", HasLuminanceModulationThousandth: true } accent2LumMod &&
+            !accent2LumMod.HasTintThousandth &&
+            !accent2LumMod.HasShadeThousandth &&
+            !accent2LumMod.HasLuminanceOffsetThousandth &&
+            !accent2LumMod.HasAlphaModulationThousandth &&
+            !accent2LumMod.HasAlphaOffsetThousandth &&
+            !accent2LumMod.HasSaturationModulationThousandth &&
+            !accent2LumMod.HasSaturationOffsetThousandth &&
+            !accent2LumMod.HasRedModulationThousandth &&
+            !accent2LumMod.HasRedOffsetThousandth &&
+            !accent2LumMod.HasGreenModulationThousandth &&
+            !accent2LumMod.HasGreenOffsetThousandth &&
+            !accent2LumMod.HasBlueModulationThousandth &&
+            !accent2LumMod.HasBlueOffsetThousandth &&
+            !accent2LumMod.HasHueModulationThousandth &&
+            !accent2LumMod.HasHueOffsetAngleThousandth &&
+            !accent2LumMod.HasGray && !accent2LumMod.HasComp && !accent2LumMod.HasInv &&
+            !accent2LumMod.HasGamma && !accent2LumMod.HasInvGamma &&
+            accent2LumMod.LuminanceModulationThousandth <= 100_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent2"] = new JsonObject
+                {
+                    ["lumMod"] = JsonValue.Create(accent2LumMod.LuminanceModulationThousandth / 100_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent2LumMod", ["accentTransforms.accent2.lumMod"]));
+        }
         if (presentation.AuthoredTheme?.HasMajorFontFamily == true &&
             presentation.AuthoredTheme.HasMinorFontFamily)
         {

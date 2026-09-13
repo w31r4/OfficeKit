@@ -839,7 +839,8 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 changed = true;
             }
             else if (beforeAccentTransforms.TryGetProperty("accent2", out var beforeAccent2Shade) &&
-                     afterAccentTransforms.TryGetProperty("accent2", out var afterAccent2Shade))
+                     afterAccentTransforms.TryGetProperty("accent2", out var afterAccent2Shade) &&
+                     PropertyChanged(beforeAccent2Shade, afterAccent2Shade, "shade"))
             {
                 var changedTransformNames = beforeAccent2Shade.EnumerateObject().Select(property => property.Name)
                     .Concat(afterAccent2Shade.EnumerateObject().Select(property => property.Name))
@@ -877,6 +878,48 @@ internal static partial class PpjSourceBoundPresentationCompiler
                     authoredTransform.HasGamma || authoredTransform.HasInvGamma)
                     throw Unsupported(path + ".accentTransforms.accent2.shade", "source-bound accent2 shade requires one imported direct shade");
                 authoredTransform.ShadeThousandth = transformValue;
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
+            else if (beforeAccentTransforms.TryGetProperty("accent2", out var beforeAccent2LumMod) &&
+                     afterAccentTransforms.TryGetProperty("accent2", out var afterAccent2LumMod))
+            {
+                var changedTransformNames = beforeAccent2LumMod.EnumerateObject().Select(property => property.Name)
+                    .Concat(afterAccent2LumMod.EnumerateObject().Select(property => property.Name))
+                    .Distinct(StringComparer.Ordinal)
+                    .Where(name => PropertyChanged(beforeAccent2LumMod, afterAccent2LumMod, name))
+                    .ToArray();
+                if (changedTransformNames.Length != 1 || !changedTransformNames[0].Equals("lumMod", StringComparison.Ordinal))
+                    throw Unsupported(path + ".accentTransforms.accent2", "source-bound accent2 requires exactly one changed lumMod field");
+                if (!afterAccent2LumMod.TryGetProperty("lumMod", out var lumMod) ||
+                    lumMod.ValueKind != JsonValueKind.Number ||
+                    !lumMod.TryGetDouble(out var lumModFraction) ||
+                    !double.IsFinite(lumModFraction) || lumModFraction < 0 || lumModFraction > 1)
+                    throw Unsupported(path + ".accentTransforms.accent2.lumMod", "source-bound accent2 lumMod must be a finite fraction from 0 through 1");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".accentTransforms.accent2.lumMod", "the source did not issue an accent2-lumMod capability");
+                RequireCapabilityField(
+                    requested.Design.ThemeNativeRef,
+                    "setThemeAccent2LumMod",
+                    "accentTransforms.accent2.lumMod",
+                    path + ".accentTransforms.accent2.lumMod");
+                var transformValue = checked((uint)Math.Round(lumModFraction * 100_000d, MidpointRounding.AwayFromZero));
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                var authoredTransform = artifact.Presentation.AuthoredTheme.AccentTransforms
+                    .SingleOrDefault(transform => transform.Role.Equals("accent2", StringComparison.Ordinal));
+                if (authoredTransform is null || !authoredTransform.HasLuminanceModulationThousandth ||
+                    authoredTransform.HasTintThousandth || authoredTransform.HasShadeThousandth ||
+                    authoredTransform.HasLuminanceOffsetThousandth ||
+                    authoredTransform.HasAlphaModulationThousandth || authoredTransform.HasAlphaOffsetThousandth ||
+                    authoredTransform.HasSaturationModulationThousandth || authoredTransform.HasSaturationOffsetThousandth ||
+                    authoredTransform.HasRedModulationThousandth || authoredTransform.HasRedOffsetThousandth ||
+                    authoredTransform.HasGreenModulationThousandth || authoredTransform.HasGreenOffsetThousandth ||
+                    authoredTransform.HasBlueModulationThousandth || authoredTransform.HasBlueOffsetThousandth ||
+                    authoredTransform.HasHueModulationThousandth || authoredTransform.HasHueOffsetAngleThousandth ||
+                    authoredTransform.HasGray || authoredTransform.HasComp || authoredTransform.HasInv ||
+                    authoredTransform.HasGamma || authoredTransform.HasInvGamma)
+                    throw Unsupported(path + ".accentTransforms.accent2.lumMod", "source-bound accent2 lumMod requires one imported direct lumMod");
+                authoredTransform.LuminanceModulationThousandth = transformValue;
                 mutations.SemanticChanges = true;
                 changed = true;
             }
