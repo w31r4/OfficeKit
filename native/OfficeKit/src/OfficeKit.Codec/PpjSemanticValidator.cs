@@ -47,6 +47,7 @@ internal static class PpjSemanticValidator
             ["setThemeColorRoleDark1"] = Set("colorRoles.dark1"),
             ["setThemeColorRoleLight1"] = Set("colorRoles.light1"),
             ["setThemeColorRoleDark2"] = Set("colorRoles.dark2"),
+            ["setThemeColorRoleLight2"] = Set("colorRoles.light2"),
             ["setBackground"] = Set("background"),
             ["setTransition"] = Set("transition"),
             ["setNotes"] = Set("notes"),
@@ -514,7 +515,8 @@ internal static class PpjSemanticValidator
             theme.TryGetProperty("colorRoles", out _) &&
             !HasCapability(theme, "setThemeColorRoleDark1", "colorRoles.dark1") &&
             !HasCapability(theme, "setThemeColorRoleLight1", "colorRoles.light1") &&
-            !HasCapability(theme, "setThemeColorRoleDark2", "colorRoles.dark2"))
+            !HasCapability(theme, "setThemeColorRoleDark2", "colorRoles.dark2") &&
+            !HasCapability(theme, "setThemeColorRoleLight2", "colorRoles.light2"))
         {
             diagnostics.Add(new(
                 "ppj.sourceBound.themeColorRoles",
