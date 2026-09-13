@@ -1125,6 +1125,36 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent2GreenOff", ["accentTransforms.accent2.greenOff"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent2BlueModTheme &&
+            accent2BlueModTheme.AccentTransforms[0] is { Role: "accent2", HasBlueModulationThousandth: true } accent2BlueMod &&
+            !accent2BlueMod.HasTintThousandth &&
+            !accent2BlueMod.HasShadeThousandth &&
+            !accent2BlueMod.HasLuminanceModulationThousandth &&
+            !accent2BlueMod.HasLuminanceOffsetThousandth &&
+            !accent2BlueMod.HasAlphaModulationThousandth &&
+            !accent2BlueMod.HasAlphaOffsetThousandth &&
+            !accent2BlueMod.HasSaturationModulationThousandth &&
+            !accent2BlueMod.HasSaturationOffsetThousandth &&
+            !accent2BlueMod.HasRedModulationThousandth &&
+            !accent2BlueMod.HasRedOffsetThousandth &&
+            !accent2BlueMod.HasGreenModulationThousandth &&
+            !accent2BlueMod.HasGreenOffsetThousandth &&
+            !accent2BlueMod.HasBlueOffsetThousandth &&
+            !accent2BlueMod.HasHueModulationThousandth &&
+            !accent2BlueMod.HasHueOffsetAngleThousandth &&
+            !accent2BlueMod.HasGray && !accent2BlueMod.HasComp && !accent2BlueMod.HasInv &&
+            !accent2BlueMod.HasGamma && !accent2BlueMod.HasInvGamma &&
+            accent2BlueMod.BlueModulationThousandth <= 100_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent2"] = new JsonObject
+                {
+                    ["blueMod"] = JsonValue.Create(accent2BlueMod.BlueModulationThousandth / 100_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent2BlueMod", ["accentTransforms.accent2.blueMod"]));
+        }
         if (presentation.AuthoredTheme?.HasMajorFontFamily == true &&
             presentation.AuthoredTheme.HasMinorFontFamily)
         {

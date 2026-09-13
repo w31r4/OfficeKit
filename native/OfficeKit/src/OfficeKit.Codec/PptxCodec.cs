@@ -296,6 +296,7 @@ internal static class PptxCodec
         var importedAccent2RedOff = TryReadSourceBoundThemeAccent2RedOff(importedTheme);
         var importedAccent2GreenMod = TryReadSourceBoundThemeAccent2GreenMod(importedTheme);
         var importedAccent2GreenOff = TryReadSourceBoundThemeAccent2GreenOff(importedTheme);
+        var importedAccent2BlueMod = TryReadSourceBoundThemeAccent2BlueMod(importedTheme);
         var importedColorRoleRgb = TryReadSourceBoundThemeColorRoleRgb(importedTheme);
         var importedThemeName = importedTheme?.Name?.Value;
         if (string.IsNullOrWhiteSpace(importedThemeName)) importedThemeName = null;
@@ -480,6 +481,12 @@ internal static class PptxCodec
             {
                 Role = "accent2",
                 GreenOffsetThousandth = accent2GreenOff,
+            });
+        if (importedAccent2BlueMod is { } accent2BlueMod)
+            importedThemeArtifact.AccentTransforms.Add(new PresentationThemeColorTransform
+            {
+                Role = "accent2",
+                BlueModulationThousandth = accent2BlueMod,
             });
         if (importedColorRoleRgb is not null)
         {
@@ -5421,6 +5428,21 @@ internal static class PptxCodec
         return greenOff.Val.Value;
     }
 
+    private static uint? TryReadSourceBoundThemeAccent2BlueMod(A.Theme? theme)
+    {
+        var colorScheme = theme?.ThemeElements?.ColorScheme;
+        var owner = colorScheme?.Accent2Color;
+        if (owner is null || !HasOnlyAttributes(owner) || owner.ChildElements.Count != 1 ||
+            owner.FirstChild is not A.RgbColorModelHex color ||
+            !HasOnlyAttributes(color, "val") ||
+            color.Val?.Value is not { Length: 6 } value || !value.All(Uri.IsHexDigit) ||
+            color.ChildElements.Count != 1 || color.FirstChild is not A.BlueModulation blueMod ||
+            !HasOnlyAttributes(blueMod, "val") || blueMod.ChildElements.Count != 0 ||
+            blueMod.Val is null || blueMod.Val.Value < 0 || blueMod.Val.Value > 100_000)
+            return null;
+        return checked((uint)blueMod.Val.Value);
+    }
+
     private static uint? TryReadSourceBoundThemeAccent1Shade(A.Theme? theme)
     {
         var colorScheme = theme?.ThemeElements?.ColorScheme;
@@ -6594,6 +6616,51 @@ internal static class PptxCodec
                         "Source-preserving PPTX export cannot create a missing direct accent2 greenOff.",
                         PartPath(themePart));
                 greenOff.Val = checked((int)requested);
+                changed = true;
+            }
+        }
+        else if (authoredTheme.AccentTransforms.Count == 1 &&
+            authoredTheme.AccentTransforms[0] is { Role: "accent2", HasBlueModulationThousandth: true } accent2BlueMod &&
+            !accent2BlueMod.HasTintThousandth &&
+            !accent2BlueMod.HasShadeThousandth &&
+            !accent2BlueMod.HasLuminanceModulationThousandth &&
+            !accent2BlueMod.HasLuminanceOffsetThousandth &&
+            !accent2BlueMod.HasAlphaModulationThousandth &&
+            !accent2BlueMod.HasAlphaOffsetThousandth &&
+            !accent2BlueMod.HasSaturationModulationThousandth &&
+            !accent2BlueMod.HasSaturationOffsetThousandth &&
+            !accent2BlueMod.HasRedModulationThousandth &&
+            !accent2BlueMod.HasRedOffsetThousandth &&
+            !accent2BlueMod.HasGreenModulationThousandth &&
+            !accent2BlueMod.HasGreenOffsetThousandth &&
+            !accent2BlueMod.HasBlueOffsetThousandth &&
+            !accent2BlueMod.HasHueModulationThousandth &&
+            !accent2BlueMod.HasHueOffsetAngleThousandth &&
+            !accent2BlueMod.HasGray && !accent2BlueMod.HasComp && !accent2BlueMod.HasInv &&
+            !accent2BlueMod.HasGamma && !accent2BlueMod.HasInvGamma &&
+            accent2BlueMod.BlueModulationThousandth <= 100_000)
+        {
+            var colorScheme = theme.ThemeElements?.ColorScheme;
+            var sourceValue = TryReadSourceBoundThemeAccent2BlueMod(theme);
+            if (sourceValue is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export can edit only an existing direct accent2 blueMod.",
+                    PartPath(themePart));
+            var requested = (long)accent2BlueMod.BlueModulationThousandth;
+            if (sourceValue.Value != requested)
+            {
+                var color = colorScheme?.Accent2Color?.GetFirstChild<A.RgbColorModelHex>() ??
+                    throw new CodecException(
+                        "unsupported_presentation_edit",
+                        "Source-preserving PPTX export cannot create a missing direct accent2 color.",
+                        PartPath(themePart));
+                var blueMod = color.FirstChild as A.BlueModulation ??
+                    throw new CodecException(
+                        "unsupported_presentation_edit",
+                        "Source-preserving PPTX export cannot create a missing direct accent2 blueMod.",
+                        PartPath(themePart));
+                blueMod.Val = checked((int)requested);
                 changed = true;
             }
         }
