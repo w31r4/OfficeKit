@@ -14,7 +14,7 @@
     "schemaDefinitions": 201,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 106,
+    "authoredCompilerBoundaries": 107,
     "nativeLeafKinds": 316,
     "helpApis": 151,
     "hostOnlyApis": 13
@@ -989,6 +989,14 @@
       "behavior": "partial",
       "sourceBound": "A canonical imported presentation with one shared ThemePart and an accent1 direct RGB leaf containing exactly one direct a:lumOff child exposes a setThemeAccent1LumOff capability for accentTransforms.accent1.lumOff. Source-preserving export changes only a:accent1Color/a:srgbClr/a:lumOff/@val and a fresh projection returns the edited signed fraction. The base accent1 RGB, other accents and color roles, tint/shade and other transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
       "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent1 RGB, alpha or extra descendants, unsupported transform siblings, deletion, combined theme-field edits, and capability tampering fail closed. Other transform leaves, host color management, and PowerPoint rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme accent1 alpha modulation",
+      "ppjPath": "design.theme.accentTransforms.accent1.alphaMod",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an accent1 direct RGB leaf containing exactly one direct a:alphaMod child exposes a setThemeAccent1AlphaMod capability for accentTransforms.accent1.alphaMod. Source-preserving export changes only a:accent1Color/a:srgbClr/a:alphaMod/@val and a fresh projection returns the edited fraction. The base accent1 RGB, other accents and color roles, tint/shade/luminance and other transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent1 RGB, absolute alpha or extra descendants, unsupported transform siblings, deletion, combined theme-field edits, out-of-range fractions, and capability tampering fail closed. Other transform leaves, host color management, and PowerPoint rendering are not claimed.",
       "visualStatus": "partial-or-opaque"
     },
     {

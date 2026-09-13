@@ -394,6 +394,36 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent1LumOff", ["accentTransforms.accent1.lumOff"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } alphaModTheme &&
+            alphaModTheme.AccentTransforms[0] is { Role: "accent1", HasAlphaModulationThousandth: true } accent1AlphaMod &&
+            !accent1AlphaMod.HasTintThousandth &&
+            !accent1AlphaMod.HasShadeThousandth &&
+            !accent1AlphaMod.HasLuminanceModulationThousandth &&
+            !accent1AlphaMod.HasLuminanceOffsetThousandth &&
+            !accent1AlphaMod.HasAlphaOffsetThousandth &&
+            !accent1AlphaMod.HasSaturationModulationThousandth &&
+            !accent1AlphaMod.HasSaturationOffsetThousandth &&
+            !accent1AlphaMod.HasRedModulationThousandth &&
+            !accent1AlphaMod.HasRedOffsetThousandth &&
+            !accent1AlphaMod.HasGreenModulationThousandth &&
+            !accent1AlphaMod.HasGreenOffsetThousandth &&
+            !accent1AlphaMod.HasBlueModulationThousandth &&
+            !accent1AlphaMod.HasBlueOffsetThousandth &&
+            !accent1AlphaMod.HasHueModulationThousandth &&
+            !accent1AlphaMod.HasHueOffsetAngleThousandth &&
+            !accent1AlphaMod.HasGray && !accent1AlphaMod.HasComp && !accent1AlphaMod.HasInv &&
+            !accent1AlphaMod.HasGamma && !accent1AlphaMod.HasInvGamma &&
+            accent1AlphaMod.AlphaModulationThousandth <= 100_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent1"] = new JsonObject
+                {
+                    ["alphaMod"] = JsonValue.Create(accent1AlphaMod.AlphaModulationThousandth / 100_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent1AlphaMod", ["accentTransforms.accent1.alphaMod"]));
+        }
         if (presentation.AuthoredTheme?.HasMajorFontFamily == true &&
             presentation.AuthoredTheme.HasMinorFontFamily)
         {
