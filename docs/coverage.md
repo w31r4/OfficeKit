@@ -3333,3 +3333,10 @@ direct RGB accent2 leaf and one `a:redMod/@val` child projects
 `setThemeAccent2RedMod` capability. An edit changes only that existing token,
 preserves the other package members, and reprojects the new value; unsupported
 or ambiguous theme topology remains source-owned.
+
+PPJ source-bound theme accent2 redOff (2026-09-14): a canonical owner with a
+direct RGB accent2 leaf and one `a:redOff/@val` child projects the signed
+`design.theme.accentTransforms.accent2.redOff` fraction with a
+`setThemeAccent2RedOff` capability. An edit changes only that existing token,
+preserves the other package members, and reprojects the new value; unsupported
+or ambiguous theme topology remains source-owned.
