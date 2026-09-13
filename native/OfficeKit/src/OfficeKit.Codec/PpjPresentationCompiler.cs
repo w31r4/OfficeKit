@@ -808,8 +808,9 @@ internal static partial class PpjSourceBoundPresentationCompiler
             var redModChanged = PropertyChanged(beforeAccent1, afterAccent1, "redMod");
             var redOffChanged = PropertyChanged(beforeAccent1, afterAccent1, "redOff");
             var greenModChanged = PropertyChanged(beforeAccent1, afterAccent1, "greenMod");
-            if (new[] { tintChanged, shadeChanged, lumModChanged, lumOffChanged, alphaModChanged, alphaOffChanged, satModChanged, satOffChanged, redModChanged, redOffChanged, greenModChanged }.Count(value => value) != 1)
-                throw Unsupported(path + ".accentTransforms.accent1", "source-bound accent1 requires exactly one changed tint, shade, lumMod, lumOff, alphaMod, alphaOff, satMod, satOff, redMod, redOff, or greenMod field");
+            var greenOffChanged = PropertyChanged(beforeAccent1, afterAccent1, "greenOff");
+            if (new[] { tintChanged, shadeChanged, lumModChanged, lumOffChanged, alphaModChanged, alphaOffChanged, satModChanged, satOffChanged, redModChanged, redOffChanged, greenModChanged, greenOffChanged }.Count(value => value) != 1)
+                throw Unsupported(path + ".accentTransforms.accent1", "source-bound accent1 requires exactly one changed tint, shade, lumMod, lumOff, alphaMod, alphaOff, satMod, satOff, redMod, redOff, greenMod, or greenOff field");
             if (tintChanged)
             {
                 if (!afterAccent1.TryGetProperty("tint", out var tint) ||
@@ -1130,7 +1131,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                     throw Unsupported(path + ".accentTransforms.accent1.redOff", "source-bound accent1 redOff requires one imported direct redOff");
                 authoredTransform.RedOffsetThousandth = transformValue;
             }
-            else
+            else if (greenModChanged)
             {
                 if (!afterAccent1.TryGetProperty("greenMod", out var greenMod) ||
                     greenMod.ValueKind != JsonValueKind.Number ||
@@ -1161,6 +1162,38 @@ internal static partial class PpjSourceBoundPresentationCompiler
                     authoredTransform.HasGamma || authoredTransform.HasInvGamma)
                     throw Unsupported(path + ".accentTransforms.accent1.greenMod", "source-bound accent1 greenMod requires one imported direct greenMod");
                 authoredTransform.GreenModulationThousandth = transformValue;
+            }
+            else
+            {
+                if (!afterAccent1.TryGetProperty("greenOff", out var greenOff) ||
+                    greenOff.ValueKind != JsonValueKind.Number ||
+                    !greenOff.TryGetDouble(out var greenOffFraction) ||
+                    !double.IsFinite(greenOffFraction) || greenOffFraction < -1 || greenOffFraction > 1)
+                    throw Unsupported(path + ".accentTransforms.accent1.greenOff", "source-bound accent1 greenOff must be a finite fraction from -1 through 1");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".accentTransforms.accent1.greenOff", "the source did not issue an accent1-greenOff capability");
+                RequireCapabilityField(
+                    requested.Design.ThemeNativeRef,
+                    "setThemeAccent1GreenOff",
+                    "accentTransforms.accent1.greenOff",
+                    path + ".accentTransforms.accent1.greenOff");
+                var transformValue = checked((int)Math.Round(greenOffFraction * 100_000d, MidpointRounding.AwayFromZero));
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                var authoredTransform = artifact.Presentation.AuthoredTheme.AccentTransforms
+                    .SingleOrDefault(transform => transform.Role.Equals("accent1", StringComparison.Ordinal));
+                if (authoredTransform is null || !authoredTransform.HasGreenOffsetThousandth ||
+                    authoredTransform.HasTintThousandth || authoredTransform.HasShadeThousandth ||
+                    authoredTransform.HasLuminanceModulationThousandth || authoredTransform.HasLuminanceOffsetThousandth ||
+                    authoredTransform.HasAlphaModulationThousandth || authoredTransform.HasAlphaOffsetThousandth ||
+                    authoredTransform.HasSaturationModulationThousandth || authoredTransform.HasSaturationOffsetThousandth ||
+                    authoredTransform.HasRedModulationThousandth || authoredTransform.HasRedOffsetThousandth ||
+                    authoredTransform.HasGreenModulationThousandth ||
+                    authoredTransform.HasBlueModulationThousandth || authoredTransform.HasBlueOffsetThousandth ||
+                    authoredTransform.HasHueModulationThousandth || authoredTransform.HasHueOffsetAngleThousandth ||
+                    authoredTransform.HasGray || authoredTransform.HasComp || authoredTransform.HasInv ||
+                    authoredTransform.HasGamma || authoredTransform.HasInvGamma)
+                    throw Unsupported(path + ".accentTransforms.accent1.greenOff", "source-bound accent1 greenOff requires one imported direct greenOff");
+                authoredTransform.GreenOffsetThousandth = transformValue;
             }
             mutations.SemanticChanges = true;
             changed = true;
@@ -7954,7 +7987,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
             var newPresent = after.TryGetProperty(name, out var newValue);
             if (!oldPresent || !newPresent ||
                 oldValue.ValueKind != JsonValueKind.Object || newValue.ValueKind != JsonValueKind.Object)
-                throw Unsupported(path + ".accent1", "source-bound accent1 tint, shade, lumMod, lumOff, alphaMod, alphaOff, satMod, satOff, redMod, redOff, or greenMod cannot be added or removed");
+                throw Unsupported(path + ".accent1", "source-bound accent1 tint, shade, lumMod, lumOff, alphaMod, alphaOff, satMod, satOff, redMod, redOff, greenMod, or greenOff cannot be added or removed");
             var transformNames = oldValue.EnumerateObject().Select(property => property.Name)
                 .Concat(newValue.EnumerateObject().Select(property => property.Name))
                 .Distinct(StringComparer.Ordinal);
@@ -7970,7 +8003,8 @@ internal static partial class PpjSourceBoundPresentationCompiler
                     !transformName.Equals("satOff", StringComparison.Ordinal) &&
                     !transformName.Equals("redMod", StringComparison.Ordinal) &&
                     !transformName.Equals("redOff", StringComparison.Ordinal) &&
-                    !transformName.Equals("greenMod", StringComparison.Ordinal))
+                    !transformName.Equals("greenMod", StringComparison.Ordinal) &&
+                    !transformName.Equals("greenOff", StringComparison.Ordinal))
                     throw new CodecException(
                         "ppj.sourceBound.themeAccentTransforms",
                         $"Source-bound PPJ cannot safely compile changing source-owned accent1 transform {transformName}.",
