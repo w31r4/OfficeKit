@@ -5001,7 +5001,8 @@ internal static class PptxCodec
         IDictionary<string, string> replacedOpaquePartHashes)
     {
         if (authoredTheme is null ||
-            (!authoredTheme.HasName && !authoredTheme.HasMajorFontFamily && !authoredTheme.HasMinorFontFamily)) return;
+            (!authoredTheme.HasName && !authoredTheme.HasMajorFontFamily &&
+             !authoredTheme.HasMinorFontFamily && !authoredTheme.HasMajorFontFamilyEastAsia)) return;
         var themePart = CanonicalThemePart(masterGraph) ??
             throw new CodecException(
                 "unsupported_presentation_edit",
@@ -5079,6 +5080,31 @@ internal static class PptxCodec
                         "Source-preserving PPTX export cannot create a missing minor Latin theme font node.",
                         PartPath(themePart));
                 latinFont.Typeface = authoredTheme.MinorFontFamily;
+                changed = true;
+            }
+        }
+        if (authoredTheme.HasMajorFontFamilyEastAsia)
+        {
+            var fontScheme = theme.ThemeElements?.FontScheme;
+            var sourceMajorEastAsia = fontScheme?.MajorFont?.EastAsianFont?.Typeface?.Value;
+            if (string.IsNullOrWhiteSpace(sourceMajorEastAsia))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export can edit only an existing major East Asian theme font.",
+                    PartPath(themePart));
+            if (string.IsNullOrWhiteSpace(authoredTheme.MajorFontFamilyEastAsia))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export cannot remove the major East Asian theme font in this bounded profile.",
+                    "$.design.theme.fontScheme.majorEastAsia");
+            if (!sourceMajorEastAsia.Equals(authoredTheme.MajorFontFamilyEastAsia, StringComparison.Ordinal))
+            {
+                if (fontScheme?.MajorFont?.EastAsianFont is not { } eastAsianFont)
+                    throw new CodecException(
+                        "unsupported_presentation_edit",
+                        "Source-preserving PPTX export cannot create a missing major East Asian theme font node.",
+                        PartPath(themePart));
+                eastAsianFont.Typeface = authoredTheme.MajorFontFamilyEastAsia;
                 changed = true;
             }
         }

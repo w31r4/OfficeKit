@@ -252,6 +252,8 @@ internal static partial class PpjPresentationProjector
             theme["fontScheme"] = fontScheme;
             themeCapabilities.Add(new("setThemeFontScheme", ["fontScheme.major"]));
             themeCapabilities.Add(new("setThemeMinorFont", ["fontScheme.minor"]));
+            if (presentation.AuthoredTheme.HasMajorFontFamilyEastAsia)
+                themeCapabilities.Add(new("setThemeMajorFontEastAsia", ["fontScheme.majorEastAsia"]));
         }
         if (themeCapabilities.Count > 0)
         {

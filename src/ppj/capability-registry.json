@@ -835,6 +835,13 @@
   },
   "authoredCompilerBoundaries": [
     {
+      "feature": "source-bound presentation theme major East Asian font",
+      "ppjPath": "design.theme.fontScheme.majorEastAsia",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and existing Latin and major East Asian typefaces exposes a setThemeMajorFontEastAsia capability for fontScheme.majorEastAsia. Source-preserving export changes only a:majorFont/a:ea/@typeface and a fresh projection returns the edited value. One font slot is edited per compile; other Latin, East Asian, complex-script, inheritance, and theme-graph state stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing required Latin or East Asian nodes, deletion, combined slot edits, and capability tampering fail closed. Host font availability and rendering are not claimed."
+    },
+    {
       "feature": "source-bound presentation theme minor Latin font",
       "ppjPath": "design.theme.fontScheme.minor",
       "behavior": "partial",

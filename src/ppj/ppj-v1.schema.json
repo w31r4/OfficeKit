@@ -674,11 +674,11 @@
         },
         "nativeRef": {
           "$ref": "#/$defs/nativeRef",
-          "description": "Optional source-bound reference for existing presentation theme metadata. The bounded profile may expose the theme name and the major/minor Latin font scheme slots; other theme graph edits remain source-owned."
+          "description": "Optional source-bound reference for existing presentation theme metadata. The bounded profile may expose the theme name and major/minor Latin or major East Asian font scheme slots; other theme graph edits remain source-owned."
         },
         "fontScheme": {
           "$ref": "#/$defs/themeFontScheme",
-          "description": "Bounded authored major/minor theme font families lowered to the native a:fontScheme. Source-bound projections may observe the complete font scheme and edit one Latin slot at a time through issued theme capabilities; host font fallback remains outside the profile."
+          "description": "Bounded authored major/minor theme font families lowered to the native a:fontScheme. Source-bound projections may observe the complete font scheme and edit one owned slot at a time through issued theme capabilities; host font fallback remains outside the profile."
         },
         "accentColors": {
           "$ref": "#/$defs/themeAccentColors",
@@ -1886,6 +1886,7 @@
             "setThemeName",
             "setThemeFontScheme",
             "setThemeMinorFont",
+            "setThemeMajorFontEastAsia",
             "setBackground",
             "setTransition",
             "setAnimations",
@@ -2087,6 +2088,7 @@
               "ole.payload",
               "fontScheme.major",
               "fontScheme.minor",
+              "fontScheme.majorEastAsia",
               "name",
               "pages",
               "hidden",
