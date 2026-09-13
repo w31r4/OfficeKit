@@ -557,7 +557,8 @@ internal static partial class PpjSourceBoundPresentationCompiler
             var majorChanged = PropertyChanged(beforeFontScheme, afterFontScheme, "major");
             var minorChanged = PropertyChanged(beforeFontScheme, afterFontScheme, "minor");
             var majorEastAsiaChanged = PropertyChanged(beforeFontScheme, afterFontScheme, "majorEastAsia");
-            if (new[] { majorChanged, minorChanged, majorEastAsiaChanged }.Count(value => value) > 1)
+            var minorEastAsiaChanged = PropertyChanged(beforeFontScheme, afterFontScheme, "minorEastAsia");
+            if (new[] { majorChanged, minorChanged, majorEastAsiaChanged, minorEastAsiaChanged }.Count(value => value) > 1)
                 throw new CodecException(
                     "ppj.sourceBound.themeFontScheme",
                     "Source-bound PPJ can change only one theme font slot per compile.",
@@ -598,7 +599,19 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
                 artifact.Presentation.AuthoredTheme.MajorFontFamilyEastAsia = majorEastAsia.GetString();
             }
-            if (majorChanged || minorChanged || majorEastAsiaChanged)
+            if (minorEastAsiaChanged)
+            {
+                if (!afterFontScheme.TryGetProperty("minorEastAsia", out var minorEastAsia) ||
+                    minorEastAsia.ValueKind != JsonValueKind.String ||
+                    string.IsNullOrWhiteSpace(minorEastAsia.GetString()))
+                    throw Unsupported(path + ".fontScheme.minorEastAsia", "source-bound minor East Asian theme font deletion or an empty name is not supported");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".fontScheme.minorEastAsia", "the source did not issue a minor East Asian font capability");
+                RequireCapabilityField(requested.Design.ThemeNativeRef, "setThemeMinorFontEastAsia", "fontScheme.minorEastAsia", path + ".fontScheme.minorEastAsia");
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                artifact.Presentation.AuthoredTheme.MinorFontFamilyEastAsia = minorEastAsia.GetString();
+            }
+            if (majorChanged || minorChanged || majorEastAsiaChanged || minorEastAsiaChanged)
             {
                 mutations.SemanticChanges = true;
                 changed = true;
@@ -7206,7 +7219,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
             .Distinct(StringComparer.Ordinal);
         foreach (var name in names)
         {
-            if (name is "major" or "minor" or "majorEastAsia") continue;
+            if (name is "major" or "minor" or "majorEastAsia" or "minorEastAsia") continue;
             var oldPresent = before.TryGetProperty(name, out var oldValue);
             var newPresent = after.TryGetProperty(name, out var newValue);
             if (oldPresent != newPresent || oldPresent && !JsonEqual(oldValue, newValue))
