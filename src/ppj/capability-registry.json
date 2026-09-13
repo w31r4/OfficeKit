@@ -877,6 +877,13 @@
       "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent colors, deletion, combined theme-field edits, edits to unowned accent slots, and capability tampering fail closed. Alpha, theme transforms, host color management, and PowerPoint rendering are not claimed."
     },
     {
+      "feature": "source-bound presentation theme dark1 color role",
+      "ppjPath": "design.theme.colorRoles.dark1",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an existing direct RGB dark1 color exposes a setThemeColorRoleDark1 capability for colorRoles.dark1. Source-preserving export changes only a:dk1/a:srgbClr/@val and a fresh projection returns the edited value. Light1, dark2, light2, hyperlink, followedHyperlink, accent colors, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed dark1 color, deletion, combined theme-field edits, edits to unowned color roles, and capability tampering fail closed. Alpha, theme transforms, host color management, and PowerPoint rendering are not claimed."
+    },
+    {
       "feature": "source-bound presentation theme minor complex-script font",
       "ppjPath": "design.theme.fontScheme.minorComplexScript",
       "behavior": "partial",

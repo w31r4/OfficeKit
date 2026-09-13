@@ -233,6 +233,27 @@ internal static partial class PpjPresentationProjector
         var themeCapabilities = new List<CapabilitySpec>();
         if (presentation.AuthoredTheme?.HasName == true)
             themeCapabilities.Add(new("setThemeName", ["name"]));
+        if (presentation.AuthoredTheme is
+        {
+            HasDark1Rgb: true,
+            HasLight1Rgb: true,
+            HasDark2Rgb: true,
+            HasLight2Rgb: true,
+            HasHyperlinkRgb: true,
+            HasFollowedHyperlinkRgb: true,
+        } colorRoleTheme)
+        {
+            theme["colorRoles"] = new JsonObject
+            {
+                ["dark1"] = StringNode("#" + colorRoleTheme.Dark1Rgb),
+                ["light1"] = StringNode("#" + colorRoleTheme.Light1Rgb),
+                ["dark2"] = StringNode("#" + colorRoleTheme.Dark2Rgb),
+                ["light2"] = StringNode("#" + colorRoleTheme.Light2Rgb),
+                ["hyperlink"] = StringNode("#" + colorRoleTheme.HyperlinkRgb),
+                ["followedHyperlink"] = StringNode("#" + colorRoleTheme.FollowedHyperlinkRgb),
+            };
+            themeCapabilities.Add(new("setThemeColorRoleDark1", ["colorRoles.dark1"]));
+        }
         if (presentation.AuthoredTheme is { AccentRgb.Count: 6 } authoredTheme)
         {
             var accentColors = new JsonObject();

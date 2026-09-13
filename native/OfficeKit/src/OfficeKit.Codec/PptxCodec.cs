@@ -268,6 +268,7 @@ internal static class PptxCodec
             .ToDictionary(layout => PartPath(layout.Part), layout => layout.Id, StringComparer.OrdinalIgnoreCase);
         var importedTheme = CanonicalThemePart(masterGraph)?.Theme;
         var importedAccentRgb = TryReadSourceBoundThemeAccentRgb(importedTheme);
+        var importedColorRoleRgb = TryReadSourceBoundThemeColorRoleRgb(importedTheme);
         var importedThemeName = importedTheme?.Name?.Value;
         if (string.IsNullOrWhiteSpace(importedThemeName)) importedThemeName = null;
         var importedMajorFontFamily = importedTheme?.ThemeElements?.FontScheme?.MajorFont?.LatinFont?.Typeface?.Value;
@@ -284,6 +285,15 @@ internal static class PptxCodec
         if (string.IsNullOrWhiteSpace(importedMinorFontFamilyComplexScript)) importedMinorFontFamilyComplexScript = null;
         var importedThemeArtifact = new PresentationThemeArtifact();
         if (importedAccentRgb is not null) importedThemeArtifact.AccentRgb.Add(importedAccentRgb);
+        if (importedColorRoleRgb is not null)
+        {
+            importedThemeArtifact.Dark1Rgb = importedColorRoleRgb[0];
+            importedThemeArtifact.Light1Rgb = importedColorRoleRgb[1];
+            importedThemeArtifact.Dark2Rgb = importedColorRoleRgb[2];
+            importedThemeArtifact.Light2Rgb = importedColorRoleRgb[3];
+            importedThemeArtifact.HyperlinkRgb = importedColorRoleRgb[4];
+            importedThemeArtifact.FollowedHyperlinkRgb = importedColorRoleRgb[5];
+        }
         if (importedThemeName is not null) importedThemeArtifact.Name = importedThemeName;
         if (importedMajorFontFamily is not null) importedThemeArtifact.MajorFontFamily = importedMajorFontFamily;
         if (importedMinorFontFamily is not null) importedThemeArtifact.MinorFontFamily = importedMinorFontFamily;
@@ -299,6 +309,12 @@ internal static class PptxCodec
             SlideWidthEmu = presentationRoot.SlideSize?.Cx?.Value ?? DefaultSlideWidthEmu,
             SlideHeightEmu = presentationRoot.SlideSize?.Cy?.Value ?? DefaultSlideHeightEmu,
             AuthoredTheme = importedThemeArtifact.AccentRgb.Count == 0 &&
+                !importedThemeArtifact.HasDark1Rgb &&
+                !importedThemeArtifact.HasLight1Rgb &&
+                !importedThemeArtifact.HasDark2Rgb &&
+                !importedThemeArtifact.HasLight2Rgb &&
+                !importedThemeArtifact.HasHyperlinkRgb &&
+                !importedThemeArtifact.HasFollowedHyperlinkRgb &&
                 !importedThemeArtifact.HasName &&
                 !importedThemeArtifact.HasMajorFontFamily &&
                 !importedThemeArtifact.HasMinorFontFamily &&
@@ -5013,6 +5029,22 @@ internal static class PptxCodec
         return colors.Any(color => color is null) ? null : colors.Select(color => color!).ToArray();
     }
 
+    private static string[]? TryReadSourceBoundThemeColorRoleRgb(A.Theme? theme)
+    {
+        var colorScheme = theme?.ThemeElements?.ColorScheme;
+        if (colorScheme is null) return null;
+        var colors = new[]
+        {
+            ReadSourceBoundThemeRgb(colorScheme.Dark1Color),
+            ReadSourceBoundThemeRgb(colorScheme.Light1Color),
+            ReadSourceBoundThemeRgb(colorScheme.Dark2Color),
+            ReadSourceBoundThemeRgb(colorScheme.Light2Color),
+            ReadSourceBoundThemeRgb(colorScheme.Hyperlink),
+            ReadSourceBoundThemeRgb(colorScheme.FollowedHyperlinkColor),
+        };
+        return colors.Any(color => color is null) ? null : colors.Select(color => color!).ToArray();
+    }
+
     private static string? ReadSourceBoundThemeRgb(OpenXmlElement? owner)
     {
         if (owner is null || !HasOnlyAttributes(owner) || owner.ChildElements.Count != 1 ||
@@ -5030,8 +5062,10 @@ internal static class PptxCodec
         IDictionary<string, string> replacedOpaquePartHashes)
     {
         if (authoredTheme is null ||
-            (authoredTheme.AccentRgb.Count == 0 && !authoredTheme.HasName &&
-             !authoredTheme.HasMajorFontFamily && !authoredTheme.HasMinorFontFamily &&
+            (authoredTheme.AccentRgb.Count == 0 &&
+             !authoredTheme.HasDark1Rgb && !authoredTheme.HasLight1Rgb && !authoredTheme.HasDark2Rgb &&
+             !authoredTheme.HasLight2Rgb && !authoredTheme.HasHyperlinkRgb && !authoredTheme.HasFollowedHyperlinkRgb &&
+             !authoredTheme.HasName && !authoredTheme.HasMajorFontFamily && !authoredTheme.HasMinorFontFamily &&
              !authoredTheme.HasMajorFontFamilyEastAsia &&
              !authoredTheme.HasMinorFontFamilyEastAsia && !authoredTheme.HasMajorFontFamilyComplexScript &&
              !authoredTheme.HasMinorFontFamilyComplexScript)) return;
@@ -5212,6 +5246,29 @@ internal static class PptxCodec
                         "Source-preserving PPTX export cannot create a missing minor complex-script theme font node.",
                         PartPath(themePart));
                 complexScriptFont.Typeface = authoredTheme.MinorFontFamilyComplexScript;
+                changed = true;
+            }
+        }
+        if (authoredTheme.HasDark1Rgb)
+        {
+            var colorScheme = theme.ThemeElements?.ColorScheme;
+            var sourceDark1 = colorScheme is null
+                ? null
+                : ReadSourceBoundThemeRgb(colorScheme.Dark1Color);
+            if (sourceDark1 is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export can edit only a direct RGB dark1 color.",
+                    PartPath(themePart));
+            var requested = PptxColor.Normalize(authoredTheme.Dark1Rgb);
+            if (!sourceDark1.Equals(requested, StringComparison.OrdinalIgnoreCase))
+            {
+                var color = colorScheme?.Dark1Color?.GetFirstChild<A.RgbColorModelHex>() ??
+                    throw new CodecException(
+                        "unsupported_presentation_edit",
+                        "Source-preserving PPTX export cannot create a missing direct dark1 color.",
+                        PartPath(themePart));
+                color.Val = requested;
                 changed = true;
             }
         }

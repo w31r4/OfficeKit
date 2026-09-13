@@ -528,7 +528,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
         var before = baseline.Root.GetProperty("design").GetProperty("theme");
         var after = requested.Root.GetProperty("design").GetProperty("theme");
         const string path = "$.design.theme";
-        RequireEqualExcept(before, after, path, "name", "fontScheme", "accentColors", "nativeRef");
+        RequireEqualExcept(before, after, path, "name", "fontScheme", "accentColors", "colorRoles", "nativeRef");
         if (before.TryGetProperty("nativeRef", out _) || after.TryGetProperty("nativeRef", out _))
             RequireNativeRef(before, after, path);
         var changed = false;
@@ -778,6 +778,38 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 if (artifact.Presentation.AuthoredTheme.AccentRgb.Count != 6)
                     throw Unsupported(path + ".accentColors", "source-bound accent colors require six imported slots");
                 artifact.Presentation.AuthoredTheme.AccentRgb[5] = PptxColor.Normalize(afterAccent6.GetString()!);
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
+        }
+        if (PropertyChanged(before, after, "colorRoles"))
+        {
+            if (changed)
+                throw new CodecException(
+                    "ppj.sourceBound.themeColorRoles",
+                    "Source-bound PPJ can change only one theme field per compile.",
+                    path + ".colorRoles");
+            if (!before.TryGetProperty("colorRoles", out var beforeColorRoles) ||
+                !after.TryGetProperty("colorRoles", out var afterColorRoles) ||
+                beforeColorRoles.ValueKind != JsonValueKind.Object ||
+                afterColorRoles.ValueKind != JsonValueKind.Object)
+                throw Unsupported(path + ".colorRoles", "source-bound theme color roles cannot be added or removed");
+            RequireThemeColorRolesOwnedSlots(beforeColorRoles, afterColorRoles, path + ".colorRoles");
+            var dark1Changed = PropertyChanged(beforeColorRoles, afterColorRoles, "dark1");
+            if (dark1Changed)
+            {
+                if (!afterColorRoles.TryGetProperty("dark1", out var afterDark1) ||
+                    afterDark1.ValueKind != JsonValueKind.String)
+                    throw Unsupported(path + ".colorRoles.dark1", "source-bound dark1 color must be a six-digit RGB value");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".colorRoles.dark1", "the source did not issue a dark1-color capability");
+                RequireCapabilityField(
+                    requested.Design.ThemeNativeRef,
+                    "setThemeColorRoleDark1",
+                    "colorRoles.dark1",
+                    path + ".colorRoles.dark1");
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                artifact.Presentation.AuthoredTheme.Dark1Rgb = PptxColor.Normalize(afterDark1.GetString()!);
                 mutations.SemanticChanges = true;
                 changed = true;
             }
@@ -7408,6 +7440,24 @@ internal static partial class PpjSourceBoundPresentationCompiler
             if (oldPresent != newPresent || oldPresent && !JsonEqual(oldValue, newValue))
                 throw new CodecException(
                     "ppj.sourceBound.themeAccentColors",
+                    $"Source-bound PPJ cannot safely compile changing source-owned {name}.",
+                    path);
+        }
+    }
+
+    private static void RequireThemeColorRolesOwnedSlots(JsonElement before, JsonElement after, string path)
+    {
+        var names = before.EnumerateObject().Select(property => property.Name)
+            .Concat(after.EnumerateObject().Select(property => property.Name))
+            .Distinct(StringComparer.Ordinal);
+        foreach (var name in names)
+        {
+            if (name is "dark1") continue;
+            var oldPresent = before.TryGetProperty(name, out var oldValue);
+            var newPresent = after.TryGetProperty(name, out var newValue);
+            if (oldPresent != newPresent || oldPresent && !JsonEqual(oldValue, newValue))
+                throw new CodecException(
+                    "ppj.sourceBound.themeColorRoles",
                     $"Source-bound PPJ cannot safely compile changing source-owned {name}.",
                     path);
         }
