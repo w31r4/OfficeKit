@@ -14,7 +14,7 @@
     "schemaDefinitions": 201,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 112,
+    "authoredCompilerBoundaries": 113,
     "nativeLeafKinds": 316,
     "helpApis": 151,
     "hostOnlyApis": 13
@@ -1037,6 +1037,14 @@
       "behavior": "partial",
       "sourceBound": "A canonical imported presentation with one shared ThemePart and an accent1 direct RGB leaf containing exactly one direct a:redOff child exposes a setThemeAccent1RedOff capability for accentTransforms.accent1.redOff. Source-preserving export changes only a:accent1Color/a:srgbClr/a:redOff/@val and a fresh projection returns the edited signed fraction. The base accent1 RGB, other accents and color roles, tint/shade/luminance/alpha/saturation and other transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
       "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent1 RGB, alpha or extra descendants, unsupported transform siblings, deletion, combined theme-field edits, out-of-range signed fractions, and capability tampering fail closed. Other transform leaves, host color management, and PowerPoint rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme accent1 green-channel modulation",
+      "ppjPath": "design.theme.accentTransforms.accent1.greenMod",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an accent1 direct RGB leaf containing exactly one direct a:greenMod child exposes a setThemeAccent1GreenMod capability for accentTransforms.accent1.greenMod. Source-preserving export changes only a:accent1Color/a:srgbClr/a:greenMod/@val and a fresh projection returns the edited fraction. The base accent1 RGB, other accents and color roles, tint/shade/luminance/alpha/saturation and other transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent1 RGB, alpha or extra descendants, unsupported transform siblings, deletion, combined theme-field edits, out-of-range fractions, and capability tampering fail closed. Other transform leaves, host color management, and PowerPoint rendering are not claimed.",
       "visualStatus": "partial-or-opaque"
     },
     {
