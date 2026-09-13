@@ -14,7 +14,7 @@
     "schemaDefinitions": 201,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 83,
+    "authoredCompilerBoundaries": 103,
     "nativeLeafKinds": 316,
     "helpApis": 151,
     "hostOnlyApis": 13
@@ -863,6 +863,166 @@
     }
   ],
   "authoredCompilerBoundaries": [
+    {
+      "feature": "source-bound presentation theme accent1 color",
+      "ppjPath": "design.theme.accentColors.accent1",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and six existing direct RGB accent colors exposes a setThemeAccent1Color capability for accentColors.accent1. Source-preserving export changes only a:accent1Color/a:srgbClr/@val and a fresh projection returns the edited value. One accent slot is edited per compile; accent2, accent3, accent4, accent5, and accent6 have independent field capabilities, while color roles, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned for this owner.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent colors, deletion, combined theme-field edits, edits to unowned accent slots, and capability tampering fail closed. Alpha, theme transforms, host color management, and PowerPoint rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme accent2 color",
+      "ppjPath": "design.theme.accentColors.accent2",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and six existing direct RGB accent colors exposes a setThemeAccent2Color capability for accentColors.accent2. Source-preserving export changes only a:accent2Color/a:srgbClr/@val and a fresh projection returns the edited value. One accent slot is edited per compile; accent1, accent3, accent4, accent5, and accent6 have independent field capabilities, while color roles, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned for this owner.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent colors, deletion, combined theme-field edits, edits to unowned accent slots, and capability tampering fail closed. Alpha, theme transforms, host color management, and PowerPoint rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme accent3 color",
+      "ppjPath": "design.theme.accentColors.accent3",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and six existing direct RGB accent colors exposes a setThemeAccent3Color capability for accentColors.accent3. Source-preserving export changes only a:accent3Color/a:srgbClr/@val and a fresh projection returns the edited value. One accent slot is edited per compile; accent1, accent2, accent4, accent5, and accent6 have independent field capabilities, while color roles, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned for this owner.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent colors, deletion, combined theme-field edits, edits to unowned accent slots, and capability tampering fail closed. Alpha, theme transforms, host color management, and PowerPoint rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme accent4 color",
+      "ppjPath": "design.theme.accentColors.accent4",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and six existing direct RGB accent colors exposes a setThemeAccent4Color capability for accentColors.accent4. Source-preserving export changes only a:accent4Color/a:srgbClr/@val and a fresh projection returns the edited value. One accent slot is edited per compile; accent1, accent2, accent3, accent5, and accent6 have independent field capabilities, while color roles, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned for this owner.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent colors, deletion, combined theme-field edits, edits to unowned accent slots, and capability tampering fail closed. Alpha, theme transforms, host color management, and PowerPoint rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme accent5 color",
+      "ppjPath": "design.theme.accentColors.accent5",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and six existing direct RGB accent colors exposes a setThemeAccent5Color capability for accentColors.accent5. Source-preserving export changes only a:accent5Color/a:srgbClr/@val and a fresh projection returns the edited value. One accent slot is edited per compile; accent1 through accent4 and accent6 have independent field capabilities, while color roles, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned for this owner.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent colors, deletion, combined theme-field edits, edits to unowned accent slots, and capability tampering fail closed. Alpha, theme transforms, host color management, and PowerPoint rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme accent6 color",
+      "ppjPath": "design.theme.accentColors.accent6",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and six existing direct RGB accent colors exposes a setThemeAccent6Color capability for accentColors.accent6. Source-preserving export changes only a:accent6Color/a:srgbClr/@val and a fresh projection returns the edited value. One accent slot is edited per compile; accent1 through accent5 have independent field capabilities, while color roles, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned for this owner.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent colors, deletion, combined theme-field edits, edits to unowned accent slots, and capability tampering fail closed. Alpha, theme transforms, host color management, and PowerPoint rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme dark1 color role",
+      "ppjPath": "design.theme.colorRoles.dark1",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an existing direct RGB dark1 color exposes a setThemeColorRoleDark1 capability for colorRoles.dark1. Source-preserving export changes only a:dk1/a:srgbClr/@val and a fresh projection returns the edited value. Light1, dark2, light2, hyperlink, followedHyperlink, accent colors, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed dark1 color, deletion, combined theme-field edits, edits to unowned color roles, and capability tampering fail closed. Alpha, theme transforms, host color management, and PowerPoint rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme light1 color role",
+      "ppjPath": "design.theme.colorRoles.light1",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an existing direct RGB light1 color exposes a setThemeColorRoleLight1 capability for colorRoles.light1. Source-preserving export changes only a:lt1/a:srgbClr/@val and a fresh projection returns the edited value. Dark1, dark2, light2, hyperlink, followedHyperlink, accent colors, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed light1 color, deletion, combined theme-field edits, edits to unowned color roles, and capability tampering fail closed. Alpha, theme transforms, host color management, and PowerPoint rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme dark2 color role",
+      "ppjPath": "design.theme.colorRoles.dark2",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an existing direct RGB dark2 color exposes a setThemeColorRoleDark2 capability for colorRoles.dark2. Source-preserving export changes only a:dk2/a:srgbClr/@val and a fresh projection returns the edited value. Dark1, light1, light2, hyperlink, followedHyperlink, accent colors, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed dark2 color, deletion, combined theme-field edits, edits to unowned color roles, and capability tampering fail closed. Alpha, theme transforms, host color management, and PowerPoint rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme light2 color role",
+      "ppjPath": "design.theme.colorRoles.light2",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an existing direct RGB light2 color exposes a setThemeColorRoleLight2 capability for colorRoles.light2. Source-preserving export changes only a:lt2/a:srgbClr/@val and a fresh projection returns the edited value. Dark1, light1, dark2, hyperlink, followedHyperlink, accent colors, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed light2 color, deletion, combined theme-field edits, edits to unowned color roles, and capability tampering fail closed. Alpha, theme transforms, host color management, and PowerPoint rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme hyperlink color role",
+      "ppjPath": "design.theme.colorRoles.hyperlink",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an existing direct RGB hyperlink color exposes a setThemeColorRoleHyperlink capability for colorRoles.hyperlink. Source-preserving export changes only a:hlink/a:srgbClr/@val and a fresh projection returns the edited value. Dark1, light1, dark2, light2, followedHyperlink, accent colors, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed hyperlink color, deletion, combined theme-field edits, edits to unowned color roles, and capability tampering fail closed. Alpha, theme transforms, host color management, and PowerPoint rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme followed-hyperlink color role",
+      "ppjPath": "design.theme.colorRoles.followedHyperlink",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an existing direct RGB followed-hyperlink color exposes a setThemeColorRoleFollowedHyperlink capability for colorRoles.followedHyperlink. Source-preserving export changes only a:folHlink/a:srgbClr/@val and a fresh projection returns the edited value. Dark1, light1, dark2, light2, hyperlink, accent colors, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed followed-hyperlink color, deletion, combined theme-field edits, edits to unowned color roles, and capability tampering fail closed. Alpha, theme transforms, host color management, and PowerPoint rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme accent1 tint",
+      "ppjPath": "design.theme.accentTransforms.accent1.tint",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an accent1 direct RGB leaf containing exactly one direct a:tint child exposes a setThemeAccent1Tint capability for accentTransforms.accent1.tint. Source-preserving export changes only a:accent1Color/a:srgbClr/a:tint/@val and a fresh projection returns the edited fraction. The base accent1 RGB, other accents and color roles, other transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent1 RGB, alpha or extra descendants, unsupported transform siblings, deletion, combined theme-field edits, and capability tampering fail closed. Other transform leaves, host color management, and PowerPoint rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme minor complex-script font",
+      "ppjPath": "design.theme.fontScheme.minorComplexScript",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and existing Latin and minor complex-script typefaces exposes a setThemeMinorFontComplexScript capability for fontScheme.minorComplexScript. Source-preserving export changes only a:minorFont/a:cs/@typeface and a fresh projection returns the edited value. One font slot is edited per compile; other Latin, East Asian, major complex-script, inheritance, and theme-graph state stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing required Latin or complex-script nodes, deletion, combined slot edits, and capability tampering fail closed. Host font availability and rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme major complex-script font",
+      "ppjPath": "design.theme.fontScheme.majorComplexScript",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and existing Latin and major complex-script typefaces exposes a setThemeMajorFontComplexScript capability for fontScheme.majorComplexScript. Source-preserving export changes only a:majorFont/a:cs/@typeface and a fresh projection returns the edited value. One font slot is edited per compile; other Latin, East Asian, minor complex-script, inheritance, and theme-graph state stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing required Latin or complex-script nodes, deletion, combined slot edits, and capability tampering fail closed. Host font availability and rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme minor East Asian font",
+      "ppjPath": "design.theme.fontScheme.minorEastAsia",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and existing Latin and minor East Asian typefaces exposes a setThemeMinorFontEastAsia capability for fontScheme.minorEastAsia. Source-preserving export changes only a:minorFont/a:ea/@typeface and a fresh projection returns the edited value. One font slot is edited per compile; other Latin, East Asian, complex-script, inheritance, and theme-graph state stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing required Latin or East Asian nodes, deletion, combined slot edits, and capability tampering fail closed. Host font availability and rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme major East Asian font",
+      "ppjPath": "design.theme.fontScheme.majorEastAsia",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and existing Latin and major East Asian typefaces exposes a setThemeMajorFontEastAsia capability for fontScheme.majorEastAsia. Source-preserving export changes only a:majorFont/a:ea/@typeface and a fresh projection returns the edited value. One font slot is edited per compile; other Latin, East Asian, complex-script, inheritance, and theme-graph state stay source-owned; minor East Asian has its own field owner.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing required Latin or East Asian nodes, deletion, combined slot edits, and capability tampering fail closed. Host font availability and rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme minor Latin font",
+      "ppjPath": "design.theme.fontScheme.minor",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and existing major/minor Latin typefaces exposes a setThemeMinorFont capability for fontScheme.minor. Source-preserving export changes only a:minorFont/a:latin/@typeface and a fresh projection returns the edited value. One Latin slot is edited per compile; major has its own field owner, while East Asian, complex-script, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, a missing major or minor Latin typeface, deletion, combined Latin edits, and capability tampering fail closed. Host font availability and rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme major Latin font",
+      "ppjPath": "design.theme.fontScheme.major",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and existing major/minor Latin typefaces exposes the theme's setThemeFontScheme capability for fontScheme.major. Source-preserving export changes only a:majorFont/a:latin/@typeface and a fresh projection returns the edited value. One Latin slot is edited per compile; minor has its own field owner, while East Asian, complex-script, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, a missing major or minor Latin typeface, deletion, and capability tampering fail closed. Host font availability and rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme name",
+      "ppjPath": "design.theme.name",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an existing name exposes a setThemeName capability for design.theme.name. Source-preserving export changes only a:theme/@name and a fresh projection returns the edited value.",
+      "reason": "Missing or ambiguous ThemePart ownership, a missing name, deletion, and all other theme graph edits remain source-owned. Theme color/font/effect schemes, inheritance, and host rendering stay outside this narrow metadata field.",
+      "visualStatus": "partial-or-opaque"
+    },
     {
       "feature": "source-bound static table-cell field type",
       "ppjPath": "pages[].elements[].rows[].cells[].text.paragraphs[].runs[].field.type",

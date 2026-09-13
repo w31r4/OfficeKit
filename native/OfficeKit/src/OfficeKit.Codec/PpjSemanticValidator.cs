@@ -44,6 +44,7 @@ internal static class PpjSemanticValidator
             ["setThemeAccent4Color"] = Set("accentColors.accent4"),
             ["setThemeAccent5Color"] = Set("accentColors.accent5"),
             ["setThemeAccent6Color"] = Set("accentColors.accent6"),
+            ["setThemeAccent1Tint"] = Set("accentTransforms.accent1.tint"),
             ["setThemeColorRoleDark1"] = Set("colorRoles.dark1"),
             ["setThemeColorRoleLight1"] = Set("colorRoles.light1"),
             ["setThemeColorRoleDark2"] = Set("colorRoles.dark2"),
@@ -511,6 +512,16 @@ internal static class PpjSemanticValidator
                 "ppj.sourceBound.themeAccentColors",
                 "Source-bound PPJ cannot declare new authored design.theme.accentColors over the preserved native theme graph.",
                 "$.design.theme.accentColors"));
+        }
+        if (design.TryGetProperty("theme", out theme) &&
+            theme.ValueKind == JsonValueKind.Object &&
+            theme.TryGetProperty("accentTransforms", out _) &&
+            !HasCapability(theme, "setThemeAccent1Tint", "accentTransforms.accent1.tint"))
+        {
+            diagnostics.Add(new(
+                "ppj.sourceBound.themeAccentTransforms",
+                "Source-bound PPJ cannot declare new authored design.theme.accentTransforms over the preserved native theme graph.",
+                "$.design.theme.accentTransforms"));
         }
         if (design.TryGetProperty("theme", out theme) &&
             theme.ValueKind == JsonValueKind.Object &&

@@ -273,6 +273,36 @@ internal static partial class PpjPresentationProjector
             themeCapabilities.Add(new("setThemeAccent5Color", ["accentColors.accent5"]));
             themeCapabilities.Add(new("setThemeAccent6Color", ["accentColors.accent6"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } transformTheme &&
+            transformTheme.AccentTransforms[0] is { Role: "accent1", HasTintThousandth: true } accent1Tint &&
+            !accent1Tint.HasShadeThousandth &&
+            !accent1Tint.HasLuminanceModulationThousandth &&
+            !accent1Tint.HasLuminanceOffsetThousandth &&
+            !accent1Tint.HasAlphaModulationThousandth &&
+            !accent1Tint.HasAlphaOffsetThousandth &&
+            !accent1Tint.HasSaturationModulationThousandth &&
+            !accent1Tint.HasSaturationOffsetThousandth &&
+            !accent1Tint.HasRedModulationThousandth &&
+            !accent1Tint.HasRedOffsetThousandth &&
+            !accent1Tint.HasGreenModulationThousandth &&
+            !accent1Tint.HasGreenOffsetThousandth &&
+            !accent1Tint.HasBlueModulationThousandth &&
+            !accent1Tint.HasBlueOffsetThousandth &&
+            !accent1Tint.HasHueModulationThousandth &&
+            !accent1Tint.HasHueOffsetAngleThousandth &&
+            !accent1Tint.HasGray && !accent1Tint.HasComp && !accent1Tint.HasInv &&
+            !accent1Tint.HasGamma && !accent1Tint.HasInvGamma &&
+            accent1Tint.TintThousandth <= 100_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent1"] = new JsonObject
+                {
+                    ["tint"] = JsonValue.Create(accent1Tint.TintThousandth / 100_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent1Tint", ["accentTransforms.accent1.tint"]));
+        }
         if (presentation.AuthoredTheme?.HasMajorFontFamily == true &&
             presentation.AuthoredTheme.HasMinorFontFamily)
         {
