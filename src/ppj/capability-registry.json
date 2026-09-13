@@ -1003,6 +1003,13 @@
       "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent1 RGB, alpha or extra descendants, unsupported transform siblings, deletion, combined theme-field edits, out-of-range signed fractions, and capability tampering fail closed. Other transform leaves, host color management, and PowerPoint rendering are not claimed."
     },
     {
+      "feature": "source-bound presentation theme accent1 blue-channel modulation",
+      "ppjPath": "design.theme.accentTransforms.accent1.blueMod",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an accent1 direct RGB leaf containing exactly one direct a:blueMod child exposes a setThemeAccent1BlueMod capability for accentTransforms.accent1.blueMod. Source-preserving export changes only a:accent1Color/a:srgbClr/a:blueMod/@val and a fresh projection returns the edited fraction. The base accent1 RGB, other accents and color roles, tint/shade/luminance/alpha/saturation and other transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent1 RGB, alpha or extra descendants, unsupported transform siblings, deletion, combined theme-field edits, out-of-range fractions, and capability tampering fail closed. Other transform leaves, host color management, and PowerPoint rendering are not claimed."
+    },
+    {
       "feature": "source-bound presentation theme minor complex-script font",
       "ppjPath": "design.theme.fontScheme.minorComplexScript",
       "behavior": "partial",

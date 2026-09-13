@@ -638,6 +638,36 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent1GreenOff", ["accentTransforms.accent1.greenOff"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } blueModTheme &&
+            blueModTheme.AccentTransforms[0] is { Role: "accent1", HasBlueModulationThousandth: true } accent1BlueMod &&
+            !accent1BlueMod.HasTintThousandth &&
+            !accent1BlueMod.HasShadeThousandth &&
+            !accent1BlueMod.HasLuminanceModulationThousandth &&
+            !accent1BlueMod.HasLuminanceOffsetThousandth &&
+            !accent1BlueMod.HasAlphaModulationThousandth &&
+            !accent1BlueMod.HasAlphaOffsetThousandth &&
+            !accent1BlueMod.HasSaturationModulationThousandth &&
+            !accent1BlueMod.HasSaturationOffsetThousandth &&
+            !accent1BlueMod.HasRedModulationThousandth &&
+            !accent1BlueMod.HasRedOffsetThousandth &&
+            !accent1BlueMod.HasGreenModulationThousandth &&
+            !accent1BlueMod.HasGreenOffsetThousandth &&
+            !accent1BlueMod.HasBlueOffsetThousandth &&
+            !accent1BlueMod.HasHueModulationThousandth &&
+            !accent1BlueMod.HasHueOffsetAngleThousandth &&
+            !accent1BlueMod.HasGray && !accent1BlueMod.HasComp && !accent1BlueMod.HasInv &&
+            !accent1BlueMod.HasGamma && !accent1BlueMod.HasInvGamma &&
+            accent1BlueMod.BlueModulationThousandth <= 100_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent1"] = new JsonObject
+                {
+                    ["blueMod"] = JsonValue.Create(accent1BlueMod.BlueModulationThousandth / 100_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent1BlueMod", ["accentTransforms.accent1.blueMod"]));
+        }
         if (presentation.AuthoredTheme?.HasMajorFontFamily == true &&
             presentation.AuthoredTheme.HasMinorFontFamily)
         {
