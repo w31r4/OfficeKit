@@ -50,6 +50,7 @@ internal static class PpjSemanticValidator
             ["setThemeAccent1LumOff"] = Set("accentTransforms.accent1.lumOff"),
             ["setThemeAccent1AlphaMod"] = Set("accentTransforms.accent1.alphaMod"),
             ["setThemeAccent1AlphaOff"] = Set("accentTransforms.accent1.alphaOff"),
+            ["setThemeAccent1SatMod"] = Set("accentTransforms.accent1.satMod"),
             ["setThemeColorRoleDark1"] = Set("colorRoles.dark1"),
             ["setThemeColorRoleLight1"] = Set("colorRoles.light1"),
             ["setThemeColorRoleDark2"] = Set("colorRoles.dark2"),
@@ -526,7 +527,8 @@ internal static class PpjSemanticValidator
             !HasCapability(theme, "setThemeAccent1LumMod", "accentTransforms.accent1.lumMod") &&
             !HasCapability(theme, "setThemeAccent1LumOff", "accentTransforms.accent1.lumOff") &&
             !HasCapability(theme, "setThemeAccent1AlphaMod", "accentTransforms.accent1.alphaMod") &&
-            !HasCapability(theme, "setThemeAccent1AlphaOff", "accentTransforms.accent1.alphaOff"))
+            !HasCapability(theme, "setThemeAccent1AlphaOff", "accentTransforms.accent1.alphaOff") &&
+            !HasCapability(theme, "setThemeAccent1SatMod", "accentTransforms.accent1.satMod"))
         {
             diagnostics.Add(new(
                 "ppj.sourceBound.themeAccentTransforms",

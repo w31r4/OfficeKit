@@ -455,6 +455,36 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent1AlphaOff", ["accentTransforms.accent1.alphaOff"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } satModTheme &&
+            satModTheme.AccentTransforms[0] is { Role: "accent1", HasSaturationModulationThousandth: true } accent1SatMod &&
+            !accent1SatMod.HasTintThousandth &&
+            !accent1SatMod.HasShadeThousandth &&
+            !accent1SatMod.HasLuminanceModulationThousandth &&
+            !accent1SatMod.HasLuminanceOffsetThousandth &&
+            !accent1SatMod.HasAlphaModulationThousandth &&
+            !accent1SatMod.HasAlphaOffsetThousandth &&
+            !accent1SatMod.HasSaturationOffsetThousandth &&
+            !accent1SatMod.HasRedModulationThousandth &&
+            !accent1SatMod.HasRedOffsetThousandth &&
+            !accent1SatMod.HasGreenModulationThousandth &&
+            !accent1SatMod.HasGreenOffsetThousandth &&
+            !accent1SatMod.HasBlueModulationThousandth &&
+            !accent1SatMod.HasBlueOffsetThousandth &&
+            !accent1SatMod.HasHueModulationThousandth &&
+            !accent1SatMod.HasHueOffsetAngleThousandth &&
+            !accent1SatMod.HasGray && !accent1SatMod.HasComp && !accent1SatMod.HasInv &&
+            !accent1SatMod.HasGamma && !accent1SatMod.HasInvGamma &&
+            accent1SatMod.SaturationModulationThousandth <= 100_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent1"] = new JsonObject
+                {
+                    ["satMod"] = JsonValue.Create(accent1SatMod.SaturationModulationThousandth / 100_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent1SatMod", ["accentTransforms.accent1.satMod"]));
+        }
         if (presentation.AuthoredTheme?.HasMajorFontFamily == true &&
             presentation.AuthoredTheme.HasMinorFontFamily)
         {
