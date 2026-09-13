@@ -674,7 +674,7 @@
         },
         "nativeRef": {
           "$ref": "#/$defs/nativeRef",
-          "description": "Optional source-bound reference for existing presentation theme metadata. The bounded profile may expose the theme name, four direct RGB accent slots, and major/minor Latin, major/minor East Asian, or major/minor complex-script font scheme slots; other theme graph edits remain source-owned."
+          "description": "Optional source-bound reference for existing presentation theme metadata. The bounded profile may expose the theme name, five direct RGB accent slots, and major/minor Latin, major/minor East Asian, or major/minor complex-script font scheme slots; other theme graph edits remain source-owned."
         },
         "fontScheme": {
           "$ref": "#/$defs/themeFontScheme",
@@ -682,7 +682,7 @@
         },
         "accentColors": {
           "$ref": "#/$defs/themeAccentColors",
-          "description": "Bounded authored accent1 through accent6 theme colors lowered to the native a:clrScheme. A strict source-bound projection may expose all six direct RGB accents and issue capabilities for accent1, accent2, accent3, and accent4 only; other theme color roles and imported theme XML remain source-owned."
+          "description": "Bounded authored accent1 through accent6 theme colors lowered to the native a:clrScheme. A strict source-bound projection may expose all six direct RGB accents and issue capabilities for accent1, accent2, accent3, accent4, and accent5 only; other theme color roles and imported theme XML remain source-owned."
         },
         "accentTransforms": {
           "$ref": "#/$defs/themeAccentTransforms",
@@ -1894,6 +1894,7 @@
             "setThemeAccent2Color",
             "setThemeAccent3Color",
             "setThemeAccent4Color",
+            "setThemeAccent5Color",
             "setBackground",
             "setTransition",
             "setAnimations",
@@ -2103,6 +2104,7 @@
               "accentColors.accent2",
               "accentColors.accent3",
               "accentColors.accent4",
+              "accentColors.accent5",
               "name",
               "pages",
               "hidden",

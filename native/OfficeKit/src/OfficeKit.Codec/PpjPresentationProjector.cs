@@ -244,6 +244,7 @@ internal static partial class PpjPresentationProjector
             themeCapabilities.Add(new("setThemeAccent2Color", ["accentColors.accent2"]));
             themeCapabilities.Add(new("setThemeAccent3Color", ["accentColors.accent3"]));
             themeCapabilities.Add(new("setThemeAccent4Color", ["accentColors.accent4"]));
+            themeCapabilities.Add(new("setThemeAccent5Color", ["accentColors.accent5"]));
         }
         if (presentation.AuthoredTheme?.HasMajorFontFamily == true &&
             presentation.AuthoredTheme.HasMinorFontFamily)
