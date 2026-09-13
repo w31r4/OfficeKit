@@ -267,6 +267,7 @@ internal static class PptxCodec
             .SelectMany(master => master.Layouts)
             .ToDictionary(layout => PartPath(layout.Part), layout => layout.Id, StringComparer.OrdinalIgnoreCase);
         var importedTheme = CanonicalThemePart(masterGraph)?.Theme;
+        var importedAccentRgb = TryReadSourceBoundThemeAccentRgb(importedTheme);
         var importedThemeName = importedTheme?.Name?.Value;
         if (string.IsNullOrWhiteSpace(importedThemeName)) importedThemeName = null;
         var importedMajorFontFamily = importedTheme?.ThemeElements?.FontScheme?.MajorFont?.LatinFont?.Typeface?.Value;
@@ -282,6 +283,7 @@ internal static class PptxCodec
         var importedMinorFontFamilyComplexScript = importedTheme?.ThemeElements?.FontScheme?.MinorFont?.ComplexScriptFont?.Typeface?.Value;
         if (string.IsNullOrWhiteSpace(importedMinorFontFamilyComplexScript)) importedMinorFontFamilyComplexScript = null;
         var importedThemeArtifact = new PresentationThemeArtifact();
+        if (importedAccentRgb is not null) importedThemeArtifact.AccentRgb.Add(importedAccentRgb);
         if (importedThemeName is not null) importedThemeArtifact.Name = importedThemeName;
         if (importedMajorFontFamily is not null) importedThemeArtifact.MajorFontFamily = importedMajorFontFamily;
         if (importedMinorFontFamily is not null) importedThemeArtifact.MinorFontFamily = importedMinorFontFamily;
@@ -296,7 +298,8 @@ internal static class PptxCodec
             Name = "Imported presentation",
             SlideWidthEmu = presentationRoot.SlideSize?.Cx?.Value ?? DefaultSlideWidthEmu,
             SlideHeightEmu = presentationRoot.SlideSize?.Cy?.Value ?? DefaultSlideHeightEmu,
-            AuthoredTheme = !importedThemeArtifact.HasName &&
+            AuthoredTheme = importedThemeArtifact.AccentRgb.Count == 0 &&
+                !importedThemeArtifact.HasName &&
                 !importedThemeArtifact.HasMajorFontFamily &&
                 !importedThemeArtifact.HasMinorFontFamily &&
                 !importedThemeArtifact.HasMajorFontFamilyEastAsia &&
@@ -4994,6 +4997,32 @@ internal static class PptxCodec
         return themes.Length == 1 ? themes[0] : null;
     }
 
+    private static string[]? TryReadSourceBoundThemeAccentRgb(A.Theme? theme)
+    {
+        var colorScheme = theme?.ThemeElements?.ColorScheme;
+        if (colorScheme is null) return null;
+        var colors = new[]
+        {
+            ReadSourceBoundThemeRgb(colorScheme.Accent1Color),
+            ReadSourceBoundThemeRgb(colorScheme.Accent2Color),
+            ReadSourceBoundThemeRgb(colorScheme.Accent3Color),
+            ReadSourceBoundThemeRgb(colorScheme.Accent4Color),
+            ReadSourceBoundThemeRgb(colorScheme.Accent5Color),
+            ReadSourceBoundThemeRgb(colorScheme.Accent6Color),
+        };
+        return colors.Any(color => color is null) ? null : colors.Select(color => color!).ToArray();
+    }
+
+    private static string? ReadSourceBoundThemeRgb(OpenXmlElement? owner)
+    {
+        if (owner is null || !HasOnlyAttributes(owner) || owner.ChildElements.Count != 1 ||
+            owner.FirstChild is not A.RgbColorModelHex color ||
+            !HasOnlyAttributes(color, "val") || color.ChildElements.Count != 0 ||
+            color.Val?.Value is not { Length: 6 } value || !value.All(Uri.IsHexDigit))
+            return null;
+        return value.ToUpperInvariant();
+    }
+
     private static void ApplySourceBoundThemeFields(
         PresentationThemeArtifact? authoredTheme,
         IReadOnlyList<PptxMasterGraphEntry> masterGraph,
@@ -5001,8 +5030,9 @@ internal static class PptxCodec
         IDictionary<string, string> replacedOpaquePartHashes)
     {
         if (authoredTheme is null ||
-            (!authoredTheme.HasName && !authoredTheme.HasMajorFontFamily &&
-             !authoredTheme.HasMinorFontFamily && !authoredTheme.HasMajorFontFamilyEastAsia &&
+            (authoredTheme.AccentRgb.Count == 0 && !authoredTheme.HasName &&
+             !authoredTheme.HasMajorFontFamily && !authoredTheme.HasMinorFontFamily &&
+             !authoredTheme.HasMajorFontFamilyEastAsia &&
              !authoredTheme.HasMinorFontFamilyEastAsia && !authoredTheme.HasMajorFontFamilyComplexScript &&
              !authoredTheme.HasMinorFontFamilyComplexScript)) return;
         var themePart = CanonicalThemePart(masterGraph) ??
@@ -5182,6 +5212,53 @@ internal static class PptxCodec
                         "Source-preserving PPTX export cannot create a missing minor complex-script theme font node.",
                         PartPath(themePart));
                 complexScriptFont.Typeface = authoredTheme.MinorFontFamilyComplexScript;
+                changed = true;
+            }
+        }
+        if (authoredTheme.AccentRgb.Count > 0)
+        {
+            if (authoredTheme.AccentRgb.Count != 6)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export requires all six imported accent colors.",
+                    "$.design.theme.accentColors");
+            var colorScheme = theme.ThemeElements?.ColorScheme;
+            var sourceAccents = colorScheme is null
+                ? null
+                : new[]
+                {
+                    ReadSourceBoundThemeRgb(colorScheme.Accent1Color),
+                    ReadSourceBoundThemeRgb(colorScheme.Accent2Color),
+                    ReadSourceBoundThemeRgb(colorScheme.Accent3Color),
+                    ReadSourceBoundThemeRgb(colorScheme.Accent4Color),
+                    ReadSourceBoundThemeRgb(colorScheme.Accent5Color),
+                    ReadSourceBoundThemeRgb(colorScheme.Accent6Color),
+                };
+            if (sourceAccents is null || sourceAccents.Any(color => color is null))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export can edit only six direct RGB accent colors.",
+                    PartPath(themePart));
+            OpenXmlElement[] accentOwners =
+            {
+                colorScheme!.Accent1Color!,
+                colorScheme.Accent2Color!,
+                colorScheme.Accent3Color!,
+                colorScheme.Accent4Color!,
+                colorScheme.Accent5Color!,
+                colorScheme.Accent6Color!,
+            };
+            for (var index = 0; index < accentOwners.Length; index++)
+            {
+                var requested = PptxColor.Normalize(authoredTheme.AccentRgb[index]);
+                if (sourceAccents[index]!.Equals(requested, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                var color = accentOwners[index].GetFirstChild<A.RgbColorModelHex>() ??
+                    throw new CodecException(
+                        "unsupported_presentation_edit",
+                        "Source-preserving PPTX export cannot create a missing direct accent color.",
+                        PartPath(themePart));
+                color.Val = requested;
                 changed = true;
             }
         }

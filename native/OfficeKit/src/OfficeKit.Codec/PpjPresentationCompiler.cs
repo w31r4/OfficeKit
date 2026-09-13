@@ -528,7 +528,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
         var before = baseline.Root.GetProperty("design").GetProperty("theme");
         var after = requested.Root.GetProperty("design").GetProperty("theme");
         const string path = "$.design.theme";
-        RequireEqualExcept(before, after, path, "name", "fontScheme", "nativeRef");
+        RequireEqualExcept(before, after, path, "name", "fontScheme", "accentColors", "nativeRef");
         if (before.TryGetProperty("nativeRef", out _) || after.TryGetProperty("nativeRef", out _))
             RequireNativeRef(before, after, path);
         var changed = false;
@@ -639,6 +639,39 @@ internal static partial class PpjSourceBoundPresentationCompiler
             }
             if (majorChanged || minorChanged || majorEastAsiaChanged || minorEastAsiaChanged || majorComplexScriptChanged || minorComplexScriptChanged)
             {
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
+        }
+        if (PropertyChanged(before, after, "accentColors"))
+        {
+            if (changed)
+                throw new CodecException(
+                    "ppj.sourceBound.themeAccentColors",
+                    "Source-bound PPJ can change only one theme field per compile.",
+                    path + ".accentColors");
+            if (!before.TryGetProperty("accentColors", out var beforeAccentColors) ||
+                !after.TryGetProperty("accentColors", out var afterAccentColors) ||
+                beforeAccentColors.ValueKind != JsonValueKind.Object ||
+                afterAccentColors.ValueKind != JsonValueKind.Object)
+                throw Unsupported(path + ".accentColors", "source-bound theme accent colors cannot be added or removed");
+            RequireThemeAccentColorsOwnedSlots(beforeAccentColors, afterAccentColors, path + ".accentColors");
+            if (PropertyChanged(beforeAccentColors, afterAccentColors, "accent1"))
+            {
+                if (!afterAccentColors.TryGetProperty("accent1", out var afterAccent1) ||
+                    afterAccent1.ValueKind != JsonValueKind.String)
+                    throw Unsupported(path + ".accentColors.accent1", "source-bound accent1 color must be a six-digit RGB value");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".accentColors.accent1", "the source did not issue an accent1-color capability");
+                RequireCapabilityField(
+                    requested.Design.ThemeNativeRef,
+                    "setThemeAccent1Color",
+                    "accentColors.accent1",
+                    path + ".accentColors.accent1");
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                if (artifact.Presentation.AuthoredTheme.AccentRgb.Count != 6)
+                    throw Unsupported(path + ".accentColors", "source-bound accent colors require six imported slots");
+                artifact.Presentation.AuthoredTheme.AccentRgb[0] = PptxColor.Normalize(afterAccent1.GetString()!);
                 mutations.SemanticChanges = true;
                 changed = true;
             }
@@ -7251,6 +7284,24 @@ internal static partial class PpjSourceBoundPresentationCompiler
             if (oldPresent != newPresent || oldPresent && !JsonEqual(oldValue, newValue))
                 throw new CodecException(
                     "ppj.sourceBound.themeFontScheme",
+                    $"Source-bound PPJ cannot safely compile changing source-owned {name}.",
+                    path);
+        }
+    }
+
+    private static void RequireThemeAccentColorsOwnedSlots(JsonElement before, JsonElement after, string path)
+    {
+        var names = before.EnumerateObject().Select(property => property.Name)
+            .Concat(after.EnumerateObject().Select(property => property.Name))
+            .Distinct(StringComparer.Ordinal);
+        foreach (var name in names)
+        {
+            if (name == "accent1") continue;
+            var oldPresent = before.TryGetProperty(name, out var oldValue);
+            var newPresent = after.TryGetProperty(name, out var newValue);
+            if (oldPresent != newPresent || oldPresent && !JsonEqual(oldValue, newValue))
+                throw new CodecException(
+                    "ppj.sourceBound.themeAccentColors",
                     $"Source-bound PPJ cannot safely compile changing source-owned {name}.",
                     path);
         }

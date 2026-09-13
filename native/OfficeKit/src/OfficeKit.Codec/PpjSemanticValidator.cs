@@ -38,6 +38,7 @@ internal static class PpjSemanticValidator
             ["setThemeMinorFontEastAsia"] = Set("fontScheme.minorEastAsia"),
             ["setThemeMajorFontComplexScript"] = Set("fontScheme.majorComplexScript"),
             ["setThemeMinorFontComplexScript"] = Set("fontScheme.minorComplexScript"),
+            ["setThemeAccent1Color"] = Set("accentColors.accent1"),
             ["setBackground"] = Set("background"),
             ["setTransition"] = Set("transition"),
             ["setNotes"] = Set("notes"),
@@ -487,7 +488,8 @@ internal static class PpjSemanticValidator
         }
         if (design.TryGetProperty("theme", out theme) &&
             theme.ValueKind == JsonValueKind.Object &&
-            theme.TryGetProperty("accentColors", out _))
+            theme.TryGetProperty("accentColors", out _) &&
+            !HasCapability(theme, "setThemeAccent1Color", "accentColors.accent1"))
         {
             diagnostics.Add(new(
                 "ppj.sourceBound.themeAccentColors",

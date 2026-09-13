@@ -233,6 +233,15 @@ internal static partial class PpjPresentationProjector
         var themeCapabilities = new List<CapabilitySpec>();
         if (presentation.AuthoredTheme?.HasName == true)
             themeCapabilities.Add(new("setThemeName", ["name"]));
+        if (presentation.AuthoredTheme is { AccentRgb.Count: 6 } authoredTheme)
+        {
+            var accentColors = new JsonObject();
+            var roles = new[] { "accent1", "accent2", "accent3", "accent4", "accent5", "accent6" };
+            for (var index = 0; index < roles.Length; index++)
+                accentColors[roles[index]] = StringNode("#" + authoredTheme.AccentRgb[index]);
+            theme["accentColors"] = accentColors;
+            themeCapabilities.Add(new("setThemeAccent1Color", ["accentColors.accent1"]));
+        }
         if (presentation.AuthoredTheme?.HasMajorFontFamily == true &&
             presentation.AuthoredTheme.HasMinorFontFamily)
         {
