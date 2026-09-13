@@ -546,6 +546,37 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent1RedMod", ["accentTransforms.accent1.redMod"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } redOffTheme &&
+            redOffTheme.AccentTransforms[0] is { Role: "accent1", HasRedOffsetThousandth: true } accent1RedOff &&
+            !accent1RedOff.HasTintThousandth &&
+            !accent1RedOff.HasShadeThousandth &&
+            !accent1RedOff.HasLuminanceModulationThousandth &&
+            !accent1RedOff.HasLuminanceOffsetThousandth &&
+            !accent1RedOff.HasAlphaModulationThousandth &&
+            !accent1RedOff.HasAlphaOffsetThousandth &&
+            !accent1RedOff.HasSaturationModulationThousandth &&
+            !accent1RedOff.HasSaturationOffsetThousandth &&
+            !accent1RedOff.HasRedModulationThousandth &&
+            !accent1RedOff.HasGreenModulationThousandth &&
+            !accent1RedOff.HasGreenOffsetThousandth &&
+            !accent1RedOff.HasBlueModulationThousandth &&
+            !accent1RedOff.HasBlueOffsetThousandth &&
+            !accent1RedOff.HasHueModulationThousandth &&
+            !accent1RedOff.HasHueOffsetAngleThousandth &&
+            !accent1RedOff.HasGray && !accent1RedOff.HasComp && !accent1RedOff.HasInv &&
+            !accent1RedOff.HasGamma && !accent1RedOff.HasInvGamma &&
+            accent1RedOff.RedOffsetThousandth >= -100_000 &&
+            accent1RedOff.RedOffsetThousandth <= 100_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent1"] = new JsonObject
+                {
+                    ["redOff"] = JsonValue.Create(accent1RedOff.RedOffsetThousandth / 100_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent1RedOff", ["accentTransforms.accent1.redOff"]));
+        }
         if (presentation.AuthoredTheme?.HasMajorFontFamily == true &&
             presentation.AuthoredTheme.HasMinorFontFamily)
         {
