@@ -109,7 +109,7 @@ public sealed partial class PptxCodecTests
         Assert.Equal("#ABCDEF", reprojectedProgram["design"]!["theme"]!["accentColors"]!["accent3"]!.GetValue<string>());
 
         var unauthorizedProgram = JsonNode.Parse(projectedProgram.ToJsonString())!.AsObject();
-        unauthorizedProgram["design"]!["theme"]!["accentColors"]!["accent4"] = "#AABBCC";
+        unauthorizedProgram["design"]!["theme"]!["accentColors"]!["accent5"] = "#AABBCC";
         var unauthorized = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
