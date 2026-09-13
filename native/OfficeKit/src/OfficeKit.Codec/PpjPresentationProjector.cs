@@ -241,6 +241,7 @@ internal static partial class PpjPresentationProjector
                 accentColors[roles[index]] = StringNode("#" + authoredTheme.AccentRgb[index]);
             theme["accentColors"] = accentColors;
             themeCapabilities.Add(new("setThemeAccent1Color", ["accentColors.accent1"]));
+            themeCapabilities.Add(new("setThemeAccent2Color", ["accentColors.accent2"]));
         }
         if (presentation.AuthoredTheme?.HasMajorFontFamily == true &&
             presentation.AuthoredTheme.HasMinorFontFamily)
