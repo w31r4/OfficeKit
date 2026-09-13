@@ -835,6 +835,13 @@
   },
   "authoredCompilerBoundaries": [
     {
+      "feature": "source-bound presentation theme name",
+      "ppjPath": "design.theme.name",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an existing name exposes a setThemeName capability for design.theme.name. Source-preserving export changes only a:theme/@name and a fresh projection returns the edited value.",
+      "reason": "Missing or ambiguous ThemePart ownership, a missing name, deletion, and all other theme graph edits remain source-owned. Theme color/font/effect schemes, inheritance, and host rendering stay outside this narrow metadata field."
+    },
+    {
       "feature": "source-bound static table-cell field type",
       "ppjPath": "pages[].elements[].rows[].cells[].text.paragraphs[].runs[].field.type",
       "behavior": "partial",

@@ -1741,9 +1741,9 @@ message PresentationArtifact {
   // bounded canonical profile. Its exact XML stays in the validated source
   // package; no semantic sections are exposed and replacement fails closed.
   bool sections_opaque = 12;
-  // Source-free compiler theme metadata. Existing source-bound presentation
-  // theme graphs remain preserved by their source package and are not
-  // projected into this bounded writer profile.
+  // Compiler theme metadata. Source-free authoring owns the bounded fields;
+  // source-bound imports may carry the existing theme name for a narrow
+  // hash-bound edit while the rest of the theme graph stays source-owned.
   PresentationThemeArtifact authored_theme = 13;
 }
 

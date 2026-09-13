@@ -218,19 +218,31 @@ internal static partial class PpjPresentationProjector
 
     private static JsonObject ImportedDesign(PresentationArtifact presentation, ProjectionContext context)
     {
+        var theme = new JsonObject
+        {
+            ["name"] = StringNode(presentation.AuthoredTheme?.HasName == true
+                ? presentation.AuthoredTheme.Name
+                : "Source-owned presentation theme"),
+            // Imported run and bullet styles may retain a direct theme token
+            // even though the source theme graph is opaque to the bounded
+            // writer. Keep every standard token addressable with a neutral
+            // fallback so the PPJ projection stays valid without claiming
+            // that these fallback RGB values replace the source theme.
+            ["colors"] = ImportedThemeColors(),
+        };
+        if (presentation.AuthoredTheme?.HasName == true)
+        {
+            var themeObjectHash = Sha256(Encoding.UTF8.GetBytes("officekit:ppj:presentation-theme-name"));
+            theme["nativeRef"] = NativeRef(
+                context,
+                "theme",
+                themeObjectHash,
+                [new CapabilitySpec("setThemeName", ["name"])]);
+        }
         var output = new JsonObject
         {
             ["canvas"] = ProjectCanvas(presentation, context),
-            ["theme"] = new JsonObject
-            {
-                ["name"] = StringNode("Source-owned presentation theme"),
-                // Imported run and bullet styles may retain a direct theme token
-                // even though the source theme graph is opaque to the bounded
-                // writer. Keep every standard token addressable with a neutral
-                // fallback so the PPJ projection stays valid without claiming
-                // that these fallback RGB values replace the source theme.
-                ["colors"] = ImportedThemeColors(),
-            },
+            ["theme"] = theme,
             ["fonts"] = new JsonArray(new JsonObject
             {
                 ["id"] = StringNode("source-font"),

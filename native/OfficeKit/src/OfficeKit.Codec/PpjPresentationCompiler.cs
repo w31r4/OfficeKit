@@ -432,7 +432,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
         // value that a source-free background would receive; PptxCodec still
         // owns the source-part writeback and residual XML proof.
         var catalog = new PpjAuthoredPresentationCompiler.Catalog(requested.Root, artifact.Assets);
-        var changed = false;
+        var changed = ApplyTheme(baseline, requested, artifact, mutations);
         for (var index = 0; index < baseline.Design.Masters.Count; index++)
         {
             var before = baseline.Design.Masters[index];
@@ -517,6 +517,32 @@ internal static partial class PpjSourceBoundPresentationCompiler
             }
         }
         return changed;
+    }
+
+    private static bool ApplyTheme(
+        PpjProgramModel baseline,
+        PpjProgramModel requested,
+        ArtifactEnvelope artifact,
+        MutationState mutations)
+    {
+        var before = baseline.Root.GetProperty("design").GetProperty("theme");
+        var after = requested.Root.GetProperty("design").GetProperty("theme");
+        const string path = "$.design.theme";
+        RequireEqualExcept(before, after, path, "name", "nativeRef");
+        if (before.TryGetProperty("nativeRef", out _) || after.TryGetProperty("nativeRef", out _))
+            RequireNativeRef(before, after, path);
+        if (!PropertyChanged(before, after, "name")) return false;
+        if (!after.TryGetProperty("name", out var name) ||
+            name.ValueKind != JsonValueKind.String ||
+            string.IsNullOrWhiteSpace(name.GetString()))
+            throw Unsupported(path + ".name", "source-bound theme name deletion or an empty name is not supported");
+        if (requested.Design.ThemeNativeRef is null)
+            throw Unsupported(path + ".name", "the source did not issue a theme-name capability");
+        RequireCapabilityField(requested.Design.ThemeNativeRef, "setThemeName", "name", path + ".name");
+        artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+        artifact.Presentation.AuthoredTheme.Name = name.GetString();
+        mutations.SemanticChanges = true;
+        return true;
     }
 
     private static void RequireStableMasterTextLevels(

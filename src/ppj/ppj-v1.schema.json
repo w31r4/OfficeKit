@@ -672,6 +672,10 @@
           "type": "string",
           "maxLength": 256
         },
+        "nativeRef": {
+          "$ref": "#/$defs/nativeRef",
+          "description": "Optional source-bound reference for the existing presentation theme name. Other theme graph edits remain source-owned."
+        },
         "fontScheme": {
           "$ref": "#/$defs/themeFontScheme",
           "description": "Bounded authored major/minor theme font families lowered to the native a:fontScheme. It does not model imported theme XML or host font fallback."
@@ -1879,6 +1883,7 @@
             "setFrame",
             "setGeometry",
             "setCanvas",
+            "setThemeName",
             "setBackground",
             "setTransition",
             "setAnimations",

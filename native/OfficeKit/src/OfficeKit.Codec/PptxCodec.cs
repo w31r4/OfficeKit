@@ -266,6 +266,8 @@ internal static class PptxCodec
         var layoutIdByPartPath = masterGraph
             .SelectMany(master => master.Layouts)
             .ToDictionary(layout => PartPath(layout.Part), layout => layout.Id, StringComparer.OrdinalIgnoreCase);
+        var importedThemeName = CanonicalThemePart(masterGraph)?.Theme?.Name?.Value;
+        if (string.IsNullOrWhiteSpace(importedThemeName)) importedThemeName = null;
 
         var artifact = new PresentationArtifact
         {
@@ -273,6 +275,9 @@ internal static class PptxCodec
             Name = "Imported presentation",
             SlideWidthEmu = presentationRoot.SlideSize?.Cx?.Value ?? DefaultSlideWidthEmu,
             SlideHeightEmu = presentationRoot.SlideSize?.Cy?.Value ?? DefaultSlideHeightEmu,
+            AuthoredTheme = importedThemeName is null
+                ? null
+                : new PresentationThemeArtifact { Name = importedThemeName },
         };
         artifact.ViewProperties = PptxViewPropertiesCodec.Read(presentationPart);
         ulong semanticItems = 0;
@@ -770,6 +775,7 @@ internal static class PptxCodec
                     "presentation_layout_topology_changed",
                     $"Source-preserving PPTX export requires the original {layoutGraph.Length}-layout topology; the artifact contains {envelope.Presentation.Layouts.Count} layouts.",
                     "ppt/presentation.xml");
+            ApplySourceBoundThemeName(envelope.Presentation.AuthoredTheme, masterGraph, changedParts, replacedOpaquePartHashes);
             var layoutIdByPartPath = layoutGraph.ToDictionary(item => PartPath(item.Layout.Part), item => item.Layout.Id, StringComparer.OrdinalIgnoreCase);
             if (PptxViewPropertiesCodec.ApplySourceBound(presentationPart, envelope.Presentation.ViewProperties) is { } viewPropertiesChange)
             {
@@ -4947,6 +4953,54 @@ internal static class PptxCodec
                 masterPart,
                 layouts);
         }).ToArray();
+    }
+
+    private static ThemePart? CanonicalThemePart(IReadOnlyList<PptxMasterGraphEntry> masterGraph)
+    {
+        if (masterGraph.Count == 0 || masterGraph.Any(master => master.Part.ThemePart is null))
+            return null;
+        var themes = masterGraph
+            .Select(master => master.Part.ThemePart!)
+            .GroupBy(PartPath, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToArray();
+        return themes.Length == 1 ? themes[0] : null;
+    }
+
+    private static void ApplySourceBoundThemeName(
+        PresentationThemeArtifact? authoredTheme,
+        IReadOnlyList<PptxMasterGraphEntry> masterGraph,
+        ISet<string> changedParts,
+        IDictionary<string, string> replacedOpaquePartHashes)
+    {
+        if (authoredTheme?.HasName != true) return;
+        var themePart = CanonicalThemePart(masterGraph) ??
+            throw new CodecException(
+                "unsupported_presentation_edit",
+                "Source-preserving PPTX export cannot edit a theme without one shared ThemePart.",
+                "ppt/presentation.xml");
+        var theme = themePart.Theme ??
+            throw new CodecException(
+                "missing_theme_root",
+                "PPTX source has no theme root.",
+                PartPath(themePart));
+        var sourceName = theme.Name?.Value;
+        if (string.IsNullOrWhiteSpace(sourceName))
+            throw new CodecException(
+                "unsupported_presentation_edit",
+                "Source-preserving PPTX export can edit only an existing theme name.",
+                PartPath(themePart));
+        if (string.IsNullOrWhiteSpace(authoredTheme.Name))
+            throw new CodecException(
+                "unsupported_presentation_edit",
+                "Source-preserving PPTX export cannot remove a theme name in this bounded profile.",
+                "$.design.theme.name");
+        if (sourceName.Equals(authoredTheme.Name, StringComparison.Ordinal)) return;
+        theme.Name = authoredTheme.Name;
+        theme.Save();
+        var partPath = PartPath(themePart);
+        changedParts.Add(partPath);
+        replacedOpaquePartHashes[partPath] = Hash(PartBytes(themePart));
     }
 
     private static string LayoutTypeName(P.SlideLayout source)

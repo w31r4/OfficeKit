@@ -115,6 +115,7 @@ internal static class PpjSemanticValidator
         ValidateMasterLayoutState(program, masters, layouts, diagnostics);
         ValidateComponentDefinitions(program, components, assetIds, diagnostics);
         ValidateNativeRef(program.Design.CanvasNativeRef, program.Source, "$.design.canvas.nativeRef", diagnostics);
+        ValidateNativeRef(program.Design.ThemeNativeRef, program.Source, "$.design.theme.nativeRef", diagnostics);
 
         var globalElementIds = new HashSet<string>(StringComparer.Ordinal);
         var globalAnimationIds = new HashSet<string>(StringComparer.Ordinal);
