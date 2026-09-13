@@ -1024,6 +1024,13 @@
       "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent1 RGB, alpha or extra descendants, unsupported transform siblings, deletion, combined theme-field edits, out-of-range fractions, and capability tampering fail closed. Other transform leaves, host color management, and PowerPoint rendering are not claimed."
     },
     {
+      "feature": "source-bound presentation theme accent1 hue offset",
+      "ppjPath": "design.theme.accentTransforms.accent1.hueOff",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an accent1 direct RGB leaf containing exactly one direct a:hueOff child exposes a setThemeAccent1HueOff capability for accentTransforms.accent1.hueOff. Source-preserving export changes only a:accent1Color/a:srgbClr/a:hueOff/@val and a fresh projection returns the edited degree offset. The base accent1 RGB, other accents and color roles, tint/shade/luminance/alpha/saturation/channel and other transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent1 RGB, alpha or extra descendants, unsupported transform siblings, deletion, combined theme-field edits, out-of-range degree offsets, and capability tampering fail closed. Other transform leaves, host color management, and PowerPoint rendering are not claimed."
+    },
+    {
       "feature": "source-bound presentation theme minor complex-script font",
       "ppjPath": "design.theme.fontScheme.minorComplexScript",
       "behavior": "partial",
