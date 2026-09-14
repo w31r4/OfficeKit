@@ -2066,6 +2066,7 @@ PowerPoint 宿主阴影显示。
 本轮继续增加同一严格拓扑下的 `design.theme.accentTransforms.accent6.greenOff` source-bound 字段：直接 RGB accent6 叶子下唯一 `a:greenOff/@val`，按 -1..1 signed fraction 投影和回写，仅改已有 token；删除、兄弟字段、组合编辑、越界和 capability 篡改继续 fail closed。
 本轮继续增加同一严格拓扑下的 `design.theme.accentTransforms.accent6.blueMod` source-bound 字段：直接 RGB accent6 叶子下唯一 `a:blueMod/@val`，按 0..1 fraction 投影和回写，仅改已有 token；删除、兄弟字段、组合编辑、越界和 capability 篡改继续 fail closed。
 本轮继续增加同一严格拓扑下的 `design.theme.accentTransforms.accent6.blueOff` source-bound 字段：直接 RGB accent6 叶子下唯一 `a:blueOff/@val`，按 -1..1 signed fraction 投影和回写，仅改已有 token；删除、兄弟字段、组合编辑、越界和 capability 篡改继续 fail closed。
+本轮继续增加同一严格拓扑下的 `design.theme.accentTransforms.accent6.hueMod` source-bound 字段：直接 RGB accent6 叶子下唯一 `a:hueMod/@val`，按 0..1 fraction 投影和回写，仅改已有 token；删除、兄弟字段、组合编辑、越界和 capability 篡改继续 fail closed。
 
 本轮继续增加显式 `design.theme.colorRoles.dark1/light1/dark2/light2/hyperlink/followedHyperlink` authored 字段；它们写入真实 `a:clrScheme` 的六个剩余 bounded role，缺省值沿用 OfficeKit 原有 clean-room 默认。该字段接受六位 RGB 或八位 `#RRGGBBAA`，只将 alpha 写入 `a:alpha`，不推断 transforms、effect scheme、继承或 imported `theme1.xml` 的可写 owner；source-bound 仍 fail closed。
 

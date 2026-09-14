@@ -1570,6 +1570,13 @@
       "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent6 RGB, alpha or extra descendants, unsupported transform siblings, deletion, combined theme-field edits, out-of-range fractions, and capability tampering fail closed. Other transform leaves, host color management, and PowerPoint rendering are not claimed."
     },
     {
+      "feature": "source-bound presentation theme accent6 hue modulation",
+      "ppjPath": "design.theme.accentTransforms.accent6.hueMod",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an accent6 direct RGB leaf containing exactly one direct a:hueMod child exposes a setThemeAccent6HueMod capability for accentTransforms.accent6.hueMod. Source-preserving export changes only a:accent6Color/a:srgbClr/a:hueMod/@val and a fresh projection returns the edited fraction. The base accent6 RGB, other accents and color roles, all other transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent6 RGB, alpha or extra descendants, unsupported transform siblings, deletion, combined theme-field edits, out-of-range fractions, and capability tampering fail closed. Other transform leaves, host color management, and PowerPoint rendering are not claimed."
+    },
+    {
       "feature": "source-bound presentation theme accent5 blue-channel offset",
       "ppjPath": "design.theme.accentTransforms.accent5.blueOff",
       "behavior": "partial",
