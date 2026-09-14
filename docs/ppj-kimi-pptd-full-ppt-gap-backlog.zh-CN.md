@@ -2005,6 +2005,7 @@ PowerPoint 宿主阴影显示。
 
 本轮继续增加同一严格拓扑下的 `design.theme.accentTransforms.accent2.hueOff`；当共享 ThemePart 的 accent2 是直接六位 RGB 加唯一 `a:hueOff/@val` 时，PPJ 投影该 -360..360 度数并只允许写回 hueOff token，其他变换和主题图继续保持 source-owned。
 本轮继续增加同一严格拓扑下的 `design.theme.accentTransforms.accent3.tint`；当共享 ThemePart 的 accent3 是直接六位 RGB 加唯一 `a:tint/@val` 时，PPJ 投影该 0..1 分数并只允许写回 tint token，其他变换和主题图继续保持 source-owned。
+本轮继续增加同一严格拓扑下的 `design.theme.accentTransforms.accent3.shade`；当共享 ThemePart 的 accent3 是直接六位 RGB 加唯一 `a:shade/@val` 时，PPJ 投影该 0..1 分数并只允许写回 shade token，其他变换和主题图继续保持 source-owned。
 
 本轮继续增加显式 `design.theme.colorRoles.dark1/light1/dark2/light2/hyperlink/followedHyperlink` authored 字段；它们写入真实 `a:clrScheme` 的六个剩余 bounded role，缺省值沿用 OfficeKit 原有 clean-room 默认。该字段接受六位 RGB 或八位 `#RRGGBBAA`，只将 alpha 写入 `a:alpha`，不推断 transforms、effect scheme、继承或 imported `theme1.xml` 的可写 owner；source-bound 仍 fail closed。
 

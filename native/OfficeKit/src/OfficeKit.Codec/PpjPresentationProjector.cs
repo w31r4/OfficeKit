@@ -1275,6 +1275,36 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent3Tint", ["accentTransforms.accent3.tint"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent3ShadeTheme &&
+            accent3ShadeTheme.AccentTransforms[0] is { Role: "accent3", HasShadeThousandth: true } accent3Shade &&
+            !accent3Shade.HasTintThousandth &&
+            !accent3Shade.HasLuminanceModulationThousandth &&
+            !accent3Shade.HasLuminanceOffsetThousandth &&
+            !accent3Shade.HasAlphaModulationThousandth &&
+            !accent3Shade.HasAlphaOffsetThousandth &&
+            !accent3Shade.HasSaturationModulationThousandth &&
+            !accent3Shade.HasSaturationOffsetThousandth &&
+            !accent3Shade.HasRedModulationThousandth &&
+            !accent3Shade.HasRedOffsetThousandth &&
+            !accent3Shade.HasGreenModulationThousandth &&
+            !accent3Shade.HasGreenOffsetThousandth &&
+            !accent3Shade.HasBlueModulationThousandth &&
+            !accent3Shade.HasBlueOffsetThousandth &&
+            !accent3Shade.HasHueModulationThousandth &&
+            !accent3Shade.HasHueOffsetAngleThousandth &&
+            !accent3Shade.HasGray && !accent3Shade.HasComp && !accent3Shade.HasInv &&
+            !accent3Shade.HasGamma && !accent3Shade.HasInvGamma &&
+            accent3Shade.ShadeThousandth <= 100_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent3"] = new JsonObject
+                {
+                    ["shade"] = JsonValue.Create(accent3Shade.ShadeThousandth / 100_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent3Shade", ["accentTransforms.accent3.shade"]));
+        }
         if (presentation.AuthoredTheme?.HasMajorFontFamily == true &&
             presentation.AuthoredTheme.HasMinorFontFamily)
         {

@@ -1526,6 +1526,49 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 mutations.SemanticChanges = true;
                 changed = true;
             }
+            else if (beforeAccentTransforms.TryGetProperty("accent3", out var beforeAccent3Shade) &&
+                     afterAccentTransforms.TryGetProperty("accent3", out var afterAccent3Shade) &&
+                     PropertyChanged(beforeAccent3Shade, afterAccent3Shade, "shade"))
+            {
+                var changedTransformNames = beforeAccent3Shade.EnumerateObject().Select(property => property.Name)
+                    .Concat(afterAccent3Shade.EnumerateObject().Select(property => property.Name))
+                    .Distinct(StringComparer.Ordinal)
+                    .Where(name => PropertyChanged(beforeAccent3Shade, afterAccent3Shade, name))
+                    .ToArray();
+                if (changedTransformNames.Length != 1 || !changedTransformNames[0].Equals("shade", StringComparison.Ordinal))
+                    throw Unsupported(path + ".accentTransforms.accent3", "source-bound accent3 requires exactly one changed shade field");
+                if (!afterAccent3Shade.TryGetProperty("shade", out var shade) ||
+                    shade.ValueKind != JsonValueKind.Number ||
+                    !shade.TryGetDouble(out var shadeFraction) ||
+                    !double.IsFinite(shadeFraction) || shadeFraction < 0 || shadeFraction > 1)
+                    throw Unsupported(path + ".accentTransforms.accent3.shade", "source-bound accent3 shade must be a finite fraction from 0 through 1");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".accentTransforms.accent3.shade", "the source did not issue an accent3-shade capability");
+                RequireCapabilityField(
+                    requested.Design.ThemeNativeRef,
+                    "setThemeAccent3Shade",
+                    "accentTransforms.accent3.shade",
+                    path + ".accentTransforms.accent3.shade");
+                var transformValue = checked((uint)Math.Round(shadeFraction * 100_000d, MidpointRounding.AwayFromZero));
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                var authoredTransform = artifact.Presentation.AuthoredTheme.AccentTransforms
+                    .SingleOrDefault(transform => transform.Role.Equals("accent3", StringComparison.Ordinal));
+                if (authoredTransform is null || !authoredTransform.HasShadeThousandth ||
+                    authoredTransform.HasTintThousandth ||
+                    authoredTransform.HasLuminanceModulationThousandth || authoredTransform.HasLuminanceOffsetThousandth ||
+                    authoredTransform.HasAlphaModulationThousandth || authoredTransform.HasAlphaOffsetThousandth ||
+                    authoredTransform.HasSaturationModulationThousandth || authoredTransform.HasSaturationOffsetThousandth ||
+                    authoredTransform.HasRedModulationThousandth || authoredTransform.HasRedOffsetThousandth ||
+                    authoredTransform.HasGreenModulationThousandth || authoredTransform.HasGreenOffsetThousandth ||
+                    authoredTransform.HasBlueModulationThousandth || authoredTransform.HasBlueOffsetThousandth ||
+                    authoredTransform.HasHueModulationThousandth || authoredTransform.HasHueOffsetAngleThousandth ||
+                    authoredTransform.HasGray || authoredTransform.HasComp || authoredTransform.HasInv ||
+                    authoredTransform.HasGamma || authoredTransform.HasInvGamma)
+                    throw Unsupported(path + ".accentTransforms.accent3.shade", "source-bound accent3 shade requires one imported direct shade");
+                authoredTransform.ShadeThousandth = transformValue;
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
             else
             {
             var beforeAccent1 = beforeAccentTransforms.GetProperty("accent1");
