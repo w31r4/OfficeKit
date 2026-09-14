@@ -3735,3 +3735,9 @@ direct RGB accent6 leaf and one `a:alphaMod/@val` child projects
 `setThemeAccent6AlphaMod` capability. An edit changes only that existing token,
 preserves the other package members, and reprojects the new value; unsupported
 or ambiguous theme topology remains source-owned.
+PPJ source-bound theme accent6 alphaOff (2026-09-15): a canonical owner with a
+direct RGB accent6 leaf and one `a:alphaOff/@val` child projects
+`design.theme.accentTransforms.accent6.alphaOff` with a
+`setThemeAccent6AlphaOff` capability. An edit changes only that existing token,
+preserves the other package members, and reprojects the new value; unsupported
+or ambiguous theme topology remains source-owned.

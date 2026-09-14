@@ -2722,6 +2722,37 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent6AlphaMod", ["accentTransforms.accent6.alphaMod"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent6AlphaOffTheme &&
+            accent6AlphaOffTheme.AccentTransforms[0] is { Role: "accent6", HasAlphaOffsetThousandth: true } accent6AlphaOff &&
+            !accent6AlphaOff.HasTintThousandth &&
+            !accent6AlphaOff.HasShadeThousandth &&
+            !accent6AlphaOff.HasLuminanceModulationThousandth &&
+            !accent6AlphaOff.HasLuminanceOffsetThousandth &&
+            !accent6AlphaOff.HasAlphaModulationThousandth &&
+            !accent6AlphaOff.HasSaturationModulationThousandth &&
+            !accent6AlphaOff.HasSaturationOffsetThousandth &&
+            !accent6AlphaOff.HasRedModulationThousandth &&
+            !accent6AlphaOff.HasRedOffsetThousandth &&
+            !accent6AlphaOff.HasGreenModulationThousandth &&
+            !accent6AlphaOff.HasGreenOffsetThousandth &&
+            !accent6AlphaOff.HasBlueModulationThousandth &&
+            !accent6AlphaOff.HasBlueOffsetThousandth &&
+            !accent6AlphaOff.HasHueModulationThousandth &&
+            !accent6AlphaOff.HasHueOffsetAngleThousandth &&
+            !accent6AlphaOff.HasGray && !accent6AlphaOff.HasComp && !accent6AlphaOff.HasInv &&
+            !accent6AlphaOff.HasGamma && !accent6AlphaOff.HasInvGamma &&
+            accent6AlphaOff.AlphaOffsetThousandth >= -100_000 &&
+            accent6AlphaOff.AlphaOffsetThousandth <= 100_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent6"] = new JsonObject
+                {
+                    ["alphaOff"] = JsonValue.Create(accent6AlphaOff.AlphaOffsetThousandth / 100_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent6AlphaOff", ["accentTransforms.accent6.alphaOff"]));
+        }
         if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent4TintTheme &&
             accent4TintTheme.AccentTransforms[0] is { Role: "accent4", HasTintThousandth: true } accent4Tint &&
             !accent4Tint.HasShadeThousandth &&
