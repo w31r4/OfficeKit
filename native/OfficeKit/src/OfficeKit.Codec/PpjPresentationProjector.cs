@@ -1606,6 +1606,35 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent4BlueMod", ["accentTransforms.accent4.blueMod"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent4HueModTheme &&
+            accent4HueModTheme.AccentTransforms[0] is { Role: "accent4", HasHueModulationThousandth: true } accent4HueMod &&
+            !accent4HueMod.HasTintThousandth &&
+            !accent4HueMod.HasShadeThousandth &&
+            !accent4HueMod.HasLuminanceModulationThousandth &&
+            !accent4HueMod.HasLuminanceOffsetThousandth &&
+            !accent4HueMod.HasAlphaModulationThousandth &&
+            !accent4HueMod.HasAlphaOffsetThousandth &&
+            !accent4HueMod.HasSaturationModulationThousandth &&
+            !accent4HueMod.HasSaturationOffsetThousandth &&
+            !accent4HueMod.HasRedModulationThousandth &&
+            !accent4HueMod.HasRedOffsetThousandth &&
+            !accent4HueMod.HasGreenModulationThousandth &&
+            !accent4HueMod.HasGreenOffsetThousandth &&
+            !accent4HueMod.HasBlueModulationThousandth &&
+            !accent4HueMod.HasHueOffsetAngleThousandth &&
+            !accent4HueMod.HasGray && !accent4HueMod.HasComp && !accent4HueMod.HasInv &&
+            !accent4HueMod.HasGamma && !accent4HueMod.HasInvGamma &&
+            accent4HueMod.HueModulationThousandth <= 100_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent4"] = new JsonObject
+                {
+                    ["hueMod"] = JsonValue.Create(accent4HueMod.HueModulationThousandth / 100_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent4HueMod", ["accentTransforms.accent4.hueMod"]));
+        }
         if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent4BlueOffTheme &&
             accent4BlueOffTheme.AccentTransforms[0] is { Role: "accent4", HasBlueOffsetThousandth: true } accent4BlueOff &&
             !accent4BlueOff.HasTintThousandth &&
