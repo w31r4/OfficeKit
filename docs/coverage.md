@@ -3550,3 +3550,10 @@ direct RGB accent4 leaf and one `a:satOff/@val` child projects
 `setThemeAccent4SatOff` capability. An edit changes only that existing token,
 preserves the other package members, and reprojects the new value; unsupported
 or ambiguous theme topology remains source-owned.
+
+PPJ source-bound theme accent4 redMod (2026-09-15): a canonical owner with a
+direct RGB accent4 leaf and one `a:redMod/@val` child projects
+`design.theme.accentTransforms.accent4.redMod` with a
+`setThemeAccent4RedMod` capability. An edit changes only that existing token,
+preserves the other package members, and reprojects the new value; unsupported
+or ambiguous theme topology remains source-owned.
