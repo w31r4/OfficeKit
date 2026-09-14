@@ -3693,3 +3693,9 @@ direct RGB accent5 leaf and one `a:blueOff/@val` child projects
 `setThemeAccent5BlueOff` capability. An edit changes only that existing token,
 preserves the other package members, and reprojects the new value; unsupported
 or ambiguous theme topology remains source-owned.
+PPJ source-bound theme accent5 hueMod (2026-09-15): a canonical owner with a
+direct RGB accent5 leaf and one `a:hueMod/@val` child projects
+`design.theme.accentTransforms.accent5.hueMod` with a
+`setThemeAccent5HueMod` capability. An edit changes only that existing token,
+preserves the other package members, and reprojects the new value; unsupported
+or ambiguous theme topology remains source-owned.
