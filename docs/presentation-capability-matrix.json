@@ -14,7 +14,7 @@
     "schemaDefinitions": 201,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 167,
+    "authoredCompilerBoundaries": 168,
     "nativeLeafKinds": 316,
     "helpApis": 151,
     "hostOnlyApis": 13
@@ -1476,6 +1476,14 @@
       "ppjPath": "design.theme.accentTransforms.accent5.tint",
       "behavior": "partial",
       "sourceBound": "A canonical imported presentation with one shared ThemePart and an accent5 direct RGB leaf containing exactly one direct a:tint child exposes a setThemeAccent5Tint capability for accentTransforms.accent5.tint. Source-preserving export changes only a:accent5Color/a:srgbClr/a:tint/@val and a fresh projection returns the edited fraction. The base accent5 RGB, other accents and color roles, all other transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent5 RGB, alpha or extra descendants, unsupported transform siblings, deletion, combined theme-field edits, out-of-range fractions, and capability tampering fail closed. Other transform leaves, host color management, and PowerPoint rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme accent5 shade",
+      "ppjPath": "design.theme.accentTransforms.accent5.shade",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an accent5 direct RGB leaf containing exactly one direct a:shade child exposes a setThemeAccent5Shade capability for accentTransforms.accent5.shade. Source-preserving export changes only a:accent5Color/a:srgbClr/a:shade/@val and a fresh projection returns the edited fraction. The base accent5 RGB, other accents and color roles, all other transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
       "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent5 RGB, alpha or extra descendants, unsupported transform siblings, deletion, combined theme-field edits, out-of-range fractions, and capability tampering fail closed. Other transform leaves, host color management, and PowerPoint rendering are not claimed.",
       "visualStatus": "partial-or-opaque"
     },

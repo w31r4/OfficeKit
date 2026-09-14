@@ -2180,6 +2180,36 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent4Tint", ["accentTransforms.accent4.tint"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent5ShadeTheme &&
+            accent5ShadeTheme.AccentTransforms[0] is { Role: "accent5", HasShadeThousandth: true } accent5Shade &&
+            !accent5Shade.HasTintThousandth &&
+            !accent5Shade.HasLuminanceModulationThousandth &&
+            !accent5Shade.HasLuminanceOffsetThousandth &&
+            !accent5Shade.HasAlphaModulationThousandth &&
+            !accent5Shade.HasAlphaOffsetThousandth &&
+            !accent5Shade.HasSaturationModulationThousandth &&
+            !accent5Shade.HasSaturationOffsetThousandth &&
+            !accent5Shade.HasRedModulationThousandth &&
+            !accent5Shade.HasRedOffsetThousandth &&
+            !accent5Shade.HasGreenModulationThousandth &&
+            !accent5Shade.HasGreenOffsetThousandth &&
+            !accent5Shade.HasBlueModulationThousandth &&
+            !accent5Shade.HasBlueOffsetThousandth &&
+            !accent5Shade.HasHueModulationThousandth &&
+            !accent5Shade.HasHueOffsetAngleThousandth &&
+            !accent5Shade.HasGray && !accent5Shade.HasComp && !accent5Shade.HasInv &&
+            !accent5Shade.HasGamma && !accent5Shade.HasInvGamma &&
+            accent5Shade.ShadeThousandth <= 100_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent5"] = new JsonObject
+                {
+                    ["shade"] = JsonValue.Create(accent5Shade.ShadeThousandth / 100_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent5Shade", ["accentTransforms.accent5.shade"]));
+        }
         if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent4ShadeTheme &&
             accent4ShadeTheme.AccentTransforms[0] is { Role: "accent4", HasShadeThousandth: true } accent4Shade &&
             !accent4Shade.HasTintThousandth &&
