@@ -1640,6 +1640,35 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent3BlueOff", ["accentTransforms.accent3.blueOff"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent3HueModTheme &&
+            accent3HueModTheme.AccentTransforms[0] is { Role: "accent3", HasHueModulationThousandth: true } accent3HueMod &&
+            !accent3HueMod.HasTintThousandth &&
+            !accent3HueMod.HasShadeThousandth &&
+            !accent3HueMod.HasLuminanceModulationThousandth &&
+            !accent3HueMod.HasLuminanceOffsetThousandth &&
+            !accent3HueMod.HasAlphaModulationThousandth &&
+            !accent3HueMod.HasAlphaOffsetThousandth &&
+            !accent3HueMod.HasSaturationModulationThousandth &&
+            !accent3HueMod.HasSaturationOffsetThousandth &&
+            !accent3HueMod.HasRedModulationThousandth &&
+            !accent3HueMod.HasRedOffsetThousandth &&
+            !accent3HueMod.HasGreenModulationThousandth &&
+            !accent3HueMod.HasGreenOffsetThousandth &&
+            !accent3HueMod.HasBlueModulationThousandth &&
+            !accent3HueMod.HasHueOffsetAngleThousandth &&
+            !accent3HueMod.HasGray && !accent3HueMod.HasComp && !accent3HueMod.HasInv &&
+            !accent3HueMod.HasGamma && !accent3HueMod.HasInvGamma &&
+            accent3HueMod.HueModulationThousandth <= 100_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent3"] = new JsonObject
+                {
+                    ["hueMod"] = JsonValue.Create(accent3HueMod.HueModulationThousandth / 100_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent3HueMod", ["accentTransforms.accent3.hueMod"]));
+        }
         if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent3AlphaOffTheme &&
             accent3AlphaOffTheme.AccentTransforms[0] is { Role: "accent3", HasAlphaOffsetThousandth: true } accent3AlphaOff &&
             !accent3AlphaOff.HasTintThousandth &&

@@ -14,7 +14,7 @@
     "schemaDefinitions": 201,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 148,
+    "authoredCompilerBoundaries": 149,
     "nativeLeafKinds": 316,
     "helpApis": 151,
     "hostOnlyApis": 13
@@ -1324,6 +1324,14 @@
       "ppjPath": "design.theme.accentTransforms.accent3.blueOff",
       "behavior": "partial",
       "sourceBound": "A canonical imported presentation with one shared ThemePart and an accent3 direct RGB leaf containing exactly one direct a:blueOff child exposes a setThemeAccent3BlueOff capability for accentTransforms.accent3.blueOff. Source-preserving export changes only a:accent3Color/a:srgbClr/a:blueOff/@val and a fresh projection returns the edited fraction. The base accent3 RGB, other accents and color roles, all other transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent3 RGB, alpha or extra descendants, unsupported transform siblings, deletion, combined theme-field edits, out-of-range fractions, and capability tampering fail closed. Other transform leaves, host color management, and PowerPoint rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme accent3 hue modulation",
+      "ppjPath": "design.theme.accentTransforms.accent3.hueMod",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an accent3 direct RGB leaf containing exactly one direct a:hueMod child exposes a setThemeAccent3HueMod capability for accentTransforms.accent3.hueMod. Source-preserving export changes only a:accent3Color/a:srgbClr/a:hueMod/@val and a fresh projection returns the edited fraction. The base accent3 RGB, other accents and color roles, all other transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
       "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent3 RGB, alpha or extra descendants, unsupported transform siblings, deletion, combined theme-field edits, out-of-range fractions, and capability tampering fail closed. Other transform leaves, host color management, and PowerPoint rendering are not claimed.",
       "visualStatus": "partial-or-opaque"
     },
