@@ -2904,6 +2904,36 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent6GreenMod", ["accentTransforms.accent6.greenMod"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent6GreenOffTheme &&
+            accent6GreenOffTheme.AccentTransforms[0] is { Role: "accent6", HasGreenOffsetThousandth: true } accent6GreenOff &&
+            !accent6GreenOff.HasTintThousandth &&
+            !accent6GreenOff.HasShadeThousandth &&
+            !accent6GreenOff.HasLuminanceModulationThousandth &&
+            !accent6GreenOff.HasLuminanceOffsetThousandth &&
+            !accent6GreenOff.HasAlphaModulationThousandth &&
+            !accent6GreenOff.HasAlphaOffsetThousandth &&
+            !accent6GreenOff.HasSaturationModulationThousandth &&
+            !accent6GreenOff.HasSaturationOffsetThousandth &&
+            !accent6GreenOff.HasRedOffsetThousandth &&
+            !accent6GreenOff.HasGreenModulationThousandth &&
+            !accent6GreenOff.HasBlueModulationThousandth &&
+            !accent6GreenOff.HasBlueOffsetThousandth &&
+            !accent6GreenOff.HasHueModulationThousandth &&
+            !accent6GreenOff.HasHueOffsetAngleThousandth &&
+            !accent6GreenOff.HasGray && !accent6GreenOff.HasComp && !accent6GreenOff.HasInv &&
+            !accent6GreenOff.HasGamma && !accent6GreenOff.HasInvGamma &&
+            accent6GreenOff.GreenOffsetThousandth >= -100_000 &&
+            accent6GreenOff.GreenOffsetThousandth <= 100_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent6"] = new JsonObject
+                {
+                    ["greenOff"] = JsonValue.Create(accent6GreenOff.GreenOffsetThousandth / 100_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent6GreenOff", ["accentTransforms.accent6.greenOff"]));
+        }
         if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent4TintTheme &&
             accent4TintTheme.AccentTransforms[0] is { Role: "accent4", HasTintThousandth: true } accent4Tint &&
             !accent4Tint.HasShadeThousandth &&

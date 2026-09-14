@@ -359,6 +359,7 @@ internal static class PptxCodec
         var importedAccent6RedMod = TryReadSourceBoundThemeAccent6RedMod(importedTheme);
         var importedAccent6RedOff = TryReadSourceBoundThemeAccent6RedOff(importedTheme);
         var importedAccent6GreenMod = TryReadSourceBoundThemeAccent6GreenMod(importedTheme);
+        var importedAccent6GreenOff = TryReadSourceBoundThemeAccent6GreenOff(importedTheme);
         var importedColorRoleRgb = TryReadSourceBoundThemeColorRoleRgb(importedTheme);
         var importedThemeName = importedTheme?.Name?.Value;
         if (string.IsNullOrWhiteSpace(importedThemeName)) importedThemeName = null;
@@ -921,6 +922,12 @@ internal static class PptxCodec
             {
                 Role = "accent6",
                 GreenModulationThousandth = accent6GreenMod,
+            });
+        if (importedAccent6GreenOff is { } accent6GreenOff)
+            importedThemeArtifact.AccentTransforms.Add(new PresentationThemeColorTransform
+            {
+                Role = "accent6",
+                GreenOffsetThousandth = accent6GreenOff,
             });
         if (importedColorRoleRgb is not null)
         {
@@ -6889,6 +6896,21 @@ internal static class PptxCodec
         return checked((uint)greenMod.Val.Value);
     }
 
+    private static int? TryReadSourceBoundThemeAccent6GreenOff(A.Theme? theme)
+    {
+        var colorScheme = theme?.ThemeElements?.ColorScheme;
+        var owner = colorScheme?.Accent6Color;
+        if (owner is null || !HasOnlyAttributes(owner) || owner.ChildElements.Count != 1 ||
+            owner.FirstChild is not A.RgbColorModelHex color ||
+            !HasOnlyAttributes(color, "val") ||
+            color.Val?.Value is not { Length: 6 } value || !value.All(Uri.IsHexDigit) ||
+            color.ChildElements.Count != 1 || color.FirstChild is not A.GreenOffset greenOff ||
+            !HasOnlyAttributes(greenOff, "val") || greenOff.ChildElements.Count != 0 ||
+            greenOff.Val is null || greenOff.Val.Value < -100_000 || greenOff.Val.Value > 100_000)
+            return null;
+        return greenOff.Val.Value;
+    }
+
     private static uint? TryReadSourceBoundThemeAccent5RedMod(A.Theme? theme)
     {
         var colorScheme = theme?.ThemeElements?.ColorScheme;
@@ -9660,6 +9682,51 @@ internal static class PptxCodec
                         "Source-preserving PPTX export cannot create a missing direct accent6 greenMod.",
                         PartPath(themePart));
                 greenMod.Val = checked((int)requested);
+                changed = true;
+            }
+        }
+        else if (authoredTheme.AccentTransforms.Count == 1 &&
+            authoredTheme.AccentTransforms[0] is { Role: "accent6", HasGreenOffsetThousandth: true } accent6GreenOff &&
+            !accent6GreenOff.HasTintThousandth &&
+            !accent6GreenOff.HasShadeThousandth &&
+            !accent6GreenOff.HasLuminanceModulationThousandth &&
+            !accent6GreenOff.HasLuminanceOffsetThousandth &&
+            !accent6GreenOff.HasAlphaModulationThousandth &&
+            !accent6GreenOff.HasAlphaOffsetThousandth &&
+            !accent6GreenOff.HasSaturationModulationThousandth &&
+            !accent6GreenOff.HasSaturationOffsetThousandth &&
+            !accent6GreenOff.HasRedOffsetThousandth &&
+            !accent6GreenOff.HasGreenModulationThousandth &&
+            !accent6GreenOff.HasBlueModulationThousandth &&
+            !accent6GreenOff.HasBlueOffsetThousandth &&
+            !accent6GreenOff.HasHueModulationThousandth &&
+            !accent6GreenOff.HasHueOffsetAngleThousandth &&
+            !accent6GreenOff.HasGray && !accent6GreenOff.HasComp && !accent6GreenOff.HasInv &&
+            !accent6GreenOff.HasGamma && !accent6GreenOff.HasInvGamma &&
+            accent6GreenOff.GreenOffsetThousandth >= -100_000 &&
+            accent6GreenOff.GreenOffsetThousandth <= 100_000)
+        {
+            var colorScheme = theme.ThemeElements?.ColorScheme;
+            var sourceValue = TryReadSourceBoundThemeAccent6GreenOff(theme);
+            if (sourceValue is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export can edit only an existing direct accent6 greenOff.",
+                    PartPath(themePart));
+            var requested = (long)accent6GreenOff.GreenOffsetThousandth;
+            if (sourceValue.Value != requested)
+            {
+                var color = colorScheme?.Accent6Color?.GetFirstChild<A.RgbColorModelHex>() ??
+                    throw new CodecException(
+                        "unsupported_presentation_edit",
+                        "Source-preserving PPTX export cannot create a missing direct accent6 color.",
+                        PartPath(themePart));
+                var greenOff = color.FirstChild as A.GreenOffset ??
+                    throw new CodecException(
+                        "unsupported_presentation_edit",
+                        "Source-preserving PPTX export cannot create a missing direct accent6 greenOff.",
+                        PartPath(themePart));
+                greenOff.Val = checked((int)requested);
                 changed = true;
             }
         }

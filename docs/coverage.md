@@ -3771,3 +3771,9 @@ direct RGB accent6 leaf and one `a:greenMod/@val` child projects
 `setThemeAccent6GreenMod` capability. An edit changes only that existing token,
 preserves the other package members, and reprojects the new value; unsupported
 or ambiguous theme topology remains source-owned.
+PPJ source-bound theme accent6 greenOff (2026-09-15): a canonical owner with a
+direct RGB accent6 leaf and one `a:greenOff/@val` child projects
+`design.theme.accentTransforms.accent6.greenOff` with a
+`setThemeAccent6GreenOff` capability. An edit changes only that existing token,
+preserves the other package members, and reprojects the new value; unsupported
+or ambiguous theme topology remains source-owned.
