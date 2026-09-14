@@ -14,7 +14,7 @@
     "schemaDefinitions": 201,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 159,
+    "authoredCompilerBoundaries": 160,
     "nativeLeafKinds": 316,
     "helpApis": 151,
     "hostOnlyApis": 13
@@ -1405,6 +1405,14 @@
       "behavior": "partial",
       "sourceBound": "A canonical imported presentation with one shared ThemePart and an accent4 direct RGB leaf containing exactly one direct a:redMod child exposes a setThemeAccent4RedMod capability for accentTransforms.accent4.redMod. Source-preserving export changes only a:accent4Color/a:srgbClr/a:redMod/@val and a fresh projection returns the edited fraction. The base accent4 RGB, other accents and color roles, all other transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
       "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent4 RGB, alpha or extra descendants, unsupported transform siblings, deletion, combined theme-field edits, out-of-range fractions, and capability tampering fail closed. Other transform leaves, host color management, and PowerPoint rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme accent4 red-channel offset",
+      "ppjPath": "design.theme.accentTransforms.accent4.redOff",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an accent4 direct RGB leaf containing exactly one direct a:redOff child exposes a setThemeAccent4RedOff capability for accentTransforms.accent4.redOff. Source-preserving export changes only a:accent4Color/a:srgbClr/a:redOff/@val and a fresh projection returns the edited fraction. The base accent4 RGB, other accents and color roles, all other transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent4 RGB, alpha or extra descendants, unsupported transform siblings, deletion, combined theme-field edits, out-of-range signed fractions, and capability tampering fail closed. Other transform leaves, host color management, and PowerPoint rendering are not claimed.",
       "visualStatus": "partial-or-opaque"
     },
     {
