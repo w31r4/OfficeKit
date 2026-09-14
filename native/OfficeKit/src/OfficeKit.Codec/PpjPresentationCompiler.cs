@@ -2515,6 +2515,49 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 mutations.SemanticChanges = true;
                 changed = true;
             }
+            else if (beforeAccentTransforms.TryGetProperty("accent5", out var beforeAccent5AlphaMod) &&
+                     afterAccentTransforms.TryGetProperty("accent5", out var afterAccent5AlphaMod) &&
+                     PropertyChanged(beforeAccent5AlphaMod, afterAccent5AlphaMod, "alphaMod"))
+            {
+                var changedTransformNames = beforeAccent5AlphaMod.EnumerateObject().Select(property => property.Name)
+                    .Concat(afterAccent5AlphaMod.EnumerateObject().Select(property => property.Name))
+                    .Distinct(StringComparer.Ordinal)
+                    .Where(name => PropertyChanged(beforeAccent5AlphaMod, afterAccent5AlphaMod, name))
+                    .ToArray();
+                if (changedTransformNames.Length != 1 || !changedTransformNames[0].Equals("alphaMod", StringComparison.Ordinal))
+                    throw Unsupported(path + ".accentTransforms.accent5", "source-bound accent5 requires exactly one changed alphaMod field");
+                if (!afterAccent5AlphaMod.TryGetProperty("alphaMod", out var alphaMod) ||
+                    alphaMod.ValueKind != JsonValueKind.Number ||
+                    !alphaMod.TryGetDouble(out var alphaModFraction) ||
+                    !double.IsFinite(alphaModFraction) || alphaModFraction < 0 || alphaModFraction > 1)
+                    throw Unsupported(path + ".accentTransforms.accent5.alphaMod", "source-bound accent5 alphaMod must be a finite fraction from 0 through 1");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".accentTransforms.accent5.alphaMod", "the source did not issue an accent5-alphaMod capability");
+                RequireCapabilityField(
+                    requested.Design.ThemeNativeRef,
+                    "setThemeAccent5AlphaMod",
+                    "accentTransforms.accent5.alphaMod",
+                    path + ".accentTransforms.accent5.alphaMod");
+                var transformValue = checked((uint)Math.Round(alphaModFraction * 100_000d, MidpointRounding.AwayFromZero));
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                var authoredTransform = artifact.Presentation.AuthoredTheme.AccentTransforms
+                    .SingleOrDefault(transform => transform.Role.Equals("accent5", StringComparison.Ordinal));
+                if (authoredTransform is null || !authoredTransform.HasAlphaModulationThousandth ||
+                    authoredTransform.HasTintThousandth || authoredTransform.HasShadeThousandth ||
+                    authoredTransform.HasLuminanceModulationThousandth || authoredTransform.HasLuminanceOffsetThousandth ||
+                    authoredTransform.HasAlphaOffsetThousandth ||
+                    authoredTransform.HasSaturationModulationThousandth || authoredTransform.HasSaturationOffsetThousandth ||
+                    authoredTransform.HasRedModulationThousandth || authoredTransform.HasRedOffsetThousandth ||
+                    authoredTransform.HasGreenModulationThousandth || authoredTransform.HasGreenOffsetThousandth ||
+                    authoredTransform.HasBlueModulationThousandth || authoredTransform.HasBlueOffsetThousandth ||
+                    authoredTransform.HasHueModulationThousandth || authoredTransform.HasHueOffsetAngleThousandth ||
+                    authoredTransform.HasGray || authoredTransform.HasComp || authoredTransform.HasInv ||
+                    authoredTransform.HasGamma || authoredTransform.HasInvGamma)
+                    throw Unsupported(path + ".accentTransforms.accent5.alphaMod", "source-bound accent5 alphaMod requires one imported direct alphaMod");
+                authoredTransform.AlphaModulationThousandth = transformValue;
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
             else if (beforeAccentTransforms.TryGetProperty("accent4", out var beforeAccent4LumOff) &&
                      afterAccentTransforms.TryGetProperty("accent4", out var afterAccent4LumOff) &&
                      PropertyChanged(beforeAccent4LumOff, afterAccent4LumOff, "lumOff"))
