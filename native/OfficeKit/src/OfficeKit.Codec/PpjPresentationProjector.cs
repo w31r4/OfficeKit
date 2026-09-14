@@ -1305,6 +1305,36 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent3Shade", ["accentTransforms.accent3.shade"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent3LumModTheme &&
+            accent3LumModTheme.AccentTransforms[0] is { Role: "accent3", HasLuminanceModulationThousandth: true } accent3LumMod &&
+            !accent3LumMod.HasTintThousandth &&
+            !accent3LumMod.HasShadeThousandth &&
+            !accent3LumMod.HasLuminanceOffsetThousandth &&
+            !accent3LumMod.HasAlphaModulationThousandth &&
+            !accent3LumMod.HasAlphaOffsetThousandth &&
+            !accent3LumMod.HasSaturationModulationThousandth &&
+            !accent3LumMod.HasSaturationOffsetThousandth &&
+            !accent3LumMod.HasRedModulationThousandth &&
+            !accent3LumMod.HasRedOffsetThousandth &&
+            !accent3LumMod.HasGreenModulationThousandth &&
+            !accent3LumMod.HasGreenOffsetThousandth &&
+            !accent3LumMod.HasBlueModulationThousandth &&
+            !accent3LumMod.HasBlueOffsetThousandth &&
+            !accent3LumMod.HasHueModulationThousandth &&
+            !accent3LumMod.HasHueOffsetAngleThousandth &&
+            !accent3LumMod.HasGray && !accent3LumMod.HasComp && !accent3LumMod.HasInv &&
+            !accent3LumMod.HasGamma && !accent3LumMod.HasInvGamma &&
+            accent3LumMod.LuminanceModulationThousandth <= 100_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent3"] = new JsonObject
+                {
+                    ["lumMod"] = JsonValue.Create(accent3LumMod.LuminanceModulationThousandth / 100_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent3LumMod", ["accentTransforms.accent3.lumMod"]));
+        }
         if (presentation.AuthoredTheme?.HasMajorFontFamily == true &&
             presentation.AuthoredTheme.HasMinorFontFamily)
         {
