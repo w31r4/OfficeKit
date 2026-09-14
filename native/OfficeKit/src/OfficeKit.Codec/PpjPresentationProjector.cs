@@ -1487,6 +1487,36 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent5AlphaOff", ["accentTransforms.accent5.alphaOff"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent5SatModTheme &&
+            accent5SatModTheme.AccentTransforms[0] is { Role: "accent5", HasSaturationModulationThousandth: true } accent5SatMod &&
+            !accent5SatMod.HasTintThousandth &&
+            !accent5SatMod.HasShadeThousandth &&
+            !accent5SatMod.HasLuminanceModulationThousandth &&
+            !accent5SatMod.HasLuminanceOffsetThousandth &&
+            !accent5SatMod.HasAlphaModulationThousandth &&
+            !accent5SatMod.HasAlphaOffsetThousandth &&
+            !accent5SatMod.HasSaturationOffsetThousandth &&
+            !accent5SatMod.HasRedModulationThousandth &&
+            !accent5SatMod.HasRedOffsetThousandth &&
+            !accent5SatMod.HasGreenModulationThousandth &&
+            !accent5SatMod.HasGreenOffsetThousandth &&
+            !accent5SatMod.HasBlueModulationThousandth &&
+            !accent5SatMod.HasBlueOffsetThousandth &&
+            !accent5SatMod.HasHueModulationThousandth &&
+            !accent5SatMod.HasHueOffsetAngleThousandth &&
+            !accent5SatMod.HasGray && !accent5SatMod.HasComp && !accent5SatMod.HasInv &&
+            !accent5SatMod.HasGamma && !accent5SatMod.HasInvGamma &&
+            accent5SatMod.SaturationModulationThousandth <= 100_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent5"] = new JsonObject
+                {
+                    ["satMod"] = JsonValue.Create(accent5SatMod.SaturationModulationThousandth / 100_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent5SatMod", ["accentTransforms.accent5.satMod"]));
+        }
         if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent4LumOffTheme &&
             accent4LumOffTheme.AccentTransforms[0] is { Role: "accent4", HasLuminanceOffsetThousandth: true } accent4LumOff &&
             !accent4LumOff.HasTintThousandth &&
