@@ -3432,3 +3432,10 @@ direct RGB accent3 leaf and one `a:satMod/@val` child projects
 `setThemeAccent3SatMod` capability. An edit changes only that existing token,
 preserves the other package members, and reprojects the new value; unsupported
 or ambiguous theme topology remains source-owned.
+
+PPJ source-bound theme accent3 satOff (2026-09-14): a canonical owner with a
+direct RGB accent3 leaf and one `a:satOff/@val` child projects the signed
+`design.theme.accentTransforms.accent3.satOff` fraction with a
+`setThemeAccent3SatOff` capability. An edit changes only that existing token,
+preserves the other package members, and reprojects the new value; unsupported
+or ambiguous theme topology remains source-owned.
