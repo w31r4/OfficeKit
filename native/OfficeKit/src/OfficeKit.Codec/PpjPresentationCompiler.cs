@@ -1483,6 +1483,49 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 mutations.SemanticChanges = true;
                 changed = true;
             }
+            else if (beforeAccentTransforms.TryGetProperty("accent3", out var beforeAccent3) &&
+                afterAccentTransforms.TryGetProperty("accent3", out var afterAccent3) &&
+                PropertyChanged(beforeAccent3, afterAccent3, "tint"))
+            {
+                var changedTransformNames = beforeAccent3.EnumerateObject().Select(property => property.Name)
+                    .Concat(afterAccent3.EnumerateObject().Select(property => property.Name))
+                    .Distinct(StringComparer.Ordinal)
+                    .Where(name => PropertyChanged(beforeAccent3, afterAccent3, name))
+                    .ToArray();
+                if (changedTransformNames.Length != 1 || !changedTransformNames[0].Equals("tint", StringComparison.Ordinal))
+                    throw Unsupported(path + ".accentTransforms.accent3", "source-bound accent3 requires exactly one changed tint field");
+                if (!afterAccent3.TryGetProperty("tint", out var tint) ||
+                    tint.ValueKind != JsonValueKind.Number ||
+                    !tint.TryGetDouble(out var tintFraction) ||
+                    !double.IsFinite(tintFraction) || tintFraction < 0 || tintFraction > 1)
+                    throw Unsupported(path + ".accentTransforms.accent3.tint", "source-bound accent3 tint must be a finite fraction from 0 through 1");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".accentTransforms.accent3.tint", "the source did not issue an accent3-tint capability");
+                RequireCapabilityField(
+                    requested.Design.ThemeNativeRef,
+                    "setThemeAccent3Tint",
+                    "accentTransforms.accent3.tint",
+                    path + ".accentTransforms.accent3.tint");
+                var transformValue = checked((uint)Math.Round(tintFraction * 100_000d, MidpointRounding.AwayFromZero));
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                var authoredTransform = artifact.Presentation.AuthoredTheme.AccentTransforms
+                    .SingleOrDefault(transform => transform.Role.Equals("accent3", StringComparison.Ordinal));
+                if (authoredTransform is null || !authoredTransform.HasTintThousandth ||
+                    authoredTransform.HasShadeThousandth ||
+                    authoredTransform.HasLuminanceModulationThousandth || authoredTransform.HasLuminanceOffsetThousandth ||
+                    authoredTransform.HasAlphaModulationThousandth || authoredTransform.HasAlphaOffsetThousandth ||
+                    authoredTransform.HasSaturationModulationThousandth || authoredTransform.HasSaturationOffsetThousandth ||
+                    authoredTransform.HasRedModulationThousandth || authoredTransform.HasRedOffsetThousandth ||
+                    authoredTransform.HasGreenModulationThousandth || authoredTransform.HasGreenOffsetThousandth ||
+                    authoredTransform.HasBlueModulationThousandth || authoredTransform.HasBlueOffsetThousandth ||
+                    authoredTransform.HasHueModulationThousandth || authoredTransform.HasHueOffsetAngleThousandth ||
+                    authoredTransform.HasGray || authoredTransform.HasComp || authoredTransform.HasInv ||
+                    authoredTransform.HasGamma || authoredTransform.HasInvGamma)
+                    throw Unsupported(path + ".accentTransforms.accent3.tint", "source-bound accent3 tint requires one imported direct tint");
+                authoredTransform.TintThousandth = transformValue;
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
             else
             {
             var beforeAccent1 = beforeAccentTransforms.GetProperty("accent1");
@@ -8801,7 +8844,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
             .Distinct(StringComparer.Ordinal);
         foreach (var name in names)
         {
-            if (name is not ("accent1" or "accent2"))
+            if (name is not ("accent1" or "accent2" or "accent3"))
                 throw new CodecException(
                     "ppj.sourceBound.themeAccentTransforms",
                     $"Source-bound PPJ cannot safely compile changing source-owned {name}.",
@@ -8810,7 +8853,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
             var newPresent = after.TryGetProperty(name, out var newValue);
             if (!oldPresent || !newPresent ||
                 oldValue.ValueKind != JsonValueKind.Object || newValue.ValueKind != JsonValueKind.Object)
-                throw Unsupported(path + "." + name, "source-bound accent1 or accent2 tint, shade, lumMod, lumOff, alphaMod, alphaOff, satMod, satOff, redMod, redOff, greenMod, greenOff, blueMod, blueOff, hueMod, or hueOff cannot be added or removed");
+                throw Unsupported(path + "." + name, "source-bound accent1, accent2, or accent3 tint, shade, lumMod, lumOff, alphaMod, alphaOff, satMod, satOff, redMod, redOff, greenMod, greenOff, blueMod, blueOff, hueMod, or hueOff cannot be added or removed");
             var transformNames = oldValue.EnumerateObject().Select(property => property.Name)
                 .Concat(newValue.EnumerateObject().Select(property => property.Name))
                 .Distinct(StringComparer.Ordinal);
