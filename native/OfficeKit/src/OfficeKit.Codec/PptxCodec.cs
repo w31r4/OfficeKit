@@ -305,6 +305,7 @@ internal static class PptxCodec
         var importedAccent3LumMod = TryReadSourceBoundThemeAccent3LumMod(importedTheme);
         var importedAccent3LumOff = TryReadSourceBoundThemeAccent3LumOff(importedTheme);
         var importedAccent3AlphaMod = TryReadSourceBoundThemeAccent3AlphaMod(importedTheme);
+        var importedAccent3AlphaOff = TryReadSourceBoundThemeAccent3AlphaOff(importedTheme);
         var importedColorRoleRgb = TryReadSourceBoundThemeColorRoleRgb(importedTheme);
         var importedThemeName = importedTheme?.Name?.Value;
         if (string.IsNullOrWhiteSpace(importedThemeName)) importedThemeName = null;
@@ -543,6 +544,12 @@ internal static class PptxCodec
             {
                 Role = "accent3",
                 AlphaModulationThousandth = accent3AlphaMod,
+            });
+        if (importedAccent3AlphaOff is { } accent3AlphaOff)
+            importedThemeArtifact.AccentTransforms.Add(new PresentationThemeColorTransform
+            {
+                Role = "accent3",
+                AlphaOffsetThousandth = accent3AlphaOff,
             });
         if (importedColorRoleRgb is not null)
         {
@@ -5379,6 +5386,21 @@ internal static class PptxCodec
         return checked((uint)alphaMod.Val.Value);
     }
 
+    private static int? TryReadSourceBoundThemeAccent3AlphaOff(A.Theme? theme)
+    {
+        var colorScheme = theme?.ThemeElements?.ColorScheme;
+        var owner = colorScheme?.Accent3Color;
+        if (owner is null || !HasOnlyAttributes(owner) || owner.ChildElements.Count != 1 ||
+            owner.FirstChild is not A.RgbColorModelHex color ||
+            !HasOnlyAttributes(color, "val") ||
+            color.Val?.Value is not { Length: 6 } value || !value.All(Uri.IsHexDigit) ||
+            color.ChildElements.Count != 1 || color.FirstChild is not A.AlphaOffset alphaOff ||
+            !HasOnlyAttributes(alphaOff, "val") || alphaOff.ChildElements.Count != 0 ||
+            alphaOff.Val is null || alphaOff.Val.Value < -100_000 || alphaOff.Val.Value > 100_000)
+            return null;
+        return alphaOff.Val.Value;
+    }
+
     private static int? TryReadSourceBoundThemeAccent3LumOff(A.Theme? theme)
     {
         var colorScheme = theme?.ThemeElements?.ColorScheme;
@@ -7198,6 +7220,52 @@ internal static class PptxCodec
                         "Source-preserving PPTX export cannot create a missing direct accent3 alphaMod.",
                         PartPath(themePart));
                 alphaMod.Val = checked((int)requested);
+                changed = true;
+            }
+        }
+        else if (authoredTheme.AccentTransforms.Count == 1 &&
+            authoredTheme.AccentTransforms[0] is { Role: "accent3", HasAlphaOffsetThousandth: true } accent3AlphaOff &&
+            !accent3AlphaOff.HasTintThousandth &&
+            !accent3AlphaOff.HasShadeThousandth &&
+            !accent3AlphaOff.HasLuminanceModulationThousandth &&
+            !accent3AlphaOff.HasLuminanceOffsetThousandth &&
+            !accent3AlphaOff.HasAlphaModulationThousandth &&
+            !accent3AlphaOff.HasSaturationModulationThousandth &&
+            !accent3AlphaOff.HasSaturationOffsetThousandth &&
+            !accent3AlphaOff.HasRedModulationThousandth &&
+            !accent3AlphaOff.HasRedOffsetThousandth &&
+            !accent3AlphaOff.HasGreenModulationThousandth &&
+            !accent3AlphaOff.HasGreenOffsetThousandth &&
+            !accent3AlphaOff.HasBlueModulationThousandth &&
+            !accent3AlphaOff.HasBlueOffsetThousandth &&
+            !accent3AlphaOff.HasHueModulationThousandth &&
+            !accent3AlphaOff.HasHueOffsetAngleThousandth &&
+            !accent3AlphaOff.HasGray && !accent3AlphaOff.HasComp && !accent3AlphaOff.HasInv &&
+            !accent3AlphaOff.HasGamma && !accent3AlphaOff.HasInvGamma &&
+            accent3AlphaOff.AlphaOffsetThousandth >= -100_000 &&
+            accent3AlphaOff.AlphaOffsetThousandth <= 100_000)
+        {
+            var colorScheme = theme.ThemeElements?.ColorScheme;
+            var sourceValue = TryReadSourceBoundThemeAccent3AlphaOff(theme);
+            if (sourceValue is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export can edit only an existing direct accent3 alphaOff.",
+                    PartPath(themePart));
+            var requested = (long)accent3AlphaOff.AlphaOffsetThousandth;
+            if (sourceValue.Value != requested)
+            {
+                var color = colorScheme?.Accent3Color?.GetFirstChild<A.RgbColorModelHex>() ??
+                    throw new CodecException(
+                        "unsupported_presentation_edit",
+                        "Source-preserving PPTX export cannot create a missing direct accent3 color.",
+                        PartPath(themePart));
+                var alphaOff = color.FirstChild as A.AlphaOffset ??
+                    throw new CodecException(
+                        "unsupported_presentation_edit",
+                        "Source-preserving PPTX export cannot create a missing direct accent3 alphaOff.",
+                        PartPath(themePart));
+                alphaOff.Val = checked((int)requested);
                 changed = true;
             }
         }
