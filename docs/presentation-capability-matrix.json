@@ -14,7 +14,7 @@
     "schemaDefinitions": 201,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 194,
+    "authoredCompilerBoundaries": 195,
     "nativeLeafKinds": 316,
     "helpApis": 151,
     "hostOnlyApis": 13
@@ -1684,6 +1684,14 @@
       "ppjPath": "design.theme.accentTransforms.accent6.greenOff",
       "behavior": "partial",
       "sourceBound": "A canonical imported presentation with one shared ThemePart and an accent6 direct RGB leaf containing exactly one direct a:greenOff child exposes a setThemeAccent6GreenOff capability for accentTransforms.accent6.greenOff. Source-preserving export changes only a:accent6Color/a:srgbClr/a:greenOff/@val and a fresh projection returns the edited fraction. The base accent6 RGB, other accents and color roles, all other transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent6 RGB, alpha or extra descendants, unsupported transform siblings, deletion, combined theme-field edits, out-of-range fractions, and capability tampering fail closed. Other transform leaves, host color management, and PowerPoint rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme accent6 blue-channel modulation",
+      "ppjPath": "design.theme.accentTransforms.accent6.blueMod",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an accent6 direct RGB leaf containing exactly one direct a:blueMod child exposes a setThemeAccent6BlueMod capability for accentTransforms.accent6.blueMod. Source-preserving export changes only a:accent6Color/a:srgbClr/a:blueMod/@val and a fresh projection returns the edited fraction. The base accent6 RGB, other accents and color roles, all other transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
       "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent6 RGB, alpha or extra descendants, unsupported transform siblings, deletion, combined theme-field edits, out-of-range fractions, and capability tampering fail closed. Other transform leaves, host color management, and PowerPoint rendering are not claimed.",
       "visualStatus": "partial-or-opaque"
     },
