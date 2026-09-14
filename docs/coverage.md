@@ -3495,3 +3495,10 @@ direct RGB accent3 leaf and one `a:hueOff/@val` child projects the signed
 `setThemeAccent3HueOff` capability. An edit changes only that existing token,
 preserves the other package members, and reprojects the new value; unsupported
 or ambiguous theme topology remains source-owned.
+
+PPJ source-bound theme accent4 tint (2026-09-14): a canonical owner with a
+direct RGB accent4 leaf and one `a:tint/@val` child projects
+`design.theme.accentTransforms.accent4.tint` with a
+`setThemeAccent4Tint` capability. An edit changes only that existing token,
+preserves the other package members, and reprojects the new value; unsupported
+or ambiguous theme topology remains source-owned.
