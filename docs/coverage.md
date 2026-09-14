@@ -3705,3 +3705,9 @@ direct RGB accent5 leaf and one `a:hueOff/@val` child projects
 `setThemeAccent5HueOff` capability. An edit changes only that existing token,
 preserves the other package members, and reprojects the new degree offset; unsupported
 or ambiguous theme topology remains source-owned.
+PPJ source-bound theme accent6 tint (2026-09-15): a canonical owner with a
+direct RGB accent6 leaf and one `a:tint/@val` child projects
+`design.theme.accentTransforms.accent6.tint` with a
+`setThemeAccent6Tint` capability. An edit changes only that existing token,
+preserves the other package members, and reprojects the new value; unsupported
+or ambiguous theme topology remains source-owned.
