@@ -111,6 +111,7 @@ internal static class PpjSemanticValidator
             ["setThemeAccent5Tint"] = Set("accentTransforms.accent5.tint"),
             ["setThemeAccent6Tint"] = Set("accentTransforms.accent6.tint"),
             ["setThemeAccent6Shade"] = Set("accentTransforms.accent6.shade"),
+            ["setThemeAccent6LumMod"] = Set("accentTransforms.accent6.lumMod"),
             ["setThemeAccent5Shade"] = Set("accentTransforms.accent5.shade"),
             ["setThemeAccent5LumMod"] = Set("accentTransforms.accent5.lumMod"),
             ["setThemeAccent5LumOff"] = Set("accentTransforms.accent5.lumOff"),
@@ -664,6 +665,7 @@ internal static class PpjSemanticValidator
             !HasCapability(theme, "setThemeAccent5Tint", "accentTransforms.accent5.tint") &&
             !HasCapability(theme, "setThemeAccent6Tint", "accentTransforms.accent6.tint") &&
             !HasCapability(theme, "setThemeAccent6Shade", "accentTransforms.accent6.shade") &&
+            !HasCapability(theme, "setThemeAccent6LumMod", "accentTransforms.accent6.lumMod") &&
             !HasCapability(theme, "setThemeAccent5Shade", "accentTransforms.accent5.shade") &&
             !HasCapability(theme, "setThemeAccent5LumMod", "accentTransforms.accent5.lumMod") &&
             !HasCapability(theme, "setThemeAccent5LumOff", "accentTransforms.accent5.lumOff") &&
