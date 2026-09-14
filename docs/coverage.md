@@ -3404,3 +3404,10 @@ direct RGB accent3 leaf and one `a:lumMod/@val` child projects
 `setThemeAccent3LumMod` capability for a 0..1 fraction. An edit changes only
 that existing token, preserves the other package members, and reprojects the
 new value; unsupported or ambiguous theme topology remains source-owned.
+
+PPJ source-bound theme accent3 lumOff (2026-09-14): a canonical owner with a
+direct RGB accent3 leaf and one `a:lumOff/@val` child projects
+`design.theme.accentTransforms.accent3.lumOff` with a
+`setThemeAccent3LumOff` capability for a -1..1 fraction. An edit changes only
+that existing token, preserves the other package members, and reprojects the
+new value; unsupported or ambiguous theme topology remains source-owned.

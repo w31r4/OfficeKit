@@ -14,7 +14,7 @@
     "schemaDefinitions": 201,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 137,
+    "authoredCompilerBoundaries": 138,
     "nativeLeafKinds": 316,
     "helpApis": 151,
     "hostOnlyApis": 13
@@ -1236,6 +1236,14 @@
       "ppjPath": "design.theme.accentTransforms.accent3.lumMod",
       "behavior": "partial",
       "sourceBound": "A canonical imported presentation with one shared ThemePart and an accent3 direct RGB leaf containing exactly one direct a:lumMod child exposes a setThemeAccent3LumMod capability for accentTransforms.accent3.lumMod. Source-preserving export changes only a:accent3Color/a:srgbClr/a:lumMod/@val and a fresh projection returns the edited fraction. The base accent3 RGB, other accents and color roles, all other transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent3 RGB, alpha or extra descendants, unsupported transform siblings, deletion, combined theme-field edits, out-of-range fractions, and capability tampering fail closed. Other transform leaves, host color management, and PowerPoint rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme accent3 luminance offset",
+      "ppjPath": "design.theme.accentTransforms.accent3.lumOff",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an accent3 direct RGB leaf containing exactly one direct a:lumOff child exposes a setThemeAccent3LumOff capability for accentTransforms.accent3.lumOff. Source-preserving export changes only a:accent3Color/a:srgbClr/a:lumOff/@val and a fresh projection returns the edited signed fraction. The base accent3 RGB, other accents and color roles, all other transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
       "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent3 RGB, alpha or extra descendants, unsupported transform siblings, deletion, combined theme-field edits, out-of-range fractions, and capability tampering fail closed. Other transform leaves, host color management, and PowerPoint rendering are not claimed.",
       "visualStatus": "partial-or-opaque"
     },
