@@ -3488,3 +3488,10 @@ direct RGB accent3 leaf and one `a:hueMod/@val` child projects
 `setThemeAccent3HueMod` capability. An edit changes only that existing token,
 preserves the other package members, and reprojects the new value; unsupported
 or ambiguous theme topology remains source-owned.
+
+PPJ source-bound theme accent3 hueOff (2026-09-14): a canonical owner with a
+direct RGB accent3 leaf and one `a:hueOff/@val` child projects the signed
+`design.theme.accentTransforms.accent3.hueOff` degree offset with a
+`setThemeAccent3HueOff` capability. An edit changes only that existing token,
+preserves the other package members, and reprojects the new value; unsupported
+or ambiguous theme topology remains source-owned.
