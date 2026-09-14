@@ -319,6 +319,7 @@ internal static class PptxCodec
         var importedAccent4Tint = TryReadSourceBoundThemeAccent4Tint(importedTheme);
         var importedAccent4Shade = TryReadSourceBoundThemeAccent4Shade(importedTheme);
         var importedAccent4LumMod = TryReadSourceBoundThemeAccent4LumMod(importedTheme);
+        var importedAccent4LumOff = TryReadSourceBoundThemeAccent4LumOff(importedTheme);
         var importedColorRoleRgb = TryReadSourceBoundThemeColorRoleRgb(importedTheme);
         var importedThemeName = importedTheme?.Name?.Value;
         if (string.IsNullOrWhiteSpace(importedThemeName)) importedThemeName = null;
@@ -641,6 +642,12 @@ internal static class PptxCodec
             {
                 Role = "accent4",
                 LuminanceModulationThousandth = accent4LumMod,
+            });
+        if (importedAccent4LumOff is { } accent4LumOff)
+            importedThemeArtifact.AccentTransforms.Add(new PresentationThemeColorTransform
+            {
+                Role = "accent4",
+                LuminanceOffsetThousandth = accent4LumOff,
             });
         if (importedColorRoleRgb is not null)
         {
@@ -5477,6 +5484,21 @@ internal static class PptxCodec
         return checked((uint)lumMod.Val.Value);
     }
 
+    private static int? TryReadSourceBoundThemeAccent4LumOff(A.Theme? theme)
+    {
+        var colorScheme = theme?.ThemeElements?.ColorScheme;
+        var owner = colorScheme?.Accent4Color;
+        if (owner is null || !HasOnlyAttributes(owner) || owner.ChildElements.Count != 1 ||
+            owner.FirstChild is not A.RgbColorModelHex color ||
+            !HasOnlyAttributes(color, "val") ||
+            color.Val?.Value is not { Length: 6 } value || !value.All(Uri.IsHexDigit) ||
+            color.ChildElements.Count != 1 || color.FirstChild is not A.LuminanceOffset lumOff ||
+            !HasOnlyAttributes(lumOff, "val") || lumOff.ChildElements.Count != 0 ||
+            lumOff.Val is null || lumOff.Val.Value < -100_000 || lumOff.Val.Value > 100_000)
+            return null;
+        return lumOff.Val.Value;
+    }
+
     private static uint? TryReadSourceBoundThemeAccent3AlphaMod(A.Theme? theme)
     {
         var colorScheme = theme?.ThemeElements?.ColorScheme;
@@ -8142,6 +8164,52 @@ internal static class PptxCodec
                         "Source-preserving PPTX export cannot create a missing direct accent4 lumMod.",
                         PartPath(themePart));
                 lumMod.Val = checked((int)requested);
+                changed = true;
+            }
+        }
+        else if (authoredTheme.AccentTransforms.Count == 1 &&
+            authoredTheme.AccentTransforms[0] is { Role: "accent4", HasLuminanceOffsetThousandth: true } accent4LumOff &&
+            !accent4LumOff.HasTintThousandth &&
+            !accent4LumOff.HasShadeThousandth &&
+            !accent4LumOff.HasLuminanceModulationThousandth &&
+            !accent4LumOff.HasAlphaModulationThousandth &&
+            !accent4LumOff.HasAlphaOffsetThousandth &&
+            !accent4LumOff.HasSaturationModulationThousandth &&
+            !accent4LumOff.HasSaturationOffsetThousandth &&
+            !accent4LumOff.HasRedModulationThousandth &&
+            !accent4LumOff.HasRedOffsetThousandth &&
+            !accent4LumOff.HasGreenModulationThousandth &&
+            !accent4LumOff.HasGreenOffsetThousandth &&
+            !accent4LumOff.HasBlueModulationThousandth &&
+            !accent4LumOff.HasBlueOffsetThousandth &&
+            !accent4LumOff.HasHueModulationThousandth &&
+            !accent4LumOff.HasHueOffsetAngleThousandth &&
+            !accent4LumOff.HasGray && !accent4LumOff.HasComp && !accent4LumOff.HasInv &&
+            !accent4LumOff.HasGamma && !accent4LumOff.HasInvGamma &&
+            accent4LumOff.LuminanceOffsetThousandth >= -100_000 &&
+            accent4LumOff.LuminanceOffsetThousandth <= 100_000)
+        {
+            var colorScheme = theme.ThemeElements?.ColorScheme;
+            var sourceValue = TryReadSourceBoundThemeAccent4LumOff(theme);
+            if (sourceValue is null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export can edit only an existing direct accent4 lumOff.",
+                    PartPath(themePart));
+            var requested = (long)accent4LumOff.LuminanceOffsetThousandth;
+            if (sourceValue.Value != requested)
+            {
+                var color = colorScheme?.Accent4Color?.GetFirstChild<A.RgbColorModelHex>() ??
+                    throw new CodecException(
+                        "unsupported_presentation_edit",
+                        "Source-preserving PPTX export cannot create a missing direct accent4 color.",
+                        PartPath(themePart));
+                var lumOff = color.FirstChild as A.LuminanceOffset ??
+                    throw new CodecException(
+                        "unsupported_presentation_edit",
+                        "Source-preserving PPTX export cannot create a missing direct accent4 lumOff.",
+                        PartPath(themePart));
+                lumOff.Val = checked((int)requested);
                 changed = true;
             }
         }
