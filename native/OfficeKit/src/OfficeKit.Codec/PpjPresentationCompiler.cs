@@ -1397,6 +1397,49 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 mutations.SemanticChanges = true;
                 changed = true;
             }
+            else if (beforeAccentTransforms.TryGetProperty("accent2", out var beforeAccent2HueMod) &&
+                     afterAccentTransforms.TryGetProperty("accent2", out var afterAccent2HueMod) &&
+                     PropertyChanged(beforeAccent2HueMod, afterAccent2HueMod, "hueMod"))
+            {
+                var changedTransformNames = beforeAccent2HueMod.EnumerateObject().Select(property => property.Name)
+                    .Concat(afterAccent2HueMod.EnumerateObject().Select(property => property.Name))
+                    .Distinct(StringComparer.Ordinal)
+                    .Where(name => PropertyChanged(beforeAccent2HueMod, afterAccent2HueMod, name))
+                    .ToArray();
+                if (changedTransformNames.Length != 1 || !changedTransformNames[0].Equals("hueMod", StringComparison.Ordinal))
+                    throw Unsupported(path + ".accentTransforms.accent2", "source-bound accent2 requires exactly one changed hueMod field");
+                if (!afterAccent2HueMod.TryGetProperty("hueMod", out var hueMod) ||
+                    hueMod.ValueKind != JsonValueKind.Number ||
+                    !hueMod.TryGetDouble(out var hueModFraction) ||
+                    !double.IsFinite(hueModFraction) || hueModFraction < 0 || hueModFraction > 1)
+                    throw Unsupported(path + ".accentTransforms.accent2.hueMod", "source-bound accent2 hueMod must be a finite fraction from 0 through 1");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".accentTransforms.accent2.hueMod", "the source did not issue an accent2-hueMod capability");
+                RequireCapabilityField(
+                    requested.Design.ThemeNativeRef,
+                    "setThemeAccent2HueMod",
+                    "accentTransforms.accent2.hueMod",
+                    path + ".accentTransforms.accent2.hueMod");
+                var transformValue = checked((uint)Math.Round(hueModFraction * 100_000d, MidpointRounding.AwayFromZero));
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                var authoredTransform = artifact.Presentation.AuthoredTheme.AccentTransforms
+                    .SingleOrDefault(transform => transform.Role.Equals("accent2", StringComparison.Ordinal));
+                if (authoredTransform is null || !authoredTransform.HasHueModulationThousandth ||
+                    authoredTransform.HasTintThousandth || authoredTransform.HasShadeThousandth ||
+                    authoredTransform.HasLuminanceModulationThousandth || authoredTransform.HasLuminanceOffsetThousandth ||
+                    authoredTransform.HasAlphaModulationThousandth || authoredTransform.HasAlphaOffsetThousandth ||
+                    authoredTransform.HasSaturationModulationThousandth || authoredTransform.HasSaturationOffsetThousandth ||
+                    authoredTransform.HasRedModulationThousandth || authoredTransform.HasRedOffsetThousandth ||
+                    authoredTransform.HasGreenModulationThousandth || authoredTransform.HasGreenOffsetThousandth ||
+                    authoredTransform.HasBlueModulationThousandth ||
+                    authoredTransform.HasHueOffsetAngleThousandth ||
+                    authoredTransform.HasGray || authoredTransform.HasComp || authoredTransform.HasInv ||
+                    authoredTransform.HasGamma || authoredTransform.HasInvGamma)
+                    throw Unsupported(path + ".accentTransforms.accent2.hueMod", "source-bound accent2 hueMod requires one imported direct hueMod");
+                authoredTransform.HueModulationThousandth = transformValue;
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
             else
             {
             var beforeAccent1 = beforeAccentTransforms.GetProperty("accent1");

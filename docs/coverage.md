@@ -3368,3 +3368,10 @@ direct RGB accent2 leaf and one `a:blueOff/@val` child projects
 `setThemeAccent2BlueOff` capability for a signed -1..1 fraction. An edit changes only that existing token,
 preserves the other package members, and reprojects the new value; unsupported
 or ambiguous theme topology remains source-owned.
+
+PPJ source-bound theme accent2 hueMod (2026-09-14): a canonical owner with a
+direct RGB accent2 leaf and one `a:hueMod/@val` child projects
+`design.theme.accentTransforms.accent2.hueMod` with a
+`setThemeAccent2HueMod` capability for a 0..1 fraction. An edit changes only
+that existing token, preserves the other package members, and reprojects the
+new value; unsupported or ambiguous theme topology remains source-owned.
