@@ -3619,3 +3619,10 @@ direct RGB accent5 leaf and one `a:shade/@val` child projects
 `setThemeAccent5Shade` capability. An edit changes only that existing token,
 preserves the other package members, and reprojects the new value; unsupported
 or ambiguous theme topology remains source-owned.
+
+PPJ source-bound theme accent5 lumMod (2026-09-15): a canonical owner with a
+direct RGB accent5 leaf and one `a:lumMod/@val` child projects
+`design.theme.accentTransforms.accent5.lumMod` with a
+`setThemeAccent5LumMod` capability. An edit changes only that existing token,
+preserves the other package members, and reprojects the new value; unsupported
+or ambiguous theme topology remains source-owned.

@@ -1335,6 +1335,36 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent3LumMod", ["accentTransforms.accent3.lumMod"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent5LumModTheme &&
+            accent5LumModTheme.AccentTransforms[0] is { Role: "accent5", HasLuminanceModulationThousandth: true } accent5LumMod &&
+            !accent5LumMod.HasTintThousandth &&
+            !accent5LumMod.HasShadeThousandth &&
+            !accent5LumMod.HasLuminanceOffsetThousandth &&
+            !accent5LumMod.HasAlphaModulationThousandth &&
+            !accent5LumMod.HasAlphaOffsetThousandth &&
+            !accent5LumMod.HasSaturationModulationThousandth &&
+            !accent5LumMod.HasSaturationOffsetThousandth &&
+            !accent5LumMod.HasRedModulationThousandth &&
+            !accent5LumMod.HasRedOffsetThousandth &&
+            !accent5LumMod.HasGreenModulationThousandth &&
+            !accent5LumMod.HasGreenOffsetThousandth &&
+            !accent5LumMod.HasBlueModulationThousandth &&
+            !accent5LumMod.HasBlueOffsetThousandth &&
+            !accent5LumMod.HasHueModulationThousandth &&
+            !accent5LumMod.HasHueOffsetAngleThousandth &&
+            !accent5LumMod.HasGray && !accent5LumMod.HasComp && !accent5LumMod.HasInv &&
+            !accent5LumMod.HasGamma && !accent5LumMod.HasInvGamma &&
+            accent5LumMod.LuminanceModulationThousandth <= 100_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent5"] = new JsonObject
+                {
+                    ["lumMod"] = JsonValue.Create(accent5LumMod.LuminanceModulationThousandth / 100_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent5LumMod", ["accentTransforms.accent5.lumMod"]));
+        }
         if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent4LumModTheme &&
             accent4LumModTheme.AccentTransforms[0] is { Role: "accent4", HasLuminanceModulationThousandth: true } accent4LumMod &&
             !accent4LumMod.HasTintThousandth &&
