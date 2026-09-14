@@ -1,0 +1,59 @@
+## Context
+
+The existing source-preserving theme path recognizes one direct accent1
+transform and the direct accent3 tint, shade, luminance, alpha, and saturation
+leaves at a time, then patches the existing DrawingML token. This change applies
+the same ownership boundary to accent3 red-channel modulation without
+broadening the theme graph or changing authored six-role lowering.
+
+## Goals / Non-Goals
+
+**Goals:**
+
+- Recognize only a canonical shared ThemePart whose accent3 color is a direct
+  six-digit RGB leaf with one direct `a:redMod/@val` child.
+- Expose a fraction and a field-qualified capability, then patch that one
+  existing token with a bounded conversion.
+- Preserve all unrelated theme roles, transforms, package parts, and no-op
+  bytes.
+
+**Non-Goals:**
+
+- Accent3 transforms other than `redMod`, transforms on accent4 through
+  accent6, inherited or effect theme state, or arbitrary theme XML editing.
+- Creating or deleting a missing redMod node, changing multiple theme fields,
+  or claiming PowerPoint host color rendering.
+
+## Decisions
+
+1. **Use the existing native transform field.**
+   `PresentationThemeColorTransform.RedModulationThousandth` already
+   represents the DrawingML 0..100000 integer and the authored compiler
+   already emits it. The importer records a role of `accent3`; the projector
+   converts by dividing by 100000, and the source-bound compiler rounds by
+   `Math.Round(value * 100000d, MidpointRounding.AwayFromZero)`.
+
+2. **Keep the source owner strict and role-specific.**
+   The importer helper requires exactly one shared ThemePart, a direct RGB
+   accent3 child, no extra attributes or descendants, and a single direct
+   `a:redMod`. The source writer patches `Accent3Color` only when the authored
+   transform is the one existing accent3 redMod and rejects all other transform
+   flags.
+
+3. **Keep capability authority field-qualified.**
+   The operation `setThemeAccent3RedMod` is accepted only with
+   `accentTransforms.accent3.redMod` in the source-issued capability. This
+   keeps forged operations or retargeted fields fail-closed while retaining
+   the existing one-theme-field-per-compile rule.
+
+## Risks / Trade-offs
+
+- **Risk:** A theme may contain transforms or inheritance that look similar
+  but do not have a stable local owner. → **Mitigation:** omit the capability
+  and retain the original source topology whenever the strict shape is not met.
+- **Risk:** Fraction-to-integer conversion could drift at half-thousandths.
+  → **Mitigation:** use explicit away-from-zero rounding and reproject the
+  native integer in the focused regression.
+- **Risk:** A writer change could touch unrelated package data. → **Mitigation:**
+  assert the canonical ThemePart is the only changed part and compare every
+  other ZIP part byte-for-byte.

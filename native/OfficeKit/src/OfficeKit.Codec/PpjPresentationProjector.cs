@@ -1457,6 +1457,36 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent3SatOff", ["accentTransforms.accent3.satOff"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent3RedModTheme &&
+            accent3RedModTheme.AccentTransforms[0] is { Role: "accent3", HasRedModulationThousandth: true } accent3RedMod &&
+            !accent3RedMod.HasTintThousandth &&
+            !accent3RedMod.HasShadeThousandth &&
+            !accent3RedMod.HasLuminanceModulationThousandth &&
+            !accent3RedMod.HasLuminanceOffsetThousandth &&
+            !accent3RedMod.HasAlphaModulationThousandth &&
+            !accent3RedMod.HasAlphaOffsetThousandth &&
+            !accent3RedMod.HasSaturationModulationThousandth &&
+            !accent3RedMod.HasSaturationOffsetThousandth &&
+            !accent3RedMod.HasRedOffsetThousandth &&
+            !accent3RedMod.HasGreenModulationThousandth &&
+            !accent3RedMod.HasGreenOffsetThousandth &&
+            !accent3RedMod.HasBlueModulationThousandth &&
+            !accent3RedMod.HasBlueOffsetThousandth &&
+            !accent3RedMod.HasHueModulationThousandth &&
+            !accent3RedMod.HasHueOffsetAngleThousandth &&
+            !accent3RedMod.HasGray && !accent3RedMod.HasComp && !accent3RedMod.HasInv &&
+            !accent3RedMod.HasGamma && !accent3RedMod.HasInvGamma &&
+            accent3RedMod.RedModulationThousandth <= 100_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent3"] = new JsonObject
+                {
+                    ["redMod"] = JsonValue.Create(accent3RedMod.RedModulationThousandth / 100_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent3RedMod", ["accentTransforms.accent3.redMod"]));
+        }
         if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent3AlphaOffTheme &&
             accent3AlphaOffTheme.AccentTransforms[0] is { Role: "accent3", HasAlphaOffsetThousandth: true } accent3AlphaOff &&
             !accent3AlphaOff.HasTintThousandth &&
