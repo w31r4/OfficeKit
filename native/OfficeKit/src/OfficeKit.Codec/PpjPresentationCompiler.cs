@@ -2042,6 +2042,49 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 mutations.SemanticChanges = true;
                 changed = true;
             }
+            else if (beforeAccentTransforms.TryGetProperty("accent3", out var beforeAccent3BlueOff) &&
+                     afterAccentTransforms.TryGetProperty("accent3", out var afterAccent3BlueOff) &&
+                     PropertyChanged(beforeAccent3BlueOff, afterAccent3BlueOff, "blueOff"))
+            {
+                var changedTransformNames = beforeAccent3BlueOff.EnumerateObject().Select(property => property.Name)
+                    .Concat(afterAccent3BlueOff.EnumerateObject().Select(property => property.Name))
+                    .Distinct(StringComparer.Ordinal)
+                    .Where(name => PropertyChanged(beforeAccent3BlueOff, afterAccent3BlueOff, name))
+                    .ToArray();
+                if (changedTransformNames.Length != 1 || !changedTransformNames[0].Equals("blueOff", StringComparison.Ordinal))
+                    throw Unsupported(path + ".accentTransforms.accent3", "source-bound accent3 requires exactly one changed blueOff field");
+                if (!afterAccent3BlueOff.TryGetProperty("blueOff", out var blueOff) ||
+                    blueOff.ValueKind != JsonValueKind.Number ||
+                    !blueOff.TryGetDouble(out var blueOffFraction) ||
+                    !double.IsFinite(blueOffFraction) || blueOffFraction < -1 || blueOffFraction > 1)
+                    throw Unsupported(path + ".accentTransforms.accent3.blueOff", "source-bound accent3 blueOff must be a finite fraction from -1 through 1");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".accentTransforms.accent3.blueOff", "the source did not issue an accent3-blueOff capability");
+                RequireCapabilityField(
+                    requested.Design.ThemeNativeRef,
+                    "setThemeAccent3BlueOff",
+                    "accentTransforms.accent3.blueOff",
+                    path + ".accentTransforms.accent3.blueOff");
+                var transformValue = checked((int)Math.Round(blueOffFraction * 100_000d, MidpointRounding.AwayFromZero));
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                var authoredTransform = artifact.Presentation.AuthoredTheme.AccentTransforms
+                    .SingleOrDefault(transform => transform.Role.Equals("accent3", StringComparison.Ordinal));
+                if (authoredTransform is null || !authoredTransform.HasBlueOffsetThousandth ||
+                    authoredTransform.HasTintThousandth || authoredTransform.HasShadeThousandth ||
+                    authoredTransform.HasLuminanceModulationThousandth || authoredTransform.HasLuminanceOffsetThousandth ||
+                    authoredTransform.HasAlphaModulationThousandth || authoredTransform.HasAlphaOffsetThousandth ||
+                    authoredTransform.HasSaturationModulationThousandth || authoredTransform.HasSaturationOffsetThousandth ||
+                    authoredTransform.HasRedModulationThousandth || authoredTransform.HasRedOffsetThousandth ||
+                    authoredTransform.HasGreenModulationThousandth || authoredTransform.HasGreenOffsetThousandth ||
+                    authoredTransform.HasBlueModulationThousandth ||
+                    authoredTransform.HasHueModulationThousandth || authoredTransform.HasHueOffsetAngleThousandth ||
+                    authoredTransform.HasGray || authoredTransform.HasComp || authoredTransform.HasInv ||
+                    authoredTransform.HasGamma || authoredTransform.HasInvGamma)
+                    throw Unsupported(path + ".accentTransforms.accent3.blueOff", "source-bound accent3 blueOff requires one imported direct blueOff");
+                authoredTransform.BlueOffsetThousandth = transformValue;
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
             else
             {
             var beforeAccent1 = beforeAccentTransforms.GetProperty("accent1");
