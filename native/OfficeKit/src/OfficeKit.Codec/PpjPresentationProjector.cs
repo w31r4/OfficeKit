@@ -1215,6 +1215,36 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent2HueMod", ["accentTransforms.accent2.hueMod"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent2HueOffTheme &&
+            accent2HueOffTheme.AccentTransforms[0] is { Role: "accent2", HasHueOffsetAngleThousandth: true } accent2HueOff &&
+            !accent2HueOff.HasTintThousandth &&
+            !accent2HueOff.HasShadeThousandth &&
+            !accent2HueOff.HasLuminanceModulationThousandth &&
+            !accent2HueOff.HasLuminanceOffsetThousandth &&
+            !accent2HueOff.HasAlphaModulationThousandth &&
+            !accent2HueOff.HasAlphaOffsetThousandth &&
+            !accent2HueOff.HasSaturationModulationThousandth &&
+            !accent2HueOff.HasSaturationOffsetThousandth &&
+            !accent2HueOff.HasRedModulationThousandth &&
+            !accent2HueOff.HasRedOffsetThousandth &&
+            !accent2HueOff.HasGreenModulationThousandth &&
+            !accent2HueOff.HasGreenOffsetThousandth &&
+            !accent2HueOff.HasBlueModulationThousandth &&
+            !accent2HueOff.HasHueModulationThousandth &&
+            !accent2HueOff.HasGray && !accent2HueOff.HasComp && !accent2HueOff.HasInv &&
+            !accent2HueOff.HasGamma && !accent2HueOff.HasInvGamma &&
+            accent2HueOff.HueOffsetAngleThousandth >= -21_600_000 &&
+            accent2HueOff.HueOffsetAngleThousandth <= 21_600_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent2"] = new JsonObject
+                {
+                    ["hueOff"] = JsonValue.Create(accent2HueOff.HueOffsetAngleThousandth / 60_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent2HueOff", ["accentTransforms.accent2.hueOff"]));
+        }
         if (presentation.AuthoredTheme?.HasMajorFontFamily == true &&
             presentation.AuthoredTheme.HasMinorFontFamily)
         {
