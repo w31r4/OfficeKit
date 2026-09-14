@@ -3502,3 +3502,10 @@ direct RGB accent4 leaf and one `a:tint/@val` child projects
 `setThemeAccent4Tint` capability. An edit changes only that existing token,
 preserves the other package members, and reprojects the new value; unsupported
 or ambiguous theme topology remains source-owned.
+
+PPJ source-bound theme accent4 shade (2026-09-14): a canonical owner with a
+direct RGB accent4 leaf and one `a:shade/@val` child projects
+`design.theme.accentTransforms.accent4.shade` with a
+`setThemeAccent4Shade` capability. An edit changes only that existing token,
+preserves the other package members, and reprojects the new value; unsupported
+or ambiguous theme topology remains source-owned.
