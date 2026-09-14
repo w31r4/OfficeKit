@@ -3783,3 +3783,9 @@ direct RGB accent6 leaf and one `a:blueMod/@val` child projects
 `setThemeAccent6BlueMod` capability. An edit changes only that existing token,
 preserves the other package members, and reprojects the new value; unsupported
 or ambiguous theme topology remains source-owned.
+PPJ source-bound theme accent6 blueOff (2026-09-15): a canonical owner with a
+direct RGB accent6 leaf and one `a:blueOff/@val` child projects
+`design.theme.accentTransforms.accent6.blueOff` with a
+`setThemeAccent6BlueOff` capability. An edit changes only that existing token,
+preserves the other package members, and reprojects the new value; unsupported
+or ambiguous theme topology remains source-owned.
