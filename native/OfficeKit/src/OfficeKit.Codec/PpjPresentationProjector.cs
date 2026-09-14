@@ -2875,6 +2875,35 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent6RedOff", ["accentTransforms.accent6.redOff"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent6GreenModTheme &&
+            accent6GreenModTheme.AccentTransforms[0] is { Role: "accent6", HasGreenModulationThousandth: true } accent6GreenMod &&
+            !accent6GreenMod.HasTintThousandth &&
+            !accent6GreenMod.HasShadeThousandth &&
+            !accent6GreenMod.HasLuminanceModulationThousandth &&
+            !accent6GreenMod.HasLuminanceOffsetThousandth &&
+            !accent6GreenMod.HasAlphaModulationThousandth &&
+            !accent6GreenMod.HasAlphaOffsetThousandth &&
+            !accent6GreenMod.HasSaturationModulationThousandth &&
+            !accent6GreenMod.HasSaturationOffsetThousandth &&
+            !accent6GreenMod.HasRedOffsetThousandth &&
+            !accent6GreenMod.HasGreenOffsetThousandth &&
+            !accent6GreenMod.HasBlueModulationThousandth &&
+            !accent6GreenMod.HasBlueOffsetThousandth &&
+            !accent6GreenMod.HasHueModulationThousandth &&
+            !accent6GreenMod.HasHueOffsetAngleThousandth &&
+            !accent6GreenMod.HasGray && !accent6GreenMod.HasComp && !accent6GreenMod.HasInv &&
+            !accent6GreenMod.HasGamma && !accent6GreenMod.HasInvGamma &&
+            accent6GreenMod.GreenModulationThousandth <= 100_000)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent6"] = new JsonObject
+                {
+                    ["greenMod"] = JsonValue.Create(accent6GreenMod.GreenModulationThousandth / 100_000d),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent6GreenMod", ["accentTransforms.accent6.greenMod"]));
+        }
         if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent4TintTheme &&
             accent4TintTheme.AccentTransforms[0] is { Role: "accent4", HasTintThousandth: true } accent4Tint &&
             !accent4Tint.HasShadeThousandth &&

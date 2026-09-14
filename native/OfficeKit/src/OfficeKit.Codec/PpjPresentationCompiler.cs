@@ -2687,6 +2687,49 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 mutations.SemanticChanges = true;
                 changed = true;
             }
+            else if (beforeAccentTransforms.TryGetProperty("accent6", out var beforeAccent6GreenMod) &&
+                     afterAccentTransforms.TryGetProperty("accent6", out var afterAccent6GreenMod) &&
+                     PropertyChanged(beforeAccent6GreenMod, afterAccent6GreenMod, "greenMod"))
+            {
+                var changedTransformNames = beforeAccent6GreenMod.EnumerateObject().Select(property => property.Name)
+                    .Concat(afterAccent6GreenMod.EnumerateObject().Select(property => property.Name))
+                    .Distinct(StringComparer.Ordinal)
+                    .Where(name => PropertyChanged(beforeAccent6GreenMod, afterAccent6GreenMod, name))
+                    .ToArray();
+                if (changedTransformNames.Length != 1 || !changedTransformNames[0].Equals("greenMod", StringComparison.Ordinal))
+                    throw Unsupported(path + ".accentTransforms.accent6", "source-bound accent6 requires exactly one changed greenMod field");
+                if (!afterAccent6GreenMod.TryGetProperty("greenMod", out var greenMod) ||
+                    greenMod.ValueKind != JsonValueKind.Number ||
+                    !greenMod.TryGetDouble(out var greenModFraction) ||
+                    !double.IsFinite(greenModFraction) || greenModFraction < 0 || greenModFraction > 1)
+                    throw Unsupported(path + ".accentTransforms.accent6.greenMod", "source-bound accent6 greenMod must be a finite fraction from 0 through 1");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".accentTransforms.accent6.greenMod", "the source did not issue an accent6-greenMod capability");
+                RequireCapabilityField(
+                    requested.Design.ThemeNativeRef,
+                    "setThemeAccent6GreenMod",
+                    "accentTransforms.accent6.greenMod",
+                    path + ".accentTransforms.accent6.greenMod");
+                var transformValue = checked((uint)Math.Round(greenModFraction * 100_000d, MidpointRounding.AwayFromZero));
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                var authoredTransform = artifact.Presentation.AuthoredTheme.AccentTransforms
+                    .SingleOrDefault(transform => transform.Role.Equals("accent6", StringComparison.Ordinal));
+                if (authoredTransform is null || !authoredTransform.HasGreenModulationThousandth ||
+                    authoredTransform.HasTintThousandth || authoredTransform.HasShadeThousandth ||
+                    authoredTransform.HasLuminanceModulationThousandth || authoredTransform.HasLuminanceOffsetThousandth ||
+                    authoredTransform.HasAlphaModulationThousandth || authoredTransform.HasAlphaOffsetThousandth ||
+                    authoredTransform.HasSaturationModulationThousandth || authoredTransform.HasSaturationOffsetThousandth ||
+                    authoredTransform.HasRedOffsetThousandth ||
+                    authoredTransform.HasGreenOffsetThousandth ||
+                    authoredTransform.HasBlueModulationThousandth || authoredTransform.HasBlueOffsetThousandth ||
+                    authoredTransform.HasHueModulationThousandth || authoredTransform.HasHueOffsetAngleThousandth ||
+                    authoredTransform.HasGray || authoredTransform.HasComp || authoredTransform.HasInv ||
+                    authoredTransform.HasGamma || authoredTransform.HasInvGamma)
+                    throw Unsupported(path + ".accentTransforms.accent6.greenMod", "source-bound accent6 greenMod requires one imported direct greenMod");
+                authoredTransform.GreenModulationThousandth = transformValue;
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
             else if (beforeAccentTransforms.TryGetProperty("accent4", out var beforeAccent4) &&
                 afterAccentTransforms.TryGetProperty("accent4", out var afterAccent4) &&
                 PropertyChanged(beforeAccent4, afterAccent4, "tint"))
