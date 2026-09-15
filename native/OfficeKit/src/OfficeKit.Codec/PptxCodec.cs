@@ -5693,7 +5693,7 @@ internal static class PptxCodec
         var colors = new[]
         {
             ReadSourceBoundThemeRgbWithOptionalAlpha(colorScheme.Accent1Color),
-            ReadSourceBoundThemeRgb(colorScheme.Accent2Color),
+            ReadSourceBoundThemeRgbWithOptionalAlpha(colorScheme.Accent2Color),
             ReadSourceBoundThemeRgb(colorScheme.Accent3Color),
             ReadSourceBoundThemeRgb(colorScheme.Accent4Color),
             ReadSourceBoundThemeRgb(colorScheme.Accent5Color),
@@ -7541,7 +7541,7 @@ internal static class PptxCodec
                 : new[]
                 {
                     ReadSourceBoundThemeRgbWithOptionalAlpha(colorScheme.Accent1Color),
-                    ReadSourceBoundThemeRgb(colorScheme.Accent2Color),
+                    ReadSourceBoundThemeRgbWithOptionalAlpha(colorScheme.Accent2Color),
                     ReadSourceBoundThemeRgb(colorScheme.Accent3Color),
                     ReadSourceBoundThemeRgb(colorScheme.Accent4Color),
                     ReadSourceBoundThemeRgb(colorScheme.Accent5Color),
@@ -7587,6 +7587,31 @@ internal static class PptxCodec
                             throw new CodecException(
                                 "unsupported_presentation_edit",
                                 "Source-preserving PPTX export can edit only an existing direct accent1 alpha child.",
+                                PartPath(themePart));
+                        alpha.Val = checked((int)requestedAlpha.Value);
+                    }
+                    changed = true;
+                    continue;
+                }
+                if (index == 1)
+                {
+                    var sourceRgb = PptxColor.NormalizeThemeRgb(sourceAccents[index]!, out var sourceAlpha);
+                    var requestedRgb = PptxColor.NormalizeThemeRgb(authoredTheme.AccentRgb[index], out var requestedAlpha);
+                    if (sourceAlpha.HasValue != requestedAlpha.HasValue)
+                        throw new CodecException(
+                            "unsupported_presentation_edit",
+                            "Source-preserving PPTX export requires accent2 alpha presence to remain unchanged.",
+                            "$.design.theme.accentColors.accent2");
+                    if (sourceRgb.Equals(requestedRgb, StringComparison.OrdinalIgnoreCase) && sourceAlpha == requestedAlpha)
+                        continue;
+                    var alpha = color.GetFirstChild<A.Alpha>();
+                    color.Val = requestedRgb;
+                    if (requestedAlpha is not null)
+                    {
+                        if (alpha is null)
+                            throw new CodecException(
+                                "unsupported_presentation_edit",
+                                "Source-preserving PPTX export can edit only an existing direct accent2 alpha child.",
                                 PartPath(themePart));
                         alpha.Val = checked((int)requestedAlpha.Value);
                     }

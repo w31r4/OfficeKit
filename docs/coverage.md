@@ -3808,3 +3808,10 @@ with a direct RGB accent1 leaf and one canonical `a:alpha/@val` child projects
 `a:srgbClr/@val` and `a:alpha/@val`, preserves the other package members, and
 reprojects the new RGBA value; non-canonical alpha and unsupported topology
 remain source-owned.
+PPJ source-bound theme accent2 RGBA color (2026-09-15): a canonical owner
+with a direct RGB accent2 leaf and one canonical `a:alpha/@val` child projects
+`design.theme.accentColors.accent2` as an eight-digit color with the existing
+`setThemeAccent2Color` capability. An edit changes only the existing
+`a:srgbClr/@val` and `a:alpha/@val`, preserves the other package members, and
+reprojects the new RGBA value; non-canonical alpha and unsupported topology
+remain source-owned.
