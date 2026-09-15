@@ -7155,7 +7155,7 @@ internal static class PptxCodec
         if (colorScheme is null) return null;
         var colors = new[]
         {
-            ReadSourceBoundThemeRgb(colorScheme.Dark1Color),
+            ReadSourceBoundThemeRgbWithOptionalAlpha(colorScheme.Dark1Color),
             ReadSourceBoundThemeRgb(colorScheme.Light1Color),
             ReadSourceBoundThemeRgb(colorScheme.Dark2Color),
             ReadSourceBoundThemeRgb(colorScheme.Light2Color),
@@ -7395,21 +7395,36 @@ internal static class PptxCodec
             var colorScheme = theme.ThemeElements?.ColorScheme;
             var sourceDark1 = colorScheme is null
                 ? null
-                : ReadSourceBoundThemeRgb(colorScheme.Dark1Color);
+                : ReadSourceBoundThemeRgbWithOptionalAlpha(colorScheme.Dark1Color);
             if (sourceDark1 is null)
                 throw new CodecException(
                     "unsupported_presentation_edit",
-                    "Source-preserving PPTX export can edit only a direct RGB dark1 color.",
+                    "Source-preserving PPTX export can edit only a direct RGB/RGBA dark1 color.",
                     PartPath(themePart));
-            var requested = PptxColor.Normalize(authoredTheme.Dark1Rgb);
-            if (!sourceDark1.Equals(requested, StringComparison.OrdinalIgnoreCase))
+            var sourceRgb = PptxColor.NormalizeThemeRgb(sourceDark1, out var sourceAlpha);
+            var requestedRgb = PptxColor.NormalizeThemeRgb(authoredTheme.Dark1Rgb, out var requestedAlpha);
+            if (sourceAlpha.HasValue != requestedAlpha.HasValue)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export requires dark1 alpha presence to remain unchanged.",
+                    "$.design.theme.colorRoles.dark1");
+            if (!sourceRgb.Equals(requestedRgb, StringComparison.OrdinalIgnoreCase) || sourceAlpha != requestedAlpha)
             {
                 var color = colorScheme?.Dark1Color?.GetFirstChild<A.RgbColorModelHex>() ??
                     throw new CodecException(
                         "unsupported_presentation_edit",
                         "Source-preserving PPTX export cannot create a missing direct dark1 color.",
                         PartPath(themePart));
-                color.Val = requested;
+                color.Val = requestedRgb;
+                if (requestedAlpha is not null)
+                {
+                    var alpha = color.GetFirstChild<A.Alpha>() ??
+                        throw new CodecException(
+                            "unsupported_presentation_edit",
+                            "Source-preserving PPTX export can edit only an existing direct dark1 alpha child.",
+                            PartPath(themePart));
+                    alpha.Val = checked((int)requestedAlpha.Value);
+                }
                 changed = true;
             }
         }
