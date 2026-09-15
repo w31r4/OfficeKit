@@ -682,7 +682,7 @@
         },
         "accentColors": {
           "$ref": "#/$defs/themeAccentColors",
-          "description": "Bounded authored accent1 through accent6 theme colors lowered to the native a:clrScheme. A strict source-bound projection may expose all six direct accents and issue capabilities for accent1 through accent6; accent1, accent2, accent3, accent4, and accent5 may preserve one canonical direct alpha child as RGBA while other theme color roles and imported theme XML remain source-owned."
+          "description": "Bounded authored accent1 through accent6 theme colors lowered to the native a:clrScheme. A strict source-bound projection may expose all six direct accents and issue capabilities for accent1 through accent6; accent1, accent2, accent3, accent4, accent5, and accent6 may preserve one canonical direct alpha child as RGBA while other theme color roles and imported theme XML remain source-owned."
         },
         "accentTransforms": {
           "$ref": "#/$defs/themeAccentTransforms",

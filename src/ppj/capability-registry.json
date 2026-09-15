@@ -873,8 +873,8 @@
       "feature": "source-bound presentation theme accent6 color",
       "ppjPath": "design.theme.accentColors.accent6",
       "behavior": "partial",
-      "sourceBound": "A canonical imported presentation with one shared ThemePart and six existing direct RGB accent colors exposes a setThemeAccent6Color capability for accentColors.accent6. Source-preserving export changes only a:accent6Color/a:srgbClr/@val and a fresh projection returns the edited value. One accent slot is edited per compile; accent1 through accent5 have independent field capabilities, while color roles, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned for this owner.",
-      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent colors, deletion, combined theme-field edits, edits to unowned accent slots, and capability tampering fail closed. Alpha, theme transforms, host color management, and PowerPoint rendering are not claimed."
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and six existing direct accent colors exposes a setThemeAccent6Color capability for accentColors.accent6. Accent6 may be a direct RGB leaf or a direct RGB leaf with one canonical a:alpha child; source-preserving export changes only its existing srgbClr/@val and alpha/@val, and a fresh projection returns the edited RGB/RGBA value. One accent slot is edited per compile; accent1, accent2, accent3, accent4, and accent5 have independent field capabilities, while color roles, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned for this owner.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent colors, non-canonical or changing alpha presence, deletion, combined theme-field edits, edits to unowned accent slots, and capability tampering fail closed. Other accent alpha owners, theme transforms, host color management, and PowerPoint rendering are not claimed."
     },
     {
       "feature": "source-bound presentation theme dark1 color role",
