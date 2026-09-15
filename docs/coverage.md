@@ -3801,3 +3801,10 @@ direct RGB accent6 leaf and one `a:hueOff/@val` child projects
 `setThemeAccent6HueOff` capability. An edit changes only that existing token,
 preserves the other package members, and reprojects the new value; unsupported
 or ambiguous theme topology remains source-owned.
+PPJ source-bound theme accent1 RGBA color (2026-09-15): a canonical owner
+with a direct RGB accent1 leaf and one canonical `a:alpha/@val` child projects
+`design.theme.accentColors.accent1` as an eight-digit color with the existing
+`setThemeAccent1Color` capability. An edit changes only the existing
+`a:srgbClr/@val` and `a:alpha/@val`, preserves the other package members, and
+reprojects the new RGBA value; non-canonical alpha and unsupported topology
+remain source-owned.

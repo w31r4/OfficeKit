@@ -5692,7 +5692,7 @@ internal static class PptxCodec
         if (colorScheme is null) return null;
         var colors = new[]
         {
-            ReadSourceBoundThemeRgb(colorScheme.Accent1Color),
+            ReadSourceBoundThemeRgbWithOptionalAlpha(colorScheme.Accent1Color),
             ReadSourceBoundThemeRgb(colorScheme.Accent2Color),
             ReadSourceBoundThemeRgb(colorScheme.Accent3Color),
             ReadSourceBoundThemeRgb(colorScheme.Accent4Color),
@@ -7175,6 +7175,26 @@ internal static class PptxCodec
         return value.ToUpperInvariant();
     }
 
+    private static string? ReadSourceBoundThemeRgbWithOptionalAlpha(OpenXmlElement? owner)
+    {
+        if (owner is null || !HasOnlyAttributes(owner) || owner.ChildElements.Count != 1 ||
+            owner.FirstChild is not A.RgbColorModelHex color ||
+            !HasOnlyAttributes(color, "val") ||
+            color.Val?.Value is not { Length: 6 } value || !value.All(Uri.IsHexDigit))
+            return null;
+        if (color.ChildElements.Count == 0)
+            return value.ToUpperInvariant();
+        if (color.ChildElements.Count != 1 || color.FirstChild is not A.Alpha alpha ||
+            !HasOnlyAttributes(alpha, "val") || alpha.ChildElements.Count != 0 ||
+            alpha.Val?.Value is not int alphaValue || alphaValue < 0 || alphaValue > 100_000)
+            return null;
+        var alphaByte = (byte)Math.Round(alphaValue / 100_000d * 255d, MidpointRounding.AwayFromZero);
+        var canonicalAlpha = (int)Math.Round(alphaByte / 255d * 100_000d, MidpointRounding.AwayFromZero);
+        if (canonicalAlpha != alphaValue)
+            return null;
+        return value.ToUpperInvariant() + alphaByte.ToString("X2", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
     private static void ApplySourceBoundThemeFields(
         PresentationThemeArtifact? authoredTheme,
         IReadOnlyList<PptxMasterGraphEntry> masterGraph,
@@ -7520,7 +7540,7 @@ internal static class PptxCodec
                 ? null
                 : new[]
                 {
-                    ReadSourceBoundThemeRgb(colorScheme.Accent1Color),
+                    ReadSourceBoundThemeRgbWithOptionalAlpha(colorScheme.Accent1Color),
                     ReadSourceBoundThemeRgb(colorScheme.Accent2Color),
                     ReadSourceBoundThemeRgb(colorScheme.Accent3Color),
                     ReadSourceBoundThemeRgb(colorScheme.Accent4Color),
@@ -7543,14 +7563,39 @@ internal static class PptxCodec
             };
             for (var index = 0; index < accentOwners.Length; index++)
             {
-                var requested = PptxColor.Normalize(authoredTheme.AccentRgb[index]);
-                if (sourceAccents[index]!.Equals(requested, StringComparison.OrdinalIgnoreCase))
-                    continue;
                 var color = accentOwners[index].GetFirstChild<A.RgbColorModelHex>() ??
                     throw new CodecException(
                         "unsupported_presentation_edit",
                         "Source-preserving PPTX export cannot create a missing direct accent color.",
                         PartPath(themePart));
+                if (index == 0)
+                {
+                    var sourceRgb = PptxColor.NormalizeThemeRgb(sourceAccents[index]!, out var sourceAlpha);
+                    var requestedRgb = PptxColor.NormalizeThemeRgb(authoredTheme.AccentRgb[index], out var requestedAlpha);
+                    if (sourceAlpha.HasValue != requestedAlpha.HasValue)
+                        throw new CodecException(
+                            "unsupported_presentation_edit",
+                            "Source-preserving PPTX export requires accent1 alpha presence to remain unchanged.",
+                            "$.design.theme.accentColors.accent1");
+                    if (sourceRgb.Equals(requestedRgb, StringComparison.OrdinalIgnoreCase) && sourceAlpha == requestedAlpha)
+                        continue;
+                    var alpha = color.GetFirstChild<A.Alpha>();
+                    color.Val = requestedRgb;
+                    if (requestedAlpha is not null)
+                    {
+                        if (alpha is null)
+                            throw new CodecException(
+                                "unsupported_presentation_edit",
+                                "Source-preserving PPTX export can edit only an existing direct accent1 alpha child.",
+                                PartPath(themePart));
+                        alpha.Val = checked((int)requestedAlpha.Value);
+                    }
+                    changed = true;
+                    continue;
+                }
+                var requested = PptxColor.Normalize(authoredTheme.AccentRgb[index]);
+                if (sourceAccents[index]!.Equals(requested, StringComparison.OrdinalIgnoreCase))
+                    continue;
                 color.Val = requested;
                 changed = true;
             }

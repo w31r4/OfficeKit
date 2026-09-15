@@ -682,7 +682,7 @@
         },
         "accentColors": {
           "$ref": "#/$defs/themeAccentColors",
-          "description": "Bounded authored accent1 through accent6 theme colors lowered to the native a:clrScheme. A strict source-bound projection may expose all six direct RGB accents and issue capabilities for accent1 through accent6; other theme color roles and imported theme XML remain source-owned."
+          "description": "Bounded authored accent1 through accent6 theme colors lowered to the native a:clrScheme. A strict source-bound projection may expose all six direct accents and issue capabilities for accent1 through accent6; accent1 may preserve one canonical direct alpha child as RGBA while other theme color roles and imported theme XML remain source-owned."
         },
         "accentTransforms": {
           "$ref": "#/$defs/themeAccentTransforms",
@@ -799,7 +799,7 @@
           "$ref": "#/$defs/themeAccentColor"
         }
       },
-      "description": "The six bounded OOXML accent color roles. Values are six- or eight-digit RGB/RGBA colors; only the alpha suffix is lowered, while hyperlink, followed-hyperlink, dark/light, tint/shade, and effect schemes remain outside this profile."
+      "description": "The six bounded OOXML accent color roles. Values are six- or eight-digit RGB/RGBA colors; only the alpha suffix is lowered. A source-bound profile may preserve one canonical direct alpha child for accent1; hyperlink, followed-hyperlink, dark/light, tint/shade, and effect schemes remain outside this profile."
     },
     "themeAccentColor": {
       "type": "string",
