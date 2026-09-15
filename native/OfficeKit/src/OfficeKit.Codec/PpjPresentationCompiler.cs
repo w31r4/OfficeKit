@@ -4899,7 +4899,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                         path + ".colorRoles.hyperlink");
                 if (!afterColorRoles.TryGetProperty("hyperlink", out var afterHyperlink) ||
                     afterHyperlink.ValueKind != JsonValueKind.String)
-                    throw Unsupported(path + ".colorRoles.hyperlink", "source-bound hyperlink color must be a six-digit RGB value");
+                    throw Unsupported(path + ".colorRoles.hyperlink", "source-bound hyperlink color must be a six- or eight-digit RGB/RGBA value");
                 if (requested.Design.ThemeNativeRef is null)
                     throw Unsupported(path + ".colorRoles.hyperlink", "the source did not issue a hyperlink-color capability");
                 RequireCapabilityField(
@@ -4908,7 +4908,9 @@ internal static partial class PpjSourceBoundPresentationCompiler
                     "colorRoles.hyperlink",
                     path + ".colorRoles.hyperlink");
                 artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
-                artifact.Presentation.AuthoredTheme.HyperlinkRgb = PptxColor.Normalize(afterHyperlink.GetString()!);
+                var requestedHyperlink = afterHyperlink.GetString()!.Trim().TrimStart('#').ToUpperInvariant();
+                _ = PptxColor.NormalizeThemeRgb(requestedHyperlink, out _);
+                artifact.Presentation.AuthoredTheme.HyperlinkRgb = requestedHyperlink;
                 mutations.SemanticChanges = true;
                 changed = true;
             }

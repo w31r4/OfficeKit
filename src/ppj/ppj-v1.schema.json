@@ -674,7 +674,7 @@
         },
         "nativeRef": {
           "$ref": "#/$defs/nativeRef",
-          "description": "Optional source-bound reference for existing presentation theme metadata. The bounded profile may expose the theme name, six direct RGB accent slots, one direct accent1 tint, direct RGB/RGBA dark1, light1, dark2, or light2 (when an existing canonical alpha child is present) plus direct RGB hyperlink or followedHyperlink color roles, and major/minor Latin, major/minor East Asian, or major/minor complex-script font scheme slots; other theme graph edits remain source-owned."
+          "description": "Optional source-bound reference for existing presentation theme metadata. The bounded profile may expose the theme name, six direct RGB accent slots, one direct accent1 tint, direct RGB/RGBA dark1, light1, dark2, light2, or hyperlink (when an existing canonical alpha child is present) plus direct RGB followedHyperlink color roles, and major/minor Latin, major/minor East Asian, or major/minor complex-script font scheme slots; other theme graph edits remain source-owned."
         },
         "fontScheme": {
           "$ref": "#/$defs/themeFontScheme",
@@ -690,7 +690,7 @@
         },
         "colorRoles": {
           "$ref": "#/$defs/themeColorRoles",
-          "description": "Bounded authored dark/light and hyperlink theme color roles lowered to the native a:clrScheme. Values accept RGB or RGBA; only the alpha suffix is lowered. A strict source-bound projection may expose existing direct RGB/RGBA dark1, light1, dark2, or light2 roles when their canonical alpha child already exists, plus direct RGB hyperlink and followedHyperlink roles with field-qualified capabilities; other imported theme XML remains source-owned."
+          "description": "Bounded authored dark/light and hyperlink theme color roles lowered to the native a:clrScheme. Values accept RGB or RGBA; only the alpha suffix is lowered. A strict source-bound projection may expose existing direct RGB/RGBA dark1, light1, dark2, light2, or hyperlink roles when their canonical alpha child already exists, plus direct RGB followedHyperlink role with field-qualified capabilities; other imported theme XML remains source-owned."
         },
         "colors": {
           "type": "array",
