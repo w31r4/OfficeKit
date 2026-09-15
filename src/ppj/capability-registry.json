@@ -894,8 +894,8 @@
       "feature": "source-bound presentation theme dark2 color role",
       "ppjPath": "design.theme.colorRoles.dark2",
       "behavior": "partial",
-      "sourceBound": "A canonical imported presentation with one shared ThemePart and an existing direct RGB dark2 color exposes a setThemeColorRoleDark2 capability for colorRoles.dark2. Source-preserving export changes only a:dk2/a:srgbClr/@val and a fresh projection returns the edited value. Dark1, light1, light2, hyperlink, followedHyperlink, accent colors, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
-      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed dark2 color, deletion, combined theme-field edits, edits to unowned color roles, and capability tampering fail closed. Alpha, theme transforms, host color management, and PowerPoint rendering are not claimed."
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an existing direct RGB/RGBA dark2 color exposes a setThemeColorRoleDark2 capability for colorRoles.dark2. A direct RGBA dark2 requires one canonical existing a:alpha child; source-preserving export changes only a:dk2/a:srgbClr/@val and that existing a:alpha/@val, and a fresh projection returns the edited RGB/RGBA value. Dark1, light1, light2, hyperlink, followedHyperlink, accent colors, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed dark2 color, non-canonical or changing alpha presence, deletion, combined theme-field edits, edits to unowned color roles, and capability tampering fail closed. Other theme transforms, host color management, and PowerPoint rendering are not claimed."
     },
     {
       "feature": "source-bound presentation theme light2 color role",

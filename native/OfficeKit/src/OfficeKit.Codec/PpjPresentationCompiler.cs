@@ -4851,7 +4851,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                         path + ".colorRoles.dark2");
                 if (!afterColorRoles.TryGetProperty("dark2", out var afterDark2) ||
                     afterDark2.ValueKind != JsonValueKind.String)
-                    throw Unsupported(path + ".colorRoles.dark2", "source-bound dark2 color must be a six-digit RGB value");
+                    throw Unsupported(path + ".colorRoles.dark2", "source-bound dark2 color must be a six- or eight-digit RGB/RGBA value");
                 if (requested.Design.ThemeNativeRef is null)
                     throw Unsupported(path + ".colorRoles.dark2", "the source did not issue a dark2-color capability");
                 RequireCapabilityField(
@@ -4860,7 +4860,9 @@ internal static partial class PpjSourceBoundPresentationCompiler
                     "colorRoles.dark2",
                     path + ".colorRoles.dark2");
                 artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
-                artifact.Presentation.AuthoredTheme.Dark2Rgb = PptxColor.Normalize(afterDark2.GetString()!);
+                var requestedDark2 = afterDark2.GetString()!.Trim().TrimStart('#').ToUpperInvariant();
+                _ = PptxColor.NormalizeThemeRgb(requestedDark2, out _);
+                artifact.Presentation.AuthoredTheme.Dark2Rgb = requestedDark2;
                 mutations.SemanticChanges = true;
                 changed = true;
             }
