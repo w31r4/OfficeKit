@@ -284,6 +284,7 @@ internal static class PptxCodec
         var importedAccent1BlueOff = TryReadSourceBoundThemeAccent1BlueOff(importedTheme);
         var importedAccent1HueMod = TryReadSourceBoundThemeAccent1HueMod(importedTheme);
         var importedAccent1HueOff = TryReadSourceBoundThemeAccent1HueOff(importedTheme);
+        var importedAccent1Gray = TryReadSourceBoundThemeAccent1Gray(importedTheme);
         var importedAccent2Tint = TryReadSourceBoundThemeAccent2Tint(importedTheme);
         var importedAccent2Shade = TryReadSourceBoundThemeAccent2Shade(importedTheme);
         var importedAccent2LumMod = TryReadSourceBoundThemeAccent2LumMod(importedTheme);
@@ -478,6 +479,12 @@ internal static class PptxCodec
             {
                 Role = "accent1",
                 HueOffsetAngleThousandth = hueOff,
+            });
+        if (importedAccent1Gray is true)
+            importedThemeArtifact.AccentTransforms.Add(new PresentationThemeColorTransform
+            {
+                Role = "accent1",
+                Gray = true,
             });
         if (importedAccent2Tint is { } accent2Tint)
             importedThemeArtifact.AccentTransforms.Add(new PresentationThemeColorTransform
@@ -6644,6 +6651,20 @@ internal static class PptxCodec
         return hueOff.Val.Value;
     }
 
+    private static bool? TryReadSourceBoundThemeAccent1Gray(A.Theme? theme)
+    {
+        var colorScheme = theme?.ThemeElements?.ColorScheme;
+        var owner = colorScheme?.Accent1Color;
+        if (owner is null || !HasOnlyAttributes(owner) || owner.ChildElements.Count != 1 ||
+            owner.FirstChild is not A.RgbColorModelHex color ||
+            !HasOnlyAttributes(color, "val") ||
+            color.Val?.Value is not { Length: 6 } value || !value.All(Uri.IsHexDigit) ||
+            color.ChildElements.Count != 1 || color.FirstChild is not A.Gray gray ||
+            !HasOnlyAttributes(gray) || gray.ChildElements.Count != 0)
+            return null;
+        return true;
+    }
+
     private static uint? TryReadSourceBoundThemeAccent4Tint(A.Theme? theme)
     {
         var colorScheme = theme?.ThemeElements?.ColorScheme;
@@ -11461,6 +11482,16 @@ internal static class PptxCodec
         else if (authoredTheme.AccentTransforms.Count > 0)
         {
             var transform = authoredTheme.AccentTransforms[0];
+            var grayOnly = transform.HasGray &&
+                !transform.HasTintThousandth && !transform.HasShadeThousandth &&
+                !transform.HasLuminanceModulationThousandth && !transform.HasLuminanceOffsetThousandth &&
+                !transform.HasAlphaModulationThousandth && !transform.HasAlphaOffsetThousandth &&
+                !transform.HasSaturationModulationThousandth && !transform.HasSaturationOffsetThousandth &&
+                !transform.HasRedModulationThousandth && !transform.HasRedOffsetThousandth &&
+                !transform.HasGreenModulationThousandth && !transform.HasGreenOffsetThousandth &&
+                !transform.HasBlueModulationThousandth && !transform.HasBlueOffsetThousandth &&
+                !transform.HasHueModulationThousandth && !transform.HasHueOffsetAngleThousandth &&
+                !transform.HasComp && !transform.HasInv && !transform.HasGamma && !transform.HasInvGamma;
             var tintOnly = transform.HasTintThousandth && !transform.HasShadeThousandth;
             var shadeOnly = !transform.HasTintThousandth && transform.HasShadeThousandth;
             var lumModOnly = !transform.HasTintThousandth && !transform.HasShadeThousandth &&
@@ -11534,7 +11565,9 @@ internal static class PptxCodec
                 !transform.HasBlueModulationThousandth && !transform.HasBlueOffsetThousandth &&
                 !transform.HasHueModulationThousandth &&
                 transform.HasHueOffsetAngleThousandth;
-            var transformPath = tintOnly
+            var transformPath = grayOnly
+                ? "$.design.theme.accentTransforms.accent1.gray"
+                : tintOnly
                 ? "$.design.theme.accentTransforms.accent1.tint"
                 : shadeOnly
                     ? "$.design.theme.accentTransforms.accent1.shade"
@@ -11567,7 +11600,7 @@ internal static class PptxCodec
                                                                         : "$.design.theme.accentTransforms.accent1.hueOff";
             if (authoredTheme.AccentTransforms.Count != 1 ||
                 transform.Role != "accent1" ||
-                (!tintOnly && !shadeOnly && !lumModOnly && !lumOffOnly && !alphaModOnly && !alphaOffOnly && !satModOnly && !satOffOnly && !redModOnly && !redOffOnly && !greenModOnly && !greenOffOnly && !blueModOnly && !blueOffOnly && !hueModOnly && !hueOffOnly) ||
+                (!grayOnly && !tintOnly && !shadeOnly && !lumModOnly && !lumOffOnly && !alphaModOnly && !alphaOffOnly && !satModOnly && !satOffOnly && !redModOnly && !redOffOnly && !greenModOnly && !greenOffOnly && !blueModOnly && !blueOffOnly && !hueModOnly && !hueOffOnly) ||
                 !lumModOnly && transform.HasLuminanceModulationThousandth ||
                 !lumOffOnly && transform.HasLuminanceOffsetThousandth ||
                 !alphaModOnly && transform.HasAlphaModulationThousandth ||
@@ -11582,7 +11615,7 @@ internal static class PptxCodec
                 !blueOffOnly && transform.HasBlueOffsetThousandth ||
                 !hueModOnly && transform.HasHueModulationThousandth ||
                 !hueOffOnly && transform.HasHueOffsetAngleThousandth ||
-                transform.HasGray || transform.HasComp || transform.HasInv || transform.HasGamma ||
+                !grayOnly && transform.HasGray || transform.HasComp || transform.HasInv || transform.HasGamma ||
                 transform.HasInvGamma ||
                 tintOnly && transform.TintThousandth > 100_000 ||
                 shadeOnly && transform.ShadeThousandth > 100_000 ||
@@ -11602,10 +11635,12 @@ internal static class PptxCodec
                 hueOffOnly && (transform.HueOffsetAngleThousandth < -21_600_000 || transform.HueOffsetAngleThousandth > 21_600_000))
                 throw new CodecException(
                     "unsupported_presentation_edit",
-                    "Source-preserving PPTX export supports only one existing direct accent1 tint, shade, lumMod, lumOff, alphaMod, alphaOff, satMod, satOff, redMod, redOff, greenMod, greenOff, blueMod, blueOff, hueMod, or hueOff.",
+                    "Source-preserving PPTX export supports only one existing direct accent1 gray, tint, shade, lumMod, lumOff, alphaMod, alphaOff, satMod, satOff, redMod, redOff, greenMod, greenOff, blueMod, blueOff, hueMod, or hueOff.",
                     transformPath);
             var colorScheme = theme.ThemeElements?.ColorScheme;
-            var sourceValue = tintOnly
+            var sourceValue = grayOnly
+                ? (TryReadSourceBoundThemeAccent1Gray(theme) is true ? 1L : null)
+                : tintOnly
                 ? (long?)TryReadSourceBoundThemeAccent1Tint(theme)
                 : shadeOnly
                     ? (long?)TryReadSourceBoundThemeAccent1Shade(theme)
@@ -11639,9 +11674,11 @@ internal static class PptxCodec
             if (sourceValue is null)
                 throw new CodecException(
                     "unsupported_presentation_edit",
-                    "Source-preserving PPTX export can edit only an existing direct accent1 tint, shade, lumMod, lumOff, alphaMod, alphaOff, satMod, satOff, redMod, redOff, greenMod, greenOff, blueMod, blueOff, hueMod, or hueOff.",
+                    "Source-preserving PPTX export can edit only an existing direct accent1 gray, tint, shade, lumMod, lumOff, alphaMod, alphaOff, satMod, satOff, redMod, redOff, greenMod, greenOff, blueMod, blueOff, hueMod, or hueOff.",
                     PartPath(themePart));
-            var requested = tintOnly
+            var requested = grayOnly
+                ? (transform.Gray ? 1L : 0L)
+                : tintOnly
                 ? (long)transform.TintThousandth
                 : shadeOnly
                     ? (long)transform.ShadeThousandth
@@ -11679,7 +11716,16 @@ internal static class PptxCodec
                         "unsupported_presentation_edit",
                         "Source-preserving PPTX export cannot create a missing direct accent1 color.",
                         PartPath(themePart));
-                if (tintOnly)
+                if (grayOnly)
+                {
+                    if (requested != 0)
+                        throw new CodecException(
+                            "unsupported_presentation_edit",
+                            "Source-preserving PPTX export can only remove an existing direct accent1 gray transform in this bounded profile.",
+                            transformPath);
+                    color.GetFirstChild<A.Gray>()?.Remove();
+                }
+                else if (tintOnly)
                 {
                     var tint = color.FirstChild as A.Tint ??
                         throw new CodecException(

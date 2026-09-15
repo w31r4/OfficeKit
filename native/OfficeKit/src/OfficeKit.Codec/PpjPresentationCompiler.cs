@@ -431,7 +431,10 @@ internal static partial class PpjSourceBoundPresentationCompiler
         // declared PPJ colors/assets and produces the same PresentationML
         // value that a source-free background would receive; PptxCodec still
         // owns the source-part writeback and residual XML proof.
-        var catalog = new PpjAuthoredPresentationCompiler.Catalog(requested.Root, artifact.Assets);
+        var catalog = new PpjAuthoredPresentationCompiler.Catalog(
+            requested.Root,
+            artifact.Assets,
+            allowFalseThemeFlags: true);
         var changed = ApplyTheme(baseline, requested, artifact, mutations);
         for (var index = 0; index < baseline.Design.Masters.Count; index++)
         {
@@ -4280,9 +4283,39 @@ internal static partial class PpjSourceBoundPresentationCompiler
             var blueOffChanged = PropertyChanged(beforeAccent1, afterAccent1, "blueOff");
             var hueModChanged = PropertyChanged(beforeAccent1, afterAccent1, "hueMod");
             var hueOffChanged = PropertyChanged(beforeAccent1, afterAccent1, "hueOff");
-            if (new[] { tintChanged, shadeChanged, lumModChanged, lumOffChanged, alphaModChanged, alphaOffChanged, satModChanged, satOffChanged, redModChanged, redOffChanged, greenModChanged, greenOffChanged, blueModChanged, blueOffChanged, hueModChanged, hueOffChanged }.Count(value => value) != 1)
-                throw Unsupported(path + ".accentTransforms.accent1", "source-bound accent1 requires exactly one changed tint, shade, lumMod, lumOff, alphaMod, alphaOff, satMod, satOff, redMod, redOff, greenMod, greenOff, blueMod, blueOff, hueMod, or hueOff field");
-            if (tintChanged)
+            var grayChanged = PropertyChanged(beforeAccent1, afterAccent1, "gray");
+            if (new[] { tintChanged, shadeChanged, lumModChanged, lumOffChanged, alphaModChanged, alphaOffChanged, satModChanged, satOffChanged, redModChanged, redOffChanged, greenModChanged, greenOffChanged, blueModChanged, blueOffChanged, hueModChanged, hueOffChanged, grayChanged }.Count(value => value) != 1)
+                throw Unsupported(path + ".accentTransforms.accent1", "source-bound accent1 requires exactly one changed gray, tint, shade, lumMod, lumOff, alphaMod, alphaOff, satMod, satOff, redMod, redOff, greenMod, greenOff, blueMod, blueOff, hueMod, or hueOff field");
+            if (grayChanged)
+            {
+                if (!afterAccent1.TryGetProperty("gray", out var gray) ||
+                    gray.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                    throw Unsupported(path + ".accentTransforms.accent1.gray", "source-bound accent1 gray must be boolean");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".accentTransforms.accent1.gray", "the source did not issue an accent1-gray capability");
+                RequireCapabilityField(
+                    requested.Design.ThemeNativeRef,
+                    "setThemeAccent1Gray",
+                    "accentTransforms.accent1.gray",
+                    path + ".accentTransforms.accent1.gray");
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                var authoredTransform = artifact.Presentation.AuthoredTheme.AccentTransforms
+                    .SingleOrDefault(transform => transform.Role.Equals("accent1", StringComparison.Ordinal));
+                if (authoredTransform is null || !authoredTransform.HasGray ||
+                    authoredTransform.HasTintThousandth || authoredTransform.HasShadeThousandth ||
+                    authoredTransform.HasLuminanceModulationThousandth || authoredTransform.HasLuminanceOffsetThousandth ||
+                    authoredTransform.HasAlphaModulationThousandth || authoredTransform.HasAlphaOffsetThousandth ||
+                    authoredTransform.HasSaturationModulationThousandth || authoredTransform.HasSaturationOffsetThousandth ||
+                    authoredTransform.HasRedModulationThousandth || authoredTransform.HasRedOffsetThousandth ||
+                    authoredTransform.HasGreenModulationThousandth || authoredTransform.HasGreenOffsetThousandth ||
+                    authoredTransform.HasBlueModulationThousandth || authoredTransform.HasBlueOffsetThousandth ||
+                    authoredTransform.HasHueModulationThousandth || authoredTransform.HasHueOffsetAngleThousandth ||
+                    authoredTransform.HasComp || authoredTransform.HasInv || authoredTransform.HasGamma ||
+                    authoredTransform.HasInvGamma)
+                    throw Unsupported(path + ".accentTransforms.accent1.gray", "source-bound accent1 gray requires one imported direct gray");
+                authoredTransform.Gray = gray.ValueKind == JsonValueKind.True;
+            }
+            else if (tintChanged)
             {
                 if (!afterAccent1.TryGetProperty("tint", out var tint) ||
                     tint.ValueKind != JsonValueKind.Number ||
@@ -6667,7 +6700,9 @@ internal static partial class PpjSourceBoundPresentationCompiler
     {
         RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "asset", "svgAsset", "styleRef", "style", "fit", "crop", "focus", "opacity", "mask", "border", "shadow", "glow", "innerShadow", "reflection", "softEdge", "accessibility");
         var changed = ApplyFrame(before, after, target, path);
-        var catalog = new PpjAuthoredPresentationCompiler.Catalog(program.Root);
+        var catalog = new PpjAuthoredPresentationCompiler.Catalog(
+            program.Root,
+            allowFalseThemeFlags: true);
         if (!before.AssetId.Equals(after.AssetId, StringComparison.Ordinal))
         {
             RequireCapability(after, "replaceImage", path + ".asset");
@@ -11620,7 +11655,8 @@ internal static partial class PpjSourceBoundPresentationCompiler
                     !transformName.Equals("blueMod", StringComparison.Ordinal) &&
                     !transformName.Equals("blueOff", StringComparison.Ordinal) &&
                     !transformName.Equals("hueMod", StringComparison.Ordinal) &&
-                    !transformName.Equals("hueOff", StringComparison.Ordinal))
+                    !transformName.Equals("hueOff", StringComparison.Ordinal) &&
+                    !transformName.Equals("gray", StringComparison.Ordinal))
                     throw new CodecException(
                         "ppj.sourceBound.themeAccentTransforms",
                         $"Source-bound PPJ cannot safely compile changing source-owned {name} transform {transformName}.",

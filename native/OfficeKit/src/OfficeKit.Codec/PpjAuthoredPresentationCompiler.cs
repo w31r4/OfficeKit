@@ -116,7 +116,7 @@ internal static partial class PpjAuthoredPresentationCompiler
             throw Unsupported(element.Id, "a new source-bound overlay cannot carry nativeRef authority");
         if (element is PpjImageElementModel { SvgAssetId: not null })
             throw Unsupported(element.Id, "paired SVG fallback images are outside the bounded source overlay relationship profile");
-        var output = BuildElement(element, element.Raw, new Catalog(program.Root));
+        var output = BuildElement(element, element.Raw, new Catalog(program.Root, allowFalseThemeFlags: true));
         if (!output.HasHidden) output.Hidden = false;
         if (!output.HasLocked) output.Locked = false;
         if (PptxCodec.BoundedAuthoredOverlayViolation(output) is { } violation)
@@ -132,7 +132,7 @@ internal static partial class PpjAuthoredPresentationCompiler
     // paragraph/list/layout semantics.
     internal static PresentationTextBody BuildSourceBoundTextBody(JsonElement text, JsonElement programRoot)
     {
-        var catalog = new Catalog(programRoot);
+        var catalog = new Catalog(programRoot, allowFalseThemeFlags: true);
         var body = BuildTextBody(text, null, null, null, catalog);
         // BuildTextBody allocates a body-properties shell while resolving
         // authored styles. Source projection omits an empty shell, so clear
@@ -4457,7 +4457,10 @@ internal static partial class PpjAuthoredPresentationCompiler
 
         internal PresentationThemeArtifact Theme { get; }
 
-        internal Catalog(JsonElement root, IReadOnlyList<Asset>? compiledAssets = null)
+        internal Catalog(
+            JsonElement root,
+            IReadOnlyList<Asset>? compiledAssets = null,
+            bool allowFalseThemeFlags = false)
         {
             var design = root.GetProperty("design");
             _colors = design.GetProperty("theme").GetProperty("colors").EnumerateArray()
@@ -4539,10 +4542,10 @@ internal static partial class PpjAuthoredPresentationCompiler
                         $"$.assets[{programId}]");
                 }
             }
-            Theme = BuildTheme(design);
+            Theme = BuildTheme(design, allowFalseThemeFlags);
         }
 
-        private static PresentationThemeArtifact BuildTheme(JsonElement design)
+        private static PresentationThemeArtifact BuildTheme(JsonElement design, bool allowFalseThemeFlags)
         {
             var theme = design.GetProperty("theme");
             var output = new PresentationThemeArtifact();
@@ -4597,7 +4600,7 @@ internal static partial class PpjAuthoredPresentationCompiler
                     if (transform.TryGetProperty("hueOff", out var hueOffset))
                         authored.HueOffsetAngleThousandth = ThemeTransformHueOffset(hueOffset, role, "hueOff");
                     if (transform.TryGetProperty("gray", out var gray))
-                        authored.Gray = ThemeTransformFlag(gray, role, "gray");
+                        authored.Gray = ThemeTransformFlag(gray, role, "gray", allowFalseThemeFlags);
                     if (transform.TryGetProperty("comp", out var complement))
                         authored.Comp = ThemeTransformFlag(complement, role, "comp");
                     if (transform.TryGetProperty("inv", out var inverse))
@@ -4669,14 +4672,15 @@ internal static partial class PpjAuthoredPresentationCompiler
             return checked((int)Math.Round(fraction * 100_000d, MidpointRounding.AwayFromZero));
         }
 
-        private static bool ThemeTransformFlag(JsonElement value, string role, string operation)
+        private static bool ThemeTransformFlag(JsonElement value, string role, string operation, bool allowFalse = false)
         {
-            if (value.ValueKind != JsonValueKind.True)
+            if (value.ValueKind is not (JsonValueKind.True or JsonValueKind.False) ||
+                (!allowFalse && value.ValueKind != JsonValueKind.True))
                 throw new CodecException(
                     "ppj.theme.transform",
                     $"PPJ theme accent {role} {operation} must be true when declared.",
                     $"$.design.theme.accentTransforms.{role}.{operation}");
-            return true;
+            return value.ValueKind == JsonValueKind.True;
         }
 
         private static int ThemeTransformHueOffset(JsonElement value, string role, string operation)

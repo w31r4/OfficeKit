@@ -760,6 +760,36 @@ internal static partial class PpjPresentationProjector
             };
             themeCapabilities.Add(new("setThemeAccent1HueOff", ["accentTransforms.accent1.hueOff"]));
         }
+        if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } grayTheme &&
+            grayTheme.AccentTransforms[0] is { Role: "accent1", HasGray: true, Gray: true } accent1Gray &&
+            !accent1Gray.HasTintThousandth &&
+            !accent1Gray.HasShadeThousandth &&
+            !accent1Gray.HasLuminanceModulationThousandth &&
+            !accent1Gray.HasLuminanceOffsetThousandth &&
+            !accent1Gray.HasAlphaModulationThousandth &&
+            !accent1Gray.HasAlphaOffsetThousandth &&
+            !accent1Gray.HasSaturationModulationThousandth &&
+            !accent1Gray.HasSaturationOffsetThousandth &&
+            !accent1Gray.HasRedModulationThousandth &&
+            !accent1Gray.HasRedOffsetThousandth &&
+            !accent1Gray.HasGreenModulationThousandth &&
+            !accent1Gray.HasGreenOffsetThousandth &&
+            !accent1Gray.HasBlueModulationThousandth &&
+            !accent1Gray.HasBlueOffsetThousandth &&
+            !accent1Gray.HasHueModulationThousandth &&
+            !accent1Gray.HasHueOffsetAngleThousandth &&
+            !accent1Gray.HasComp && !accent1Gray.HasInv &&
+            !accent1Gray.HasGamma && !accent1Gray.HasInvGamma)
+        {
+            theme["accentTransforms"] = new JsonObject
+            {
+                ["accent1"] = new JsonObject
+                {
+                    ["gray"] = JsonValue.Create(true),
+                },
+            };
+            themeCapabilities.Add(new("setThemeAccent1Gray", ["accentTransforms.accent1.gray"]));
+        }
         if (presentation.AuthoredTheme is { AccentTransforms.Count: 1 } accent2TintTheme &&
             accent2TintTheme.AccentTransforms[0] is { Role: "accent2", HasTintThousandth: true } accent2Tint &&
             !accent2Tint.HasShadeThousandth &&

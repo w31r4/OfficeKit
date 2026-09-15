@@ -928,8 +928,7 @@
         },
         "gray": {
           "type": "boolean",
-          "const": true,
-          "description": "Convert the accent color to grayscale."
+          "description": "Convert the accent color to grayscale; source-bound false removes an existing direct grayscale transform."
         },
         "comp": {
           "type": "boolean",
@@ -1919,6 +1918,7 @@
             "setThemeAccent1BlueOff",
             "setThemeAccent1HueMod",
             "setThemeAccent1HueOff",
+            "setThemeAccent1Gray",
             "setThemeAccent2Tint",
             "setThemeAccent2Shade",
             "setThemeAccent2LumMod",
@@ -2233,6 +2233,7 @@
               "accentTransforms.accent1.blueOff",
               "accentTransforms.accent1.hueMod",
               "accentTransforms.accent1.hueOff",
+              "accentTransforms.accent1.gray",
               "accentTransforms.accent2.tint",
               "accentTransforms.accent2.shade",
               "accentTransforms.accent2.lumMod",

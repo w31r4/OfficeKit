@@ -1031,6 +1031,13 @@
       "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent1 RGB, alpha or extra descendants, unsupported transform siblings, deletion, combined theme-field edits, out-of-range degree offsets, and capability tampering fail closed. Other transform leaves, host color management, and PowerPoint rendering are not claimed."
     },
     {
+      "feature": "source-bound presentation theme accent1 grayscale transform",
+      "ppjPath": "design.theme.accentTransforms.accent1.gray",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an accent1 direct RGB leaf containing exactly one direct a:gray child exposes a setThemeAccent1Gray capability for accentTransforms.accent1.gray. Projection emits gray=true; source-preserving export accepts gray=false to remove only that existing direct a:gray child, while gray=true is a no-op, and a fresh projection omits the transform after removal. The base accent1 RGB, other accents and color roles, other transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing direct gray, alpha or extra descendants, unsupported transform siblings, adding an absent gray child, deletion of the transform object, combined theme-field edits, invalid types, and capability tampering fail closed. Other transform leaves, inherited theme state, host color management, and PowerPoint rendering are not claimed."
+    },
+    {
       "feature": "source-bound presentation theme accent2 tint",
       "ppjPath": "design.theme.accentTransforms.accent2.tint",
       "behavior": "partial",
