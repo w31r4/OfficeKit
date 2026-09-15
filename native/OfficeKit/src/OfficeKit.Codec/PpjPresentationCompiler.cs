@@ -4923,7 +4923,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                         path + ".colorRoles.followedHyperlink");
                 if (!afterColorRoles.TryGetProperty("followedHyperlink", out var afterFollowedHyperlink) ||
                     afterFollowedHyperlink.ValueKind != JsonValueKind.String)
-                    throw Unsupported(path + ".colorRoles.followedHyperlink", "source-bound followed-hyperlink color must be a six-digit RGB value");
+                    throw Unsupported(path + ".colorRoles.followedHyperlink", "source-bound followed-hyperlink color must be a six- or eight-digit RGB/RGBA value");
                 if (requested.Design.ThemeNativeRef is null)
                     throw Unsupported(path + ".colorRoles.followedHyperlink", "the source did not issue a followed-hyperlink-color capability");
                 RequireCapabilityField(
@@ -4932,7 +4932,9 @@ internal static partial class PpjSourceBoundPresentationCompiler
                     "colorRoles.followedHyperlink",
                     path + ".colorRoles.followedHyperlink");
                 artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
-                artifact.Presentation.AuthoredTheme.FollowedHyperlinkRgb = PptxColor.Normalize(afterFollowedHyperlink.GetString()!);
+                var requestedFollowedHyperlink = afterFollowedHyperlink.GetString()!.Trim().TrimStart('#').ToUpperInvariant();
+                _ = PptxColor.NormalizeThemeRgb(requestedFollowedHyperlink, out _);
+                artifact.Presentation.AuthoredTheme.FollowedHyperlinkRgb = requestedFollowedHyperlink;
                 mutations.SemanticChanges = true;
                 changed = true;
             }

@@ -7160,7 +7160,7 @@ internal static class PptxCodec
             ReadSourceBoundThemeRgbWithOptionalAlpha(colorScheme.Dark2Color),
             ReadSourceBoundThemeRgbWithOptionalAlpha(colorScheme.Light2Color),
             ReadSourceBoundThemeRgbWithOptionalAlpha(colorScheme.Hyperlink),
-            ReadSourceBoundThemeRgb(colorScheme.FollowedHyperlinkColor),
+            ReadSourceBoundThemeRgbWithOptionalAlpha(colorScheme.FollowedHyperlinkColor),
         };
         return colors.Any(color => color is null) ? null : colors.Select(color => color!).ToArray();
     }
@@ -7585,21 +7585,36 @@ internal static class PptxCodec
             var colorScheme = theme.ThemeElements?.ColorScheme;
             var sourceFollowedHyperlink = colorScheme is null
                 ? null
-                : ReadSourceBoundThemeRgb(colorScheme.FollowedHyperlinkColor);
+                : ReadSourceBoundThemeRgbWithOptionalAlpha(colorScheme.FollowedHyperlinkColor);
             if (sourceFollowedHyperlink is null)
                 throw new CodecException(
                     "unsupported_presentation_edit",
-                    "Source-preserving PPTX export can edit only a direct RGB followed-hyperlink color.",
+                    "Source-preserving PPTX export can edit only a direct RGB/RGBA followed-hyperlink color.",
                     PartPath(themePart));
-            var requested = PptxColor.Normalize(authoredTheme.FollowedHyperlinkRgb);
-            if (!sourceFollowedHyperlink.Equals(requested, StringComparison.OrdinalIgnoreCase))
+            var sourceRgb = PptxColor.NormalizeThemeRgb(sourceFollowedHyperlink, out var sourceAlpha);
+            var requestedRgb = PptxColor.NormalizeThemeRgb(authoredTheme.FollowedHyperlinkRgb, out var requestedAlpha);
+            if (sourceAlpha.HasValue != requestedAlpha.HasValue)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export requires followed-hyperlink alpha presence to remain unchanged.",
+                    "$.design.theme.colorRoles.followedHyperlink");
+            if (!sourceRgb.Equals(requestedRgb, StringComparison.OrdinalIgnoreCase) || sourceAlpha != requestedAlpha)
             {
                 var color = colorScheme?.FollowedHyperlinkColor?.GetFirstChild<A.RgbColorModelHex>() ??
                     throw new CodecException(
                         "unsupported_presentation_edit",
                         "Source-preserving PPTX export cannot create a missing direct followed-hyperlink color.",
                         PartPath(themePart));
-                color.Val = requested;
+                color.Val = requestedRgb;
+                if (requestedAlpha is not null)
+                {
+                    var alpha = color.GetFirstChild<A.Alpha>() ??
+                        throw new CodecException(
+                            "unsupported_presentation_edit",
+                            "Source-preserving PPTX export can edit only an existing direct followed-hyperlink alpha child.",
+                            PartPath(themePart));
+                    alpha.Val = checked((int)requestedAlpha.Value);
+                }
                 changed = true;
             }
         }
