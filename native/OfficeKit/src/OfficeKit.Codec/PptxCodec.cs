@@ -7158,7 +7158,7 @@ internal static class PptxCodec
             ReadSourceBoundThemeRgbWithOptionalAlpha(colorScheme.Dark1Color),
             ReadSourceBoundThemeRgbWithOptionalAlpha(colorScheme.Light1Color),
             ReadSourceBoundThemeRgbWithOptionalAlpha(colorScheme.Dark2Color),
-            ReadSourceBoundThemeRgb(colorScheme.Light2Color),
+            ReadSourceBoundThemeRgbWithOptionalAlpha(colorScheme.Light2Color),
             ReadSourceBoundThemeRgb(colorScheme.Hyperlink),
             ReadSourceBoundThemeRgb(colorScheme.FollowedHyperlinkColor),
         };
@@ -7509,21 +7509,36 @@ internal static class PptxCodec
             var colorScheme = theme.ThemeElements?.ColorScheme;
             var sourceLight2 = colorScheme is null
                 ? null
-                : ReadSourceBoundThemeRgb(colorScheme.Light2Color);
+                : ReadSourceBoundThemeRgbWithOptionalAlpha(colorScheme.Light2Color);
             if (sourceLight2 is null)
                 throw new CodecException(
                     "unsupported_presentation_edit",
-                    "Source-preserving PPTX export can edit only a direct RGB light2 color.",
+                    "Source-preserving PPTX export can edit only a direct RGB/RGBA light2 color.",
                     PartPath(themePart));
-            var requested = PptxColor.Normalize(authoredTheme.Light2Rgb);
-            if (!sourceLight2.Equals(requested, StringComparison.OrdinalIgnoreCase))
+            var sourceRgb = PptxColor.NormalizeThemeRgb(sourceLight2, out var sourceAlpha);
+            var requestedRgb = PptxColor.NormalizeThemeRgb(authoredTheme.Light2Rgb, out var requestedAlpha);
+            if (sourceAlpha.HasValue != requestedAlpha.HasValue)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export requires light2 alpha presence to remain unchanged.",
+                    "$.design.theme.colorRoles.light2");
+            if (!sourceRgb.Equals(requestedRgb, StringComparison.OrdinalIgnoreCase) || sourceAlpha != requestedAlpha)
             {
                 var color = colorScheme?.Light2Color?.GetFirstChild<A.RgbColorModelHex>() ??
                     throw new CodecException(
                         "unsupported_presentation_edit",
                         "Source-preserving PPTX export cannot create a missing direct light2 color.",
                         PartPath(themePart));
-                color.Val = requested;
+                color.Val = requestedRgb;
+                if (requestedAlpha is not null)
+                {
+                    var alpha = color.GetFirstChild<A.Alpha>() ??
+                        throw new CodecException(
+                            "unsupported_presentation_edit",
+                            "Source-preserving PPTX export can edit only an existing direct light2 alpha child.",
+                            PartPath(themePart));
+                    alpha.Val = checked((int)requestedAlpha.Value);
+                }
                 changed = true;
             }
         }
