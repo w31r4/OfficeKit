@@ -891,8 +891,8 @@
       "feature": "source-bound presentation theme accent4 color",
       "ppjPath": "design.theme.accentColors.accent4",
       "behavior": "partial",
-      "sourceBound": "A canonical imported presentation with one shared ThemePart and six existing direct RGB accent colors exposes a setThemeAccent4Color capability for accentColors.accent4. Source-preserving export changes only a:accent4Color/a:srgbClr/@val and a fresh projection returns the edited value. One accent slot is edited per compile; accent1, accent2, accent3, accent5, and accent6 have independent field capabilities, while color roles, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned for this owner.",
-      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent colors, deletion, combined theme-field edits, edits to unowned accent slots, and capability tampering fail closed. Alpha, theme transforms, host color management, and PowerPoint rendering are not claimed.",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and six existing direct accent colors exposes a setThemeAccent4Color capability for accentColors.accent4. Accent4 may be a direct RGB leaf or a direct RGB leaf with one canonical a:alpha child; source-preserving export changes only its existing srgbClr/@val and alpha/@val, and a fresh projection returns the edited RGB/RGBA value. One accent slot is edited per compile; accent1, accent2, accent3, accent5, and accent6 have independent field capabilities, while color roles, transforms, font scheme, inheritance, and the rest of the theme graph stay source-owned for this owner.",
+      "reason": "Missing or ambiguous ThemePart ownership, missing or transformed accent colors, non-canonical or changing alpha presence, deletion, combined theme-field edits, edits to unowned accent slots, and capability tampering fail closed. Other accent alpha owners, theme transforms, host color management, and PowerPoint rendering are not claimed.",
       "visualStatus": "partial-or-opaque"
     },
     {
