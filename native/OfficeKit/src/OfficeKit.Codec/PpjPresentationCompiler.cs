@@ -755,7 +755,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
             {
                 if (!afterAccentColors.TryGetProperty("accent5", out var afterAccent5) ||
                     afterAccent5.ValueKind != JsonValueKind.String)
-                    throw Unsupported(path + ".accentColors.accent5", "source-bound accent5 color must be a six-digit RGB value");
+                    throw Unsupported(path + ".accentColors.accent5", "source-bound accent5 color must be a six- or eight-digit RGB/RGBA value");
                 if (requested.Design.ThemeNativeRef is null)
                     throw Unsupported(path + ".accentColors.accent5", "the source did not issue an accent5-color capability");
                 RequireCapabilityField(
@@ -766,7 +766,9 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
                 if (artifact.Presentation.AuthoredTheme.AccentRgb.Count != 6)
                     throw Unsupported(path + ".accentColors", "source-bound accent colors require six imported slots");
-                artifact.Presentation.AuthoredTheme.AccentRgb[4] = PptxColor.Normalize(afterAccent5.GetString()!);
+                var requestedAccent5 = afterAccent5.GetString()!.Trim().TrimStart('#').ToUpperInvariant();
+                _ = PptxColor.NormalizeThemeRgb(requestedAccent5, out _);
+                artifact.Presentation.AuthoredTheme.AccentRgb[4] = requestedAccent5;
                 mutations.SemanticChanges = true;
                 changed = true;
             }
