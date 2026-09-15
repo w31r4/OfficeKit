@@ -554,17 +554,30 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 afterFontScheme.ValueKind != JsonValueKind.Object)
                 throw Unsupported(path + ".fontScheme", "source-bound theme font scheme cannot be added or removed");
             RequireThemeFontSchemeOwnedSlots(beforeFontScheme, afterFontScheme, path + ".fontScheme");
+            var fontSchemeNameChanged = PropertyChanged(beforeFontScheme, afterFontScheme, "name");
             var majorChanged = PropertyChanged(beforeFontScheme, afterFontScheme, "major");
             var minorChanged = PropertyChanged(beforeFontScheme, afterFontScheme, "minor");
             var majorEastAsiaChanged = PropertyChanged(beforeFontScheme, afterFontScheme, "majorEastAsia");
             var minorEastAsiaChanged = PropertyChanged(beforeFontScheme, afterFontScheme, "minorEastAsia");
             var majorComplexScriptChanged = PropertyChanged(beforeFontScheme, afterFontScheme, "majorComplexScript");
             var minorComplexScriptChanged = PropertyChanged(beforeFontScheme, afterFontScheme, "minorComplexScript");
-            if (new[] { majorChanged, minorChanged, majorEastAsiaChanged, minorEastAsiaChanged, majorComplexScriptChanged, minorComplexScriptChanged }.Count(value => value) > 1)
+            if (new[] { fontSchemeNameChanged, majorChanged, minorChanged, majorEastAsiaChanged, minorEastAsiaChanged, majorComplexScriptChanged, minorComplexScriptChanged }.Count(value => value) > 1)
                 throw new CodecException(
                     "ppj.sourceBound.themeFontScheme",
                     "Source-bound PPJ can change only one theme font slot per compile.",
                     path + ".fontScheme");
+            if (fontSchemeNameChanged)
+            {
+                if (!afterFontScheme.TryGetProperty("name", out var fontSchemeName) ||
+                    fontSchemeName.ValueKind != JsonValueKind.String ||
+                    string.IsNullOrWhiteSpace(fontSchemeName.GetString()))
+                    throw Unsupported(path + ".fontScheme.name", "source-bound font scheme name deletion or an empty name is not supported");
+                if (requested.Design.ThemeNativeRef is null)
+                    throw Unsupported(path + ".fontScheme.name", "the source did not issue a font-scheme-name capability");
+                RequireCapabilityField(requested.Design.ThemeNativeRef, "setThemeFontSchemeName", "fontScheme.name", path + ".fontScheme.name");
+                artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
+                artifact.Presentation.AuthoredTheme.FontSchemeName = fontSchemeName.GetString();
+            }
             if (majorChanged)
             {
                 if (!afterFontScheme.TryGetProperty("major", out var major) ||
@@ -637,7 +650,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
                 artifact.Presentation.AuthoredTheme ??= new PresentationThemeArtifact();
                 artifact.Presentation.AuthoredTheme.MinorFontFamilyComplexScript = minorComplexScript.GetString();
             }
-            if (majorChanged || minorChanged || majorEastAsiaChanged || minorEastAsiaChanged || majorComplexScriptChanged || minorComplexScriptChanged)
+            if (fontSchemeNameChanged || majorChanged || minorChanged || majorEastAsiaChanged || minorEastAsiaChanged || majorComplexScriptChanged || minorComplexScriptChanged)
             {
                 mutations.SemanticChanges = true;
                 changed = true;
@@ -11541,7 +11554,7 @@ internal static partial class PpjSourceBoundPresentationCompiler
             .Distinct(StringComparer.Ordinal);
         foreach (var name in names)
         {
-            if (name is "major" or "minor" or "majorEastAsia" or "minorEastAsia" or "majorComplexScript" or "minorComplexScript") continue;
+            if (name is "name" or "major" or "minor" or "majorEastAsia" or "minorEastAsia" or "majorComplexScript" or "minorComplexScript") continue;
             var oldPresent = before.TryGetProperty(name, out var oldValue);
             var newPresent = after.TryGetProperty(name, out var newValue);
             if (oldPresent != newPresent || oldPresent && !JsonEqual(oldValue, newValue))

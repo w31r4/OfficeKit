@@ -33,6 +33,7 @@ internal static class PpjSemanticValidator
             ["setGeometry"] = Set("geometry.adjustments", "geometry.paths", "geometry.textRectangle", "geometry.guides", "geometry.connectionSites", "geometry.adjustmentHandles"),
             ["setCanvas"] = Set("canvas.width", "canvas.height"),
             ["setThemeFontScheme"] = Set("fontScheme.major"),
+            ["setThemeFontSchemeName"] = Set("fontScheme.name"),
             ["setThemeMinorFont"] = Set("fontScheme.minor"),
             ["setThemeMajorFontEastAsia"] = Set("fontScheme.majorEastAsia"),
             ["setThemeMinorFontEastAsia"] = Set("fontScheme.minorEastAsia"),
@@ -582,6 +583,7 @@ internal static class PpjSemanticValidator
             theme.ValueKind == JsonValueKind.Object &&
             theme.TryGetProperty("fontScheme", out _) &&
             !HasCapability(theme, "setThemeFontScheme", "fontScheme.major") &&
+            !HasCapability(theme, "setThemeFontSchemeName", "fontScheme.name") &&
             !HasCapability(theme, "setThemeMinorFont", "fontScheme.minor") &&
             !HasCapability(theme, "setThemeMajorFontEastAsia", "fontScheme.majorEastAsia") &&
             !HasCapability(theme, "setThemeMinorFontEastAsia", "fontScheme.minorEastAsia") &&

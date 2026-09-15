@@ -367,6 +367,8 @@ internal static class PptxCodec
         var importedColorRoleRgb = TryReadSourceBoundThemeColorRoleRgb(importedTheme);
         var importedThemeName = importedTheme?.Name?.Value;
         if (string.IsNullOrWhiteSpace(importedThemeName)) importedThemeName = null;
+        var importedFontSchemeName = importedTheme?.ThemeElements?.FontScheme?.Name?.Value;
+        if (string.IsNullOrWhiteSpace(importedFontSchemeName)) importedFontSchemeName = null;
         var importedMajorFontFamily = importedTheme?.ThemeElements?.FontScheme?.MajorFont?.LatinFont?.Typeface?.Value;
         if (string.IsNullOrWhiteSpace(importedMajorFontFamily)) importedMajorFontFamily = null;
         var importedMinorFontFamily = importedTheme?.ThemeElements?.FontScheme?.MinorFont?.LatinFont?.Typeface?.Value;
@@ -967,6 +969,7 @@ internal static class PptxCodec
             importedThemeArtifact.FollowedHyperlinkRgb = importedColorRoleRgb[5];
         }
         if (importedThemeName is not null) importedThemeArtifact.Name = importedThemeName;
+        if (importedFontSchemeName is not null) importedThemeArtifact.FontSchemeName = importedFontSchemeName;
         if (importedMajorFontFamily is not null) importedThemeArtifact.MajorFontFamily = importedMajorFontFamily;
         if (importedMinorFontFamily is not null) importedThemeArtifact.MinorFontFamily = importedMinorFontFamily;
         if (importedMajorFontFamilyEastAsia is not null) importedThemeArtifact.MajorFontFamilyEastAsia = importedMajorFontFamilyEastAsia;
@@ -994,7 +997,8 @@ internal static class PptxCodec
                 !importedThemeArtifact.HasMajorFontFamilyEastAsia &&
                 !importedThemeArtifact.HasMinorFontFamilyEastAsia &&
                 !importedThemeArtifact.HasMajorFontFamilyComplexScript &&
-                !importedThemeArtifact.HasMinorFontFamilyComplexScript
+                !importedThemeArtifact.HasMinorFontFamilyComplexScript &&
+                !importedThemeArtifact.HasFontSchemeName
                 ? null
                 : importedThemeArtifact,
         };
@@ -4001,6 +4005,7 @@ internal static class PptxCodec
         var minorFontEastAsia = authored?.HasMinorFontFamilyEastAsia == true ? authored.MinorFontFamilyEastAsia : minorFont;
         var minorFontComplexScript = authored?.HasMinorFontFamilyComplexScript == true ? authored.MinorFontFamilyComplexScript : minorFont;
         var themeName = authored?.HasName == true ? authored.Name : "Office Clean Room";
+        var fontSchemeName = authored?.HasFontSchemeName == true ? authored.FontSchemeName : themeName;
         (string Rgb, uint? Opacity)? dark1 = authored?.HasDark1Rgb == true ? ThemeRgb(authored.Dark1Rgb) : null;
         (string Rgb, uint? Opacity)? light1 = authored?.HasLight1Rgb == true ? ThemeRgb(authored.Light1Rgb) : null;
         var dark2 = authored?.HasDark2Rgb == true ? ThemeRgb(authored.Dark2Rgb) : ThemeRgb("1F497D");
@@ -4028,7 +4033,7 @@ internal static class PptxCodec
                 new A.FollowedHyperlinkColor(ThemeRgb(followedHyperlink))) { Name = "Office" },
             new A.FontScheme(
                 new A.MajorFont(new A.LatinFont { Typeface = majorFont }, new A.EastAsianFont { Typeface = majorFontEastAsia }, new A.ComplexScriptFont { Typeface = majorFontComplexScript }),
-                new A.MinorFont(new A.LatinFont { Typeface = minorFont }, new A.EastAsianFont { Typeface = minorFontEastAsia }, new A.ComplexScriptFont { Typeface = minorFontComplexScript })) { Name = themeName },
+                new A.MinorFont(new A.LatinFont { Typeface = minorFont }, new A.EastAsianFont { Typeface = minorFontEastAsia }, new A.ComplexScriptFont { Typeface = minorFontComplexScript })) { Name = fontSchemeName },
             new A.FormatScheme(
                 new A.FillStyleList(
                     new A.SolidFill(new A.SchemeColor { Val = A.SchemeColorValues.PhColor }),
@@ -7209,7 +7214,7 @@ internal static class PptxCodec
              !authoredTheme.HasName && !authoredTheme.HasMajorFontFamily && !authoredTheme.HasMinorFontFamily &&
              !authoredTheme.HasMajorFontFamilyEastAsia &&
              !authoredTheme.HasMinorFontFamilyEastAsia && !authoredTheme.HasMajorFontFamilyComplexScript &&
-             !authoredTheme.HasMinorFontFamilyComplexScript)) return;
+             !authoredTheme.HasMinorFontFamilyComplexScript && !authoredTheme.HasFontSchemeName)) return;
         var themePart = CanonicalThemePart(masterGraph) ??
             throw new CodecException(
                 "unsupported_presentation_edit",
@@ -7237,6 +7242,31 @@ internal static class PptxCodec
             if (!sourceName.Equals(authoredTheme.Name, StringComparison.Ordinal))
             {
                 theme.Name = authoredTheme.Name;
+                changed = true;
+            }
+        }
+        if (authoredTheme.HasFontSchemeName)
+        {
+            var fontScheme = theme.ThemeElements?.FontScheme;
+            var sourceFontSchemeName = fontScheme?.Name?.Value;
+            if (string.IsNullOrWhiteSpace(sourceFontSchemeName))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export can edit only an existing font scheme name.",
+                    PartPath(themePart));
+            if (string.IsNullOrWhiteSpace(authoredTheme.FontSchemeName))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    "Source-preserving PPTX export cannot remove the font scheme name in this bounded profile.",
+                    "$.design.theme.fontScheme.name");
+            if (!sourceFontSchemeName.Equals(authoredTheme.FontSchemeName, StringComparison.Ordinal))
+            {
+                if (fontScheme is null)
+                    throw new CodecException(
+                        "unsupported_presentation_edit",
+                        "Source-preserving PPTX export cannot create a missing font scheme.",
+                        PartPath(themePart));
+                fontScheme.Name = authoredTheme.FontSchemeName;
                 changed = true;
             }
         }

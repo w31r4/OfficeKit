@@ -3181,6 +3181,11 @@ internal static partial class PpjPresentationProjector
                 ["major"] = StringNode(presentation.AuthoredTheme.MajorFontFamily),
                 ["minor"] = StringNode(presentation.AuthoredTheme.MinorFontFamily),
             };
+            if (presentation.AuthoredTheme.HasFontSchemeName)
+            {
+                fontScheme["name"] = StringNode(presentation.AuthoredTheme.FontSchemeName);
+                themeCapabilities.Add(new("setThemeFontSchemeName", ["fontScheme.name"]));
+            }
             if (presentation.AuthoredTheme.HasMajorFontFamilyEastAsia)
                 fontScheme["majorEastAsia"] = StringNode(presentation.AuthoredTheme.MajorFontFamilyEastAsia);
             if (presentation.AuthoredTheme.HasMajorFontFamilyComplexScript)

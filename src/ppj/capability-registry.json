@@ -1633,6 +1633,13 @@
       "reason": "Missing or ambiguous ThemePart ownership, a missing major or minor Latin typeface, deletion, and capability tampering fail closed. Host font availability and rendering are not claimed."
     },
     {
+      "feature": "source-bound presentation theme font scheme name",
+      "ppjPath": "design.theme.fontScheme.name",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an existing non-empty a:fontScheme/@name exposes a setThemeFontSchemeName capability for fontScheme.name. Source-preserving export changes only a:fontScheme/@name and a fresh projection returns the edited value. The six font typefaces, theme name, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, a missing or empty font scheme name, deletion, combined font-slot edits, and capability tampering fail closed. Font fallback, effect schemes, host font availability, and PowerPoint rendering are not claimed."
+    },
+    {
       "feature": "source-bound presentation theme name",
       "ppjPath": "design.theme.name",
       "behavior": "partial",

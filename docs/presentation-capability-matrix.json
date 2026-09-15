@@ -14,7 +14,7 @@
     "schemaDefinitions": 201,
     "ppjRootPaths": 11,
     "ppjStateApiPaths": 66,
-    "authoredCompilerBoundaries": 198,
+    "authoredCompilerBoundaries": 199,
     "nativeLeafKinds": 316,
     "helpApis": 151,
     "hostOnlyApis": 13
@@ -1773,6 +1773,14 @@
       "behavior": "partial",
       "sourceBound": "A canonical imported presentation with one shared ThemePart and existing major/minor Latin typefaces exposes the theme's setThemeFontScheme capability for fontScheme.major. Source-preserving export changes only a:majorFont/a:latin/@typeface and a fresh projection returns the edited value. One Latin slot is edited per compile; minor has its own field owner, while East Asian, complex-script, inheritance, and the rest of the theme graph stay source-owned.",
       "reason": "Missing or ambiguous ThemePart ownership, a missing major or minor Latin typeface, deletion, and capability tampering fail closed. Host font availability and rendering are not claimed.",
+      "visualStatus": "partial-or-opaque"
+    },
+    {
+      "feature": "source-bound presentation theme font scheme name",
+      "ppjPath": "design.theme.fontScheme.name",
+      "behavior": "partial",
+      "sourceBound": "A canonical imported presentation with one shared ThemePart and an existing non-empty a:fontScheme/@name exposes a setThemeFontSchemeName capability for fontScheme.name. Source-preserving export changes only a:fontScheme/@name and a fresh projection returns the edited value. The six font typefaces, theme name, inheritance, and the rest of the theme graph stay source-owned.",
+      "reason": "Missing or ambiguous ThemePart ownership, a missing or empty font scheme name, deletion, combined font-slot edits, and capability tampering fail closed. Font fallback, effect schemes, host font availability, and PowerPoint rendering are not claimed.",
       "visualStatus": "partial-or-opaque"
     },
     {

@@ -1770,6 +1770,9 @@ message PresentationThemeArtifact {
   // omitted, the minor Latin family remains the bounded fallback for the
   // complex-script slot.
   optional string minor_font_family_complex_script = 15;
+  // Optional authored a:fontScheme/@name metadata. Source-bound imports
+  // expose this only when the existing attribute is present.
+  optional string font_scheme_name = 16;
   // Authored RGB values for the remaining bounded clrScheme roles. Omitted
   // roles retain the canonical Office clean-room defaults.
   optional string dark1_rgb = 5;

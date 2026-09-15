@@ -4611,6 +4611,8 @@ internal static partial class PpjAuthoredPresentationCompiler
             }
             if (theme.TryGetProperty("fontScheme", out var fontScheme))
             {
+                if (fontScheme.TryGetProperty("name", out var fontSchemeName))
+                    output.FontSchemeName = fontSchemeName.GetString()!;
                 output.MajorFontFamily = fontScheme.GetProperty("major").GetString()!;
                 output.MinorFontFamily = fontScheme.GetProperty("minor").GetString()!;
                 if (fontScheme.TryGetProperty("majorEastAsia", out var majorEastAsia))
